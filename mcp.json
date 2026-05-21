@@ -1,0 +1,24 @@
+{
+  "name": "LuxeStay ERP Supabase MCP",
+  "version": "1.0.0",
+  "description": "MCP configuration for LuxeStay ERP Supabase integration",
+  "supabase": {
+    "project_id": "rhajtijfptfnezeetcvx",
+    "realtime": {
+      "enabled": true,
+      "all_tables": true
+    },
+    "storage": {
+      "enabled": true,
+      "buckets": ["avatars", "property-images", "lost-found-images"]
+    },
+    "auth": {
+      "enabled": true,
+      "methods": ["email", "google"]
+    }
+  },
+  "runtime": {
+    "environment": "browser",
+    "framework": "react"
+  }
+}

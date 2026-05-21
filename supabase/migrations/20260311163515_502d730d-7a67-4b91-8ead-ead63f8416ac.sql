@@ -1,0 +1,1 @@
+ALTER TABLE public.pos_orders ADD COLUMN IF NOT EXISTS order_type text NOT NULL DEFAULT 'dine_in';

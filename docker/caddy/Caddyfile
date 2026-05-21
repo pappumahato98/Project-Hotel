@@ -1,0 +1,73 @@
+# LuxeStay ERP — Production TLS Configuration
+# Caddy automatically provisions Let's Encrypt certificates
+#
+# Usage:
+#   1. Replace {$DOMAIN} with your actual domain
+#   2. Set DOMAIN env var or replace inline
+#   3. docker-compose up caddy
+
+{
+	# Global options
+	email admin@{$DOMAIN:luxestay.local}
+
+	# TLS Configuration: Enforce TLS 1.2+ (disable TLS 1.0/1.1)
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+# ─── Main Site ────────────────────────────────────────────────────────────
+
+{$DOMAIN:localhost} {
+	# ── TLS Settings ──
+	tls {
+		protocols tls1.2 tls1.3
+		ciphers TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+	}
+
+	# ── Security Headers (injected on ALL responses) ──
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+
+		# Remove server identification headers
+		-Server
+		-X-Powered-By
+	}
+
+	# ── API Gateway (Supabase via Kong) ──
+	handle /rest/* {
+		reverse_proxy kong:8000
+	}
+	handle /auth/* {
+		reverse_proxy kong:8000
+	}
+	handle /storage/* {
+		reverse_proxy kong:8000
+	}
+	handle /realtime/* {
+		reverse_proxy kong:8000
+	}
+	handle /functions/* {
+		reverse_proxy kong:8000
+	}
+
+	# ── Frontend (React SPA) ──
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	# ── Logging ──
+	log {
+		output stdout
+		format json
+		level INFO
+	}
+}
