@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-table'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Search, MoreHorizontal, Eye, LogIn, XCircle, UserX, CalendarRange,
 } from 'lucide-react'
@@ -28,7 +28,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { useQuery as useTanQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ export function ReservationsView() {
   })
 
   // Fetch reservations
-  const { data, isLoading } = useTanQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['reservations', statusFilter, searchQuery, dateFrom, dateTo],
     queryFn: async () => {
       const params = new URLSearchParams()

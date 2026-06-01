@@ -65,7 +65,7 @@ export function WorkOrdersView() {
     return (
       wo.title.toLowerCase().includes(q) ||
       wo.description.toLowerCase().includes(q) ||
-      wo.assignedTo?.toLowerCase().includes(q) ?? false
+      (wo.assignedTo?.toLowerCase().includes(q) ?? false)
     )
   })
 

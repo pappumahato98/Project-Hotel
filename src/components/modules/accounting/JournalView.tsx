@@ -59,7 +59,7 @@ export function JournalView() {
     const q = searchQuery.toLowerCase()
     return (
       entry.description.toLowerCase().includes(q) ||
-      entry.reference?.toLowerCase().includes(q) ?? false
+      (entry.reference?.toLowerCase().includes(q) ?? false)
     )
   })
 
