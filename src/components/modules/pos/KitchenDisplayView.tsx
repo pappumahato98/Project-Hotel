@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import React, { useState, useCallback, useMemo } from 'react'
 import {
@@ -291,6 +292,7 @@ export default function KitchenDisplayView() {
         },
       }
     })
+    toast.success(`Ticket ${ticketId} marked as ${action.replace('_', ' ')}`)
   }, [])
 
   const handleRecall = useCallback((ticketId: string) => {
@@ -306,6 +308,7 @@ export default function KitchenDisplayView() {
         },
       }
     })
+    toast.info(`Ticket ${ticketId} recalled for re-preparation`)
   }, [])
 
   const activeTickets = tickets.filter((t) => t.status !== 'served')

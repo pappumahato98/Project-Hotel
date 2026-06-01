@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 
 export async function GET(request: Request) {
@@ -10,13 +11,8 @@ export async function GET(request: Request) {
 
     const where: Prisma.EmployeeWhereInput = {}
 
-    if (department) {
-      where.department = department
-    }
-
-    if (status) {
-      where.status = status
-    }
+    if (department) where.department = department
+    if (status) where.status = status
 
     const employees = await db.employee.findMany({
       where,
@@ -43,5 +39,37 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Employees API error:', error)
     return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const property = await db.property.findFirst()
+    if (!property) {
+      return NextResponse.json({ error: 'No property found' }, { status: 400 })
+    }
+
+    const employee = await db.employee.create({
+      data: {
+        firstName: body.firstName,
+        lastName: body.lastName,
+        email: body.email || null,
+        phone: body.phone || null,
+        department: body.department || '',
+        position: body.position || '',
+        role: body.role || 'staff',
+        propertyId: body.propertyId || property.id,
+        hireDate: body.hireDate ? new Date(body.hireDate) : null,
+        salary: body.salary || null,
+        status: body.status || 'active',
+      },
+    })
+
+    broadcastEvent('employee:created', employee)
+    return NextResponse.json(employee, { status: 201 })
+  } catch (error) {
+    console.error('Employees POST error:', error)
+    return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 })
   }
 }

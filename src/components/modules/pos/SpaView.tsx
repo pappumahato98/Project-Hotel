@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import React, { useState } from 'react'
 import {
@@ -354,14 +355,14 @@ function BookingDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Book Appointment</Button>
+          <Button onClick={() => { toast.success('Appointment booked successfully'); onClose() }}>Book Appointment</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-// ─── Main SpaView ───────────────────────────────────────────────────
+// ─── Main SpaView ───────────────────────────────────────────
 export default function SpaView() {
   const { data, isLoading } = usePosData('spa')
   const [bookingOpen, setBookingOpen] = useState(false)

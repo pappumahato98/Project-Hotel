@@ -1,38 +1,32 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/broadcast'
+import type { Prisma } from '@prisma/client'
 
-const payrollData = [
-  { employeeId: 'emp-001', name: 'Raj Sharma', department: 'Front Desk', position: 'Receptionist', baseSalary: 25000, variablePay: 3000, overtime: 1500, deductions: 2750, netPay: 26750 },
-  { employeeId: 'emp-002', name: 'Sita Thapa', department: 'Front Desk', position: 'Shift Supervisor', baseSalary: 35000, variablePay: 5000, overtime: 0, deductions: 4000, netPay: 36000 },
-  { employeeId: 'emp-003', name: 'Hari Adhikari', department: 'Housekeeping', position: 'HK Supervisor', baseSalary: 30000, variablePay: 2000, overtime: 800, deductions: 3280, netPay: 29520 },
-  { employeeId: 'emp-004', name: 'Maya Gurung', department: 'Housekeeping', position: 'Room Attendant', baseSalary: 18000, variablePay: 1000, overtime: 1200, deductions: 2020, netPay: 18180 },
-  { employeeId: 'emp-005', name: 'Bikash Lama', department: 'Food & Beverage', position: 'F&B Manager', baseSalary: 55000, variablePay: 8000, overtime: 0, deductions: 6300, netPay: 56700 },
-  { employeeId: 'emp-006', name: 'Anita Rai', department: 'Food & Beverage', position: 'Waitress', baseSalary: 16000, variablePay: 2500, overtime: 500, deductions: 1900, netPay: 17100 },
-  { employeeId: 'emp-007', name: 'Dipak KC', department: 'Kitchen', position: 'Head Chef', baseSalary: 65000, variablePay: 10000, overtime: 0, deductions: 7500, netPay: 67500 },
-  { employeeId: 'emp-008', name: 'Pramila Devi', department: 'Kitchen', position: 'Sous Chef', baseSalary: 45000, variablePay: 6000, overtime: 0, deductions: 5100, netPay: 45900 },
-  { employeeId: 'emp-010', name: 'Krishti Poudel', department: 'Engineering', position: 'Maintenance Tech', baseSalary: 22000, variablePay: 1500, overtime: 2000, deductions: 2550, netPay: 22950 },
-  { employeeId: 'emp-011', name: 'Ramesh Budhathoki', department: 'Security', position: 'Security Guard', baseSalary: 18000, variablePay: 1000, overtime: 1500, deductions: 2050, netPay: 18450 },
-  { employeeId: 'emp-012', name: 'Nirmala Shrestha', department: 'Accounts', position: 'Accountant', baseSalary: 40000, variablePay: 4000, overtime: 0, deductions: 4400, netPay: 39600 },
-  { employeeId: 'emp-013', name: 'Gopal Basnet', department: 'Accounts', position: 'Finance Manager', baseSalary: 60000, variablePay: 7000, overtime: 0, deductions: 6700, netPay: 60300 },
-  { employeeId: 'emp-014', name: 'Srijana Tamang', department: 'Sales & Marketing', position: 'Sales Executive', baseSalary: 35000, variablePay: 12000, overtime: 0, deductions: 4700, netPay: 42300 },
-  { employeeId: 'emp-015', name: 'Arun Neupane', department: 'HR', position: 'HR Manager', baseSalary: 50000, variablePay: 5000, overtime: 0, deductions: 5500, netPay: 49500 },
-  { employeeId: 'emp-017', name: 'Prakash Oli', department: 'IT', position: 'IT Manager', baseSalary: 55000, variablePay: 6000, overtime: 0, deductions: 6100, netPay: 54900 },
-  { employeeId: 'emp-019', name: 'Tika Ram', department: 'Banquet', position: 'Banquet Manager', baseSalary: 40000, variablePay: 8000, overtime: 500, deductions: 4850, netPay: 43650 },
-  { employeeId: 'emp-020', name: 'Laxmi Pokharel', department: 'Laundry', position: 'Laundry Staff', baseSalary: 15000, variablePay: 800, overtime: 600, deductions: 1640, netPay: 14760 },
-]
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const month = new Date().toLocaleString('default', { month: 'long', year: 'numeric' })
+    const { searchParams } = new URL(request.url)
+    const department = searchParams.get('department')
+    const month = searchParams.get('month')
+    const status = searchParams.get('status')
 
-    const totalBaseSalary = payrollData.reduce((s, e) => s + e.baseSalary, 0)
-    const totalVariablePay = payrollData.reduce((s, e) => s + e.variablePay, 0)
-    const totalOvertime = payrollData.reduce((s, e) => s + e.overtime, 0)
-    const totalDeductions = payrollData.reduce((s, e) => s + e.deductions, 0)
-    const totalNetPay = payrollData.reduce((s, e) => s + e.netPay, 0)
+    const where: Prisma.PayrollWhereInput = {}
 
-    const departments = [...new Set(payrollData.map((e) => e.department))]
+    if (department) where.department = department
+    if (month) where.month = month
+    if (status) where.status = status
+
+    const records = await db.payroll.findMany({ where, orderBy: { employeeName: 'asc' } })
+
+    const totalBaseSalary = records.reduce((s, e) => s + e.baseSalary, 0)
+    const totalVariablePay = records.reduce((s, e) => s + e.variablePay, 0)
+    const totalOvertime = records.reduce((s, e) => s + e.overtime, 0)
+    const totalDeductions = records.reduce((s, e) => s + e.deductions, 0)
+    const totalNetPay = records.reduce((s, e) => s + e.netPay, 0)
+
+    const departments = [...new Set(records.map((e) => e.department))]
     const departmentTotals = departments.map((dept) => {
-      const deptEmployees = payrollData.filter((e) => e.department === dept)
+      const deptEmployees = records.filter((e) => e.department === dept)
       return {
         department: dept,
         employeeCount: deptEmployees.length,
@@ -43,14 +37,74 @@ export async function GET() {
       }
     })
 
+    const monthLabel = new Date().toLocaleString('default', { month: 'long', year: 'numeric' })
+
     return NextResponse.json({
-      month,
-      employees: payrollData,
+      month: monthLabel,
+      employees: records,
       departmentTotals,
-      summary: { totalBaseSalary, totalVariablePay, totalOvertime, totalDeductions, totalNetPay, employeeCount: payrollData.length },
+      summary: { totalBaseSalary, totalVariablePay, totalOvertime, totalDeductions, totalNetPay, employeeCount: records.length },
     })
   } catch (error) {
     console.error('Payroll API error:', error)
     return NextResponse.json({ error: 'Failed to fetch payroll' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const record = await db.payroll.create({
+      data: {
+        employeeId: body.employeeId || '',
+        employeeName: body.employeeName || '',
+        department: body.department || '',
+        position: body.position || '',
+        month: body.month || new Date().toISOString().slice(0, 7),
+        baseSalary: body.baseSalary || 0,
+        variablePay: body.variablePay || 0,
+        overtime: body.overtime || 0,
+        deductions: body.deductions || 0,
+        netPay: body.netPay || 0,
+        status: body.status || 'pending',
+      },
+    })
+
+    broadcastEvent('payroll:created', record)
+    return NextResponse.json(record, { status: 201 })
+  } catch (error) {
+    console.error('Payroll POST error:', error)
+    return NextResponse.json({ error: 'Failed to create payroll record' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+    const { id, ...data } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+    }
+
+    const record = await db.payroll.update({
+      where: { id },
+      data: {
+        baseSalary: data.baseSalary ?? undefined,
+        variablePay: data.variablePay ?? undefined,
+        overtime: data.overtime ?? undefined,
+        deductions: data.deductions ?? undefined,
+        netPay: data.netPay ?? undefined,
+        status: data.status ?? undefined,
+        processedBy: data.processedBy ?? undefined,
+        processedAt: data.processedAt ? new Date(data.processedAt) : undefined,
+      },
+    })
+
+    broadcastEvent('payroll:updated', record)
+    return NextResponse.json(record)
+  } catch (error) {
+    console.error('Payroll PATCH error:', error)
+    return NextResponse.json({ error: 'Failed to update payroll record' }, { status: 500 })
   }
 }

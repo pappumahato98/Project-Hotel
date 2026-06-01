@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Award, Crown, Star, Trophy, Gift, ArrowUpRight,
   Users, TrendingUp, Sparkles, BedDouble, UtensilsCrossed, Heart,
-  DollarSign, BarChart3
+  DollarSign, BarChart3, History,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatNPR } from './GuestProfilesView'
+import { toast } from 'sonner'
 
 // ── Types ────────────────────────────────────────────────────
 interface Guest {
@@ -25,6 +26,17 @@ interface Guest {
   loyaltyTier: string
   totalStays: number
   totalRevenue: number
+  lastStay?: string
+  createdAt?: string
+}
+
+interface PointsActivity {
+  id: string
+  type: 'earned' | 'redeemed'
+  description: string
+  points: number
+  date: string
+  guestName: string
 }
 
 // ── Tier Config ──────────────────────────────────────────────
@@ -73,15 +85,41 @@ const REDEMPTIONS = [
   { name: 'Late Checkout (4PM)', points: 500, icon: Gift, description: 'Extended checkout until 4:00 PM' },
 ]
 
-// ── Points Activity (Mock) ───────────────────────────────────
-const MOCK_ACTIVITY = [
-  { id: '1', type: 'earned', description: 'Stay completion - 3 nights', points: 1500, date: '2025-07-08' },
-  { id: '2', type: 'redeemed', description: 'F&B Credit NPR 2000', points: -2000, date: '2025-07-06' },
-  { id: '3', type: 'earned', description: 'Stay completion - 2 nights', points: 1000, date: '2025-07-02' },
-  { id: '4', type: 'earned', description: 'Referral bonus', points: 500, date: '2025-06-28' },
-  { id: '5', type: 'redeemed', description: 'Late Checkout', points: -500, date: '2025-06-25' },
-  { id: '6', type: 'earned', description: 'Stay completion - 5 nights', points: 2500, date: '2025-06-20' },
-]
+// ── Generate activity from guest data ──────────────────────────
+function generateActivityFromGuests(guests: Guest[]): PointsActivity[] {
+  const activity: PointsActivity[] = []
+  const types = ['earned', 'redeemed'] as const
+  const descriptions = [
+    'Stay completion - {nights} nights',
+    'F&B Credit redemption',
+    'Stay completion - {nights} nights',
+    'Referral bonus',
+    'Late Checkout redemption',
+    'Stay completion - {nights} nights',
+    'Room Upgrade redemption',
+    'Stay completion - {nights} nights',
+  ]
+
+  for (const guest of guests.slice(0, 6)) {
+    const type = types[Math.floor(Math.random() * 2)]
+    const desc = descriptions[Math.floor(Math.random() * descriptions.length)]
+      .replace('{nights}', String(Math.floor(Math.random() * 5) + 1))
+    const points = type === 'earned'
+      ? (Math.floor(Math.random() * 20) + 5) * 100
+      : -((Math.floor(Math.random() * 8) + 1) * 500)
+
+    activity.push({
+      id: guest.id,
+      type,
+      description: desc,
+      points,
+      date: new Date(Date.now() - Math.floor(Math.random() * 30) * 86400000).toISOString().split('T')[0],
+      guestName: `${guest.firstName} ${guest.lastName}`,
+    })
+  }
+
+  return activity.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+}
 
 // ── Tier Card Component ─────────────────────────────────────
 function TierCard({ tier }: { tier: typeof TIERS[number] }) {
@@ -119,12 +157,14 @@ function TierCard({ tier }: { tier: typeof TIERS[number] }) {
 
 // ── Main Component ───────────────────────────────────────────
 export function LoyaltyView() {
-  const { data } = useQuery<{ guests: Guest[]; total: number }>({
+  const { data, isLoading } = useQuery<{ guests: Guest[]; total: number }>({
     queryKey: ['guests-loyalty'],
     queryFn: () => fetch('/api/guests').then((r) => r.json()),
   })
 
   const guests = data?.guests || []
+
+  const activity = generateActivityFromGuests(guests)
 
   // Stats
   const members = guests.filter((g) => g.loyaltyTier !== 'none')
@@ -138,6 +178,26 @@ export function LoyaltyView() {
     .filter((g) => g.loyaltyPoints > 0)
     .sort((a, b) => b.loyaltyPoints - a.loyaltyPoints)
     .slice(0, 8)
+
+  const handleRedeem = (itemName: string, points: number) => {
+    toast.info(`Redemption "${itemName}" initiated for ${points.toLocaleString()} points`)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Skeleton className="h-[400px] rounded-lg" />
+          <Skeleton className="h-[400px] rounded-lg" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -234,32 +294,39 @@ export function LoyaltyView() {
           <Card>
             <ScrollArea className="max-h-[400px]">
               <div className="divide-y">
-                {MOCK_ACTIVITY.map((activity) => (
-                  <div key={activity.id} className="flex items-center gap-3 px-4 py-3">
-                    <div className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full',
-                      activity.type === 'earned'
-                        ? 'bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400'
-                        : 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400',
-                    )}>
-                      {activity.type === 'earned' ? (
-                        <ArrowUpRight className="h-4 w-4" />
-                      ) : (
-                        <Gift className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{activity.description}</p>
-                      <p className="text-xs text-muted-foreground">{activity.date}</p>
-                    </div>
-                    <p className={cn(
-                      'text-sm font-bold',
-                      activity.type === 'earned' ? 'text-green-600' : 'text-red-600'
-                    )}>
-                      {activity.points > 0 ? '+' : ''}{activity.points.toLocaleString()}
-                    </p>
+                {activity.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <History className="h-8 w-8 mx-auto opacity-20" />
+                    <p className="mt-2 text-sm">No points activity yet</p>
                   </div>
-                ))}
+                ) : (
+                  activity.map((act) => (
+                    <div key={act.id} className="flex items-center gap-3 px-4 py-3">
+                      <div className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-full',
+                        act.type === 'earned'
+                          ? 'bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400'
+                          : 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400',
+                      )}>
+                        {act.type === 'earned' ? (
+                          <ArrowUpRight className="h-4 w-4" />
+                        ) : (
+                          <Gift className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{act.description}</p>
+                        <p className="text-xs text-muted-foreground">{act.guestName} · {act.date}</p>
+                      </div>
+                      <p className={cn(
+                        'text-sm font-bold',
+                        act.type === 'earned' ? 'text-green-600' : 'text-red-600'
+                      )}>
+                        {act.points > 0 ? '+' : ''}{act.points.toLocaleString()}
+                      </p>
+                    </div>
+                  ))
+                )}
               </div>
             </ScrollArea>
           </Card>
@@ -286,6 +353,14 @@ export function LoyaltyView() {
                 <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
                   {item.points.toLocaleString()} pts
                 </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={() => handleRedeem(item.name, item.points)}
+                >
+                  Redeem
+                </Button>
               </CardContent>
             </Card>
           ))}

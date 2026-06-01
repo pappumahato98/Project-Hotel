@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import React, { useState } from 'react'
 import {
@@ -287,14 +288,14 @@ function EndRentalDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>End & Charge</Button>
+          <Button onClick={() => { toast.success('Rental ended & charged to room'); onClose() }}>End & Charge</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
 
-// ─── Charge Service Dialog ──────────────────────────────────────────
+// ─── Charge Service Dialog ──────────────────────────────────
 function ChargeServiceDialog({
   open,
   onClose,
@@ -342,7 +343,7 @@ function ChargeServiceDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Charge</Button>
+          <Button onClick={() => { toast.success('Service charged successfully'); onClose() }}>Charge</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

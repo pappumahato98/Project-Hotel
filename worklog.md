@@ -171,3 +171,31 @@ Stage Summary:
 - Actions moved from table column to expanded row detail panel (6 action buttons)
 - All mutations use @tanstack/react-query with cache invalidation and sonner toast feedback
 - Clean lint pass, no new compilation errors
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Complete Backend Rewrite — Add Prisma Models, Rewrite Mock APIs to Real DB, Add CRUD, Seed All Data
+
+Work Log:
+- Read worklog and all existing API routes, Prisma schema, and seed file to understand current state
+- Added 6 new Prisma models to prisma/schema.prisma: Attendance, Payroll, Vendor, Requisition, Asset, Channel
+- Ran bun run db:push to sync new models to SQLite database
+- Created broadcast helper at src/lib/broadcast.ts for realtime event broadcasting via WebSocket
+- Rewrote 7 mock API routes to use Prisma DB with full CRUD (attendance, payroll, vendors, requisitions, assets, channels, revenue)
+- Rewrote channel-bookings to query from Reservation table filtering by source
+- Rewrote banquet-orders to use Event model with JSON notes storage
+- Rewrote POS route to use DB for outlets, menu items, and orders
+- Added CRUD to 5 GET-only API routes with [id] sub-routes for PATCH/DELETE
+- Added broadcastEvent() calls to every POST/PATCH/DELETE handler
+- Rewrote prisma/seed.ts as fully idempotent with all empty tables seeded
+- Final lint check: zero errors
+
+Stage Summary:
+- 6 new Prisma models added (Attendance, Payroll, Vendor, Requisition, Asset, Channel)
+- 7 mock API routes rewritten to real DB
+- 5 GET-only routes upgraded with full CRUD
+- 5 new [id] sub-route files created
+- Realtime broadcast helper integrated into all mutations
+- Comprehensive idempotent seed with 100+ records
+- Zero lint errors

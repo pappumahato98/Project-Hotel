@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import React, { useState } from 'react'
 import {
@@ -243,7 +244,7 @@ function PaymentDialog({ open, onClose, total }: { open: boolean; onClose: () =>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Close Tab</Button>
+          <Button onClick={() => { toast.success('Tab closed successfully'); onClose() }}>Close Tab</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

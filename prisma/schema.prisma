@@ -504,3 +504,109 @@ model JournalEntryLine {
   entry         JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account       LedgerAccount @relation(fields: [accountId], references: [id])
 }
+
+// ─── ATTENDANCE ───────────────────────────────────────────────
+model Attendance {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employeeName  String
+  department    String
+  position      String
+  checkIn       String?
+  checkOut      String?
+  date          DateTime @default(now())
+  status        String   @default("present") // present, absent, on_leave, half_day
+  late          Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── PAYROLL ──────────────────────────────────────────────────
+model Payroll {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employeeName    String
+  department      String
+  position        String
+  month           String   // e.g., "2025-07"
+  baseSalary      Float
+  variablePay     Float    @default(0)
+  overtime        Float    @default(0)
+  deductions      Float    @default(0)
+  netPay          Float
+  status          String   @default("pending") // pending, processed, paid
+  processedBy     String?
+  processedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── VENDORS ──────────────────────────────────────────────────
+model Vendor {
+  id            String   @id @default(cuid())
+  name          String
+  contact       String?
+  phone         String?
+  email         String?
+  category      String
+  rating        Float    @default(0)
+  status        String   @default("active") // active, inactive
+  lastOrderDate DateTime?
+  totalOrders   Int      @default(0)
+  address       String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── REQUISITIONS ─────────────────────────────────────────────
+model Requisition {
+  id            String   @id @default(cuid())
+  requestDate   DateTime @default(now())
+  department    String
+  requestor     String
+  items         String   // JSON array of items
+  status        String   @default("pending") // pending, approved, rejected, received, ordered
+  priority      String   @default("normal") // low, normal, high, urgent
+  totalItems    Int      @default(0)
+  notes         String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── ASSETS ────────────────────────────────────────────────────
+model Asset {
+  id              String   @id @default(cuid())
+  name            String
+  category        String
+  location        String
+  purchaseDate    DateTime?
+  purchaseCost    Float
+  currentValue   Float
+  status          String   @default("operational") // operational, needs_repair, decommissioned, disposed
+  warrantyExpiry  DateTime?
+  lastMaintenance DateTime?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── CHANNELS ─────────────────────────────────────────────────
+model Channel {
+  id                String   @id @default(cuid())
+  name              String
+  type              String   // OTA, Direct, Corporate, Wholesale
+  logo              String?
+  status            String   @default("connected") // connected, disconnected, active
+  lastSync          DateTime?
+  totalBookings     Int      @default(0)
+  monthlyCommission Float    @default(0)
+  mappingStatus     String   @default("complete") // complete, incomplete, n/a
+  commissionRate    Float    @default(0)
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

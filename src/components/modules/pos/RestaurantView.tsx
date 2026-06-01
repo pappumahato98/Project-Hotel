@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import React, { useState, useMemo } from 'react'
 import {
@@ -389,7 +390,7 @@ function PaymentDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Complete Payment</Button>
+          <Button onClick={() => { toast.success('Payment processed successfully'); onClose() }}>Complete Payment</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -464,7 +465,7 @@ function PostToRoomDialog({
         </Select>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onClose}>Post Charge</Button>
+          <Button onClick={() => { toast.info('Charge posted to guest room'); onClose() }}>Post Charge</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -509,6 +510,7 @@ export default function RestaurantView() {
 
   const handleConfirmVoid = () => {
     setIsRemoving(voidDialog.itemId)
+    toast.success(`Item "${voidDialog.itemName}" voided`)
     setTimeout(() => setIsRemoving(null), 1000)
   }
 

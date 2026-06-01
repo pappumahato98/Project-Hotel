@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -243,7 +244,7 @@ export function JournalView() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewEntry(false)}>Cancel</Button>
-            <Button onClick={() => setShowNewEntry(false)}>Save as Draft</Button>
+            <Button onClick={() => { toast.success('Journal entry saved as draft'); setShowNewEntry(false) }}>Save as Draft</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

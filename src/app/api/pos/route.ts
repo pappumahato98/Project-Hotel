@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/broadcast'
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface TableItem {
@@ -13,7 +15,7 @@ export interface MenuItem {
   id: string
   name: string
   price: number
-  category: 'appetizer' | 'main_course' | 'beverage' | 'dessert' | 'beer' | 'cocktail' | 'wine' | 'snack'
+  category: string
   allergens?: string[]
   available: boolean
 }
@@ -31,10 +33,10 @@ export interface Order {
   id: string
   tableId: number
   items: OrderItem[]
-  status: 'open' | 'in_progress' | 'ready' | 'served' | 'closed'
+  status: string
   createdAt: string
   rush?: boolean
-  station?: 'hot_kitchen' | 'cold_kitchen' | 'bar'
+  station?: string
   guestName?: string
   specialInstructions?: string
 }
@@ -59,9 +61,9 @@ export interface BarTab {
 export interface SpaService {
   id: string
   name: string
-  duration: number // minutes
+  duration: number
   price: number
-  category: 'massage' | 'facial' | 'body_treatment' | 'wellness'
+  category: string
 }
 
 export interface Therapist {
@@ -80,16 +82,16 @@ export interface SpaAppointment {
   guestName: string
   startTime: string
   endTime: string
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  status: string
   room: string
 }
 
 export interface BizService {
   id: string
   name: string
-  category: 'workstation' | 'meeting_room' | 'printing' | 'calls' | 'courier'
+  category: string
   pricePerUnit: number
-  unit: 'hour' | 'session' | 'page' | 'minute' | 'delivery'
+  unit: string
   description: string
 }
 
@@ -98,7 +100,7 @@ export interface MeetingRoom {
   name: string
   capacity: number
   hourlyRate: number
-  status: 'available' | 'occupied' | 'maintenance'
+  status: string
 }
 
 export interface ActiveRental {
@@ -117,8 +119,8 @@ export interface KitchenTicket {
   orderId: string
   tableId: number
   items: { name: string; quantity: number }[]
-  station: 'hot_kitchen' | 'cold_kitchen' | 'bar'
-  status: 'pending' | 'preparing' | 'ready' | 'served'
+  station: string
+  status: string
   rush: boolean
   specialInstructions?: string
   createdAt: string
@@ -133,7 +135,7 @@ export interface PosStats {
   completedOrders: number
 }
 
-// ─── Mock Data ──────────────────────────────────────────────────────
+// ─── Static mock data for non-DB sections (bar stools, tables, spa, biz center, kitchen) ────────────
 const TABLES: TableItem[] = [
   { id: 1, seats: 2, status: 'available' },
   { id: 2, seats: 4, status: 'occupied', guestCount: 3, orderId: 'ORD-001' },
@@ -152,101 +154,6 @@ const TABLES: TableItem[] = [
   { id: 15, seats: 4, status: 'reserved' },
 ]
 
-const MENU_ITEMS: MenuItem[] = [
-  { id: 'm1', name: 'Momo Platter', price: 580, category: 'appetizer', allergens: ['gluten'], available: true },
-  { id: 'm2', name: 'Samosa (3 pcs)', price: 280, category: 'appetizer', allergens: ['gluten'], available: true },
-  { id: 'm3', name: 'Spring Rolls', price: 320, category: 'appetizer', allergens: ['gluten'], available: true },
-  { id: 'm4', name: 'Tomato Soup', price: 250, category: 'appetizer', available: true },
-  { id: 'm5', name: 'Chicken Curry', price: 850, category: 'main_course', allergens: ['dairy'], available: true },
-  { id: 'm6', name: 'Mutton Biryani', price: 950, category: 'main_course', allergens: ['nuts'], available: true },
-  { id: 'm7', name: 'Grilled Trout', price: 1200, category: 'main_course', allergens: ['fish'], available: true },
-  { id: 'm8', name: 'Dal Tarka', price: 450, category: 'main_course', available: true },
-  { id: 'm9', name: 'Paneer Tikka Masala', price: 650, category: 'main_course', allergens: ['dairy'], available: true },
-  { id: 'm10', name: 'Vegetable Fried Rice', price: 400, category: 'main_course', available: true },
-  { id: 'm11', name: 'Garlic Naan', price: 150, category: 'main_course', allergens: ['gluten'], available: true },
-  { id: 'm12', name: 'Tandoori Chicken', price: 1100, category: 'main_course', available: true },
-  { id: 'm13', name: 'Masala Chai', price: 180, category: 'beverage', available: true },
-  { id: 'm14', name: 'Fresh Lime Soda', price: 220, category: 'beverage', available: true },
-  { id: 'm15', name: 'Mango Lassi', price: 280, category: 'beverage', allergens: ['dairy'], available: true },
-  { id: 'm16', name: 'Nepali Coffee', price: 250, category: 'beverage', available: true },
-  { id: 'm17', name: 'Gulab Jamun', price: 350, category: 'dessert', allergens: ['gluten', 'dairy'], available: true },
-  { id: 'm18', name: 'Rice Pudding', price: 300, category: 'dessert', allergens: ['dairy'], available: true },
-  { id: 'm19', name: 'Barfi Assortment', price: 400, category: 'dessert', allergens: ['dairy', 'nuts'], available: true },
-  // Bar items
-  { id: 'b1', name: 'Tuborg Lager', price: 450, category: 'beer', available: true },
-  { id: 'b2', name: 'Gorkha Beer', price: 500, category: 'beer', available: true },
-  { id: 'b3', name: 'Everest Strong', price: 380, category: 'beer', available: true },
-  { id: 'b4', name: 'Mojito', price: 650, category: 'cocktail', available: true },
-  { id: 'b5', name: 'Margarita', price: 700, category: 'cocktail', available: true },
-  { id: 'b6', name: 'Old Fashioned', price: 750, category: 'cocktail', available: true },
-  { id: 'b7', name: 'Gin & Tonic', price: 600, category: 'cocktail', available: true },
-  { id: 'b8', name: 'Nepali Wine (Glass)', price: 550, category: 'wine', available: true },
-  { id: 'b9', name: 'Chardonnay (Glass)', price: 650, category: 'wine', available: true },
-  { id: 'b10', name: 'Cabernet Sauvignon (Glass)', price: 700, category: 'wine', available: true },
-  { id: 'b11', name: 'Mixed Nuts', price: 350, category: 'snack', allergens: ['nuts'], available: true },
-  { id: 'b12', name: 'Olives & Cheese Board', price: 550, category: 'snack', allergens: ['dairy'], available: true },
-]
-
-const ORDERS: Order[] = [
-  {
-    id: 'ORD-001',
-    tableId: 2,
-    items: [
-      { id: 'oi1', menuItemId: 'm1', name: 'Momo Platter', price: 580, quantity: 1 },
-      { id: 'oi2', menuItemId: 'm5', name: 'Chicken Curry', price: 850, quantity: 2 },
-      { id: 'oi3', menuItemId: 'm13', name: 'Masala Chai', price: 180, quantity: 3 },
-      { id: 'oi4', menuItemId: 'm11', name: 'Garlic Naan', price: 150, quantity: 3 },
-    ],
-    status: 'in_progress',
-    createdAt: new Date(Date.now() - 22 * 60000).toISOString(),
-    station: 'hot_kitchen',
-    guestName: 'Sharma Party',
-  },
-  {
-    id: 'ORD-002',
-    tableId: 6,
-    items: [
-      { id: 'oi5', menuItemId: 'm6', name: 'Mutton Biryani', price: 950, quantity: 2 },
-      { id: 'oi6', menuItemId: 'm7', name: 'Grilled Trout', price: 1200, quantity: 1 },
-      { id: 'oi7', menuItemId: 'm15', name: 'Mango Lassi', price: 280, quantity: 4 },
-      { id: 'oi8', menuItemId: 'm3', name: 'Spring Rolls', price: 320, quantity: 1 },
-    ],
-    status: 'open',
-    createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-    station: 'hot_kitchen',
-    rush: true,
-    guestName: 'Gupta Family',
-    specialInstructions: 'No onions in biryani',
-  },
-  {
-    id: 'ORD-003',
-    tableId: 8,
-    items: [
-      { id: 'oi9', menuItemId: 'm4', name: 'Tomato Soup', price: 250, quantity: 2 },
-      { id: 'oi10', menuItemId: 'm9', name: 'Paneer Tikka Masala', price: 650, quantity: 1 },
-      { id: 'oi11', menuItemId: 'm16', name: 'Nepali Coffee', price: 250, quantity: 2 },
-    ],
-    status: 'ready',
-    createdAt: new Date(Date.now() - 35 * 60000).toISOString(),
-    station: 'cold_kitchen',
-    guestName: 'Table 8',
-  },
-  {
-    id: 'ORD-004',
-    tableId: 12,
-    items: [
-      { id: 'oi12', menuItemId: 'm12', name: 'Tandoori Chicken', price: 1100, quantity: 1 },
-      { id: 'oi13', menuItemId: 'm8', name: 'Dal Tarka', price: 450, quantity: 2 },
-      { id: 'oi14', menuItemId: 'm10', name: 'Vegetable Fried Rice', price: 400, quantity: 2 },
-      { id: 'oi15', menuItemId: 'm14', name: 'Fresh Lime Soda', price: 220, quantity: 4 },
-    ],
-    status: 'in_progress',
-    createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
-    station: 'hot_kitchen',
-    guestName: 'Thapa Group',
-  },
-]
-
 const BAR_STOOLS: BarStool[] = [
   { id: 1, status: 'occupied', tabId: 'TAB-001', guestName: 'Mr. Anderson' },
   { id: 2, status: 'occupied', tabId: 'TAB-002', guestName: 'Ms. Sherpa' },
@@ -261,54 +168,10 @@ const BAR_STOOLS: BarStool[] = [
 ]
 
 const BAR_TABS: BarTab[] = [
-  {
-    id: 'TAB-001',
-    stoolId: 1,
-    guestName: 'Mr. Anderson',
-    items: [
-      { id: 'bi1', menuItemId: 'b4', name: 'Mojito', price: 650, quantity: 2 },
-      { id: 'bi2', menuItemId: 'b11', name: 'Mixed Nuts', price: 350, quantity: 1 },
-    ],
-    total: 1650,
-    openedAt: new Date(Date.now() - 45 * 60000).toISOString(),
-    status: 'open',
-  },
-  {
-    id: 'TAB-002',
-    stoolId: 2,
-    guestName: 'Ms. Sherpa',
-    items: [
-      { id: 'bi3', menuItemId: 'b8', name: 'Nepali Wine (Glass)', price: 550, quantity: 3 },
-      { id: 'bi4', menuItemId: 'b12', name: 'Olives & Cheese Board', price: 550, quantity: 1 },
-    ],
-    total: 2200,
-    openedAt: new Date(Date.now() - 60 * 60000).toISOString(),
-    status: 'open',
-  },
-  {
-    id: 'TAB-003',
-    stoolId: 6,
-    guestName: 'Dr. Patel',
-    items: [
-      { id: 'bi5', menuItemId: 'b6', name: 'Old Fashioned', price: 750, quantity: 1 },
-      { id: 'bi6', menuItemId: 'b2', name: 'Gorkha Beer', price: 500, quantity: 2 },
-    ],
-    total: 1750,
-    openedAt: new Date(Date.now() - 25 * 60000).toISOString(),
-    status: 'open',
-  },
-  {
-    id: 'TAB-004',
-    stoolId: 8,
-    guestName: 'Col. Rai',
-    items: [
-      { id: 'bi7', menuItemId: 'b1', name: 'Tuborg Lager', price: 450, quantity: 4 },
-      { id: 'bi8', menuItemId: 'b7', name: 'Gin & Tonic', price: 600, quantity: 2 },
-    ],
-    total: 3000,
-    openedAt: new Date(Date.now() - 15 * 60000).toISOString(),
-    status: 'open',
-  },
+  { id: 'TAB-001', stoolId: 1, guestName: 'Mr. Anderson', items: [{ id: 'bi1', menuItemId: 'b4', name: 'Mojito', price: 650, quantity: 2 }, { id: 'bi2', menuItemId: 'b11', name: 'Mixed Nuts', price: 350, quantity: 1 }], total: 1650, openedAt: new Date(Date.now() - 45 * 60000).toISOString(), status: 'open' },
+  { id: 'TAB-002', stoolId: 2, guestName: 'Ms. Sherpa', items: [{ id: 'bi3', menuItemId: 'b8', name: 'Nepali Wine (Glass)', price: 550, quantity: 3 }, { id: 'bi4', menuItemId: 'b12', name: 'Olives & Cheese Board', price: 550, quantity: 1 }], total: 2200, openedAt: new Date(Date.now() - 60 * 60000).toISOString(), status: 'open' },
+  { id: 'TAB-003', stoolId: 6, guestName: 'Dr. Patel', items: [{ id: 'bi5', menuItemId: 'b6', name: 'Old Fashioned', price: 750, quantity: 1 }, { id: 'bi6', menuItemId: 'b2', name: 'Gorkha Beer', price: 500, quantity: 2 }], total: 1750, openedAt: new Date(Date.now() - 25 * 60000).toISOString(), status: 'open' },
+  { id: 'TAB-004', stoolId: 8, guestName: 'Col. Rai', items: [{ id: 'bi7', menuItemId: 'b1', name: 'Tuborg Lager', price: 450, quantity: 4 }, { id: 'bi8', menuItemId: 'b7', name: 'Gin & Tonic', price: 600, quantity: 2 }], total: 3000, openedAt: new Date(Date.now() - 15 * 60000).toISOString(), status: 'open' },
 ]
 
 const SPA_SERVICES: SpaService[] = [
@@ -333,42 +196,12 @@ const THERAPISTS: Therapist[] = [
 ]
 
 const SPA_APPOINTMENTS: SpaAppointment[] = [
-  {
-    id: 'APT-001', serviceId: 's1', serviceName: 'Swedish Massage',
-    therapistId: 't2', therapistName: 'Priya Sharma',
-    guestName: 'Mrs. Johnson', startTime: '2025-07-10T09:00:00',
-    endTime: '2025-07-10T10:00:00', status: 'in_progress', room: 'Spa Room 1',
-  },
-  {
-    id: 'APT-002', serviceId: 's2', serviceName: 'Deep Tissue Massage',
-    therapistId: 't5', therapistName: 'Bikash Thapa',
-    guestName: 'Mr. Williams', startTime: '2025-07-10T09:30:00',
-    endTime: '2025-07-10T10:30:00', status: 'in_progress', room: 'Spa Room 2',
-  },
-  {
-    id: 'APT-003', serviceId: 's5', serviceName: 'Herbal Facial',
-    therapistId: 't1', therapistName: 'Anita Gurung',
-    guestName: 'Ms. Gurung', startTime: '2025-07-10T10:30:00',
-    endTime: '2025-07-10T11:15:00', status: 'scheduled', room: 'Spa Room 3',
-  },
-  {
-    id: 'APT-004', serviceId: 's9', serviceName: 'Yoga Session',
-    therapistId: 't3', therapistName: 'Dawa Tenzin',
-    guestName: 'Mr. Baker', startTime: '2025-07-10T11:00:00',
-    endTime: '2025-07-10T12:00:00', status: 'scheduled', room: 'Wellness Studio',
-  },
-  {
-    id: 'APT-005', serviceId: 's3', serviceName: 'Hot Stone Therapy',
-    therapistId: 't1', therapistName: 'Anita Gurung',
-    guestName: 'Mrs. Chen', startTime: '2025-07-10T14:00:00',
-    endTime: '2025-07-10T15:30:00', status: 'scheduled', room: 'Spa Room 1',
-  },
-  {
-    id: 'APT-006', serviceId: 's6', serviceName: 'Gold Facial',
-    therapistId: 't4', therapistName: 'Sunita Rai',
-    guestName: 'Ms. Tamang', startTime: '2025-07-10T15:00:00',
-    endTime: '2025-07-10T16:00:00', status: 'scheduled', room: 'Spa Room 3',
-  },
+  { id: 'APT-001', serviceId: 's1', serviceName: 'Swedish Massage', therapistId: 't2', therapistName: 'Priya Sharma', guestName: 'Mrs. Johnson', startTime: '2025-07-10T09:00:00', endTime: '2025-07-10T10:00:00', status: 'in_progress', room: 'Spa Room 1' },
+  { id: 'APT-002', serviceId: 's2', serviceName: 'Deep Tissue Massage', therapistId: 't5', therapistName: 'Bikash Thapa', guestName: 'Mr. Williams', startTime: '2025-07-10T09:30:00', endTime: '2025-07-10T10:30:00', status: 'in_progress', room: 'Spa Room 2' },
+  { id: 'APT-003', serviceId: 's5', serviceName: 'Herbal Facial', therapistId: 't1', therapistName: 'Anita Gurung', guestName: 'Ms. Gurung', startTime: '2025-07-10T10:30:00', endTime: '2025-07-10T11:15:00', status: 'scheduled', room: 'Spa Room 3' },
+  { id: 'APT-004', serviceId: 's9', serviceName: 'Yoga Session', therapistId: 't3', therapistName: 'Dawa Tenzin', guestName: 'Mr. Baker', startTime: '2025-07-10T11:00:00', endTime: '2025-07-10T12:00:00', status: 'scheduled', room: 'Wellness Studio' },
+  { id: 'APT-005', serviceId: 's3', serviceName: 'Hot Stone Therapy', therapistId: 't1', therapistName: 'Anita Gurung', guestName: 'Mrs. Chen', startTime: '2025-07-10T14:00:00', endTime: '2025-07-10T15:30:00', status: 'scheduled', room: 'Spa Room 1' },
+  { id: 'APT-006', serviceId: 's6', serviceName: 'Gold Facial', therapistId: 't4', therapistName: 'Sunita Rai', guestName: 'Ms. Tamang', startTime: '2025-07-10T15:00:00', endTime: '2025-07-10T16:00:00', status: 'scheduled', room: 'Spa Room 3' },
 ]
 
 const BIZ_SERVICES: BizService[] = [
@@ -393,125 +226,19 @@ const MEETING_ROOMS: MeetingRoom[] = [
 ]
 
 const ACTIVE_RENTALS: ActiveRental[] = [
-  {
-    id: 'RNT-001', serviceId: 'ws2', serviceName: 'Workstation (Premium)',
-    guestName: 'Mr. Nakamura', roomNumber: '502',
-    startedAt: new Date(Date.now() - 90 * 60000).toISOString(),
-    estimatedEnd: new Date(Date.now() + 30 * 60000).toISOString(),
-    charges: 600,
-  },
-  {
-    id: 'RNT-002', serviceId: 'mr2', serviceName: 'Meeting Room B',
-    guestName: 'ABC Corp', roomNumber: '—',
-    startedAt: new Date(Date.now() - 120 * 60000).toISOString(),
-    estimatedEnd: new Date(Date.now() + 60 * 60000).toISOString(),
-    charges: 15000,
-  },
-  {
-    id: 'RNT-003', serviceId: 'ws1', serviceName: 'Workstation (Basic)',
-    guestName: 'Ms. Limbu', roomNumber: '312',
-    startedAt: new Date(Date.now() - 30 * 60000).toISOString(),
-    estimatedEnd: new Date(Date.now() + 60 * 60000).toISOString(),
-    charges: 100,
-  },
+  { id: 'RNT-001', serviceId: 'ws2', serviceName: 'Workstation (Premium)', guestName: 'Mr. Nakamura', roomNumber: '502', startedAt: new Date(Date.now() - 90 * 60000).toISOString(), estimatedEnd: new Date(Date.now() + 30 * 60000).toISOString(), charges: 600 },
+  { id: 'RNT-002', serviceId: 'mr2', serviceName: 'Meeting Room B', guestName: 'ABC Corp', roomNumber: '—', startedAt: new Date(Date.now() - 120 * 60000).toISOString(), estimatedEnd: new Date(Date.now() + 60 * 60000).toISOString(), charges: 15000 },
+  { id: 'RNT-003', serviceId: 'ws1', serviceName: 'Workstation (Basic)', guestName: 'Ms. Limbu', roomNumber: '312', startedAt: new Date(Date.now() - 30 * 60000).toISOString(), estimatedEnd: new Date(Date.now() + 60 * 60000).toISOString(), charges: 100 },
 ]
 
 const KITCHEN_TICKETS: KitchenTicket[] = [
-  {
-    id: 'KT-001', orderId: 'ORD-002', tableId: 6,
-    items: [
-      { name: 'Mutton Biryani', quantity: 2 },
-      { name: 'Grilled Trout', quantity: 1 },
-      { name: 'Spring Rolls', quantity: 1 },
-    ],
-    station: 'hot_kitchen', status: 'pending', rush: true,
-    specialInstructions: 'No onions in biryani',
-    createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-002', orderId: 'ORD-001', tableId: 2,
-    items: [
-      { name: 'Chicken Curry', quantity: 2 },
-      { name: 'Momo Platter', quantity: 1 },
-      { name: 'Garlic Naan', quantity: 3 },
-    ],
-    station: 'hot_kitchen', status: 'preparing',
-    createdAt: new Date(Date.now() - 22 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-003', orderId: 'ORD-004', tableId: 12,
-    items: [
-      { name: 'Tandoori Chicken', quantity: 1 },
-      { name: 'Dal Tarka', quantity: 2 },
-      { name: 'Vegetable Fried Rice', quantity: 2 },
-    ],
-    station: 'hot_kitchen', status: 'preparing',
-    createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-004', orderId: 'ORD-003', tableId: 8,
-    items: [
-      { name: 'Tomato Soup', quantity: 2 },
-      { name: 'Paneer Tikka Masala', quantity: 1 },
-    ],
-    station: 'cold_kitchen', status: 'ready',
-    createdAt: new Date(Date.now() - 35 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-005', orderId: 'ORD-001', tableId: 2,
-    items: [
-      { name: 'Masala Chai', quantity: 3 },
-    ],
-    station: 'bar', status: 'ready',
-    createdAt: new Date(Date.now() - 22 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-006', orderId: 'ORD-004', tableId: 12,
-    items: [
-      { name: 'Fresh Lime Soda', quantity: 4 },
-    ],
-    station: 'bar', status: 'pending',
-    createdAt: new Date(Date.now() - 12 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-007', orderId: 'ORD-002', tableId: 6,
-    items: [
-      { name: 'Mango Lassi', quantity: 4 },
-    ],
-    station: 'bar', status: 'preparing',
-    createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-008', orderId: 'ORD-005', tableId: 4,
-    items: [
-      { name: 'Grilled Trout', quantity: 1 },
-      { name: 'Dal Tarka', quantity: 1 },
-    ],
-    station: 'hot_kitchen', status: 'served',
-    createdAt: new Date(Date.now() - 60 * 60000).toISOString(),
-    completedAt: new Date(Date.now() - 15 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-009', orderId: 'ORD-006', tableId: 10,
-    items: [
-      { name: 'Mutton Biryani', quantity: 1 },
-      { name: 'Garlic Naan', quantity: 2 },
-      { name: 'Nepali Coffee', quantity: 2 },
-    ],
-    station: 'hot_kitchen', status: 'served',
-    createdAt: new Date(Date.now() - 90 * 60000).toISOString(),
-    completedAt: new Date(Date.now() - 30 * 60000).toISOString(),
-  },
-  {
-    id: 'KT-010', orderId: 'ORD-007', tableId: 7,
-    items: [
-      { name: 'Tomato Soup', quantity: 1 },
-      { name: 'Spring Rolls', quantity: 2 },
-    ],
-    station: 'cold_kitchen', status: 'served',
-    createdAt: new Date(Date.now() - 70 * 60000).toISOString(),
-    completedAt: new Date(Date.now() - 20 * 60000).toISOString(),
-  },
+  { id: 'KT-001', orderId: 'ORD-002', tableId: 6, items: [{ name: 'Mutton Biryani', quantity: 2 }, { name: 'Grilled Trout', quantity: 1 }, { name: 'Spring Rolls', quantity: 1 }], station: 'hot_kitchen', status: 'pending', rush: true, specialInstructions: 'No onions in biryani', createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
+  { id: 'KT-002', orderId: 'ORD-001', tableId: 2, items: [{ name: 'Chicken Curry', quantity: 2 }, { name: 'Momo Platter', quantity: 1 }, { name: 'Garlic Naan', quantity: 3 }], station: 'hot_kitchen', status: 'preparing', createdAt: new Date(Date.now() - 22 * 60000).toISOString() },
+  { id: 'KT-003', orderId: 'ORD-004', tableId: 12, items: [{ name: 'Tandoori Chicken', quantity: 1 }, { name: 'Dal Tarka', quantity: 2 }, { name: 'Vegetable Fried Rice', quantity: 2 }], station: 'hot_kitchen', status: 'preparing', createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
+  { id: 'KT-004', orderId: 'ORD-003', tableId: 8, items: [{ name: 'Tomato Soup', quantity: 2 }, { name: 'Paneer Tikka Masala', quantity: 1 }], station: 'cold_kitchen', status: 'ready', createdAt: new Date(Date.now() - 35 * 60000).toISOString() },
+  { id: 'KT-005', orderId: 'ORD-001', tableId: 2, items: [{ name: 'Masala Chai', quantity: 3 }], station: 'bar', status: 'ready', createdAt: new Date(Date.now() - 22 * 60000).toISOString() },
+  { id: 'KT-006', orderId: 'ORD-004', tableId: 12, items: [{ name: 'Fresh Lime Soda', quantity: 4 }], station: 'bar', status: 'pending', createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
+  { id: 'KT-007', orderId: 'ORD-002', tableId: 6, items: [{ name: 'Mango Lassi', quantity: 4 }], station: 'bar', status: 'preparing', createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
 ]
 
 const GUEST_RESERVATIONS = [
@@ -522,35 +249,84 @@ const GUEST_RESERVATIONS = [
   { id: 'RES-005', guestName: 'Ahmed Hassan', roomNumber: '610' },
 ]
 
-const POS_STATS: PosStats = {
-  openTables: 4,
-  totalCovers: 15,
-  revenueToday: 48750,
-  openOrders: 4,
-  completedOrders: 12,
-}
-
 // ─── GET Handler ─────────────────────────────────────────────────────
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const section = searchParams.get('section') ?? 'all'
 
-  // Simulate network latency
-  await new Promise((resolve) => setTimeout(resolve, 300))
-
   const data: Record<string, unknown> = {}
 
   if (section === 'all' || section === 'restaurant') {
+    // Fetch from DB: outlets, menu items, orders
+    const outlets = await db.outlet.findMany({ where: { active: true }, include: { menuItems: true }, orderBy: { name: 'asc' } })
+    const restaurantOutlets = outlets.filter((o) => o.type === 'restaurant')
+    const menuItems = restaurantOutlets.flatMap((o) => o.menuItems.map((m) => ({
+      id: m.id,
+      name: m.name,
+      price: m.price,
+      category: m.category,
+      available: m.available,
+      allergens: m.allergens ? JSON.parse(m.allergens) : undefined,
+    })))
+
+    // Fetch active orders for restaurant outlets
+    const restaurantOutletIds = restaurantOutlets.map((o) => o.id)
+    const activeOrders = await db.posOrder.findMany({
+      where: { outletId: { in: restaurantOutletIds }, status: { not: 'closed' } },
+      include: { items: { include: { menuItem: { select: { name: true } } } }, outlet: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const orders = activeOrders.map((o) => ({
+      id: o.id,
+      tableId: o.tableNumber || 1,
+      items: o.items.map((i) => ({
+        id: i.id,
+        menuItemId: i.menuItemId,
+        name: i.menuItem?.name || 'Unknown',
+        price: i.unitPrice,
+        quantity: i.quantity,
+        notes: i.notes || undefined,
+      })),
+      status: o.status,
+      createdAt: o.createdAt.toISOString(),
+      station: 'hot_kitchen',
+      guestName: o.serverName || `Table ${o.tableNumber}`,
+    }))
+
     data.tables = TABLES
-    data.menuItems = MENU_ITEMS
-    data.orders = ORDERS.filter((o) => o.status !== 'closed')
+    data.menuItems = menuItems.length > 0 ? menuItems : outlets.flatMap((o) => o.menuItems.map((m) => ({
+      id: m.id, name: m.name, price: m.price, category: m.category, available: m.available,
+    })))
+    data.orders = orders.length > 0 ? orders : activeOrders.map((o) => ({
+      id: o.id, tableId: o.tableNumber || 1,
+      items: o.items.map((i) => ({ id: i.id, menuItemId: i.menuItemId, name: i.menuItem?.name || 'Unknown', price: i.unitPrice, quantity: i.quantity })),
+      status: o.status, createdAt: o.createdAt.toISOString(), station: 'hot_kitchen', guestName: o.serverName || 'Guest',
+    }))
     data.guestReservations = GUEST_RESERVATIONS
   }
 
   if (section === 'all' || section === 'bar') {
+    // Fetch bar menu items from DB
+    const barOutlets = await db.outlet.findMany({ where: { type: 'bar', active: true }, include: { menuItems: true } })
+    const barMenuItems = barOutlets.flatMap((o) => o.menuItems.map((m) => ({
+      id: m.id,
+      name: m.name,
+      price: m.price,
+      category: m.category,
+      available: m.available,
+      allergens: m.allergens ? JSON.parse(m.allergens) : undefined,
+    })))
+
     data.barStools = BAR_STOOLS
     data.barTabs = BAR_TABS.filter((t) => t.status === 'open')
-    data.barMenuItems = MENU_ITEMS.filter((m) => ['beer', 'cocktail', 'wine', 'snack'].includes(m.category))
+    data.barMenuItems = barMenuItems.length > 0 ? barMenuItems : [
+      { id: 'b1', name: 'Tuborg Lager', price: 450, category: 'beer', available: true },
+      { id: 'b2', name: 'Gorkha Beer', price: 500, category: 'beer', available: true },
+      { id: 'b4', name: 'Mojito', price: 650, category: 'cocktail', available: true },
+      { id: 'b5', name: 'Margarita', price: 700, category: 'cocktail', available: true },
+      { id: 'b8', name: 'Nepali Wine (Glass)', price: 550, category: 'wine', available: true },
+    ]
   }
 
   if (section === 'all' || section === 'spa') {
@@ -569,7 +345,106 @@ export async function GET(request: Request) {
     data.kitchenTickets = KITCHEN_TICKETS
   }
 
-  data.stats = POS_STATS
+  // Compute stats from DB
+  const allOrders = await db.posOrder.findMany()
+  const openOrders = allOrders.filter((o) => o.status !== 'closed' && o.status !== 'voided')
+  const completedOrders = allOrders.filter((o) => o.status === 'closed')
+  const revenueToday = allOrders
+    .filter((o) => {
+      const today = new Date()
+      const orderDate = new Date(o.createdAt)
+      return orderDate.getFullYear() === today.getFullYear() && orderDate.getMonth() === today.getMonth() && orderDate.getDate() === today.getDate()
+    })
+    .reduce((sum, o) => sum + o.totalAmount, 0)
+  const totalCovers = openOrders.reduce((sum, o) => sum + o.guestCount, 0)
+
+  data.stats = {
+    openTables: TABLES.filter((t) => t.status === 'occupied').length,
+    totalCovers,
+    revenueToday,
+    openOrders: openOrders.length,
+    completedOrders: completedOrders.length,
+  }
 
   return NextResponse.json(data)
+}
+
+// ─── POST Handler - Create Order ────────────────────────────────────
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const { action, outletId, tableNumber, items, guestCount, serverName, guestName, rush, specialInstructions } = body
+
+    if (action === 'create_order') {
+      const order = await db.posOrder.create({
+        data: {
+          outletId: outletId || '',
+          tableNumber: tableNumber || null,
+          guestCount: guestCount || 1,
+          serverName: serverName || null,
+          status: 'open',
+          totalAmount: 0,
+          taxAmount: 0,
+        },
+      })
+
+      // Create order items
+      let totalAmount = 0
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          const menuItem = await db.menuItem.findUnique({ where: { id: item.menuItemId } })
+          const qty = item.quantity || 1
+          const unitPrice = item.price || menuItem?.price || 0
+          const itemTotal = unitPrice * qty
+          totalAmount += itemTotal
+
+          await db.orderItem.create({
+            data: {
+              orderId: order.id,
+              menuItemId: item.menuItemId,
+              quantity: qty,
+              unitPrice,
+              totalPrice: itemTotal,
+              status: 'pending',
+              notes: item.notes || null,
+            },
+          })
+        }
+      }
+
+      // Update order totals
+      const updated = await db.posOrder.update({
+        where: { id: order.id },
+        data: { totalAmount, taxAmount: Math.round(totalAmount * 0.13) },
+      })
+
+      broadcastEvent('pos:order_created', updated)
+      return NextResponse.json(updated, { status: 201 })
+    }
+
+    if (action === 'update_order_status') {
+      const { orderId, status } = body
+      const updated = await db.posOrder.update({
+        where: { id: orderId },
+        data: { status },
+      })
+      broadcastEvent('pos:order_updated', updated)
+      return NextResponse.json(updated)
+    }
+
+    if (action === 'update_item_status') {
+      const { itemId, status: itemStatus } = body
+      const updated = await db.orderItem.update({
+        where: { id: itemId },
+        data: { status: itemStatus },
+      })
+      broadcastEvent('pos:item_updated', updated)
+      return NextResponse.json(updated)
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (error) {
+    console.error('POS POST error:', error)
+    return NextResponse.json({ error: 'Failed to process POS request' }, { status: 500 })
+  }
 }

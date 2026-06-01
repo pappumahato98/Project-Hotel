@@ -1,26 +1,84 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/broadcast'
+import type { Prisma } from '@prisma/client'
 
-const requisitions = [
-  { id: 'req-001', requestDate: '2025-07-12', department: 'Kitchen', requestor: 'Dipak KC', items: [{ name: 'Chicken Breast', quantity: '50 kg', unit: 'kg' }, { name: 'Basmati Rice', quantity: '100 kg', unit: 'kg' }, { name: 'Cooking Oil', quantity: '20 L', unit: 'liter' }], status: 'approved', priority: 'high', totalItems: 3 },
-  { id: 'req-002', requestDate: '2025-07-12', department: 'Housekeeping', requestor: 'Hari Adhikari', items: [{ name: 'Bed Sheets (King)', quantity: '40', unit: 'piece' }, { name: 'Pillow Cases', quantity: '80', unit: 'piece' }, { name: 'Towels (Bath)', quantity: '60', unit: 'piece' }, { name: 'Toilet Paper', quantity: '200', unit: 'pack' }], status: 'pending', priority: 'normal', totalItems: 4 },
-  { id: 'req-003', requestDate: '2025-07-11', department: 'Front Desk', requestor: 'Sita Thapa', items: [{ name: 'Welcome Kits', quantity: '100', unit: 'pack' }, { name: 'Key Cards', quantity: '50', unit: 'piece' }], status: 'approved', priority: 'low', totalItems: 2 },
-  { id: 'req-004', requestDate: '2025-07-11', department: 'F&B', requestor: 'Bikash Lama', items: [{ name: 'Red Wine (Merlot)', quantity: '24', unit: 'piece' }, { name: 'Sparkling Water', quantity: '48', unit: 'piece' }, { name: 'Fresh Orange Juice', quantity: '100', unit: 'liter' }], status: 'pending', priority: 'normal', totalItems: 3 },
-  { id: 'req-005', requestDate: '2025-07-10', department: 'Engineering', requestor: 'Krishti Poudel', items: [{ name: 'LED Bulbs (60W)', quantity: '50', unit: 'piece' }, { name: 'PVC Pipes (1 inch)', quantity: '20', unit: 'piece' }, { name: 'Electrical Tape', quantity: '10', unit: 'pack' }], status: 'approved', priority: 'high', totalItems: 3 },
-  { id: 'req-006', requestDate: '2025-07-10', department: 'Spa', requestor: 'Binita Magar', items: [{ name: 'Massage Oil (Lavender)', quantity: '10', unit: 'liter' }, { name: 'Candles (Scented)', quantity: '50', unit: 'piece' }, { name: 'Towels (Hand)', quantity: '30', unit: 'piece' }], status: 'received', priority: 'normal', totalItems: 3 },
-  { id: 'req-007', requestDate: '2025-07-09', department: 'Banquet', requestor: 'Tika Ram', items: [{ name: 'Foldable Tables (6ft)', quantity: '15', unit: 'piece' }, { name: 'Chairs (Folding)', quantity: '200', unit: 'piece' }, { name: 'Table Cloths', quantity: '20', unit: 'piece' }, { name: 'Centerpieces (Floral)', quantity: '20', unit: 'piece' }], status: 'approved', priority: 'high', totalItems: 4 },
-  { id: 'req-008', requestDate: '2025-07-08', department: 'Security', requestor: 'Ramesh Budhathoki', items: [{ name: 'Walkie Talkie Batteries', quantity: '8', unit: 'piece' }, { name: 'Flashlights', quantity: '4', unit: 'piece' }], status: 'received', priority: 'low', totalItems: 2 },
-]
-
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const total = requisitions.length
-    const pending = requisitions.filter((r) => r.status === 'pending').length
-    const approved = requisitions.filter((r) => r.status === 'approved').length
-    const received = requisitions.filter((r) => r.status === 'received').length
+    const { searchParams } = new URL(request.url)
+    const department = searchParams.get('department')
+    const status = searchParams.get('status')
+
+    const where: Prisma.RequisitionWhereInput = {}
+
+    if (department) where.department = department
+    if (status) where.status = status
+
+    const requisitions = await db.requisition.findMany({ where, orderBy: { requestDate: 'desc' } })
+    const allReqs = await db.requisition.findMany({ where: {} })
+
+    const total = allReqs.length
+    const pending = allReqs.filter((r) => r.status === 'pending').length
+    const approved = allReqs.filter((r) => r.status === 'approved').length
+    const received = allReqs.filter((r) => r.status === 'received').length
 
     return NextResponse.json({ requisitions, total, summary: { pending, approved, received } })
   } catch (error) {
     console.error('Requisitions API error:', error)
     return NextResponse.json({ error: 'Failed to fetch requisitions' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const requisition = await db.requisition.create({
+      data: {
+        department: body.department || '',
+        requestor: body.requestor || '',
+        items: typeof body.items === 'string' ? body.items : JSON.stringify(body.items || []),
+        status: body.status || 'pending',
+        priority: body.priority || 'normal',
+        totalItems: body.totalItems || 0,
+        notes: body.notes || null,
+        approvedBy: body.approvedBy || null,
+        approvedAt: body.approvedAt ? new Date(body.approvedAt) : null,
+      },
+    })
+
+    broadcastEvent('requisition:created', requisition)
+    return NextResponse.json(requisition, { status: 201 })
+  } catch (error) {
+    console.error('Requisitions POST error:', error)
+    return NextResponse.json({ error: 'Failed to create requisition' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json()
+    const { id, ...data } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+    }
+
+    const requisition = await db.requisition.update({
+      where: { id },
+      data: {
+        status: data.status ?? undefined,
+        priority: data.priority ?? undefined,
+        items: typeof data.items === 'string' ? data.items : data.items ? JSON.stringify(data.items) : undefined,
+        notes: data.notes ?? undefined,
+        approvedBy: data.approvedBy ?? undefined,
+        approvedAt: data.approvedAt ? new Date(data.approvedAt) : undefined,
+      },
+    })
+
+    broadcastEvent('requisition:updated', requisition)
+    return NextResponse.json(requisition)
+  } catch (error) {
+    console.error('Requisitions PATCH error:', error)
+    return NextResponse.json({ error: 'Failed to update requisition' }, { status: 500 })
   }
 }

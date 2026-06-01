@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,7 +55,7 @@ export function PayrollView() {
             Payroll summary for {data?.month ?? '...'}
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.info('Payroll export initiated')}>
           <Download className="h-4 w-4" />
           Export
         </Button>

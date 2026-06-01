@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 
 export async function GET(request: Request) {
@@ -9,9 +10,7 @@ export async function GET(request: Request) {
 
     const where: Prisma.InventoryItemWhereInput = {}
 
-    if (category) {
-      where.category = category
-    }
+    if (category) where.category = category
 
     const items = await db.inventoryItem.findMany({
       where,
@@ -38,5 +37,32 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('Inventory API error:', error)
     return NextResponse.json({ error: 'Failed to fetch inventory' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const item = await db.inventoryItem.create({
+      data: {
+        name: body.name,
+        category: body.category || '',
+        unit: body.unit || 'piece',
+        currentStock: body.currentStock || 0,
+        reorderPoint: body.reorderPoint || 0,
+        unitCost: body.unitCost || 0,
+        supplier: body.supplier || null,
+        location: body.location || null,
+        minStock: body.minStock || 0,
+        maxStock: body.maxStock || 0,
+        active: body.active !== false,
+      },
+    })
+
+    broadcastEvent('inventory:created', item)
+    return NextResponse.json(item, { status: 201 })
+  } catch (error) {
+    console.error('Inventory POST error:', error)
+    return NextResponse.json({ error: 'Failed to create inventory item' }, { status: 500 })
   }
 }

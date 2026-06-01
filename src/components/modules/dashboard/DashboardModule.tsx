@@ -1,6 +1,9 @@
 'use client'
 
 import * as React from 'react'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
+import { useRealtime } from '@/hooks/use-realtime'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -838,6 +841,14 @@ function DashboardError({ error }: { error: Error }) {
 
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
+  const queryClient = useQueryClient()
+  const { isConnected } = useRealtime({
+    modules: ['dashboard'],
+    onEvent: (_event, _data) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+
   const { data, isLoading, isError, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => fetch('/api/dashboard').then((res) => res.json()),
@@ -850,7 +861,20 @@ export function DashboardModule() {
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 overflow-y-auto">
       {/* 1. Welcome Banner */}
-      <WelcomeBanner data={data} />
+      <div className="flex items-center gap-2">
+        <WelcomeBanner data={data} />
+      </div>
+
+      {/* Live Indicator */}
+      {isConnected && (
+        <div className="flex items-center gap-1.5 self-start">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          </span>
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">Live</span>
+        </div>
+      )}
 
       {/* 2. KPI Cards */}
       <KpiCards data={data} />

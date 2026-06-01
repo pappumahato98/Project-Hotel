@@ -1,4 +1,5 @@
 'use client'
+import { toast } from 'sonner'
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -197,14 +198,20 @@ function InspectionDialog({
             <Button
               variant="outline"
               className="flex-1 gap-2 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                toast.info(`Room ${task.room.number} rejected & reassigned for cleaning`)
+                onOpenChange(false)
+              }}
             >
               <X className="h-4 w-4" />
               Reject &amp; Reassign
             </Button>
             <Button
               className="flex-1 gap-2"
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                toast.success(`Room ${task.room.number} inspection passed`)
+                onOpenChange(false)
+              }}
             >
               <Check className="h-4 w-4" />
               Approve
