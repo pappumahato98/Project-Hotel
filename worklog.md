@@ -1,178 +1,40 @@
-# Project Neo — Hotel Management System
-## Worklog
-
 ---
+Task ID: 1
+Agent: Main Agent
+Task: Implement header profile dropdown features, remove date/time, add Meridian Hotel branding, relocate property switcher, add auth page
 
-## FINAL SUMMARY — Project Complete
+Work Log:
+- Read all existing files: header.tsx, app-shell.tsx, store.ts, sidebar-nav.tsx, page.tsx, schema.prisma, auth routes, login page
+- Verified AuthUser model exists in schema with proper fields (email, password, role, department, position, etc.)
+- Seeded auth users database with 6 demo accounts (admin@meridian.com, gm@meridian.com, ramesh@meridian.com, sunita@meridian.com, deepa@meridian.com, kamal@meridian.com) all using password123
+- Updated Zustand store (src/lib/store.ts) with:
+  - Auth persistence using zustand/persist (localStorage key: meridian-auth)
+  - Property store with activeProperty state and property list (localStorage key: meridian-property)
+  - User preferences store (localStorage key: meridian-preferences)
+- Fixed page.tsx routing: renders LoginPage component inline when not authenticated (previously redirected to inaccessible /login route)
+- Created src/components/auth/login-page.tsx as reusable component
+- Updated src/app/login/page.tsx to re-export the shared component
+- Rewrote header.tsx with fully functional profile dropdown:
+  - Property switcher as DropdownMenuSub with state management
+  - My Profile dialog (editable name fields, shows email/role/department)
+  - My Preferences dialog (language, currency, timezone, date format, notifications, compact mode, theme)
+  - My Shift dialog (shows current shift type, time, status, staff info)
+  - Help & Support dialog (getting started, shortcuts, manual, IT contact, version info)
+  - My Department navigates to HR module
+  - Dark/Light mode toggle
+  - Sign Out with toast notification
+- Updated sidebar-nav.tsx:
+  - Uses activeProperty from store (dynamic property name)
+  - Fixed logout handler (removed broken router.push('/login'))
+  - Added toast notifications for logout
+- Added active property name display in header bar (left side)
 
-**Date**: 2025-07-14
-**Status**: ✅ ALL MODULES COMPLETE — 14 modules, 57 components, 26 API routes, 26,272 lines of code
-
-### Architecture
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **UI**: shadcn/ui + Tailwind CSS 4 + Lucide React icons
-- **State**: Zustand (navigation) + TanStack Query (server state)
-- **Database**: Prisma ORM + SQLite (22 models, comprehensive hotel schema)
-- **Theme**: Light/Dark mode via next-themes with hotel role-specific accent colors
-
-### Modules Delivered (14 total)
-| # | Module | Components | Lines |
-|---|--------|-----------|-------|
-| 1 | Dashboard | 1 | 892 |
-| 2 | Front Desk | 7 | 2,827 |
-| 3 | Room Management | 5 | 2,066 |
-| 4 | Operations | 5 | 1,988 |
-| 5 | Point of Sale | 7 | 2,291 |
-| 6 | Housekeeping | 4 | 1,242 |
-| 7 | Guest CRM | 4 | 1,216 |
-| 8 | HR & Payroll | 4 | 717 |
-| 9 | Events & Banquet | 4 | 530 |
-| 10 | Accounting | 4 | 728 |
-| 11 | Inventory | 4 | 640 |
-| 12 | Maintenance | 3 | 464 |
-| 13 | Revenue Management | 4 | 460 |
-| 14 | Channel Manager | 3 | 441 |
-
-### API Routes (26 endpoints)
-Dashboard, Reservations (GET/POST + [id] GET/PATCH/DELETE), Rooms, Folio (GET/POST + [id]), POS, Housekeeping, Operations (GET/POST), Guests, Employees, Events, Work Orders, Inventory, Accounting, Attendance, Payroll, Banquet Orders, Vendors, Requisitions, Assets, Revenue, Channels, Channel Bookings, Front Desk Search
-
-### Design System
-- Hotel role accent colors (11 CSS variables for light/dark)
-- Status badge system (20+ status mappings)
-- NPR currency formatting throughout
-- Responsive mobile-first design
-- Dark/light theme support
-- Loading skeletons on all async views
-- Custom scrollbar styling
-
-### Verification
-- ✅ ESLint: 0 errors
-- ✅ Dev server: Compiling successfully, GET / 200
-- ✅ All 14 modules accessible via sidebar navigation
-- ✅ Seed data: 44 rooms, 25 reservations, 12 guests, 15 employees, 7 night audits, 6 events, 10 inventory items, 6 work orders
-
----
-
-## Task 3-b: Sidebar Navigation & Application Shell
-
-**Date**: 2025-07-10
-**Agent**: Layout & Navigation Builder
-
-### Summary
-Built the complete application shell with sidebar navigation for Project Neo Hotel Management System. Implemented a comprehensive sidebar with 14 navigation modules, a responsive header bar, and a dashboard preview.
-
-### Files Created
-
-#### 1. `/src/lib/navigation.ts` — Navigation Configuration
-- Defined `NavItem` and `NavChild` TypeScript interfaces
-- Created `NAV_ITEMS` array with 14 navigation modules: Dashboard, Front Desk, Room Management, Operations, Point of Sale, Housekeeping, Guest CRM, HR & Payroll, Events & Banquet, Accounting, Inventory, Maintenance, Revenue Management, Channel Manager
-- Each module has a unique Lucide icon and role-specific color class
-- Sub-modules defined as children arrays with `id` and `label`
-
-#### 2. `/src/lib/store.ts` — Zustand Navigation Store
-- Created `useNavigationStore` with Zustand
-- State: `activeModule`, `activeSubModule`, `expandedItems`, `searchOpen`
-- Actions: `setActiveModule`, `setActiveSubModule`, `toggleExpanded`, `setSearchOpen`, `navigateTo`
-- `navigateTo` auto-expands parent items when navigating to sub-modules
-
-#### 3. `/src/components/shared/status-badge.tsx` — Reusable Status Badge
-- Maps status strings to Tailwind color classes (supports light & dark mode)
-- Covers: reservation statuses, room statuses, POS statuses, task statuses
-- Uses shadcn Badge with outline variant
-
-#### 4. `/src/components/layout/sidebar-nav.tsx` — AppSidebar Component
-- Uses shadcn Sidebar with `collapsible="icon"` for collapse-to-icon mode
-- Header: "The Grand Kathmandu" hotel branding with Building2 icon, gradient logo, 5-star rating
-- Navigation items from NAV_ITEMS with proper icons and role colors
-- Collapsible children using shadcn Collapsible with chevron rotate animation
-- Active state: highlighted background + left border accent color + icon color highlight
-- Footer: Settings, Log Out, theme toggle, SidebarRail
-
-#### 5. `/src/components/layout/header.tsx` — AppHeader Component
-- Sticky header with backdrop blur effect
-- Mobile sidebar trigger, property selector, search, notifications, live clock, user avatar
-
-#### 6. `/src/components/layout/app-shell.tsx` — AppShell Component
-- Wraps everything in SidebarProvider
-- Dashboard preview content with welcome banner, 4 stat cards, quick access grid
-- Module placeholder component for non-dashboard modules
-- Content router switches based on navigation store
-
-#### 7. `/src/app/page.tsx` — Updated Home Page
-- Simplified to render `<AppShell />` as the root layout
-
----
-
-## Task 4: Dashboard Module
-Built comprehensive dashboard with KPI cards, revenue charts (recharts AreaChart), room status overview, operational alerts, recent activity feed, and quick actions grid.
-
-## Task 5: Front Desk Module
-Built full CRUD reservations management, arrivals processing, in-house guest monitoring, departures handling, guest folio management with charges/payments tabs, cross-entity quick search.
-
-## Task 6: Room Management Module
-Built visual room grid board with floor-based layout, 7-status color coding, room detail drawer, room types view, restrictions calendar grid.
-
-## Task 7: Operations Module
-Built night audit with pre-audit checklist, day close management, cashier shift management with X/Z reports, shift handover report with digital acknowledgment.
-
-## Task 8: POS Module
-Built restaurant POS terminal with table grid and menu browser, bar & lounge with running tabs, spa appointment calendar, business center service catalog, kitchen display system with live timers.
-
-## Task 9: Housekeeping + CRM Modules
-Built HK kanban task board with attendant view, supervisor inspection checklist, lost & found CRUD. Built guest profiles with VIP tiers, loyalty program with tier progression, campaigns management.
-
-## Task 11: Remaining 7 Modules
-Built HR (employees, attendance, payroll), Events (events, BEO orders), Accounting (ledger, journal, financial reports with charts), Inventory (stock, vendors, requisitions), Maintenance (work orders, asset register), Revenue (demand calendar, pricing, rate intelligence), Channel Manager (channels, bookings).
-
----
-
-## Tasks 2–8: Authentication System & Header Redesign (Meridian Hotel Rebrand)
-
-**Date**: 2025-07-15
-**Status**: ✅ COMPLETE
-
-### Summary
-Implemented a complete authentication system for the Meridian Hotel Management System with login page, API routes, Zustand auth store, and comprehensive header redesign. Rebranded from "The Grand Kathmandu" to "Meridian Hotel" across all components.
-
-### Files Changed/Created
-
-#### Schema & Database
-1. **`/prisma/schema.prisma`** — Added `AuthUser` model (id, email, password, firstName, lastName, role, department, position, avatarUrl, active, lastLoginAt, timestamps). Schema pushed to DB successfully.
-2. **`/prisma/seed-auth.ts`** — Created seed script using `Bun.password.hash()`. Seeds 6 users: admin@meridian.com, gm@meridian.com, ramesh@meridian.com, sunita@meridian.com, deepa@meridian.com, kamal@meridian.com (all with password: `password123`).
-
-#### API Routes (3 new endpoints)
-3. **`/src/app/api/auth/login/route.ts`** — POST handler: validates email/password against AuthUser table using `Bun.password.verify()`, updates lastLoginAt, returns user data + UUID session token.
-4. **`/src/app/api/auth/logout/route.ts`** — POST handler: returns success (stateless logout).
-5. **`/src/app/api/auth/me/route.ts`** — GET handler: accepts userId query param, returns user data without password.
-
-#### State Management
-6. **`/src/lib/store.ts`** — Added `useAuthStore` with Zustand: user state, isAuthenticated flag, token, login/logout/updateUser actions. Kept existing `useNavigationStore` intact.
-
-#### Login Page
-7. **`/src/app/login/page.tsx`** — Full-screen standalone login page (no sidebar/header). Features: Building2 gradient logo, "Meridian Hotel" branding, 5-star display, email/password inputs, show/hide password toggle, loading spinner on submit, inline error display, demo credentials hint, dark mode support, professional gradient background.
-
-#### Header Redesign
-8. **`/src/components/layout/header.tsx`** — Complete rewrite:
-   - Removed: LiveClock, PropertySelector as separate component
-   - New header bar: `[SidebarTrigger] | [Search Button] [Search Kbd]  [Bell Badge]  [User Avatar + Name]`
-   - Redesigned UserMenu dropdown: User info + role badge, Property Switcher (Meridian Hotel with checkmark + 2 other properties), Account section (Profile, Preferences, Shift, Department), Actions (theme toggle via next-themes, Help & Support), Sign Out (red, calls logout + router.push('/login'))
-   - Uses useAuthStore for dynamic user data, useTheme for theme toggle, useRouter for logout redirect
-
-#### Sidebar Update
-9. **`/src/components/layout/sidebar-nav.tsx`** — Changed "The Grand Kathmandu" to "Meridian Hotel". Log Out button now calls useAuthStore.logout() + router.push('/login'). Settings button navigates to dashboard.
-
-#### Dashboard Update
-10. **`/src/components/modules/dashboard/DashboardModule.tsx`** — Uses useAuthStore for dynamic firstName greeting (replaces hardcoded "Raj"). Changed hotel name to "Meridian Hotel".
-
-#### Layout & Page Updates
-11. **`/src/app/layout.tsx`** — Updated all metadata to "Meridian Hotel — Property Management System". Cleaned up Providers formatting.
-12. **`/src/app/page.tsx`** — Added auth guard: redirects to /login if not authenticated, renders AppShell only when authenticated.
-
-### Verification
-- ✅ ESLint: 0 errors
-- ✅ Dev server: Compiling successfully
-- ✅ GET /login 200 — Login page renders correctly
-- ✅ GET / 200 — Auth guard redirects to /login
-- ✅ DB push: AuthUser table created
-- ✅ Auth users seeded: 6 users with bcrypt-hashed passwords
-- ✅ Default credentials: admin@meridian.com / password123
+Stage Summary:
+- Login page is now accessible at the / route (renders inline when not authenticated)
+- Auth persists across page refreshes via localStorage
+- All profile dropdown options are now functional with proper dialogs
+- Property switcher works and persists selection
+- "Meridian Hotel" branding is throughout the project
+- No date/time display in header (was already removed)
+- Zero lint errors, auth API verified working
+- Demo credentials: admin@meridian.com / password123 (and 5 other accounts)

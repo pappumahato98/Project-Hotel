@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
   Building2, ChevronRight, Settings, Sun, Moon, LogOut, Star,
@@ -9,7 +8,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useAuthStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore, usePropertyStore } from '@/lib/store'
 import { NAV_ITEMS, type NavItem } from '@/lib/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -36,6 +35,7 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar'
+import { toast } from 'sonner'
 
 // ─── Nav Group ──────────────────────────────────────────────────────
 function NavGroup({ item }: { item: NavItem }) {
@@ -155,13 +155,13 @@ function ThemeToggle() {
 
 // ─── AppSidebar ──────────────────────────────────────────────────────
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const router = useRouter()
   const { logout } = useAuthStore()
+  const { activeProperty } = usePropertyStore()
   const { setActiveModule } = useNavigationStore()
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    toast.success('Signed out successfully')
   }
 
   const handleSettings = () => {
@@ -183,7 +183,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold text-sidebar-foreground">
-                  Meridian Hotel
+                  {activeProperty.name}
                 </span>
                 <span className="truncate text-[10px] text-muted-foreground flex items-center gap-0.5">
                   <Star className="size-2.5 fill-amber-400 text-amber-400" />

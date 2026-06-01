@@ -1,24 +1,26 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
   Search, Bell, User, Building2,
-  Sun, Moon, LogOut, Settings, Clock,
-  HelpCircle, Check, Star, LayoutDashboard,
-  CalendarDays, BedDouble, UtensilsCrossed, ClipboardCheck,
-  Users, UserCog, PartyPopper, Calculator, Package, Wrench,
-  TrendingUp, Globe,
+  Sun, Moon, LogOut, Settings,
+  HelpCircle, Check, Clock,
+  Shield, Mail, Phone, MapPin, Calendar,
+  Globe, Languages, Coins, BellRing, MonitorSmartphone,
+  Palette, ChevronRight,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useAuthStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore, usePropertyStore, usePreferencesStore } from '@/lib/store'
 import { NAV_ITEMS } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +29,25 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   CommandDialog,
   CommandEmpty,
@@ -38,6 +58,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import { toast } from 'sonner'
 
 // ─── Quick Search Dialog ────────────────────────────────────────────
 function QuickSearchDialog() {
@@ -109,12 +130,473 @@ function QuickSearchDialog() {
   )
 }
 
-// ─── User Menu ──────────────────────────────────────────────────────
-function UserMenu() {
-  const router = useRouter()
-  const { user, logout } = useAuthStore()
+// ─── Profile Dialog ─────────────────────────────────────────────────
+function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { user, updateUser } = useAuthStore()
+  const [firstName, setFirstName] = React.useState(user?.firstName ?? '')
+  const [lastName, setLastName] = React.useState(user?.lastName ?? '')
+  const [phone, setPhone] = React.useState('')
+  const [saving, setSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (open) {
+      setFirstName(user?.firstName ?? '')
+      setLastName(user?.lastName ?? '')
+    }
+  }, [open, user])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      updateUser({ firstName, lastName })
+      toast.success('Profile updated successfully')
+      onOpenChange(false)
+    } catch {
+      toast.error('Failed to update profile')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const initials = user ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` : '??'
+
+  const roleColorMap: Record<string, string> = {
+    admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+    gm: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+    manager: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+    supervisor: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+    staff: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+  }
+
+  const roleBadgeColor = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>My Profile</DialogTitle>
+          <DialogDescription>View and manage your account information.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-6">
+          {/* Avatar & Role */}
+          <div className="flex items-center gap-4">
+            <Avatar className="size-16">
+              <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
+              <AvatarFallback className="bg-amber-100 text-amber-700 text-lg font-semibold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-lg font-semibold">{user?.firstName} {user?.lastName}</p>
+                <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border-0', roleBadgeColor)}>
+                  {user?.role?.toUpperCase()}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{user?.position} — {user?.department}</p>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Info Fields */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-sm">
+              <Mail className="size-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Email:</span>
+              <span className="font-medium">{user?.email}</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Shield className="size-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Role:</span>
+              <span className="font-medium capitalize">{user?.role}</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <Building2 className="size-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Department:</span>
+              <span className="font-medium">{user?.department}</span>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <MapPin className="size-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Property:</span>
+              <span className="font-medium">Meridian Hotel</span>
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Editable Fields */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-semibold">Edit Profile</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-first" className="text-xs">First Name</Label>
+                <Input
+                  id="profile-first"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="profile-last" className="text-xs">Last Name</Label>
+                <Input
+                  id="profile-last"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving || (!firstName.trim() || !lastName.trim())}>
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Preferences Dialog ────────────────────────────────────────────
+function PreferencesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { preferences, updatePreferences } = usePreferencesStore()
   const { setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => setMounted(true), [])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>My Preferences</DialogTitle>
+          <DialogDescription>Customize your workspace settings.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-5">
+          {/* Language */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                <Languages className="size-4 text-muted-foreground" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Language</Label>
+                <p className="text-xs text-muted-foreground">Interface language</p>
+              </div>
+            </div>
+            <Select
+              value={preferences.language}
+              onValueChange={(v) => updatePreferences({ language: v })}
+            >
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+                <SelectItem value="ne">नेपाली</SelectItem>
+                <SelectItem value="hi">हिन्दी</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Currency */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                <Coins className="size-4 text-muted-foreground" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Currency</Label>
+                <p className="text-xs text-muted-foreground">Display currency</p>
+              </div>
+            </div>
+            <Select
+              value={preferences.currency}
+              onValueChange={(v) => updatePreferences({ currency: v })}
+            >
+              <SelectTrigger className="w-32 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NPR">NPR (Rs.)</SelectItem>
+                <SelectItem value="USD">USD ($)</SelectItem>
+                <SelectItem value="EUR">EUR (€)</SelectItem>
+                <SelectItem value="INR">INR (₹)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Timezone */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                <Globe className="size-4 text-muted-foreground" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Timezone</Label>
+                <p className="text-xs text-muted-foreground">Business timezone</p>
+              </div>
+            </div>
+            <Select
+              value={preferences.timezone}
+              onValueChange={(v) => updatePreferences({ timezone: v })}
+            >
+              <SelectTrigger className="w-44 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Asia/Katmandu">Asia/Kathmandu (NPT)</SelectItem>
+                <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
+                <SelectItem value="UTC">UTC</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Date Format */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                <Calendar className="size-4 text-muted-foreground" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Date Format</Label>
+                <p className="text-xs text-muted-foreground">Preferred date display</p>
+              </div>
+            </div>
+            <Select
+              value={preferences.dateFormat}
+              onValueChange={(v) => updatePreferences({ dateFormat: v })}
+            >
+              <SelectTrigger className="w-36 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Notifications Toggle */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                <BellRing className="size-4 text-muted-foreground" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Notifications</Label>
+                <p className="text-xs text-muted-foreground">Desktop notifications</p>
+              </div>
+            </div>
+            <Switch
+              checked={preferences.notifications}
+              onCheckedChange={(v) => updatePreferences({ notifications: v })}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Compact Mode */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                <MonitorSmartphone className="size-4 text-muted-foreground" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Compact Mode</Label>
+                <p className="text-xs text-muted-foreground">Reduce spacing in tables</p>
+              </div>
+            </div>
+            <Switch
+              checked={preferences.compactMode}
+              onCheckedChange={(v) => updatePreferences({ compactMode: v })}
+            />
+          </div>
+
+          <Separator />
+
+          {/* Theme */}
+          {mounted && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
+                  <Palette className="size-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Appearance</Label>
+                  <p className="text-xs text-muted-foreground">Light or dark theme</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border p-0.5">
+                <Button
+                  size="sm"
+                  variant={resolvedTheme === 'light' ? 'default' : 'ghost'}
+                  className="size-7 p-0 text-xs"
+                  onClick={() => setTheme('light')}
+                >
+                  <Sun className="size-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant={resolvedTheme === 'dark' ? 'default' : 'ghost'}
+                  className="size-7 p-0 text-xs"
+                  onClick={() => setTheme('dark')}
+                >
+                  <Moon className="size-3" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── My Shift Dialog ────────────────────────────────────────────────
+function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { user } = useAuthStore()
+  const now = new Date()
+  const hour = now.getHours()
+  const shiftType = hour < 14 ? 'Morning Shift' : hour < 22 ? 'Evening Shift' : 'Night Shift'
+  const shiftTime = hour < 14 ? '06:00 — 14:00' : hour < 22 ? '14:00 — 22:00' : '22:00 — 06:00'
+  const shiftStatus = hour < 6 || hour >= 22 ? 'Not Started' : 'In Progress'
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>My Shift</DialogTitle>
+          <DialogDescription>Current shift information.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+            <div className={cn(
+              'flex size-10 items-center justify-center rounded-full',
+              shiftStatus === 'In Progress' ? 'bg-emerald-100 dark:bg-emerald-900' : 'bg-gray-100 dark:bg-gray-800'
+            )}>
+              <Clock className={cn(
+                'size-5',
+                shiftStatus === 'In Progress' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'
+              )} />
+            </div>
+            <div>
+              <p className="font-semibold">{shiftType}</p>
+              <p className="text-xs text-muted-foreground">{shiftTime}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Status</span>
+              <Badge variant={shiftStatus === 'In Progress' ? 'default' : 'secondary'} className="text-xs">
+                {shiftStatus}
+              </Badge>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Staff</span>
+              <span className="font-medium">{user?.firstName} {user?.lastName}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Department</span>
+              <span className="font-medium">{user?.department}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Position</span>
+              <span className="font-medium">{user?.position}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Property</span>
+              <span className="font-medium">Meridian Hotel</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Date</span>
+              <span className="font-medium">{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Help Dialog ─────────────────────────────────────────────────────
+function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const helpItems = [
+    { title: 'Getting Started Guide', desc: 'Learn the basics of the PMS system' },
+    { title: 'Keyboard Shortcuts', desc: '⌘K — Quick Search, ⌘B — Toggle Sidebar' },
+    { title: 'User Manual', desc: 'Complete reference documentation' },
+    { title: 'Contact IT Support', desc: 'ext. 1000 or it@meridian.com' },
+  ]
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Help & Support</DialogTitle>
+          <DialogDescription>Resources and support contacts.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          {helpItems.map((item) => (
+            <button
+              key={item.title}
+              className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+              onClick={() => {
+                toast.info(`${item.title} — Coming soon`)
+              }}
+            >
+              <div>
+                <p className="text-sm font-medium">{item.title}</p>
+                <p className="text-xs text-muted-foreground">{item.desc}</p>
+              </div>
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/50 dark:border-amber-800">
+          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">System Version</p>
+          <p className="text-xs text-amber-700 dark:text-amber-400">Meridian PMS v2.0.0 — Build 2024.01</p>
+        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── User Menu ──────────────────────────────────────────────────────
+function UserMenu() {
+  const { setTheme, resolvedTheme } = useTheme()
+  const { user, logout } = useAuthStore()
+  const { activeProperty, properties, setActiveProperty } = usePropertyStore()
+  const { navigateTo } = useNavigationStore()
+  const [mounted, setMounted] = React.useState(false)
+  const [profileOpen, setProfileOpen] = React.useState(false)
+  const [preferencesOpen, setPreferencesOpen] = React.useState(false)
+  const [shiftOpen, setShiftOpen] = React.useState(false)
+  const [helpOpen, setHelpOpen] = React.useState(false)
 
   React.useEffect(() => setMounted(true), [])
 
@@ -129,8 +611,8 @@ function UserMenu() {
   const roleColorMap: Record<string, string> = {
     admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
     gm: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
-    manager: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-    supervisor: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+    manager: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+    supervisor: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
     staff: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
   }
 
@@ -138,124 +620,150 @@ function UserMenu() {
 
   const handleLogout = () => {
     logout()
-    router.push('/login')
+    toast.success('Signed out successfully')
+  }
+
+  const handlePropertySwitch = (propertyId: string) => {
+    const property = properties.find((p) => p.id === propertyId)
+    if (property) {
+      setActiveProperty(property)
+      toast.success(`Switched to ${property.name}`)
+    }
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="relative h-8 gap-2 rounded-full pl-2 pr-3">
-          <Avatar className="size-7">
-            <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
-            <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="hidden sm:flex flex-col items-start">
-            <span className="text-xs font-medium leading-none">{displayName}</span>
-            <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{displayRole}</span>
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-72" align="end" forceMount>
-        {/* User Info Header */}
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1.5">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium leading-none">{displayName}</p>
-              <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border-0', roleBadgeColor)}>
-                {user?.role?.toUpperCase()}
-              </Badge>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="relative h-8 gap-2 rounded-full pl-2 pr-3">
+            <Avatar className="size-7">
+              <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
+              <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="hidden sm:flex flex-col items-start">
+              <span className="text-xs font-medium leading-none">{displayName}</span>
+              <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{displayRole}</span>
             </div>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user?.email}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {displayDept} &middot; {displayRole}
-            </p>
-          </div>
-        </DropdownMenuLabel>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-72" align="end" forceMount>
+          {/* User Info Header */}
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1.5">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium leading-none">{displayName}</p>
+                <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border-0', roleBadgeColor)}>
+                  {user?.role?.toUpperCase()}
+                </Badge>
+              </div>
+              <p className="text-xs leading-none text-muted-foreground">
+                {user?.email}
+              </p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {displayDept} &middot; {displayRole}
+              </p>
+            </div>
+          </DropdownMenuLabel>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        {/* Property Switcher */}
-        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">
-          Switch Property
-        </DropdownMenuLabel>
-        <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer">
-            <Building2 className="mr-2 size-4 text-amber-600" />
-            Meridian Hotel
-            <Check className="ml-auto size-4 text-amber-600" />
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer text-muted-foreground">
-            <Building2 className="mr-2 size-4" />
-            Lakeside Resort Pokhara
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer text-muted-foreground">
-            <Building2 className="mr-2 size-4" />
-            Himalayan View Hotel
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+          {/* Property Switcher */}
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="cursor-pointer">
+              <Building2 className="mr-2 size-4 text-amber-600" />
+              <span>Switch Property</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {properties.map((property) => (
+                <DropdownMenuItem
+                  key={property.id}
+                  className="cursor-pointer"
+                  onClick={() => handlePropertySwitch(property.id)}
+                >
+                  <Building2 className="mr-2 size-4 text-muted-foreground" />
+                  <div className="flex flex-col">
+                    <span className="text-sm">{property.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{property.city}</span>
+                  </div>
+                  {activeProperty.id === property.id && (
+                    <Check className="ml-auto size-4 text-amber-600" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        {/* Account Section */}
-        <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer">
-            <User className="mr-2 size-4" />
-            My Profile
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            <Settings className="mr-2 size-4" />
-            My Preferences
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            <Clock className="mr-2 size-4" />
-            My Shift
-          </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            <Building2 className="mr-2 size-4" />
-            My Department
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+          {/* Account Section */}
+          <DropdownMenuGroup>
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => setProfileOpen(true)}>
+              <User className="mr-2 size-4" />
+              My Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => setPreferencesOpen(true)}>
+              <Settings className="mr-2 size-4" />
+              My Preferences
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => setShiftOpen(true)}>
+              <Clock className="mr-2 size-4" />
+              My Shift
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onSelect={() => navigateTo('hr', 'employees')}
+            >
+              <Building2 className="mr-2 size-4" />
+              My Department
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
 
-        <DropdownMenuSeparator />
+          <DropdownMenuSeparator />
 
-        {/* Actions Section */}
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-          >
-            {mounted && resolvedTheme === 'dark' ? (
-              <Sun className="mr-2 size-4" />
-            ) : (
-              <Moon className="mr-2 size-4" />
-            )}
-            {mounted && resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          {/* Actions Section */}
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            >
+              {mounted && resolvedTheme === 'dark' ? (
+                <Sun className="mr-2 size-4" />
+              ) : (
+                <Moon className="mr-2 size-4" />
+              )}
+              {mounted && resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => setHelpOpen(true)}>
+              <HelpCircle className="mr-2 size-4" />
+              Help & Support
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+
+          <DropdownMenuSeparator />
+
+          {/* Sign Out */}
+          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onClick={handleLogout}>
+            <LogOut className="mr-2 size-4" />
+            Sign Out
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer">
-            <HelpCircle className="mr-2 size-4" />
-            Help & Support
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-        <DropdownMenuSeparator />
-
-        {/* Sign Out */}
-        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onClick={handleLogout}>
-          <LogOut className="mr-2 size-4" />
-          Sign Out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      {/* Dialogs */}
+      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+      <PreferencesDialog open={preferencesOpen} onOpenChange={setPreferencesOpen} />
+      <ShiftDialog open={shiftOpen} onOpenChange={setShiftOpen} />
+      <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+    </>
   )
 }
 
 // ─── AppHeader ────────────────────────────────────────────────────────
 export function AppHeader() {
   const { setSearchOpen } = useNavigationStore()
+  const { activeProperty } = usePropertyStore()
 
   return (
     <>
@@ -264,6 +772,12 @@ export function AppHeader() {
         <SidebarTrigger className="-ml-1" />
 
         <Separator orientation="vertical" className="mr-2 h-4" />
+
+        {/* Property Name (left side) */}
+        <div className="flex items-center gap-2">
+          <Building2 className="size-4 text-amber-600 hidden sm:block" />
+          <span className="text-sm font-semibold hidden sm:block">{activeProperty.name}</span>
+        </div>
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -341,7 +855,7 @@ export function AppHeader() {
               <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <span className="flex h-2 w-2 rounded-full bg-purple-500" />
-                  Payment received: $1,250
+                  Payment received: NPR 1,250
                 </div>
                 <span className="text-xs text-muted-foreground pl-4">3 hours ago</span>
               </DropdownMenuItem>
