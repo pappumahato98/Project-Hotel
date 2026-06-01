@@ -1,0 +1,127 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+    const priority = searchParams.get('priority')
+    const section = searchParams.get('section')
+
+    // Lost & Found section
+    if (section === 'lost-found') {
+      const lfStatus = searchParams.get('lfStatus')
+      const lfCategory = searchParams.get('lfCategory')
+
+      const lfWhere: Prisma.LostFoundWhereInput = {}
+      if (lfStatus) lfWhere.status = lfStatus
+      if (lfCategory) lfWhere.category = lfCategory
+
+      const items = await db.lostFound.findMany({
+        where: lfWhere,
+        orderBy: { foundDate: 'desc' },
+      })
+
+      return NextResponse.json(items)
+    }
+
+    // Tasks section (default)
+    const where: Prisma.HkTaskWhereInput = {}
+    if (status) where.status = status
+    if (priority) where.priority = priority
+
+    const tasks = await db.hkTask.findMany({
+      where,
+      include: {
+        room: {
+          select: {
+            id: true, number: true, floor: true, wing: true, status: true,
+            type: { select: { name: true, code: true } },
+          },
+        },
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { scheduledTime: 'asc' },
+      ],
+    })
+
+    // Summary counts
+    const allTasks = await db.hkTask.findMany({ where })
+    const summary = {
+      total: allTasks.length,
+      pending: allTasks.filter((t) => t.status === 'pending').length,
+      assigned: allTasks.filter((t) => t.status === 'assigned').length,
+      inProgress: allTasks.filter((t) => t.status === 'in_progress').length,
+      cleaned: allTasks.filter((t) => t.status === 'cleaned').length,
+      inspected: allTasks.filter((t) => t.status === 'inspected').length,
+      failed: allTasks.filter((t) => t.status === 'failed').length,
+    }
+
+    return NextResponse.json({ tasks, summary })
+  } catch (error) {
+    console.error('Housekeeping API error:', error)
+    return NextResponse.json({ error: 'Failed to fetch housekeeping data' }, { status: 500 })
+  }
+}
+
+// POST: Create a lost & found item
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const { action } = body
+
+    if (action === 'create-lost-found') {
+      const { itemName, category, roomId, storageLocation, foundBy, description } = body
+
+      const item = await db.lostFound.create({
+        data: {
+          itemName,
+          category,
+          roomId: roomId || null,
+          storageLocation: storageLocation || null,
+          foundBy,
+          description: description || null,
+        },
+      })
+
+      return NextResponse.json(item, { status: 201 })
+    }
+
+    if (action === 'claim-lost-found') {
+      const { id, claimedBy } = body
+
+      const item = await db.lostFound.update({
+        where: { id },
+        data: {
+          status: 'claimed',
+          claimedBy,
+          claimDate: new Date(),
+        },
+      })
+
+      return NextResponse.json(item)
+    }
+
+    if (action === 'update-task-status') {
+      const { id, status, inspectedBy } = body
+
+      const updateData: Prisma.HkTaskUpdateInput = { status }
+      if (inspectedBy) updateData.inspectedBy = inspectedBy
+      if (status === 'inspected' || status === 'cleaned') updateData.completedTime = new Date()
+
+      const task = await db.hkTask.update({
+        where: { id },
+        data: updateData,
+      })
+
+      return NextResponse.json(task)
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (error) {
+    console.error('Housekeeping POST error:', error)
+    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
+  }
+}

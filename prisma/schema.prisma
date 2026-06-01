@@ -1,0 +1,489 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── PROPERTY & CONFIG ────────────────────────────────────────
+model Property {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  address     String?
+  city        String?
+  country     String   @default("Nepal")
+  currency    String   @default("NPR")
+  timezone    String   @default("Asia/Katmandu")
+  phone       String?
+  email       String?
+  starRating  Int      @default(3)
+  totalRooms  Int      @default(0)
+  logoUrl     String?
+  taxRate     Float    @default(13.0)
+  serviceCharge Float  @default(10.0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms       Room[]
+  ratePlans   RatePlan[]
+  reservations Reservation[]
+  employees   Employee[]
+}
+
+// ─── ROOM MANAGEMENT ──────────────────────────────────────────
+model RoomType {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  baseOccupancy Int
+  maxOccupancy  Int
+  bedConfig   String   @default("1 King Bed")
+  areaSqFt    Float?
+  view        String?
+  amenities   String?  // JSON array of amenities
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms       Room[]
+  ratePlans   RatePlan[]
+  restrictions RoomRestriction[]
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  number      String
+  floor       Int
+  wing        String?
+  building    String?
+  typeId      String
+  propertyId  String
+  status      String   @default("vacant_clean") // vacant_clean, vacant_dirty, occupied, cleaning, inspected, out_of_order, out_of_inventory, on_change
+  view        String?
+  accessibility Boolean @default(false)
+  connectingRoomId String?
+  ipPhoneExt  String?
+  tvChannel   String?
+  notes       String?
+
+  type        RoomType @relation(fields: [typeId], references: [id])
+  property    Property @relation(fields: [propertyId], references: [id])
+  reservations Reservation[]
+  hkTasks     HkTask[]
+
+  @@unique([number, propertyId])
+}
+
+model RoomRestriction {
+  id          String   @id @default(cuid())
+  roomTypeId  String
+  date        DateTime
+  restrictionType String // stop_sell, cta, ctd, min_los, max_los
+  value       Int?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  roomType    RoomType @relation(fields: [roomTypeId], references: [id])
+}
+
+// ─── RATE MANAGEMENT ──────────────────────────────────────────
+model RatePlan {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  propertyId  String
+  roomTypeId  String?
+  baseRate    Float
+  taxInclusive Boolean @default(false)
+  active      Boolean @default(true)
+  channel     String?  // direct, ota, corporate, group
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  property    Property @relation(fields: [propertyId], references: [id])
+  roomType    RoomType? @relation(fields: [roomTypeId], references: [id])
+  rates       DailyRate[]
+}
+
+model DailyRate {
+  id          String   @id @default(cuid())
+  ratePlanId  String
+  date        DateTime
+  rate        Float
+  available   Int      @default(0)
+
+  ratePlan    RatePlan @relation(fields: [ratePlanId], references: [id])
+
+  @@unique([ratePlanId, date])
+}
+
+// ─── GUEST / CRM ──────────────────────────────────────────────
+model Guest {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  nationality   String?
+  idType        String?  // passport, national_id, drivers_license
+  idNumber      String?
+  dateOfBirth   DateTime?
+  gender        String?
+  address       String?
+  city          String?
+  country       String?
+  vipLevel      String   @default("none") // none, silver, gold, platinum
+  loyaltyPoints Int      @default(0)
+  loyaltyTier   String   @default("none")
+  preferences   String?  // JSON preferences
+  notes         String?
+  totalStays    Int      @default(0)
+  totalRevenue  Float    @default(0)
+  lastStayAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservations Reservation[]
+  folios        Folio[]
+}
+
+// ─── RESERVATIONS ──────────────────────────────────────────────
+model Reservation {
+  id            String   @id @default(cuid())
+  confirmationNo String @unique
+  propertyId    String
+  guestId       String?
+  roomId        String?
+  roomTypeId    String?
+  ratePlanId    String?
+  status        String   @default("confirmed") // tentative, confirmed, checked_in, checked_out, cancelled, no_show, waitlist
+  reservationType String @default("individual") // individual, group, corporate, day_use, walk_in
+  adults        Int      @default(1)
+  children      Int      @default(0)
+  checkIn       DateTime
+  checkOut      DateTime
+  roomRate      Float
+  totalAmount   Float    @default(0)
+  paidAmount    Float    @default(0)
+  creditLimit   Float    @default(15000)
+  specialRequests String?
+  source        String?  // direct, booking_com, expedia, walk_in, phone, email, corporate
+  paymentStatus String   @default("unpaid")
+  guaranteed    Boolean  @default(false)
+  company       String?
+  poNumber      String?
+  notes         String?
+  bookedBy      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property      Property @relation(fields: [propertyId], references: [id])
+  guest         Guest?   @relation(fields: [guestId], references: [id])
+  room          Room?    @relation(fields: [roomId], references: [id])
+  folios        Folio[]
+}
+
+// ─── GUEST FOLIO ─────────────────────────────────────────────
+model Folio {
+  id            String   @id @default(cuid())
+  reservationId String
+  guestId       String
+  folioType     String   @default("guest") // guest, company, comp, master
+  status        String   @default("open") // open, closed, locked
+  balance       Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  guest         Guest     @relation(fields: [guestId], references: [id])
+  transactions  FolioTransaction[]
+  payments      FolioPayment[]
+}
+
+model FolioTransaction {
+  id            String   @id @default(cuid())
+  folioId       String
+  transactionType String // room, f_and_b, laundry, spa, phone, minibar, business_center, miscellaneous
+  description   String
+  amount        Float
+  taxAmount     Float    @default(0)
+  totalAmount   Float
+  quantity      Int      @default(1)
+  reference     String?  // outlet/order reference
+  outlet        String?
+  postedBy      String?
+  createdAt     DateTime @default(now())
+
+  folio         Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+}
+
+model FolioPayment {
+  id            String   @id @default(cuid())
+  folioId       String
+  paymentMethod String // cash, card, bank_transfer, cheque, city_ledger, voucher, gift_card, foreign_currency
+  amount        Float
+  reference     String?
+  cardType      String?  // visa, mastercard, amex
+  exchangeRate  Float?
+  foreignAmount Float?
+  receivedBy    String?
+  status        String   @default("completed")
+  createdAt     DateTime @default(now())
+
+  folio         Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+}
+
+// ─── POS / OUTLETS ────────────────────────────────────────────
+model Outlet {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  type          String   // restaurant, bar, spa, laundry, business_center, gift_shop
+  description   String?
+  location      String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  menuItems     MenuItem[]
+  orders        PosOrder[]
+}
+
+model MenuItem {
+  id            String   @id @default(cuid())
+  outletId      String
+  name          String
+  category      String
+  price         Float
+  taxRate       Float    @default(0.13)
+  available     Boolean  @default(true)
+  allergens     String?  // JSON array
+  sortOrder     Int      @default(0)
+
+  outlet        Outlet @relation(fields: [outletId], references: [id])
+  orderItems    OrderItem[]
+}
+
+model PosOrder {
+  id            String   @id @default(cuid())
+  outletId      String
+  tableNumber   Int?
+  reservationId String?
+  folioId       String?
+  status        String   @default("open") // open, in_progress, ready, served, closed, voided
+  serverName    String?
+  guestCount    Int      @default(1)
+  totalAmount   Float    @default(0)
+  taxAmount     Float    @default(0)
+  discountAmount Float   @default(0)
+  paymentStatus String   @default("unpaid")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  outlet        Outlet @relation(fields: [outletId], references: [id])
+  items         OrderItem[]
+}
+
+model OrderItem {
+  id            String   @id @default(cuid())
+  orderId       String
+  menuItemId    String
+  quantity      Int      @default(1)
+  unitPrice     Float
+  totalPrice    Float
+  status        String   @default("pending") // pending, preparing, ready, served, voided
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  order         PosOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem      MenuItem @relation(fields: [menuItemId], references: [id])
+}
+
+// ─── HOUSEKEEPING ─────────────────────────────────────────────
+model HkTask {
+  id            String   @id @default(cuid())
+  roomId        String
+  taskType      String   // checkout, stayover, turndown, deep_clean, maintenance
+  status        String   @default("pending") // pending, assigned, in_progress, cleaned, inspected, failed
+  priority      String   @default("normal") // low, normal, high, rush, vip
+  assignedTo    String?
+  inspectedBy   String?
+  scheduledTime DateTime
+  completedTime DateTime?
+  estimatedMinutes Int   @default(30)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  room          Room     @relation(fields: [roomId], references: [id])
+}
+
+model LostFound {
+  id            String   @id @default(cuid())
+  roomId        String?
+  itemName      String
+  category      String // electronics, clothing, jewelry, documents, keys, bags, books, other
+  description   String?
+  storageLocation String?
+  foundBy       String
+  foundDate     DateTime @default(now())
+  claimedBy     String?
+  claimDate     DateTime?
+  status        String   @default("found") // found, claimed, donated, disposed
+  createdAt     DateTime @default(now())
+}
+
+// ─── EVENTS & BANQUET ────────────────────────────────────────
+model Event {
+  id            String   @id @default(cuid())
+  name          String
+  organizerName String
+  organizerPhone String?
+  organizerEmail String?
+  eventType     String   // corporate, wedding, birthday, conference, meeting
+  venue         String?
+  startDate     DateTime
+  endDate       DateTime
+  expectedPax   Int
+  status        String   @default("confirmed") // tentative, confirmed, in_progress, completed, cancelled
+  totalRevenue  Float    @default(0)
+  depositAmount Float    @default(0)
+  depositPaid  Float    @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── HR & EMPLOYEES ───────────────────────────────────────────
+model Employee {
+  id            String   @id @default(cuid())
+  propertyId    String
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String?
+  department    String
+  position      String
+  role          String   @default("staff") // staff, supervisor, manager, admin, gm
+  hireDate      DateTime?
+  salary        Float?
+  status        String   @default("active") // active, on_leave, resigned, terminated
+  avatarUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  property      Property @relation(fields: [propertyId], references: [id])
+}
+
+// ─── OPERATIONS ────────────────────────────────────────────────
+model NightAudit {
+  id            String   @id @default(cuid())
+  businessDate  DateTime
+  status        String   @default("pending") // pending, in_progress, completed
+  startedBy     String?
+  completedBy   String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  roomRevenue   Float    @default(0)
+  fAndBRevenue  Float    @default(0)
+  otherRevenue  Float    @default(0)
+  totalRevenue  Float    @default(0)
+  totalTax      Float    @default(0)
+  occupancy     Float    @default(0)
+  adr           Float    @default(0)
+  revpar        Float    @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+model CashierShift {
+  id            String   @id @default(cuid())
+  cashierName   String
+  shiftType     String   // morning, evening, night
+  startDate     DateTime
+  endDate       DateTime?
+  openingFloat  Float    @default(0)
+  closingFloat  Float?
+  totalPayments Float    @default(0)
+  totalRefunds  Float    @default(0)
+  variance      Float?
+  status        String   @default("open") // open, closed
+  createdAt     DateTime @default(now())
+}
+
+// ─── INVENTORY ────────────────────────────────────────────────
+model InventoryItem {
+  id            String   @id @default(cuid())
+  name          String
+  category      String
+  unit          String   // piece, kg, liter, pack
+  currentStock  Float    @default(0)
+  reorderPoint  Float    @default(0)
+  unitCost      Float
+  supplier      String?
+  location      String?
+  minStock      Float    @default(0)
+  maxStock      Float    @default(0)
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── MAINTENANCE ───────────────────────────────────────────────
+model WorkOrder {
+  id            String   @id @default(cuid())
+  roomId        String?
+  title         String
+  description   String
+  priority      String   @default("normal") // low, normal, high, emergency
+  status        String   @default("open") // open, assigned, in_progress, completed, closed
+  category      String   // electrical, plumbing, hvac, furniture, painting, general
+  assignedTo    String?
+  reportedBy    String?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── ACCOUNTING ───────────────────────────────────────────────
+model LedgerAccount {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  type          String   // asset, liability, equity, revenue, expense
+  description   String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  journalLines JournalEntryLine[]
+}
+
+model JournalEntry {
+  id            String   @id @default(cuid())
+  date          DateTime
+  description   String
+  reference     String?
+  status        String   @default("draft") // draft, posted
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  lines         JournalEntryLine[]
+}
+
+model JournalEntryLine {
+  id            String   @id @default(cuid())
+  entryId       String
+  accountId     String
+  debit         Float    @default(0)
+  credit        Float    @default(0)
+  narration     String?
+
+  entry         JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account       LedgerAccount @relation(fields: [accountId], references: [id])
+}

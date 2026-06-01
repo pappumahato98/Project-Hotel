@@ -1,0 +1,214 @@
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Search, Globe, DollarSign, Receipt, TrendingUp } from 'lucide-react'
+import { useState } from 'react'
+import { StatusBadge } from '@/components/shared/status-badge'
+import { formatNPR } from '@/lib/utils'
+
+interface ChannelBooking {
+  id: string
+  confirmationNo: string
+  guestName: string
+  channel: string
+  roomType: string
+  checkIn: string
+  checkOut: string
+  nights: number
+  totalAmount: number
+  commission: number
+  netAmount: number
+  status: string
+}
+
+async function fetchChannelBookings() {
+  const res = await fetch('/api/channel-bookings')
+  if (!res.ok) throw new Error('Failed to fetch channel bookings')
+  return res.json()
+}
+
+export function BookingsView() {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterChannel, setFilterChannel] = useState('')
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['channel-bookings'],
+    queryFn: fetchChannelBookings,
+  })
+
+  const channelNames = data?.bookings
+    ? [...new Set(data.bookings.map((b: ChannelBooking) => b.channel))]
+    : []
+
+  const filteredBookings = data?.bookings?.filter((b: ChannelBooking) => {
+    if (filterChannel && b.channel !== filterChannel) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      return (
+        b.guestName.toLowerCase().includes(q) ||
+        b.confirmationNo.toLowerCase().includes(q) ||
+        b.channel.toLowerCase().includes(q)
+      )
+    }
+    return true
+  })
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Channel-Sourced Bookings</h1>
+          <p className="text-sm text-muted-foreground">Bookings from OTAs and distribution channels</p>
+        </div>
+        <Badge variant="outline" className="text-sm">
+          {data?.total ?? 0} bookings
+        </Badge>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
+              <DollarSign className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Net Revenue</p>
+              <p className="text-lg font-bold">{data ? formatNPR(data.totalRevenue) : '—'}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
+              <Receipt className="h-5 w-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Commissions</p>
+              <p className="text-lg font-bold text-red-600">{data ? formatNPR(data.totalCommission) : '—'}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
+              <Globe className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Confirmed</p>
+              <p className="text-2xl font-bold">{data?.confirmed ?? '—'}</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
+              <TrendingUp className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Checked In</p>
+              <p className="text-2xl font-bold">{data?.checkedIn ?? '—'}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search bookings..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <select
+          value={filterChannel}
+          onChange={(e) => setFilterChannel(e.target.value)}
+          className="h-9 rounded-md border bg-background px-3 text-sm"
+        >
+          <option value="">All Channels</option>
+          {channelNames.map((ch: string) => (
+            <option key={ch} value={ch}>{ch}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Bookings Table */}
+      <Card>
+        <CardContent className="p-0">
+          <ScrollArea className="max-h-[500px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Confirmation</TableHead>
+                  <TableHead>Guest</TableHead>
+                  <TableHead>Channel</TableHead>
+                  <TableHead className="hidden md:table-cell">Room Type</TableHead>
+                  <TableHead className="hidden lg:table-cell">Check-in</TableHead>
+                  <TableHead className="hidden lg:table-cell">Check-out</TableHead>
+                  <TableHead className="text-center">Nights</TableHead>
+                  <TableHead className="text-right">Gross</TableHead>
+                  <TableHead className="text-right hidden md:table-cell">Commission</TableHead>
+                  <TableHead className="text-right">Net</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 8 }).map((_, i) => (
+                    <TableRow key={i}>
+                      {Array.from({ length: 11 }).map((_, j) => (
+                        <TableCell key={j}>
+                          <Skeleton className="h-4 w-[60px]" />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : filteredBookings?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={11} className="h-24 text-center text-muted-foreground">
+                      No bookings found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredBookings?.map((booking: ChannelBooking) => (
+                    <TableRow key={booking.id}>
+                      <TableCell className="font-mono text-xs">{booking.confirmationNo}</TableCell>
+                      <TableCell className="font-medium text-sm">{booking.guestName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">{booking.channel}</Badge>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{booking.roomType}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{booking.checkIn}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{booking.checkOut}</TableCell>
+                      <TableCell className="text-center">{booking.nights}</TableCell>
+                      <TableCell className="text-right text-sm">{formatNPR(booking.totalAmount)}</TableCell>
+                      <TableCell className="text-right hidden md:table-cell text-sm text-red-600">
+                        {booking.commission > 0 ? formatNPR(booking.commission) : '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-sm">{formatNPR(booking.netAmount)}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={booking.status} />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

@@ -1,0 +1,85 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const query = searchParams.get('q')
+
+    if (!query || query.length < 1) {
+      return NextResponse.json({ results: [] })
+    }
+
+    const results: Array<{ type: string; id: string; label: string; sublabel: string }> = []
+
+    // Search guests
+    const guests = await db.guest.findMany({
+      where: {
+        OR: [
+          { firstName: { contains: query, mode: 'insensitive' } },
+          { lastName: { contains: query, mode: 'insensitive' } },
+          { phone: { contains: query } },
+        ],
+      },
+      select: { id: true, firstName: true, lastName: true, phone: true, vipLevel: true },
+      take: 5,
+    })
+
+    for (const g of guests) {
+      results.push({
+        type: 'guest',
+        id: g.id,
+        label: `${g.firstName} ${g.lastName}`,
+        sublabel: g.phone || g.vipLevel !== 'none' ? `${g.phone || ''} ${g.vipLevel !== 'none' ? `• ${g.vipLevel}` : ''}`.trim() : 'Guest',
+      })
+    }
+
+    // Search rooms
+    const rooms = await db.room.findMany({
+      where: {
+        OR: [
+          { number: { contains: query } },
+        ],
+      },
+      select: { id: true, number: true, status: true, type: { select: { name: true } } },
+      take: 5,
+    })
+
+    for (const r of rooms) {
+      results.push({
+        type: 'room',
+        id: r.id,
+        label: `Room ${r.number}`,
+        sublabel: `${r.type.name} • ${r.status.replace('_', ' ')}`,
+      })
+    }
+
+    // Search reservations
+    const reservations = await db.reservation.findMany({
+      where: {
+        OR: [
+          { confirmationNo: { contains: query, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true, confirmationNo: true, status: true,
+        guest: { select: { firstName: true, lastName: true } },
+      },
+      take: 5,
+    })
+
+    for (const r of reservations) {
+      results.push({
+        type: 'reservation',
+        id: r.id,
+        label: r.confirmationNo,
+        sublabel: `${r.guest?.firstName || ''} ${r.guest?.lastName || ''} • ${r.status.replace('_', ' ')}`.trim(),
+      })
+    }
+
+    return NextResponse.json({ results })
+  } catch (error) {
+    console.error('Quick search error:', error)
+    return NextResponse.json({ error: 'Failed to search' }, { status: 500 })
+  }
+}
