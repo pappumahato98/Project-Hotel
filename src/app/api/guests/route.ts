@@ -44,3 +44,41 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch guest profiles' }, { status: 500 })
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const {
+      firstName, lastName, email, phone, nationality,
+      idType, idNumber, dateOfBirth, gender, address, city, country,
+      vipLevel,
+    } = body
+
+    if (!firstName || !lastName) {
+      return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 })
+    }
+
+    const guest = await db.guest.create({
+      data: {
+        firstName,
+        lastName,
+        email: email || null,
+        phone: phone || null,
+        nationality: nationality || null,
+        idType: idType || null,
+        idNumber: idNumber || null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        gender: gender || null,
+        address: address || null,
+        city: city || null,
+        country: country || null,
+        vipLevel: vipLevel || 'none',
+      },
+    })
+
+    return NextResponse.json({ guest }, { status: 201 })
+  } catch (error) {
+    console.error('Create guest error:', error)
+    return NextResponse.json({ error: 'Failed to create guest' }, { status: 500 })
+  }
+}
