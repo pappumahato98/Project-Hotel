@@ -123,3 +123,56 @@ Built HK kanban task board with attendant view, supervisor inspection checklist,
 
 ## Task 11: Remaining 7 Modules
 Built HR (employees, attendance, payroll), Events (events, BEO orders), Accounting (ledger, journal, financial reports with charts), Inventory (stock, vendors, requisitions), Maintenance (work orders, asset register), Revenue (demand calendar, pricing, rate intelligence), Channel Manager (channels, bookings).
+
+---
+
+## Tasks 2–8: Authentication System & Header Redesign (Meridian Hotel Rebrand)
+
+**Date**: 2025-07-15
+**Status**: ✅ COMPLETE
+
+### Summary
+Implemented a complete authentication system for the Meridian Hotel Management System with login page, API routes, Zustand auth store, and comprehensive header redesign. Rebranded from "The Grand Kathmandu" to "Meridian Hotel" across all components.
+
+### Files Changed/Created
+
+#### Schema & Database
+1. **`/prisma/schema.prisma`** — Added `AuthUser` model (id, email, password, firstName, lastName, role, department, position, avatarUrl, active, lastLoginAt, timestamps). Schema pushed to DB successfully.
+2. **`/prisma/seed-auth.ts`** — Created seed script using `Bun.password.hash()`. Seeds 6 users: admin@meridian.com, gm@meridian.com, ramesh@meridian.com, sunita@meridian.com, deepa@meridian.com, kamal@meridian.com (all with password: `password123`).
+
+#### API Routes (3 new endpoints)
+3. **`/src/app/api/auth/login/route.ts`** — POST handler: validates email/password against AuthUser table using `Bun.password.verify()`, updates lastLoginAt, returns user data + UUID session token.
+4. **`/src/app/api/auth/logout/route.ts`** — POST handler: returns success (stateless logout).
+5. **`/src/app/api/auth/me/route.ts`** — GET handler: accepts userId query param, returns user data without password.
+
+#### State Management
+6. **`/src/lib/store.ts`** — Added `useAuthStore` with Zustand: user state, isAuthenticated flag, token, login/logout/updateUser actions. Kept existing `useNavigationStore` intact.
+
+#### Login Page
+7. **`/src/app/login/page.tsx`** — Full-screen standalone login page (no sidebar/header). Features: Building2 gradient logo, "Meridian Hotel" branding, 5-star display, email/password inputs, show/hide password toggle, loading spinner on submit, inline error display, demo credentials hint, dark mode support, professional gradient background.
+
+#### Header Redesign
+8. **`/src/components/layout/header.tsx`** — Complete rewrite:
+   - Removed: LiveClock, PropertySelector as separate component
+   - New header bar: `[SidebarTrigger] | [Search Button] [Search Kbd]  [Bell Badge]  [User Avatar + Name]`
+   - Redesigned UserMenu dropdown: User info + role badge, Property Switcher (Meridian Hotel with checkmark + 2 other properties), Account section (Profile, Preferences, Shift, Department), Actions (theme toggle via next-themes, Help & Support), Sign Out (red, calls logout + router.push('/login'))
+   - Uses useAuthStore for dynamic user data, useTheme for theme toggle, useRouter for logout redirect
+
+#### Sidebar Update
+9. **`/src/components/layout/sidebar-nav.tsx`** — Changed "The Grand Kathmandu" to "Meridian Hotel". Log Out button now calls useAuthStore.logout() + router.push('/login'). Settings button navigates to dashboard.
+
+#### Dashboard Update
+10. **`/src/components/modules/dashboard/DashboardModule.tsx`** — Uses useAuthStore for dynamic firstName greeting (replaces hardcoded "Raj"). Changed hotel name to "Meridian Hotel".
+
+#### Layout & Page Updates
+11. **`/src/app/layout.tsx`** — Updated all metadata to "Meridian Hotel — Property Management System". Cleaned up Providers formatting.
+12. **`/src/app/page.tsx`** — Added auth guard: redirects to /login if not authenticated, renders AppShell only when authenticated.
+
+### Verification
+- ✅ ESLint: 0 errors
+- ✅ Dev server: Compiling successfully
+- ✅ GET /login 200 — Login page renders correctly
+- ✅ GET / 200 — Auth guard redirects to /login
+- ✅ DB push: AuthUser table created
+- ✅ Auth users seeded: 6 users with bcrypt-hashed passwords
+- ✅ Default credentials: admin@meridian.com / password123

@@ -16,24 +16,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Project Neo — Hotel Management System",
+  title: "Meridian Hotel — Property Management System",
   description:
-    "Comprehensive Property Management System for The Grand Kathmandu Hotel",
+    "Comprehensive Property Management System for Meridian Hotel",
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Project Neo — Hotel Management System",
+    title: "Meridian Hotel — Property Management System",
     description:
-      "Comprehensive Property Management System for The Grand Kathmandu Hotel",
-    siteName: "Project Neo",
+      "Comprehensive Property Management System for Meridian Hotel",
+    siteName: "Meridian Hotel",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Project Neo — Hotel Management System",
+    title: "Meridian Hotel — Property Management System",
     description:
-      "Comprehensive Property Management System for The Grand Kathmandu Hotel",
+      "Comprehensive Property Management System for Meridian Hotel",
   },
 };
 
@@ -53,9 +53,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <Providers>
-            {children}
-          </Providers>
+          <Providers>{children}</Providers>
         </ThemeProvider>
         <Toaster />
       </body>

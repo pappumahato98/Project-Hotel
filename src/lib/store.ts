@@ -1,5 +1,39 @@
 import { create } from 'zustand'
 
+// ─── Auth State ────────────────────────────────────────────────
+interface AuthUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: string
+  department: string
+  position: string
+  avatarUrl: string | null
+}
+
+interface AuthState {
+  user: AuthUser | null
+  isAuthenticated: boolean
+  token: string | null
+  login: (user: AuthUser, token: string) => void
+  logout: () => void
+  updateUser: (updates: Partial<AuthUser>) => void
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isAuthenticated: false,
+  token: null,
+  login: (user, token) => set({ user, isAuthenticated: true, token }),
+  logout: () => set({ user: null, isAuthenticated: false, token: null }),
+  updateUser: (updates) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...updates } : null,
+    })),
+}))
+
+// ─── Navigation State ────────────────────────────────────────
 interface NavigationState {
   activeModule: string
   activeSubModule: string | null

@@ -20,7 +20,7 @@ async function ensureSeedData() {
   let property = await db.property.findFirst()
   if (!property) {
     property = await db.property.create({
-      data: { name: 'The Grand Kathmandu', code: 'GKT', address: 'Durbar Marg', city: 'Kathmandu', currency: 'NPR', starRating: 5, totalRooms: 128 }
+      data: { name: 'Meridian Hotel', code: 'MH', address: 'Durbar Marg', city: 'Kathmandu', currency: 'NPR', starRating: 5, totalRooms: 128 }
     })
   }
 

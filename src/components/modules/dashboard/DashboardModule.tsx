@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -214,6 +214,7 @@ function StatsRowSkeleton() {
 
 // ─── 1. Welcome Banner ──────────────────────────────────────────────────
 function WelcomeBanner({ data }: { data: DashboardData }) {
+  const { user } = useAuthStore()
   const [currentTime, setCurrentTime] = React.useState(new Date())
 
   React.useEffect(() => {
@@ -233,10 +234,10 @@ function WelcomeBanner({ data }: { data: DashboardData }) {
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                {getGreeting()}, Raj
+                {getGreeting()}, {user?.firstName || 'Guest'}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {formatDate(currentTime)} — The Grand Kathmandu Hotel
+                {formatDate(currentTime)} — Meridian Hotel
               </p>
             </div>
           </div>

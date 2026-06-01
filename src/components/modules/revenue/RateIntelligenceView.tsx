@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { BarChart3, Globe, Building2, TrendingUp } from 'lucide-react'
 
 const competitorRates = [
-  { hotel: 'The Grand Kathmandu (Ours)', barRate: 8500, suiteRate: 15000, standardRate: 6000 },
+  { hotel: 'Meridian Hotel (Ours)', barRate: 8500, suiteRate: 15000, standardRate: 6000 },
   { hotel: 'Hotel Yak & Yeti', barRate: 9200, suiteRate: 16500, standardRate: 7000 },
   { hotel: 'Soaltee Crown Plaza', barRate: 10500, suiteRate: 18000, standardRate: 8000 },
   { hotel: 'Hotel Annapurna', barRate: 7800, suiteRate: 14000, standardRate: 5500 },
@@ -114,7 +114,7 @@ export function RateIntelligenceView() {
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground">Rate Positioning Analysis</p>
             <p className="mt-1">
-              The Grand Kathmandu is positioned in the <strong>competitive value</strong> segment, 
+              Meridian Hotel is positioned in the <strong>competitive value</strong> segment, 
               offering rates 7-8% below the market leader while maintaining 5-star service standards. 
               Current BAR of NPR 8,500 is below the market average of NPR 9,200, representing 
               an opportunity to increase rates during high-demand periods.

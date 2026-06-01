@@ -1,16 +1,19 @@
 'use client'
 
 import * as React from 'react'
-import { format } from 'date-fns'
+import { useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import {
-  Search, Bell, Menu, User, Building2, LayoutDashboard,
-  CalendarDays, BedDouble, Clock, UtensilsCrossed, ClipboardCheck,
+  Search, Bell, User, Building2,
+  Sun, Moon, LogOut, Settings, Clock,
+  HelpCircle, Check, Star, LayoutDashboard,
+  CalendarDays, BedDouble, UtensilsCrossed, ClipboardCheck,
   Users, UserCog, PartyPopper, Calculator, Package, Wrench,
-  TrendingUp, Globe, Settings, Sun, Moon, LogOut,
+  TrendingUp, Globe,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore } from '@/lib/store'
 import { NAV_ITEMS } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,35 +38,6 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-
-// ─── Live Clock ─────────────────────────────────────────────────────
-function LiveClock() {
-  const [now, setNow] = React.useState<Date | null>(null)
-
-  React.useEffect(() => {
-    setNow(new Date())
-    const interval = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  if (!now) {
-    return (
-      <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
-        <Clock className="size-3.5" />
-        <span className="tabular-nums">--:--</span>
-      </div>
-    )
-  }
-
-  return (
-    <div className="hidden lg:flex items-center gap-2 text-sm text-muted-foreground">
-      <Clock className="size-3.5" />
-      <span className="tabular-nums">{format(now, 'dd MMM yyyy')}</span>
-      <Separator orientation="vertical" className="h-4" />
-      <span className="tabular-nums">{format(now, 'HH:mm:ss')}</span>
-    </div>
-  )
-}
 
 // ─── Quick Search Dialog ────────────────────────────────────────────
 function QuickSearchDialog() {
@@ -135,86 +109,144 @@ function QuickSearchDialog() {
   )
 }
 
-// ─── Property Selector ───────────────────────────────────────────────
-function PropertySelector() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="hidden md:inline-flex gap-1.5 h-8 text-sm font-medium"
-        >
-          <Building2 className="size-3.5 text-amber-600" />
-          <span className="hidden xl:inline">The Grand Kathmandu</span>
-          <span className="xl:hidden">TGH</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        <DropdownMenuLabel>Switch Property</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <Building2 className="mr-2 size-4 text-amber-600" />
-            The Grand Kathmandu
-            <Badge variant="secondary" className="ml-auto text-[10px]">Active</Badge>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Building2 className="mr-2 size-4 text-muted-foreground" />
-            Lakeside Resort Pokhara
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Building2 className="mr-2 size-4 text-muted-foreground" />
-            Himalayan View Hotel
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 // ─── User Menu ──────────────────────────────────────────────────────
 function UserMenu() {
+  const router = useRouter()
+  const { user, logout } = useAuthStore()
+  const { setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => setMounted(true), [])
+
+  const initials = user
+    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+    : '??'
+
+  const displayName = user ? `${user.firstName} ${user.lastName}` : 'Unknown User'
+  const displayRole = user?.position || 'Staff'
+  const displayDept = user?.department || 'Management'
+
+  const roleColorMap: Record<string, string> = {
+    admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+    gm: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+    manager: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+    supervisor: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+    staff: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+  }
+
+  const roleBadgeColor = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
+
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="relative h-8 gap-2 rounded-full pl-2 pr-3">
           <Avatar className="size-7">
-            <AvatarImage src="/avatar-placeholder.png" alt="User" />
+            <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
             <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
-              RK
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="hidden sm:flex flex-col items-start">
-            <span className="text-xs font-medium leading-none">Raj Kumar</span>
-            <span className="text-[10px] text-muted-foreground leading-none mt-0.5">General Manager</span>
+            <span className="text-xs font-medium leading-none">{displayName}</span>
+            <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{displayRole}</span>
           </div>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-72" align="end" forceMount>
+        {/* User Info Header */}
         <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">Raj Kumar</p>
+          <div className="flex flex-col space-y-1.5">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium leading-none">{displayName}</p>
+              <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border-0', roleBadgeColor)}>
+                {user?.role?.toUpperCase()}
+              </Badge>
+            </div>
             <p className="text-xs leading-none text-muted-foreground">
-              raj.kumar@grandkathmandu.com
+              {user?.email}
+            </p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {displayDept} &middot; {displayRole}
             </p>
           </div>
         </DropdownMenuLabel>
+
         <DropdownMenuSeparator />
+
+        {/* Property Switcher */}
+        <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">
+          Switch Property
+        </DropdownMenuLabel>
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <User className="mr-2 size-4" />
-            Profile
+          <DropdownMenuItem className="cursor-pointer">
+            <Building2 className="mr-2 size-4 text-amber-600" />
+            Meridian Hotel
+            <Check className="ml-auto size-4 text-amber-600" />
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 size-4" />
-            Preferences
+          <DropdownMenuItem className="cursor-pointer text-muted-foreground">
+            <Building2 className="mr-2 size-4" />
+            Lakeside Resort Pokhara
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer text-muted-foreground">
+            <Building2 className="mr-2 size-4" />
+            Himalayan View Hotel
           </DropdownMenuItem>
         </DropdownMenuGroup>
+
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600 focus:text-red-600">
+
+        {/* Account Section */}
+        <DropdownMenuGroup>
+          <DropdownMenuItem className="cursor-pointer">
+            <User className="mr-2 size-4" />
+            My Profile
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            <Settings className="mr-2 size-4" />
+            My Preferences
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            <Clock className="mr-2 size-4" />
+            My Shift
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            <Building2 className="mr-2 size-4" />
+            My Department
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        {/* Actions Section */}
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          >
+            {mounted && resolvedTheme === 'dark' ? (
+              <Sun className="mr-2 size-4" />
+            ) : (
+              <Moon className="mr-2 size-4" />
+            )}
+            {mounted && resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            <HelpCircle className="mr-2 size-4" />
+            Help & Support
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        {/* Sign Out */}
+        <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onClick={handleLogout}>
           <LogOut className="mr-2 size-4" />
-          Log out
+          Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -232,9 +264,6 @@ export function AppHeader() {
         <SidebarTrigger className="-ml-1" />
 
         <Separator orientation="vertical" className="mr-2 h-4" />
-
-        {/* Property selector */}
-        <PropertySelector />
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -323,9 +352,6 @@ export function AppHeader() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Live clock */}
-        <LiveClock />
 
         {/* User menu */}
         <UserMenu />

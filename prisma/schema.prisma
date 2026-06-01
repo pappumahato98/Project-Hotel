@@ -7,6 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── AUTH ──────────────────────────────────────────────────────
+model AuthUser {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  firstName     String
+  lastName      String
+  role          String   @default("staff") // admin, gm, manager, supervisor, staff
+  department    String   @default("Management")
+  position      String   @default("Staff")
+  avatarUrl     String?
+  active        Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 // ─── PROPERTY & CONFIG ────────────────────────────────────────
 model Property {
   id          String   @id @default(cuid())

@@ -1,13 +1,15 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
   Building2, ChevronRight, Settings, Sun, Moon, LogOut, Star,
+  LayoutDashboard,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore } from '@/lib/store'
 import { NAV_ITEMS, type NavItem } from '@/lib/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -153,6 +155,19 @@ function ThemeToggle() {
 
 // ─── AppSidebar ──────────────────────────────────────────────────────
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter()
+  const { logout } = useAuthStore()
+  const { setActiveModule } = useNavigationStore()
+
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
+  }
+
+  const handleSettings = () => {
+    setActiveModule('dashboard')
+  }
+
   return (
     <Sidebar collapsible="icon" {...props}>
       {/* Header — Property Name & Logo */}
@@ -168,7 +183,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold text-sidebar-foreground">
-                  The Grand Kathmandu
+                  Meridian Hotel
                 </span>
                 <span className="truncate text-[10px] text-muted-foreground flex items-center gap-0.5">
                   <Star className="size-2.5 fill-amber-400 text-amber-400" />
@@ -203,13 +218,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings" className="cursor-pointer">
+            <SidebarMenuButton tooltip="Settings" className="cursor-pointer" onClick={handleSettings}>
               <Settings className="size-4 text-muted-foreground" />
               <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Log Out" className="cursor-pointer text-red-500 hover:text-red-600">
+            <SidebarMenuButton tooltip="Log Out" className="cursor-pointer text-red-500 hover:text-red-600" onClick={handleLogout}>
               <LogOut className="size-4" />
               <span>Log Out</span>
             </SidebarMenuButton>

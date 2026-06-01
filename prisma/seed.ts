@@ -8,8 +8,8 @@ async function seed() {
   // ─── PROPERTY ───────────────────────────────────────────
   const property = await db.property.create({
     data: {
-      name: 'The Grand Kathmandu Hotel',
-      code: 'TKH',
+      name: 'Meridian Hotel',
+      code: 'MH',
       address: 'Durbar Marg, Thamel',
       city: 'Kathmandu',
       country: 'Nepal',
@@ -681,7 +681,7 @@ async function seed() {
 
   console.log('');
   console.log('🎉 Hotel database seeded successfully!');
-  console.log(`🏨 Property: The Grand Kathmandu Hotel (TKH)`);
+  console.log(`🏨 Property: Meridian Hotel (MH)`);
   console.log(`🛏️  Rooms: ${rooms.length}`);
   console.log(`📋 Reservations: ${reservations.length}`);
   console.log(`👥 Guests: ${guests.length}`);
