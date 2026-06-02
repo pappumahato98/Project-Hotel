@@ -5,7 +5,8 @@ import { useNavigationStore } from '@/lib/store'
 import { RoomBoard } from './RoomBoard'
 import { RoomTypesView } from './RoomTypesView'
 import { RestrictionsView } from './RestrictionsView'
-import { BedDouble, LayoutGrid, Tags, ShieldAlert } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { BedDouble, CalendarDays, LayoutGrid, Tags, ShieldAlert } from 'lucide-react'
 
 const SUB_TABS = [
   { id: 'room-board', label: 'Room Board', icon: LayoutGrid },
@@ -14,7 +15,7 @@ const SUB_TABS = [
 ] as const
 
 export default function RoomManagementModule() {
-  const { activeSubModule, setActiveSubModule } = useNavigationStore()
+  const { activeSubModule, setActiveSubModule, navigateTo } = useNavigationStore()
 
   // Determine which sub-view to show
   const activeView = activeSubModule && SUB_TABS.some(t => t.id === activeSubModule)
@@ -48,6 +49,17 @@ export default function RoomManagementModule() {
               </button>
             )
           })}
+        </div>
+        <div className="ml-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-muted-foreground"
+            onClick={() => navigateTo('front-desk', 'calendar')}
+          >
+            <CalendarDays className="size-3.5" />
+            <span className="hidden sm:inline">View Calendar</span>
+          </Button>
         </div>
       </div>
 

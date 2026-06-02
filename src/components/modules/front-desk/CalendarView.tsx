@@ -10,8 +10,23 @@ import {
   Users,
   ArrowDownToLine,
   ArrowUpFromLine,
+  BedDouble,
+  Filter,
+  X,
+  CheckCircle2,
+  Home,
+  Eye,
 } from 'lucide-react'
-import { format, addDays, startOfDay, isToday, isSameDay, isWeekend, parseISO, differenceInDays } from 'date-fns'
+import {
+  format,
+  addDays,
+  startOfDay,
+  isToday,
+  isSameDay,
+  isWeekend,
+  parseISO,
+  differenceInDays,
+} from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,16 +36,25 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useNavigationStore } from '@/lib/store'
+import { toast } from 'sonner'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
-const DAY_WIDTH = 60
+const DAY_WIDTH = 72
 const ROW_HEIGHT = 44
-const ROOM_LABEL_WIDTH = 130
-const NUM_DAYS = 14
+const ROOM_LABEL_WIDTH = 140
+const NUM_DAYS = 10
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -75,14 +99,14 @@ interface Reservation {
 // ─── Status Color Maps ─────────────────────────────────────────────────
 
 const STATUS_BG_MAP: Record<string, string> = {
-  confirmed: 'bg-blue-500/80 hover:bg-blue-500',
+  confirmed: 'bg-teal-500/80 hover:bg-teal-500',
   checked_in: 'bg-emerald-500/80 hover:bg-emerald-500',
   checked_out: 'bg-gray-400/80 hover:bg-gray-400',
 }
 
 const ROOM_STATUS_BG_MAP: Record<string, string> = {
   vacant_clean: 'bg-green-50 dark:bg-green-950/30',
-  occupied: 'bg-blue-50 dark:bg-blue-950/30',
+  occupied: 'bg-teal-50 dark:bg-teal-950/30',
   vacant_dirty: 'bg-red-50 dark:bg-red-950/20',
   cleaning: 'bg-amber-50 dark:bg-amber-950/20',
   inspected: 'bg-purple-50 dark:bg-purple-950/20',
@@ -91,7 +115,18 @@ const ROOM_STATUS_BG_MAP: Record<string, string> = {
 }
 
 const ROOM_STATUS_STRIPE: Record<string, string> = {
-  out_of_order: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.04) 4px, rgba(0,0,0,0.04) 8px)',
+  out_of_order:
+    'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.04) 4px, rgba(0,0,0,0.04) 8px)',
+}
+
+const ROOM_STATUS_FRIENDLY: Record<string, string> = {
+  vacant_clean: 'Vacant',
+  vacant_dirty: 'Dirty',
+  cleaning: 'Cleaning',
+  inspected: 'Inspected',
+  occupied: 'Occupied',
+  out_of_order: 'Out of Order',
+  on_change: 'Changing',
 }
 
 // ─── Helper Functions ──────────────────────────────────────────────────
@@ -120,11 +155,21 @@ function isVip(guest: ReservationGuest | null | undefined): boolean {
 
 function getVipBadge(vipLevel: string): string {
   switch (vipLevel) {
-    case 'platinum': return 'Platinum'
-    case 'gold': return 'Gold'
-    case 'silver': return 'Silver'
-    default: return ''
+    case 'platinum':
+      return 'Platinum'
+    case 'gold':
+      return 'Gold'
+    case 'silver':
+      return 'Silver'
+    default:
+      return ''
   }
+}
+
+function getOccupancyBarColor(pct: number): string {
+  if (pct < 50) return 'bg-emerald-500'
+  if (pct <= 80) return 'bg-amber-500'
+  return 'bg-red-500'
 }
 
 // ─── Legend Component ────────────────────────────────────────────────────
@@ -136,7 +181,7 @@ function CalendarLegend() {
       {/* Booking Status */}
       <span className="font-semibold text-foreground">Booking:</span>
       <div className="flex items-center gap-1">
-        <span className="inline-block size-2.5 rounded-sm bg-blue-500/80" />
+        <span className="inline-block size-2.5 rounded-sm bg-teal-500/80" />
         <span>Confirmed</span>
       </div>
       <div className="flex items-center gap-1">
@@ -178,7 +223,7 @@ function CalendarLegend() {
         <span>Vacant</span>
       </div>
       <div className="flex items-center gap-1">
-        <span className="inline-block size-2.5 rounded-sm bg-blue-50 border border-blue-200 dark:bg-blue-950/40" />
+        <span className="inline-block size-2.5 rounded-sm bg-teal-50 border border-teal-200 dark:bg-teal-950/40" />
         <span>Occupied</span>
       </div>
       <div className="flex items-center gap-1">
@@ -196,6 +241,7 @@ function CalendarLegend() {
 // ─── Reservation Detail Popover ────────────────────────────────────────
 
 function ReservationPopover({ reservation }: { reservation: Reservation }) {
+  const { navigateTo } = useNavigationStore()
   const guestName = reservation.guest
     ? `${reservation.guest.firstName} ${reservation.guest.lastName}`
     : 'No Guest'
@@ -233,7 +279,10 @@ function ReservationPopover({ reservation }: { reservation: Reservation }) {
             <p className="font-medium">
               {reservation.room?.number || 'Unassigned'}
               {reservation.room?.type && (
-                <span className="text-muted-foreground"> ({reservation.room.type.code})</span>
+                <span className="text-muted-foreground">
+                  {' '}
+                  ({reservation.room.type.code})
+                </span>
               )}
             </p>
           </div>
@@ -262,9 +311,35 @@ function ReservationPopover({ reservation }: { reservation: Reservation }) {
           {reservation.source && (
             <div className="col-span-2">
               <span className="text-muted-foreground">Source</span>
-              <p className="font-medium capitalize">{reservation.source.replace('_', ' ')}</p>
+              <p className="font-medium capitalize">
+                {reservation.source.replace('_', ' ')}
+              </p>
             </div>
           )}
+        </div>
+
+        <Separator />
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 h-7 text-[11px] gap-1"
+            onClick={() => navigateTo('front-desk', 'reservations')}
+          >
+            <Eye className="size-3" />
+            View Details
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 h-7 text-[11px] gap-1"
+            onClick={() => navigateTo('rooms', 'room-board')}
+          >
+            <BedDouble className="size-3" />
+            View Room
+          </Button>
         </div>
       </div>
     </PopoverContent>
@@ -286,17 +361,28 @@ function CalendarSkeleton() {
         <Skeleton className="h-10 flex-shrink-0" style={{ width: ROOM_LABEL_WIDTH }} />
         <div className="flex gap-0">
           {Array.from({ length: NUM_DAYS }).map((_, i) => (
-            <Skeleton key={i} className="h-10 flex-shrink-0" style={{ width: DAY_WIDTH }} />
+            <Skeleton
+              key={i}
+              className="h-10 flex-shrink-0"
+              style={{ width: DAY_WIDTH }}
+            />
           ))}
         </div>
       </div>
       {/* Room row skeletons */}
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex gap-0">
-          <Skeleton className="flex-shrink-0" style={{ width: ROOM_LABEL_WIDTH, height: ROW_HEIGHT }} />
+          <Skeleton
+            className="flex-shrink-0"
+            style={{ width: ROOM_LABEL_WIDTH, height: ROW_HEIGHT }}
+          />
           <div className="flex gap-0">
             {Array.from({ length: NUM_DAYS }).map((_, j) => (
-              <Skeleton key={j} className="flex-shrink-0" style={{ width: DAY_WIDTH, height: ROW_HEIGHT }} />
+              <Skeleton
+                key={j}
+                className="flex-shrink-0"
+                style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
+              />
             ))}
           </div>
         </div>
@@ -309,7 +395,12 @@ function CalendarSkeleton() {
 
 export function CalendarView() {
   const [startDateOffset, setStartDateOffset] = useState(0)
+  const [floorFilter, setFloorFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const { navigateTo } = useNavigationStore()
 
   const today = startOfDay(new Date())
   const startDate = addDays(today, startDateOffset)
@@ -348,11 +439,76 @@ export function CalendarView() {
   // Filter relevant reservations
   const relevantStatuses = new Set(['confirmed', 'checked_in', 'checked_out'])
   const reservations = useMemo(
-    () => allReservations.filter((r: Reservation) => relevantStatuses.has(r.status) && r.roomId),
+    () =>
+      allReservations.filter(
+        (r: Reservation) => relevantStatuses.has(r.status) && r.roomId,
+      ),
     [allReservations],
   )
 
   const dates = useMemo(() => getDates(startDate, NUM_DAYS), [startDate])
+
+  // ─── Unique floors & room types ──────────────────────────────────────
+  const uniqueFloors = useMemo(() => {
+    const floors = new Set(rooms.map((r) => r.floor))
+    return Array.from(floors).sort((a, b) => a - b)
+  }, [rooms])
+
+  const uniqueRoomTypes = useMemo(() => {
+    const types = new Map<string, string>()
+    for (const r of rooms) {
+      if (r.type && !types.has(r.typeId)) {
+        types.set(r.typeId, r.type.name)
+      }
+    }
+    return Array.from(types.entries())
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => ({ id, name }))
+  }, [rooms])
+
+  // ─── Filtered rooms ─────────────────────────────────────────────────
+  const filteredRooms = useMemo(() => {
+    return rooms.filter((room) => {
+      if (floorFilter !== 'all' && room.floor !== Number(floorFilter))
+        return false
+      if (typeFilter !== 'all' && room.typeId !== typeFilter) return false
+      if (statusFilter !== 'all' && room.status !== statusFilter) return false
+      return true
+    })
+  }, [rooms, floorFilter, typeFilter, statusFilter])
+
+  // ─── Clear filters ────────────────────────────────────────────────────
+  const clearFilters = useCallback(() => {
+    setFloorFilter('all')
+    setTypeFilter('all')
+    setStatusFilter('all')
+  }, [])
+
+  const hasActiveFilters =
+    floorFilter !== 'all' || typeFilter !== 'all' || statusFilter !== 'all'
+
+  // ─── Summary stats ────────────────────────────────────────────────────
+  const summaryStats = useMemo(() => {
+    const todayKey = format(today, 'yyyy-MM-dd')
+    const occupiedSet = new Set<string>()
+    for (const r of reservations) {
+      if (r.status !== 'checked_in') continue
+      const ci = format(startOfDay(parseISO(r.checkIn)), 'yyyy-MM-dd')
+      const co = format(startOfDay(parseISO(r.checkOut)), 'yyyy-MM-dd')
+      if (ci <= todayKey && co > todayKey) {
+        occupiedSet.add(r.roomId)
+      }
+    }
+    const totalRooms = rooms.length
+    const occupiedCount = occupiedSet.size
+    const availableCount = rooms.filter(
+      (r) => r.status === 'vacant_clean' && !occupiedSet.has(r.id),
+    ).length
+    const occupancyRate =
+      totalRooms > 0 ? Math.round((occupiedCount / totalRooms) * 100) : 0
+
+    return { totalRooms, occupiedCount, availableCount, occupancyRate }
+  }, [rooms, reservations, today])
 
   // ─── Compute arrivals/departures per date ────────────────────────────
   const dateStats = useMemo(() => {
@@ -374,9 +530,33 @@ export function CalendarView() {
     return stats
   }, [reservations, dates])
 
+  // ─── Daily occupancy rates for the occupancy bar ──────────────────────
+  const dailyOccupancy = useMemo(() => {
+    const occupancyMap: Map<string, number> = new Map()
+    for (const date of dates) {
+      const dayKey = format(date, 'yyyy-MM-dd')
+      const occupiedRoomIds = new Set<string>()
+      for (const r of reservations) {
+        if (r.status !== 'checked_in') continue
+        const ciKey = format(startOfDay(parseISO(r.checkIn)), 'yyyy-MM-dd')
+        const coKey = format(startOfDay(parseISO(r.checkOut)), 'yyyy-MM-dd')
+        if (ciKey <= dayKey && coKey > dayKey) {
+          occupiedRoomIds.add(r.roomId)
+        }
+      }
+      const totalRooms = rooms.length
+      const pct = totalRooms > 0 ? (occupiedRoomIds.size / totalRooms) * 100 : 0
+      occupancyMap.set(dayKey, pct)
+    }
+    return occupancyMap
+  }, [reservations, dates, rooms])
+
   // ─── Build reservation blocks per room ──────────────────────────────
   const reservationBlocks = useMemo(() => {
-    const blocks: Map<string, Array<{ reservation: Reservation; left: number; width: number }>> = new Map()
+    const blocks: Map<
+      string,
+      Array<{ reservation: Reservation; left: number; width: number }>
+    > = new Map()
 
     for (const r of reservations) {
       const ciDay = startOfDay(parseISO(r.checkIn))
@@ -389,7 +569,6 @@ export function CalendarView() {
       // Only render if at least partially visible
       if (endCol <= 0 || startCol >= NUM_DAYS) continue
 
-      // Half-day positioning: start from center of check-in day
       const visibleStartCol = Math.max(0, startCol)
       const visibleEndCol = Math.min(NUM_DAYS, endCol)
 
@@ -407,7 +586,7 @@ export function CalendarView() {
       } else if (startCol < 0) {
         // Starts before visible range
         left = 0
-        width = (endCol) * DAY_WIDTH - 1
+        width = endCol * DAY_WIDTH - 1
       } else {
         // Ends after visible range
         left = startCol * DAY_WIDTH + 30
@@ -423,10 +602,45 @@ export function CalendarView() {
     return blocks
   }, [reservations, startDate])
 
+  // ─── Pre-compute occupied day sets per room for empty-cell detection ─
+  const roomOccupiedDays = useMemo(() => {
+    const map: Map<string, Set<number>> = new Map()
+    for (const [roomId, blocks] of reservationBlocks) {
+      const set = new Set<number>()
+      for (const { reservation } of blocks) {
+        const ci = startOfDay(parseISO(reservation.checkIn))
+        const co = startOfDay(parseISO(reservation.checkOut))
+        const startCol = differenceInDays(ci, startDate)
+        const endCol = differenceInDays(co, startDate)
+        for (let d = Math.max(0, startCol); d < Math.min(NUM_DAYS, endCol); d++) {
+          set.add(d)
+        }
+      }
+      map.set(roomId, set)
+    }
+    return map
+  }, [reservationBlocks, startDate])
+
   // ─── Handlers ────────────────────────────────────────────────────────
   const goToday = useCallback(() => setStartDateOffset(0), [])
-  const goPrev = useCallback(() => setStartDateOffset((prev) => prev - 7), [])
-  const goNext = useCallback(() => setStartDateOffset((prev) => prev + 7), [])
+  const goPrev = useCallback(
+    () => setStartDateOffset((prev) => prev - 5),
+    [],
+  )
+  const goNext = useCallback(
+    () => setStartDateOffset((prev) => prev + 5),
+    [],
+  )
+
+  // ─── Empty cell click handler ────────────────────────────────────────
+  const handleEmptyCellClick = useCallback(
+    (roomNumber: string, date: Date) => {
+      toast.info(
+        `Click "New Reservation" to book Room ${roomNumber} for ${format(date, 'MMM d')}`,
+      )
+    },
+    [],
+  )
 
   const isLoading = roomsLoading || reservationsLoading
   const dateRangeLabel = `${format(dates[0], 'MMM d')} — ${format(dates[dates.length - 1], 'MMM d, yyyy')}`
@@ -459,7 +673,12 @@ export function CalendarView() {
         {/* Date Navigation */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-lg border bg-card p-1">
-            <Button variant="ghost" size="icon" className="size-7" onClick={goPrev}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={goPrev}
+            >
               <ChevronLeft className="size-4" />
             </Button>
             <Button
@@ -470,7 +689,12 @@ export function CalendarView() {
             >
               Today
             </Button>
-            <Button variant="ghost" size="icon" className="size-7" onClick={goNext}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={goNext}
+            >
               <ChevronRight className="size-4" />
             </Button>
           </div>
@@ -480,12 +704,163 @@ export function CalendarView() {
         </div>
       </div>
 
+      {/* ─── Summary Stats Cards ─────────────────────────────────────── */}
+      {!isLoading && rooms.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card className="py-0">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-muted">
+                <BedDouble className="size-4 text-muted-foreground" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Total Rooms
+                </p>
+                <p className="text-lg font-bold leading-tight">
+                  {summaryStats.totalRooms}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="py-0">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-emerald-100 dark:bg-emerald-950/40">
+                <Users className="size-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Occupied
+                </p>
+                <p className="text-lg font-bold leading-tight">
+                  {summaryStats.occupiedCount}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="py-0">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-green-100 dark:bg-green-950/40">
+                <CheckCircle2 className="size-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Available
+                </p>
+                <p className="text-lg font-bold leading-tight">
+                  {summaryStats.availableCount}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="py-0">
+            <CardContent className="p-3 flex items-center gap-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-amber-100 dark:bg-amber-950/40">
+                <Home className="size-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] text-muted-foreground leading-tight">
+                  Occupancy Rate
+                </p>
+                <p className="text-lg font-bold leading-tight">
+                  {summaryStats.occupancyRate}%
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* ─── Legend ───────────────────────────────────────────────────── */}
       <Card className="py-2 px-4">
         <CardContent className="p-0">
           <CalendarLegend />
         </CardContent>
       </Card>
+
+      {/* ─── Filter Bar ───────────────────────────────────────────────── */}
+      {!isLoading && rooms.length > 0 && (
+        <Card className="py-2 px-4">
+          <CardContent className="p-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+                <Filter className="size-3.5" />
+                Filters
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 flex-1">
+                {/* Floor Filter */}
+                <Select value={floorFilter} onValueChange={setFloorFilter}>
+                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                    <SelectValue placeholder="All Floors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Floors</SelectItem>
+                    {uniqueFloors.map((floor) => (
+                      <SelectItem key={floor} value={String(floor)}>
+                        Floor {floor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Room Type Filter */}
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger className="h-8 w-[150px] text-xs">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {uniqueRoomTypes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Status Filter */}
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="vacant_clean">Vacant</SelectItem>
+                    <SelectItem value="occupied">Occupied</SelectItem>
+                    <SelectItem value="vacant_dirty">Dirty</SelectItem>
+                    <SelectItem value="out_of_order">Out of Order</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Room count */}
+                <span className="text-xs text-muted-foreground">
+                  Showing{' '}
+                  <span className="font-semibold text-foreground">
+                    {filteredRooms.length}
+                  </span>{' '}
+                  of {rooms.length} rooms
+                </span>
+              </div>
+
+              {/* Clear button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                  onClick={clearFilters}
+                >
+                  <X className="size-3" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ─── Calendar Grid ────────────────────────────────────────────── */}
       <Card>
@@ -498,7 +873,9 @@ export function CalendarView() {
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <CalendarDays className="size-10 mb-3 opacity-30" />
               <p className="text-sm font-medium">No rooms configured</p>
-              <p className="text-xs">Rooms need to be set up to display the calendar.</p>
+              <p className="text-xs">
+                Rooms need to be set up to display the calendar.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto" ref={scrollRef}>
@@ -526,6 +903,7 @@ export function CalendarView() {
                       const hasDepartures = (dayStats?.departures ?? 0) > 0
                       const todayCol = isToday(date)
                       const weekend = isWeekend(date)
+                      const occPct = dailyOccupancy.get(format(date, 'yyyy-MM-dd')) ?? 0
 
                       return (
                         <div
@@ -538,18 +916,26 @@ export function CalendarView() {
                           style={{ width: DAY_WIDTH }}
                         >
                           {/* Day name */}
-                          <span className={cn(
-                            'text-[10px] font-medium leading-tight',
-                            todayCol ? 'text-primary' : weekend ? 'text-orange-500' : 'text-muted-foreground',
-                          )}>
+                          <span
+                            className={cn(
+                              'text-[10px] font-medium leading-tight',
+                              todayCol
+                                ? 'text-primary'
+                                : weekend
+                                  ? 'text-orange-500'
+                                  : 'text-muted-foreground',
+                            )}
+                          >
                             {format(date, 'EEE')}
                           </span>
 
                           {/* Day number */}
-                          <span className={cn(
-                            'text-xs font-bold leading-tight',
-                            todayCol && 'text-primary',
-                          )}>
+                          <span
+                            className={cn(
+                              'text-xs font-bold leading-tight',
+                              todayCol && 'text-primary',
+                            )}
+                          >
                             {format(date, 'd')}
                           </span>
 
@@ -563,7 +949,10 @@ export function CalendarView() {
                           {/* Arrival / Departure indicators */}
                           <div className="flex items-center gap-0.5 mt-0.5 h-3">
                             {hasArrivals && (
-                              <div className="flex items-center gap-0.5" title={`${dayStats!.arrivals} arrival(s)`}>
+                              <div
+                                className="flex items-center gap-0.5"
+                                title={`${dayStats!.arrivals} arrival(s)`}
+                              >
                                 <span className="size-1.5 rounded-full bg-green-500" />
                                 {dayStats!.arrivals > 1 && (
                                   <span className="text-[8px] font-bold text-green-600 dark:text-green-400 leading-none">
@@ -573,7 +962,10 @@ export function CalendarView() {
                               </div>
                             )}
                             {hasDepartures && (
-                              <div className="flex items-center gap-0.5" title={`${dayStats!.departures} departure(s)`}>
+                              <div
+                                className="flex items-center gap-0.5"
+                                title={`${dayStats!.departures} departure(s)`}
+                              >
                                 <span className="size-1.5 rounded-full bg-orange-500" />
                                 {dayStats!.departures > 1 && (
                                   <span className="text-[8px] font-bold text-orange-600 dark:text-orange-400 leading-none">
@@ -582,6 +974,20 @@ export function CalendarView() {
                                 )}
                               </div>
                             )}
+                          </div>
+
+                          {/* ─── Occupancy bar at bottom of header ──── */}
+                          <div
+                            className="absolute bottom-0 left-0 right-0 h-1 bg-muted/30"
+                            title={`${Math.round(occPct)}% occupied`}
+                          >
+                            <div
+                              className={cn(
+                                'h-full rounded-full transition-all',
+                                getOccupancyBarColor(occPct),
+                              )}
+                              style={{ width: `${Math.min(occPct, 100)}%` }}
+                            />
                           </div>
                         </div>
                       )
@@ -597,9 +1003,12 @@ export function CalendarView() {
                     style={{
                       left: ROOM_LABEL_WIDTH,
                       width: DAY_WIDTH,
-                      ...(function() {
+                      ...(function () {
                         const todayIdx = dates.findIndex((d) => isToday(d))
-                        if (todayIdx >= 0) return { transform: `translateX(${todayIdx * DAY_WIDTH}px)` }
+                        if (todayIdx >= 0)
+                          return {
+                            transform: `translateX(${todayIdx * DAY_WIDTH}px)`,
+                          }
                         return { display: 'none' }
                       })(),
                     }}
@@ -625,10 +1034,12 @@ export function CalendarView() {
                     })}
                   </div>
 
-                  {rooms.map((room, roomIdx) => {
-                    const roomBlocks = reservationBlocks.get(room.id) || []
+                  {filteredRooms.map((room, roomIdx) => {
+                    const roomBlocks =
+                      reservationBlocks.get(room.id) || []
                     const rowBg = getRoomRowBg(room.status)
                     const stripeBg = ROOM_STATUS_STRIPE[room.status]
+                    const occupiedDaySet = roomOccupiedDays.get(room.id) || new Set()
 
                     return (
                       <div
@@ -636,84 +1047,145 @@ export function CalendarView() {
                         className="flex border-b relative z-10"
                         style={{ height: ROW_HEIGHT }}
                       >
-                        {/* Room Label */}
-                        <div
+                        {/* Room Label — clickable to navigate to Room Management */}
+                        <button
                           className={cn(
-                            'flex-shrink-0 border-r flex items-center gap-2 px-2.5 sticky left-0 z-10',
-                            rowBg,
+                            'flex-shrink-0 border-r flex items-center gap-2 px-2.5 sticky left-0 z-10 cursor-pointer transition-colors hover:bg-accent/60 text-left',
                           )}
                           style={{
                             width: ROOM_LABEL_WIDTH,
                             background: stripeBg || undefined,
                           }}
+                          onClick={() => navigateTo('rooms', 'room-board')}
+                          title={`Go to Room ${room.number} management`}
                         >
-                          <div className="flex flex-col leading-tight min-w-0">
-                            <span className="text-xs font-bold truncate">{room.number}</span>
+                          <div
+                            className={cn(
+                              'absolute inset-0 z-[-1]',
+                              rowBg,
+                            )}
+                          />
+                          <div className="flex flex-col leading-tight min-w-0 relative z-10">
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs font-bold truncate">
+                                {room.number}
+                              </span>
+                              <BedDouble className="size-2.5 text-muted-foreground flex-shrink-0" />
+                            </div>
                             <span className="text-[9px] text-muted-foreground truncate">
                               {room.type?.code || ''} · F{room.floor}
+                              {room.status && (
+                                <span className="ml-1 text-[8px]">
+                                  · {ROOM_STATUS_FRIENDLY[room.status] || room.status}
+                                </span>
+                              )}
                             </span>
                           </div>
-                        </div>
+                        </button>
 
                         {/* Day Cells */}
-                        <div className="relative flex-shrink-0" style={{ width: NUM_DAYS * DAY_WIDTH }}>
+                        <div
+                          className="relative flex-shrink-0"
+                          style={{ width: NUM_DAYS * DAY_WIDTH }}
+                        >
                           {/* Room status background for day cells */}
                           <div
                             className={cn('absolute inset-0', rowBg)}
                             style={{ background: stripeBg || undefined }}
                           />
 
-                          {/* Reservation Blocks */}
-                          {roomBlocks.map(({ reservation: res, left, width }) => {
-                            const guestName = res.guest
-                              ? truncate(`${res.guest.firstName} ${res.guest.lastName}`, width < 100 ? 6 : 12)
-                              : '—'
-                            const vip = isVip(res.guest)
-                            const showConf = width > 140
-
+                          {/* Empty cell click zones */}
+                          {dates.map((date, dayIdx) => {
+                            if (occupiedDaySet.has(dayIdx)) return null
                             return (
-                              <Popover key={res.id}>
-                                <PopoverTrigger asChild>
-                                  <button
-                                    className={cn(
-                                      'absolute top-[5px] bottom-[5px] rounded-md text-white text-[10px] font-medium px-1.5 flex items-center gap-0.5 cursor-pointer transition-opacity hover:opacity-90 overflow-hidden whitespace-nowrap',
-                                      getReservationBg(res.status),
-                                    )}
-                                    style={{
-                                      left: ROOM_LABEL_WIDTH - ROOM_LABEL_WIDTH + left,
-                                      width: Math.max(width - 2, 20),
-                                    }}
-                                    title={`${res.guest?.firstName} ${res.guest?.lastName} — ${formatDate(res.checkIn)} to ${formatDate(res.checkOut)}`}
-                                  >
-                                    {/* VIP gold left border */}
-                                    {vip && (
-                                      <span className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-md bg-amber-400" />
-                                    )}
-
-                                    <span className="truncate z-10 pl-0.5">
-                                      {guestName}
-                                    </span>
-                                    {showConf && (
-                                      <span className="truncate z-10 opacity-70 text-[9px] ml-auto flex-shrink-0">
-                                        {truncate(res.confirmationNo, 8)}
-                                      </span>
-                                    )}
-                                  </button>
-                                </PopoverTrigger>
-                                <ReservationPopover reservation={res} />
-                              </Popover>
+                              <button
+                                key={`empty-${room.id}-${dayIdx}`}
+                                className="absolute top-0 bottom-0 z-[5] cursor-pointer hover:bg-primary/5 transition-colors"
+                                style={{
+                                  left: ROOM_LABEL_WIDTH - ROOM_LABEL_WIDTH + dayIdx * DAY_WIDTH,
+                                  width: DAY_WIDTH,
+                                }}
+                                onClick={() =>
+                                  handleEmptyCellClick(
+                                    room.number,
+                                    date,
+                                  )
+                                }
+                                title={`Book Room ${room.number} for ${format(date, 'MMM d')}`}
+                              />
                             )
                           })}
+
+                          {/* Reservation Blocks */}
+                          {roomBlocks.map(
+                            ({ reservation: res, left, width }) => {
+                              const guestName = res.guest
+                                ? truncate(
+                                    `${res.guest.firstName} ${res.guest.lastName}`,
+                                    width < 100 ? 6 : 12,
+                                  )
+                                : '—'
+                              const vip = isVip(res.guest)
+                              const showConf = width > 140
+
+                              return (
+                                <Popover key={res.id}>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      className={cn(
+                                        'absolute top-[5px] bottom-[5px] rounded-md text-white text-[10px] font-medium px-1.5 flex items-center gap-0.5 cursor-pointer transition-opacity hover:opacity-90 overflow-hidden whitespace-nowrap',
+                                        getReservationBg(res.status),
+                                      )}
+                                      style={{
+                                        left:
+                                          ROOM_LABEL_WIDTH -
+                                          ROOM_LABEL_WIDTH +
+                                          left,
+                                        width: Math.max(width - 2, 20),
+                                      }}
+                                      title={`${res.guest?.firstName} ${res.guest?.lastName} — ${formatDate(res.checkIn)} to ${formatDate(res.checkOut)}`}
+                                    >
+                                      {/* VIP gold left border */}
+                                      {vip && (
+                                        <span className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-md bg-amber-400" />
+                                      )}
+
+                                      <span className="truncate z-10 pl-0.5">
+                                        {guestName}
+                                      </span>
+                                      {showConf && (
+                                        <span className="truncate z-10 opacity-70 text-[9px] ml-auto flex-shrink-0">
+                                          {truncate(
+                                            res.confirmationNo,
+                                            8,
+                                          )}
+                                        </span>
+                                      )}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <ReservationPopover reservation={res} />
+                                </Popover>
+                              )
+                            },
+                          )}
                         </div>
                       </div>
                     )
                   })}
 
-                  {/* ─── Empty state for no reservations ──────────────── */}
-                  {visibleReservations.length === 0 && (
+                  {/* ─── Empty state for no reservations or filtered results ──────── */}
+                  {visibleReservations.length === 0 && filteredRooms.length > 0 && (
                     <div className="flex items-center justify-center py-6">
                       <p className="text-xs text-muted-foreground/60">
                         No reservations in this date range
+                      </p>
+                    </div>
+                  )}
+
+                  {filteredRooms.length === 0 && rooms.length > 0 && (
+                    <div className="flex items-center justify-center py-6">
+                      <p className="text-xs text-muted-foreground/60">
+                        No rooms match the selected filters
                       </p>
                     </div>
                   )}
@@ -732,16 +1204,30 @@ export function CalendarView() {
             <span className="flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-green-500" />
               {reservations.filter((r) => {
-                const ci = format(startOfDay(parseISO(r.checkIn)), 'yyyy-MM-dd')
-                return ci >= format(startDate, 'yyyy-MM-dd') && ci < format(addDays(startDate, NUM_DAYS), 'yyyy-MM-dd')
-              }).length} arrivals
+                const ci = format(
+                  startOfDay(parseISO(r.checkIn)),
+                  'yyyy-MM-dd',
+                )
+                return (
+                  ci >= format(startDate, 'yyyy-MM-dd') &&
+                  ci < format(addDays(startDate, NUM_DAYS), 'yyyy-MM-dd')
+                )
+              }).length}{' '}
+              arrivals
             </span>
             <span className="flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-orange-500" />
               {reservations.filter((r) => {
-                const co = format(startOfDay(parseISO(r.checkOut)), 'yyyy-MM-dd')
-                return co >= format(startDate, 'yyyy-MM-dd') && co < format(addDays(startDate, NUM_DAYS), 'yyyy-MM-dd')
-              }).length} departures
+                const co = format(
+                  startOfDay(parseISO(r.checkOut)),
+                  'yyyy-MM-dd',
+                )
+                return (
+                  co >= format(startDate, 'yyyy-MM-dd') &&
+                  co < format(addDays(startDate, NUM_DAYS), 'yyyy-MM-dd')
+                )
+              }).length}{' '}
+              departures
             </span>
           </div>
           <span>{visibleReservations.length} bookings visible</span>

@@ -36,6 +36,7 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useNavigationStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ const INITIAL_FORM: NewReservationForm = {
 
 export function ReservationsView() {
   const queryClient = useQueryClient()
+  const { navigateTo } = useNavigationStore()
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -876,7 +878,14 @@ export function ReservationsView() {
                       </TableCell>
                       <TableCell>
                         {res.room ? (
-                          <span className="font-medium">{res.room.number}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 font-medium text-xs"
+                            onClick={(e) => { e.stopPropagation(); navigateTo('rooms', 'room-board') }}
+                          >
+                            {res.room.number}
+                          </Button>
                         ) : (
                           <span className="text-amber-600 dark:text-amber-400 text-xs">Unassigned</span>
                         )}

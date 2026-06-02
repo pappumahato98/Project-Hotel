@@ -12,7 +12,8 @@ import { DeparturesView } from './DeparturesView'
 import { FolioView } from './FolioView'
 import { CalendarView } from './CalendarView'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, BedDouble } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 const SUB_MODULE_MAP: Record<string, React.ComponentType> = {
   reservations: ReservationsView,
@@ -33,7 +34,7 @@ const SUB_MODULE_LABELS: Record<string, string> = {
 }
 
 export function FrontDeskModule() {
-  const { activeSubModule, setActiveSubModule } = useNavigationStore()
+  const { activeSubModule, setActiveSubModule, navigateTo } = useNavigationStore()
   const queryClient = useQueryClient()
 
   const { isConnected } = useRealtime({
@@ -80,6 +81,15 @@ export function FrontDeskModule() {
             </div>
           )}
           <QuickSearch />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-muted-foreground"
+            onClick={() => navigateTo('rooms', 'room-board')}
+          >
+            <BedDouble className="size-3.5" />
+            <span className="hidden sm:inline">Room Board</span>
+          </Button>
         </div>
       </div>
 

@@ -53,6 +53,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useNavigationStore } from '@/lib/store'
 
 // ─── Types (same as RoomBoard) ───────────────────────────────
 interface RoomGuest {
@@ -180,6 +181,7 @@ interface RoomDetailDrawerProps {
 export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerProps) {
   const [oooOpen, setOooOpen] = useState(false)
   const [oooReason, setOooReason] = useState('')
+  const { navigateTo } = useNavigationStore()
 
   const statusConfig = STATUS_CONFIG[room.status] || STATUS_CONFIG.vacant_clean
   const transitions = STATUS_TRANSITIONS[room.status] || []
@@ -204,13 +206,15 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
   const handleQuickAction = (action: string) => {
     switch (action) {
       case 'assign':
-        toast.info(`Assign reservation to Room ${room.number} — Feature coming soon`)
+        onOpenChange(false)
+        navigateTo('front-desk', 'reservations')
         break
       case 'work-order':
         toast.info(`Create work order for Room ${room.number} — Feature coming soon`)
         break
       case 'folio':
-        toast.info(`View folio for Room ${room.number} — Feature coming soon`)
+        onOpenChange(false)
+        navigateTo('front-desk', 'folio')
         break
     }
   }

@@ -364,3 +364,32 @@ Stage Summary:
 - Calendar navigation fix: added to sidebar nav and command palette (was only accessible as tab)
 - Zero lint errors, zero browser console errors
 - In-House expandable row confirmed working with all 6 action buttons
+
+---
+Task ID: calendar-upgrade-and-interconnect
+Agent: Main Agent
+Task: Upgrade Calendar (10 days, filters, stats, occupancy bar) + fix Front Desk ↔ Room Management interconnection
+
+Work Log:
+- Rewrote CalendarView.tsx with major enhancements:
+  1. Changed NUM_DAYS from 14 to 10, DAY_WIDTH from 60 to 72, ROOM_LABEL_WIDTH from 130 to 140
+  2. Added summary stat cards: Total Rooms, Occupied, Available, Occupancy Rate
+  3. Added filter bar: Floor dropdown, Room Type dropdown, Status dropdown, Clear button
+  4. Added occupancy bar below date headers (4px tall, color-coded by %: green <50%, amber 50-80%, red >80%)
+  5. Date navigation changed from ±7 to ±5 days (half view)
+  6. Room labels now clickable → navigateTo('rooms', 'room-board')
+  7. Empty cell click shows toast guiding to New Reservation
+  8. Reservation popover enhanced with "View Details" and "View Room" action buttons
+  9. Fixed bug: occupiedDaySet could be undefined (added fallback to new Set())
+- Fixed Front Desk ↔ Room Management interconnection across 4 files:
+  1. FrontDeskModule.tsx: Added "Room Board" ghost button → navigateTo('rooms', 'room-board')
+  2. RoomManagementModule.tsx: Added "View Calendar" ghost button → navigateTo('front-desk', 'calendar')
+  3. RoomDetailDrawer.tsx: "Assign Reservation" → navigateTo('front-desk', 'reservations'), "View Guest Folio" → navigateTo('front-desk', 'folio')
+  4. ReservationsView.tsx: Room number cells now clickable buttons → navigateTo('rooms', 'room-board')
+
+Stage Summary:
+- Calendar reduced to 10 days with larger columns for better readability
+- Calendar now has filters (floor, room type, status), occupancy stats, summary cards
+- All 4 cross-navigation links verified working via agent browser
+- Zero lint errors, zero browser console errors
+- All existing calendar features preserved (half-day positioning, color coding, VIP indicators, arrival/departure markers, legend)
