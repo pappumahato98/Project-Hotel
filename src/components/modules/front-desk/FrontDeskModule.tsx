@@ -10,6 +10,7 @@ import { ArrivalsView } from './ArrivalsView'
 import { InHouseView } from './InHouseView'
 import { DeparturesView } from './DeparturesView'
 import { FolioView } from './FolioView'
+import { CalendarView } from './CalendarView'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CalendarDays } from 'lucide-react'
 
@@ -19,6 +20,7 @@ const SUB_MODULE_MAP: Record<string, React.ComponentType> = {
   'in-house': InHouseView,
   departures: DeparturesView,
   folio: FolioView,
+  calendar: CalendarView,
 }
 
 const SUB_MODULE_LABELS: Record<string, string> = {
@@ -27,6 +29,7 @@ const SUB_MODULE_LABELS: Record<string, string> = {
   'in-house': 'In-House',
   departures: 'Departures',
   folio: 'Folio',
+  calendar: 'Calendar',
 }
 
 export function FrontDeskModule() {

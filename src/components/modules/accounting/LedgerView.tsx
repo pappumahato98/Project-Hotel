@@ -1,8 +1,7 @@
 'use client'
-import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,7 +10,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Search, BookOpen } from 'lucide-react'
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { formatNPR } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -149,9 +148,8 @@ export function LedgerView() {
                     const isExpanded = expandedAccount === account.id
                     const balance = getAccountBalance(account)
                     return (
-                      <>
+                      <Fragment key={account.id}>
                         <TableRow
-                          key={account.id}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => setExpandedAccount(isExpanded ? null : account.id)}
                         >
@@ -178,7 +176,7 @@ export function LedgerView() {
                           </TableCell>
                         </TableRow>
                         {isExpanded && (
-                          <TableRow key={`${account.id}-detail`} className="bg-muted/30">
+                          <TableRow className="bg-muted/30">
                             <TableCell colSpan={5} className="px-8 py-3">
                               <div className="text-sm space-y-1">
                                 {account.description && (
@@ -204,7 +202,7 @@ export function LedgerView() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     )
                   })
                 )}
