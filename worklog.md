@@ -224,3 +224,33 @@ Stage Summary:
 - In-House details no longer clipped/hidden - uses Dialog instead of inline expansion
 - Guest Detail Dialog provides a much better UX with structured info layout
 - Action buttons always accessible in the dialog
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix details dropdown hidden in In-House view — expandable inline row details
+
+Work Log:
+- Investigated the InHouseView details "hidden" issue via agent-browser
+- Found that the previous Dialog-only approach worked but users couldn't see inline details without opening a modal
+- Root cause analysis: ScrollArea (Radix UI) creates a custom viewport with overflow scrolling that can interfere with click event propagation on nested table rows in certain browser/automation contexts
+- Implemented expandable inline row detail pattern:
+  1. Added `expandedRowId` state to track which row is expanded
+  2. Changed `handleRowClick` to toggle inline expansion (not open dialog)
+  3. Added `handleViewFullDetails` callback for the full dialog (accessed via "Full Details" button in expanded row)
+  4. Animated ChevronRight icon rotates 90° when row is expanded
+  5. Expanded detail row shows: guest summary bar, 4-column info grid (check-in, check-out, rate, total), folio balance with progress bar + credit warnings, notes preview, 6 action buttons
+  6. "Full Details" button opens the existing Dialog modal for comprehensive view
+  7. All action buttons use `e.stopPropagation()` to prevent row toggle when clicking buttons
+- Replaced ScrollArea wrapper with simpler `overflow-auto max-h-[65vh]` on CardContent to avoid nested scrolling context issues
+- Removed ScrollArea import (kept comment explaining why)
+- Added ChevronDown, Maximize2 icon imports
+- Verified in browser: row expansion works (4→5 rows), toggle works (5→4 rows), Full Details dialog opens, all action buttons visible
+- 0 lint errors
+
+Stage Summary:
+- In-House table now features expandable inline row details — no more "hidden dropdown" issue
+- Click any row → details expand inline below the row with guest info, folio, notes, and 6 action buttons
+- Click same row → collapses. Click different row → switches expansion
+- "Full Details" button available for comprehensive Dialog view
+- ScrollArea removed to prevent nested scrolling context click event issues

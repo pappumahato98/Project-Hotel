@@ -5,8 +5,8 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BedDouble, CreditCard, AlertTriangle, Crown, Receipt, ArrowRightLeft, Plus,
-  CalendarPlus, LogOut, StickyNote, ChevronRight, Filter, UtensilsCrossed,
-  Wine, Shirt, Phone, Loader2, X,
+  CalendarPlus, LogOut, StickyNote, ChevronRight, ChevronDown, Filter, UtensilsCrossed,
+  Wine, Shirt, Phone, Loader2, X, Maximize2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -36,7 +36,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
+// ScrollArea removed — nested scrolling contexts break row click events
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -124,6 +124,7 @@ export function InHouseView() {
 
   const [selectedReservation, setSelectedReservation] = useState<InHouseReservation | null>(null)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
 
   // ── Charge form state ──────────────────────────────────────
   const [chargeType, setChargeType] = useState('miscellaneous')
@@ -436,8 +437,14 @@ export function InHouseView() {
     navigateTo('front-desk', 'folio')
   }
 
-  // Open detail dialog for a guest
+  // Toggle inline row expansion
   const handleRowClick = useCallback((reservation: InHouseReservation) => {
+    setSelectedReservation(reservation)
+    setExpandedRowId(prev => prev === reservation.id ? null : reservation.id)
+  }, [])
+
+  // Open full detail dialog
+  const handleViewFullDetails = useCallback((reservation: InHouseReservation) => {
     setSelectedReservation(reservation)
     setDetailDialogOpen(true)
   }, [])
@@ -575,9 +582,8 @@ export function InHouseView() {
 
       {/* In-House Table */}
       <Card>
-        <CardContent className="p-0">
-          <ScrollArea className="max-h-[65vh]">
-            <Table>
+        <CardContent className="p-0 overflow-auto max-h-[65vh]">
+          <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]" />
@@ -612,15 +618,21 @@ export function InHouseView() {
                   filteredReservations.map((res) => {
                     const credit = getCreditStatus(res)
                     const balance = res.folios[0]?.balance || 0
+                    const isExpanded = expandedRowId === res.id
 
                     return (
                       <React.Fragment key={res.id}>
                         <TableRow
-                          className="cursor-pointer hover:bg-muted/50"
+                          className={cn(
+                            'cursor-pointer hover:bg-muted/50 transition-colors',
+                            isExpanded && 'bg-muted/40 border-b-0',
+                          )}
                           onClick={() => handleRowClick(res)}
                         >
                           <TableCell>
-                            <ChevronRight className="size-4 text-muted-foreground" />
+                            <div className={cn('transition-transform duration-200', isExpanded && 'rotate-90')}>
+                              <ChevronRight className="size-4 text-muted-foreground" />
+                            </div>
                           </TableCell>
                           <TableCell className="font-bold font-mono">{res.room.number}</TableCell>
                           <TableCell>
@@ -673,13 +685,163 @@ export function InHouseView() {
                             )}
                           </TableCell>
                         </TableRow>
+                        {/* ─── Expandable Detail Row ──────────────────── */}
+                        {isExpanded && (
+                          <TableRow className="bg-muted/20 hover:bg-muted/20">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="px-6 py-4 space-y-4">
+                                {/* Guest summary bar */}
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
+                                      <BedDouble className="size-4 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-semibold">{res.guest.firstName} {res.guest.lastName}</p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        {res.confirmationNo} · {res.room.type.name} · Floor {res.room.floor}{res.room.wing ? ` · ${res.room.wing}` : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5 self-start"
+                                    onClick={(e) => { e.stopPropagation(); handleViewFullDetails(res) }}
+                                  >
+                                    <Maximize2 className="size-3" />
+                                    Full Details
+                                  </Button>
+                                </div>
+
+                                {/* Details grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                  <div className="rounded-md bg-background border p-2.5">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-in</p>
+                                    <p className="text-xs font-medium mt-0.5">{formatDate(res.checkIn)}</p>
+                                  </div>
+                                  <div className="rounded-md bg-background border p-2.5">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-out</p>
+                                    <p className="text-xs font-medium mt-0.5">{formatDate(res.checkOut)}</p>
+                                  </div>
+                                  <div className="rounded-md bg-background border p-2.5">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Rate / Night</p>
+                                    <p className="text-xs font-medium mt-0.5">{formatCurrency(res.roomRate)}</p>
+                                  </div>
+                                  <div className="rounded-md bg-background border p-2.5">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Amount</p>
+                                    <p className="text-xs font-medium mt-0.5">{formatCurrency(res.totalAmount)}</p>
+                                  </div>
+                                </div>
+
+                                {/* Folio & Credit bar */}
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                  <div className="flex-1 rounded-md border p-3">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Folio Balance</p>
+                                      <StatusBadge status={res.folios[0]?.status || 'open'} />
+                                    </div>
+                                    <p className={cn('text-lg font-bold', credit.color)}>{formatCurrency(balance)}</p>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                      <Progress
+                                        value={Math.min(credit.pct, 100)}
+                                        className={cn(
+                                          'h-1.5 flex-1',
+                                          credit.status === 'breach' && '[&>div]:bg-red-500',
+                                          credit.status === 'warning' && '[&>div]:bg-amber-500',
+                                          credit.status === 'ok' && '[&>div]:bg-green-500',
+                                        )}
+                                      />
+                                      <span className={cn('text-[10px] font-semibold', credit.color)}>
+                                        {Math.round(credit.pct)}%
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground">of {formatCurrency(res.creditLimit)}</span>
+                                    </div>
+                                    {credit.status === 'breach' && (
+                                      <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                                        <AlertTriangle className="size-3" /> Credit limit exceeded
+                                      </p>
+                                    )}
+                                    {credit.status === 'warning' && (
+                                      <p className="text-[10px] text-amber-500 font-medium mt-1 flex items-center gap-1">
+                                        <AlertTriangle className="size-3" /> Approaching credit limit
+                                      </p>
+                                    )}
+                                  </div>
+                                  {/* Notes preview */}
+                                  <div className="flex-1 rounded-md border p-3">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Notes</p>
+                                    {res.notes ? (
+                                      <p className="text-xs text-muted-foreground italic whitespace-pre-wrap line-clamp-3">
+                                        {res.notes}
+                                      </p>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground/50 italic">No notes</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Action buttons */}
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handlePostCharge(res) }}
+                                  >
+                                    <Plus className="size-3" /> Post Charge
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handleTransferRoom(res) }}
+                                  >
+                                    <ArrowRightLeft className="size-3" /> Transfer
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handleExtendStay(res) }}
+                                  >
+                                    <CalendarPlus className="size-3" /> Extend Stay
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handleEarlyCheckout(res) }}
+                                  >
+                                    <LogOut className="size-3" /> Early Checkout
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handleAddNote(res) }}
+                                  >
+                                    <StickyNote className="size-3" /> Add Note
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handleViewFolio(res) }}
+                                  >
+                                    <Receipt className="size-3" /> View Folio
+                                  </Button>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </React.Fragment>
                     )
                   })
                 )}
               </TableBody>
             </Table>
-          </ScrollArea>
         </CardContent>
       </Card>
 
