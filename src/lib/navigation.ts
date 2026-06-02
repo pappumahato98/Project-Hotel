@@ -36,6 +36,7 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'in-house', label: 'In-House Guests' },
       { id: 'departures', label: 'Departures' },
       { id: 'folio', label: 'Guest Folio' },
+      { id: 'calendar', label: 'Calendar' },
     ],
   },
   {
