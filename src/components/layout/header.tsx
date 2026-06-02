@@ -543,11 +543,14 @@ function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
 
 // ─── Help Dialog ─────────────────────────────────────────────────────
 function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { navigateTo } = useNavigationStore()
+
   const helpItems = [
-    { title: 'Getting Started Guide', desc: 'Learn the basics of the PMS system' },
-    { title: 'Keyboard Shortcuts', desc: '⌘K — Quick Search, ⌘B — Toggle Sidebar' },
-    { title: 'User Manual', desc: 'Complete reference documentation' },
-    { title: 'Contact IT Support', desc: 'ext. 1000 or it@meridian.com' },
+    { title: 'Getting Started Guide', desc: 'Learn the basics of the PMS system', nav: 'getting-started' as const },
+    { title: 'Keyboard Shortcuts', desc: '⌘K — Quick Search, ⌘B — Toggle Sidebar', nav: 'shortcuts' as const },
+    { title: 'User Manual', desc: 'Complete reference documentation', nav: 'manual' as const },
+    { title: 'FAQ', desc: 'Frequently asked questions', nav: 'faq' as const },
+    { title: 'Contact IT Support', desc: 'ext. 1000 or it@meridian.com', nav: 'contact' as const },
   ]
 
   return (
@@ -563,7 +566,8 @@ function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open
               key={item.title}
               className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
               onClick={() => {
-                toast.info(`${item.title} — Coming soon`)
+                onOpenChange(false)
+                navigateTo('help', item.nav)
               }}
             >
               <div>
@@ -579,6 +583,7 @@ function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open
           <p className="text-xs text-amber-700 dark:text-amber-400">Meridian PMS v2.0.0 — Build 2024.01</p>
         </div>
         <DialogFooter>
+          <Button variant="outline" onClick={() => { onOpenChange(false); navigateTo('help') }}>Open Full Help Center</Button>
           <Button onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>

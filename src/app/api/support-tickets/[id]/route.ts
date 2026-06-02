@@ -1,0 +1,50 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+
+    const data: Record<string, unknown> = {}
+    if (body.subject) data.subject = body.subject
+    if (body.description !== undefined) data.description = body.description
+    if (body.category) data.category = body.category
+    if (body.priority) data.priority = body.priority
+    if (body.status) data.status = body.status
+    if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo
+    if (body.assignedName !== undefined) data.assignedName = body.assignedName
+    if (body.resolution !== undefined) data.resolution = body.resolution
+
+    if (body.status === 'resolved' || body.status === 'closed') {
+      data.resolvedAt = new Date()
+    }
+
+    const ticket = await db.supportTicket.update({
+      where: { id },
+      data,
+    })
+
+    return NextResponse.json(ticket)
+  } catch (error) {
+    console.error('Support Ticket PATCH error:', error)
+    return NextResponse.json({ error: 'Failed to update support ticket' }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    await db.supportTicket.delete({ where: { id } })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Support Ticket DELETE error:', error)
+    return NextResponse.json({ error: 'Failed to delete support ticket' }, { status: 500 })
+  }
+}

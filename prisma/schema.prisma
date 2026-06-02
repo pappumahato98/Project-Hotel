@@ -594,6 +594,26 @@ model Asset {
   updatedAt       DateTime @updatedAt
 }
 
+// ─── HELP & SUPPORT ──────────────────────────────────────────
+model SupportTicket {
+  id            String   @id @default(cuid())
+  ticketNo      String   @unique
+  subject       String
+  description   String
+  category      String   @default("general") // general, bug, feature_request, billing, technical, training, other
+  priority      String   @default("normal") // low, normal, high, urgent
+  status        String   @default("open") // open, in_progress, resolved, closed, reopened
+  createdBy     String
+  createdByName String
+  department    String
+  assignedTo    String?
+  assignedName  String?
+  resolution    String?
+  resolvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 // ─── CHANNELS ─────────────────────────────────────────────────
 model Channel {
   id                String   @id @default(cuid())

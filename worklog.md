@@ -393,3 +393,34 @@ Stage Summary:
 - All 4 cross-navigation links verified working via agent browser
 - Zero lint errors, zero browser console errors
 - All existing calendar features preserved (half-day positioning, color coding, VIP indicators, arrival/departure markers, legend)
+
+---
+Task ID: help-support-module
+Agent: Main Agent
+Task: Build comprehensive Help & Support module with 5 sub-views, API routes, and header integration
+
+Work Log:
+- Analyzed uploaded image to understand Help & Support requirements (dark-themed modal with Getting Started, Keyboard Shortcuts, User Manual, Contact IT Support, System Version)
+- Added SupportTicket model to prisma/schema.prisma (ticketNo, subject, description, category, priority, status, createdBy, department, assignedTo, resolution, resolvedAt)
+- Pushed schema to SQLite database with `bun run db:push`
+- Created API routes: GET/POST /api/support-tickets and PATCH/DELETE /api/support-tickets/[id]
+- Built 6 frontend components in src/components/modules/help/:
+  1. HelpModule.tsx — Main module container with 5-tab navigation
+  2. GettingStartedView.tsx — Interactive 5-step onboarding guide with progress bar, checkboxes, completion celebration
+  3. KeyboardShortcutsView.tsx — 11 shortcuts in 3 categories with kbd-styled badges and search
+  4. UserManualView.tsx — Documentation for all 14 PMS modules with sidebar navigation, search, and tips
+  5. FaqView.tsx — 16 FAQs across 4 categories with search, category filters, expandable Q&A cards
+  6. ContactSupportView.tsx — Full ticket system with form, table with filters/badges, resolve dialog for admin
+- Updated src/lib/navigation.ts: Added Help & Support (LifeBuoy icon, violet color) with 5 children
+- Updated src/components/layout/app-shell.tsx: Imported HelpModule and added 'help' routing
+- Updated src/components/layout/header.tsx: Enhanced HelpDialog with navigation to full module (replaced "Coming soon" stubs with navigateTo)
+- Fixed FaqView.tsx: Changed MessageSquareQuestion to MessageCircleQuestion (not in lucide-react)
+- Fixed ContactSupportView.tsx: Fixed tickets.filter error with Array.isArray check; fixed ticketNumber→ticketNo field name mismatch
+- Browser verified all 5 tabs, header dialog, sidebar navigation, command palette, zero errors
+
+Stage Summary:
+- Help & Support module fully built with 5 sub-modules and backend ticket system
+- Registered as 15th module in sidebar (total 15 modules, 47 sub-modules, 61 command palette options)
+- Header Help & Support dialog now navigates to full module instead of showing stubs
+- Zero lint errors, zero browser errors
+- All interactive elements verified: progress tracking, search/filter, expandable FAQ, ticket CRUD
