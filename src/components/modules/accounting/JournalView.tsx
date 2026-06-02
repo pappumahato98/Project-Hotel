@@ -16,7 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
 import { Plus, Search, FileText } from 'lucide-react'
-import { useState } from 'react'
+import { useState, Fragment } from 'react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatNPR } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -131,9 +131,8 @@ export function JournalView() {
                     const isExpanded = expandedEntry === entry.id
                     const isBalanced = getDebitTotal(entry) === getCreditTotal(entry)
                     return (
-                      <>
+                      <Fragment key={entry.id}>
                         <TableRow
-                          key={entry.id}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
                         >
@@ -201,7 +200,7 @@ export function JournalView() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     )
                   })
                 )}
