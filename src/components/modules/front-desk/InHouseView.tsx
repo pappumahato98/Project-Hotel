@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BedDouble, CreditCard, AlertTriangle, Crown, Receipt, ArrowRightLeft, Plus,
-  CalendarPlus, LogOut, StickyNote, ChevronDown, ChevronUp, Filter, UtensilsCrossed,
+  CalendarPlus, LogOut, StickyNote, ChevronRight, Filter, UtensilsCrossed,
   Wine, Shirt, Phone, Loader2, X,
 } from 'lucide-react'
 
@@ -17,7 +17,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -123,7 +123,7 @@ export function InHouseView() {
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
 
   const [selectedReservation, setSelectedReservation] = useState<InHouseReservation | null>(null)
-  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
 
   // ── Charge form state ──────────────────────────────────────
   const [chargeType, setChargeType] = useState('miscellaneous')
@@ -436,6 +436,12 @@ export function InHouseView() {
     navigateTo('front-desk', 'folio')
   }
 
+  // Open detail dialog for a guest
+  const handleRowClick = useCallback((reservation: InHouseReservation) => {
+    setSelectedReservation(reservation)
+    setDetailDialogOpen(true)
+  }, [])
+
   // ── Computed values for dialogs ────────────────────────────
 
   const extendNightsDiff = useMemo(() => {
@@ -570,7 +576,7 @@ export function InHouseView() {
       {/* In-House Table */}
       <Card>
         <CardContent className="p-0">
-          <ScrollArea className="max-h-[calc(100vh-480px)]">
+          <ScrollArea className="max-h-[65vh]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -606,22 +612,15 @@ export function InHouseView() {
                   filteredReservations.map((res) => {
                     const credit = getCreditStatus(res)
                     const balance = res.folios[0]?.balance || 0
-                    const isExpanded = expandedRow === res.id
 
                     return (
                       <React.Fragment key={res.id}>
                         <TableRow
-                          className={cn(
-                            'cursor-pointer hover:bg-muted/50',
-                            isExpanded && 'bg-muted/30',
-                          )}
-                          onClick={() => setExpandedRow(isExpanded ? null : res.id)}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleRowClick(res)}
                         >
                           <TableCell>
-                            {isExpanded
-                              ? <ChevronUp className="size-4 text-muted-foreground" />
-                              : <ChevronDown className="size-4 text-muted-foreground" />
-                            }
+                            <ChevronRight className="size-4 text-muted-foreground" />
                           </TableCell>
                           <TableCell className="font-bold font-mono">{res.room.number}</TableCell>
                           <TableCell>
@@ -674,110 +673,6 @@ export function InHouseView() {
                             )}
                           </TableCell>
                         </TableRow>
-
-                        {/* Expanded Row — Details & Actions */}
-                        {isExpanded && (
-                          <TableRow>
-                            <TableCell colSpan={8} className="bg-muted/30 p-4">
-                              <div className="space-y-4">
-                                {/* Reservation details grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-1">Confirmation</p>
-                                    <p className="font-mono font-medium">{res.confirmationNo}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-1">Room Type</p>
-                                    <p className="font-medium">{res.room.type.name}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-1">Floor / Wing</p>
-                                    <p className="font-medium">
-                                      Floor {res.room.floor}
-                                      {res.room.wing ? ` · ${res.room.wing}` : ''}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-1">Rate</p>
-                                    <p className="font-medium">{formatCurrency(res.roomRate)}/night</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-1">Folio Balance</p>
-                                    <p className={cn('font-bold', credit.color)}>{formatCurrency(balance)}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground text-xs mb-1">Folio Status</p>
-                                    <StatusBadge status={res.folios[0]?.status || 'open'} />
-                                  </div>
-                                </div>
-
-                                {/* Notes preview */}
-                                {res.notes && (
-                                  <div className="text-sm">
-                                    <p className="text-muted-foreground text-xs mb-1">Notes</p>
-                                    <p className="text-xs text-muted-foreground italic line-clamp-2 bg-background/50 rounded p-2 border">
-                                      {res.notes}
-                                    </p>
-                                  </div>
-                                )}
-
-                                <Separator />
-
-                                {/* Action buttons */}
-                                <div className="flex flex-wrap gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => handlePostCharge(res)}
-                                  >
-                                    <Plus className="size-3.5 mr-1" /> Post Charge
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => handleTransferRoom(res)}
-                                  >
-                                    <ArrowRightLeft className="size-3.5 mr-1" /> Transfer Room
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => handleExtendStay(res)}
-                                  >
-                                    <CalendarPlus className="size-3.5 mr-1" /> Extend Stay
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => handleEarlyCheckout(res)}
-                                  >
-                                    <LogOut className="size-3.5 mr-1" /> Early Checkout
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => handleAddNote(res)}
-                                  >
-                                    <StickyNote className="size-3.5 mr-1" /> Add Note
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs"
-                                    onClick={() => handleViewFolio(res)}
-                                  >
-                                    <Receipt className="size-3.5 mr-1" /> View Folio
-                                  </Button>
-                                </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </React.Fragment>
                     )
                   })
@@ -787,6 +682,170 @@ export function InHouseView() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* ─── Guest Detail Dialog ────────────────────────────────── */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          {selectedReservation && (() => {
+            const credit = getCreditStatus(selectedReservation)
+            const balance = selectedReservation.folios[0]?.balance || 0
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <BedDouble className="size-5 text-primary" />
+                    <span>{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>
+                    {selectedReservation.guest.vipLevel !== 'none' && (
+                      <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700">
+                        <Crown className="size-3 mr-0.5" />
+                        {selectedReservation.guest.vipLevel.toUpperCase()}
+                      </Badge>
+                    )}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Room {selectedReservation.room.number} — {selectedReservation.confirmationNo}
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  {/* Reservation details */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="rounded-md bg-muted/50 p-2.5">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Confirmation</p>
+                      <p className="font-mono font-medium text-xs">{selectedReservation.confirmationNo}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2.5">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Room Type</p>
+                      <p className="font-medium text-xs">{selectedReservation.room.type.name}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2.5">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Floor / Wing</p>
+                      <p className="font-medium text-xs">
+                        Floor {selectedReservation.room.floor}
+                        {selectedReservation.room.wing ? ` · ${selectedReservation.room.wing}` : ''}
+                      </p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2.5">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Check-in</p>
+                      <p className="font-medium text-xs">{formatDate(selectedReservation.checkIn)}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2.5">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Check-out</p>
+                      <p className="font-medium text-xs">{formatDate(selectedReservation.checkOut)}</p>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2.5">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Rate / Night</p>
+                      <p className="font-medium text-xs">{formatCurrency(selectedReservation.roomRate)}</p>
+                    </div>
+                  </div>
+
+                  {/* Folio & Credit */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-md border p-3">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Folio Balance</p>
+                      <p className={cn('text-xl font-bold', credit.color)}>{formatCurrency(balance)}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Progress
+                          value={Math.min(credit.pct, 100)}
+                          className={cn(
+                            'h-1.5 flex-1',
+                            credit.status === 'breach' && '[&>div]:bg-red-500',
+                            credit.status === 'warning' && '[&>div]:bg-amber-500',
+                            credit.status === 'ok' && '[&>div]:bg-green-500',
+                          )}
+                        />
+                        <span className={cn('text-[10px] font-semibold', credit.color)}>{Math.round(credit.pct)}%</span>
+                      </div>
+                      {credit.status === 'breach' && (
+                        <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+                          <AlertTriangle className="size-3" /> Credit limit exceeded
+                        </p>
+                      )}
+                      {credit.status === 'warning' && (
+                        <p className="text-[10px] text-amber-500 font-medium mt-1 flex items-center gap-1">
+                          <AlertTriangle className="size-3" /> Approaching credit limit
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-md border p-3">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Folio Status</p>
+                      <div className="mt-0.5">
+                        <StatusBadge status={selectedReservation.folios[0]?.status || 'open'} />
+                      </div>
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mt-2 mb-1">Credit Limit</p>
+                      <p className="text-sm font-medium">{formatCurrency(selectedReservation.creditLimit)}</p>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {selectedReservation.notes && (
+                    <div className="rounded-md bg-muted/30 p-3">
+                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Notes</p>
+                      <p className="text-xs text-muted-foreground italic whitespace-pre-wrap line-clamp-4">
+                        {selectedReservation.notes}
+                      </p>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handlePostCharge(selectedReservation) }}
+                    >
+                      <Plus className="size-3.5 mr-1.5" /> Post Charge
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handleTransferRoom(selectedReservation) }}
+                    >
+                      <ArrowRightLeft className="size-3.5 mr-1.5" /> Transfer Room
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handleExtendStay(selectedReservation) }}
+                    >
+                      <CalendarPlus className="size-3.5 mr-1.5" /> Extend Stay
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handleEarlyCheckout(selectedReservation) }}
+                    >
+                      <LogOut className="size-3.5 mr-1.5" /> Early Checkout
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handleAddNote(selectedReservation) }}
+                    >
+                      <StickyNote className="size-3.5 mr-1.5" /> Add Note
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handleViewFolio(selectedReservation) }}
+                    >
+                      <Receipt className="size-3.5 mr-1.5" /> View Folio
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Post Charge Dialog ─────────────────────────────────── */}
       <Dialog open={chargeDialogOpen} onOpenChange={(open) => {

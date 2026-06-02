@@ -199,3 +199,28 @@ Stage Summary:
 - Realtime broadcast helper integrated into all mutations
 - Comprehensive idempotent seed with 100+ records
 - Zero lint errors
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix details dropdown hidden in In-House view + continue pending fixes
+
+Work Log:
+- Investigated InHouseView.tsx details dropdown issue
+- Found the ScrollArea viewport (188px) was clipping the expanded row content (needed 140px extra)
+- Root cause: max-h-[calc(100vh-480px)] too restrictive on smaller viewports; parent card constrained available space
+- Tried multiple fixes: increasing max-height, scroll-into-view behavior - all insufficient due to layout constraints
+- Final solution: Replaced inline expandable row with a Dialog (Guest Detail Dialog)
+  - Click any row → opens a full Dialog with all reservation details
+  - Shows: guest info, confirmation #, room type, floor/wing, check-in/out, rate, folio balance with progress bar, credit limit warnings, notes
+  - 6 action buttons in a 3x2 grid: Post Charge, Transfer Room, Extend Stay, Early Checkout, Add Note, View Folio
+  - Each button closes detail dialog and opens its respective action dialog
+- Changed ChevronDown/ChevronUp to ChevronRight icon for rows
+- Added DialogDescription import
+- Removed unused imports and state variables
+- Verified in browser: dialog opens correctly, all details visible, action buttons functional
+- 0 lint errors, 0 browser console errors
+
+Stage Summary:
+- In-House details no longer clipped/hidden - uses Dialog instead of inline expansion
+- Guest Detail Dialog provides a much better UX with structured info layout
+- Action buttons always accessible in the dialog
