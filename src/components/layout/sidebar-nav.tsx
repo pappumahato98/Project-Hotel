@@ -166,9 +166,9 @@ function UserProfileFooter() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="group/user flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          className="group/user flex w-full items-center gap-3 rounded-lg px-3 py-4 text-left transition-colors hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
-          <Avatar className="size-9 rounded-full shrink-0">
+          <Avatar className="size-10 rounded-full shrink-0">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
             <AvatarFallback className="bg-amber-100 text-amber-700 text-sm font-semibold">
               {initials}
