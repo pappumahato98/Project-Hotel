@@ -201,11 +201,26 @@ export interface SystemSettings {
   posIntegration: boolean
   crmIntegration: boolean
 
+  // Security
+  autoLogout: string // 15min, 30min, 1hr, 2hr, never
+
   // Backup & Data
   autoBackup: boolean
   autoBackupInterval: string
   lastBackupDate: string
   dataRetentionDays: number
+
+  // Notifications
+  notifCheckInReminders: boolean
+  notifCheckOutReminders: boolean
+  notifOverbookingAlerts: boolean
+  notifLowStockAlerts: boolean
+  notifPaymentReceived: boolean
+  notifNightAuditAlert: boolean
+  notifNewReservations: boolean
+  notifMaintenanceAlerts: boolean
+  notifShiftHandover: boolean
+  notifHkTaskCompleted: boolean
 }
 
 interface SettingsState {
@@ -213,8 +228,8 @@ interface SettingsState {
   _loaded: boolean
   _loading: boolean
   updateSettings: (updates: Partial<SystemSettings>) => void
-  resetSettings: () => void
-  syncFromBackend: () => Promise<SystemSettings>
+  resetSettings: () => Promise<void>
+  syncFromBackend: (force?: boolean) => Promise<SystemSettings>
   saveToBackend: (updates: Partial<SystemSettings>) => Promise<SystemSettings>
 }
 
@@ -282,11 +297,24 @@ const DEFAULT_SETTINGS: SystemSettings = {
   webhookUrl: '',
   posIntegration: false,
   crmIntegration: true,
+  // Security
+  autoLogout: '30min',
   // Backup & Data
   autoBackup: true,
   autoBackupInterval: 'daily',
   lastBackupDate: new Date().toISOString(),
   dataRetentionDays: 365,
+  // Notifications
+  notifCheckInReminders: true,
+  notifCheckOutReminders: true,
+  notifOverbookingAlerts: true,
+  notifLowStockAlerts: true,
+  notifPaymentReceived: true,
+  notifNightAuditAlert: false,
+  notifNewReservations: true,
+  notifMaintenanceAlerts: true,
+  notifShiftHandover: true,
+  notifHkTaskCompleted: false,
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -299,11 +327,18 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           settings: { ...state.settings, ...updates },
         })),
-      resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
+      resetSettings: async () => {
+        try {
+          await fetch('/api/settings/reset', { method: 'POST' })
+        } catch (err) {
+          console.error('Failed to reset settings on backend:', err)
+        }
+        set({ settings: DEFAULT_SETTINGS, _loaded: false })
+      },
       // Sync from backend API — fetches all settings and updates store
-      syncFromBackend: async () => {
+      syncFromBackend: async (force = false) => {
         const { _loaded } = get()
-        if (_loaded) return get().settings
+        if (_loaded && !force) return get().settings
         set({ _loading: true })
         try {
           const res = await fetch('/api/settings')

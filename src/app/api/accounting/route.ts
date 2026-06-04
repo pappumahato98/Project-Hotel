@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
 
+// ─── Settings helper ──────────────────────────────────────
+async function getSettingsMap() {
+  const rows = await db.systemSetting.findMany()
+  const map: Record<string, unknown> = {}
+  for (const r of rows) {
+    if (r.type === 'number') map[r.key] = parseFloat(r.value)
+    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
+    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
+    else map[r.key] = r.value
+  }
+  return map
+}
+
 export async function GET() {
   try {
     // Ledger accounts
@@ -34,10 +47,15 @@ export async function GET() {
       typeMap[item.type] = item._count.type
     }
 
+    // Read settings for tax rate
+    const s = await getSettingsMap()
+    const taxRate = (s.taxRate as number) ?? 13
+
     return NextResponse.json({
       accounts,
       journalEntries,
       accountTypeBreakdown: typeMap,
+      settings: { taxRate },
     })
   } catch (error) {
     console.error('Accounting API error:', error)
@@ -49,6 +67,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { date, description, reference, createdBy, lines } = body
+
+    // Read settings for tax rate
+    const s = await getSettingsMap()
+    const taxRate = (s.taxRate as number) ?? 13
 
     if (!lines || !Array.isArray(lines) || lines.length === 0) {
       return NextResponse.json({ error: 'Journal entry must have at least one line' }, { status: 400 })

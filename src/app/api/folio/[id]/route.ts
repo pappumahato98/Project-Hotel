@@ -1,6 +1,19 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+// ─── Settings helper ──────────────────────────────────────
+async function getSettingsMap() {
+  const rows = await db.systemSetting.findMany()
+  const map: Record<string, unknown> = {}
+  for (const r of rows) {
+    if (r.type === 'number') map[r.key] = parseFloat(r.value)
+    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
+    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
+    else map[r.key] = r.value
+  }
+  return map
+}
+
 // POST: Post a new charge or record a payment
 export async function POST(
   request: Request,
@@ -24,8 +37,16 @@ export async function POST(
       return NextResponse.json({ error: 'Folio not found' }, { status: 404 })
     }
 
+    // Read settings for tax rate
+    const s = await getSettingsMap()
+    const taxRate = (s.taxRate as number) ?? 13
+
     if (type === 'charge') {
       const { transactionType, description, amount, taxAmount, totalAmount, quantity, reference, outlet } = data
+
+      // Auto-calculate tax if not explicitly provided
+      const calculatedTax = (taxAmount != null && taxAmount !== undefined) ? taxAmount : amount * (taxRate / 100)
+      const calculatedTotal = (totalAmount != null && totalAmount !== undefined) ? totalAmount : amount + calculatedTax
 
       await db.folioTransaction.create({
         data: {
@@ -33,8 +54,8 @@ export async function POST(
           transactionType: transactionType || 'miscellaneous',
           description,
           amount,
-          taxAmount: taxAmount || 0,
-          totalAmount: totalAmount || amount,
+          taxAmount: calculatedTax,
+          totalAmount: calculatedTotal,
           quantity: quantity || 1,
           reference: reference || null,
           outlet: outlet || null,

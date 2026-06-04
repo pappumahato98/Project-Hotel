@@ -78,11 +78,26 @@ const DEFAULT_SETTINGS: Record<string, unknown> = {
   posIntegration: false,
   crmIntegration: true,
 
+  // Security
+  autoLogout: '30min',  // 15min, 30min, 1hr, 2hr, never
+
   // Backup & Data
   autoBackup: true,
   autoBackupInterval: 'daily',
   lastBackupDate: new Date().toISOString(),
   dataRetentionDays: 365,
+
+  // Notifications
+  notifCheckInReminders: true,
+  notifCheckOutReminders: true,
+  notifOverbookingAlerts: true,
+  notifLowStockAlerts: true,
+  notifPaymentReceived: true,
+  notifNightAuditAlert: false,
+  notifNewReservations: true,
+  notifMaintenanceAlerts: true,
+  notifShiftHandover: true,
+  notifHkTaskCompleted: false,
 }
 
 // ─── Category Mapping ───────────────────────────────────────────
@@ -162,11 +177,26 @@ const KEY_CATEGORY_MAP: Record<string, string> = {
   posIntegration: 'integrations',
   crmIntegration: 'integrations',
 
+  // Security
+  autoLogout: 'security',
+
   // Backup
   autoBackup: 'backup',
   autoBackupInterval: 'backup',
   lastBackupDate: 'backup',
   dataRetentionDays: 'backup',
+
+  // Notifications
+  notifCheckInReminders: 'notifications',
+  notifCheckOutReminders: 'notifications',
+  notifOverbookingAlerts: 'notifications',
+  notifLowStockAlerts: 'notifications',
+  notifPaymentReceived: 'notifications',
+  notifNightAuditAlert: 'notifications',
+  notifNewReservations: 'notifications',
+  notifMaintenanceAlerts: 'notifications',
+  notifShiftHandover: 'notifications',
+  notifHkTaskCompleted: 'notifications',
 }
 
 // ─── Type Detection ─────────────────────────────────────────────

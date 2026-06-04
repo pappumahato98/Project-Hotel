@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 
+// ─── Settings helper ──────────────────────────────────────
+async function getSettingsMap() {
+  const rows = await db.systemSetting.findMany()
+  const map: Record<string, unknown> = {}
+  for (const r of rows) {
+    if (r.type === 'number') map[r.key] = parseFloat(r.value)
+    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
+    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
+    else map[r.key] = r.value
+  }
+  return map
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -59,7 +72,15 @@ export async function GET(request: Request) {
       failed: allTasks.filter((t) => t.status === 'failed').length,
     }
 
-    return NextResponse.json({ tasks, summary })
+    // Read settings for hotel name
+    const s = await getSettingsMap()
+    const hotelName = (s.hotelName as string) ?? 'Hotel'
+
+    return NextResponse.json({
+      tasks,
+      summary,
+      settings: { hotelName },
+    })
   } catch (error) {
     console.error('Housekeeping API error:', error)
     return NextResponse.json({ error: 'Failed to fetch housekeeping data' }, { status: 500 })

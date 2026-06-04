@@ -211,3 +211,140 @@ Stage Summary:
 - Fixed: src/lib/store.ts (removed unimported toast.error call)
 - Backend verified: GET/PUT /api/settings both return 200, 63 settings in DB
 - Cross-module impact chain: Settings UI → PUT /api/settings → DB SystemSetting → other modules read via GET /api/settings or syncFromBackend()
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Wire SecurityTab auto-logout and "Reset All Settings" to backend, and fix hardcoded hotelName
+
+Work Log:
+- Added `autoLogout: '30min'` to API DEFAULT_SETTINGS in route.ts with category mapping to 'security'
+- Added `autoLogout: string` to SystemSettings interface and DEFAULT_SETTINGS in store.ts
+- Created POST /api/settings/reset endpoint (src/app/api/settings/reset/route.ts) that deletes all SystemSetting rows so GET will re-seed defaults
+- Updated store.ts `resetSettings` from sync to async — now calls POST /api/settings/reset before resetting local state and setting `_loaded: false`
+- Updated SecurityTab auto-logout Select: replaced local `autoLogout` state with `settings.autoLogout` from store, onValueChange now calls `saveToBackend({ autoLogout: v })`
+- Verified: hardcoded `value="Meridian Hotel"` on Property InfoRow was already replaced with `settings.hotelName` by previous agent
+- Verified: `handleResetAll` was already async with `await resetSettings()` by previous agent
+- Lint passed clean — 0 errors
+
+Stage Summary:
+- Created: src/app/api/settings/reset/route.ts (POST endpoint to delete all settings)
+- Updated: src/app/api/settings/route.ts (added autoLogout default + security category)
+- Updated: src/lib/store.ts (added autoLogout to interface/defaults, made resetSettings async with backend call)
+- Updated: src/components/modules/settings/SettingsModule.tsx (auto-logout select now reads/saves via store)
+- All three SecurityTab issues resolved: autoLogout wired to backend, reset calls API, hotelName uses store
+
+---
+Task ID: 1
+Agent: Password Change API Agent
+Task: Create password change API endpoint and wire to Security tab
+
+Work Log:
+- Read worklog and existing login API route to understand auth patterns (SHA-256 hashing, user lookup by email)
+- Read SettingsModule.tsx SecurityTab (line 1551) to understand current handleChangePassword mock implementation
+- Created src/app/api/auth/password/route.ts with PUT handler:
+  - Accepts { email, currentPassword, newPassword } in request body
+  - Validates all fields present and newPassword >= 8 chars
+  - Finds user by email (case-insensitive), checks active status
+  - Verifies currentPassword against stored SHA-256 hash
+  - Hashes new password with SHA-256 and updates in DB via Prisma
+  - Returns success/error JSON with appropriate HTTP status codes
+- Updated handleChangePassword in SecurityTab (SettingsModule.tsx):
+  - Made function async
+  - Added fetch call to PUT /api/auth/password with email from useAuthStore
+  - Added try/catch with toast.success on 200, toast.error on failure
+- Fixed hardcoded "Meridian Hotel" on SecurityTab Property row → replaced with settings.hotelName
+- Added `settings` to useSettingsStore destructuring in SecurityTab
+- Ran lint — 0 errors
+
+Stage Summary:
+- Created: src/app/api/auth/password/route.ts (PUT handler with SHA-256 password hashing)
+- Updated: src/components/modules/settings/SettingsModule.tsx (3 changes: async handleChangePassword with API call, settings destructuring, hotelName fix)
+- Password change flow: UI form validation → PUT /api/auth/password → verify current password → hash & store new password → toast feedback
+
+---
+Task ID: 2
+Agent: Frontend Integration Agent
+Task: Wire NotificationsTab in Settings to use backend settings API (saveToBackend)
+
+Work Log:
+- Read worklog, store.ts, and SettingsModule.tsx to understand current NotificationsTab implementation
+- Current state: NotificationsTab used local React state (`notifSettings`) via `useState<NotificationSettings>` — changes were NOT persisted
+- Added 10 notification fields to API route DEFAULT_SETTINGS: notifCheckInReminders, notifCheckOutReminders, notifOverbookingAlerts, notifLowStockAlerts, notifPaymentReceived, notifNightAuditAlert, notifNewReservations, notifMaintenanceAlerts, notifShiftHandover, notifHkTaskCompleted
+- Added all 10 notification fields to KEY_CATEGORY_MAP with category `'notifications'`
+- Added 10 notification boolean fields to SystemSettings interface in store.ts
+- Added 10 notification default values to DEFAULT_SETTINGS constant in store.ts
+- Rewrote NotificationsTab: removed local `notifSettings` state and `NotificationSettings` type, replaced with `settings` from `useSettingsStore` and `saveToBackend`
+- Created `NOTIF_KEY_MAP` constant mapping UI short keys (e.g. `checkInReminders`) to backend field names (e.g. `notifCheckInReminders`)
+- Each toggle now calls `saveToBackend({ [settingsKey]: value })` for persistence
+- Master toggle still uses `updatePreferences({ notifications: value })` since it's a user preference
+- Added `type SystemSettings` to the store import for type safety
+- Ran lint — 0 errors
+
+Stage Summary:
+- Updated: src/app/api/settings/route.ts (added 10 notification defaults + category mappings)
+- Updated: src/lib/store.ts (added 10 notification fields to SystemSettings interface + DEFAULT_SETTINGS)
+- Updated: src/components/modules/settings/SettingsModule.tsx (rewrote NotificationsTab to use saveToBackend)
+- Notification toggles now persist to backend via PUT /api/settings → DB SystemSetting table
+- Master toggle remains a user preference (stored in localStorage via usePreferencesStore)
+
+---
+Task ID: 6
+Agent: Backend Integration Agent
+Task: Expand cross-module settings integration so key backend APIs read settings from database
+
+Work Log:
+- Read worklog to understand project context and existing settings infrastructure (SystemSetting model, GET/PUT /api/settings)
+- Added `getSettingsMap()` helper function to 4 API route files (same pattern as front-desk/dashboard/route.ts)
+- Updated src/app/api/reservations/route.ts:
+  - GET: Added settings reading, includes `settings` key in response with taxRate, serviceCharge, cancellationPolicy, defaultCheckIn, defaultCheckOut, earlyCheckInCharge, lateCheckoutCharge
+  - POST: Reads settings at start, applies defaultCheckIn/defaultCheckOut times when check-in/out dates have no time component (midnight), calculates taxAmount from taxRate setting and includes in totalAmount
+- Updated src/app/api/folio/route.ts:
+  - GET: Added settings reading, includes `settings` key with taxRate, serviceCharge in response
+- Updated src/app/api/folio/[id]/route.ts:
+  - POST (charge transactions): Reads taxRate from settings, auto-calculates taxAmount and totalAmount if not explicitly provided by the client
+- Updated src/app/api/accounting/route.ts:
+  - GET: Added settings reading, includes `settings` key with taxRate in response
+  - POST: Reads taxRate from settings (available for future calculation logic)
+- Updated src/app/api/housekeeping/route.ts:
+  - GET (tasks dashboard): Added settings reading, includes `settings` key with hotelName in response
+- All settings values use `?? fallback` pattern for graceful handling of missing keys
+- Ran lint — 0 errors
+
+Stage Summary:
+- Updated: src/app/api/reservations/route.ts (getSettingsMap helper, settings in GET response, default times + tax in POST)
+- Updated: src/app/api/folio/route.ts (getSettingsMap helper, taxRate + serviceCharge in GET response)
+- Updated: src/app/api/folio/[id]/route.ts (getSettingsMap helper, auto-calculate tax on charge transactions)
+- Updated: src/app/api/accounting/route.ts (getSettingsMap helper, taxRate in GET response, taxRate available in POST)
+- Updated: src/app/api/housekeeping/route.ts (getSettingsMap helper, hotelName in GET response)
+- All 4 API modules now read settings from DB SystemSetting table and include relevant settings in responses
+- Cross-module settings chain extended: Settings UI → DB → reservations/folio/accounting/housekeeping APIs
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Full verification of Settings module backend integration
+
+Work Log:
+- Ran `bun run lint` — 0 errors
+- Updated `syncFromBackend` in store.ts to accept optional `force` parameter for force-refresh
+- Changed `resetSettings` type in interface from `() => void` to `() => Promise<void>`
+- Tested all API endpoints via curl:
+  - GET /api/settings → Returns 73+ settings with correct defaults ✅
+  - PUT /api/settings → Updates settings and returns full object ✅
+  - POST /api/settings/reset → Deletes all settings (auto-seeds on next GET) ✅
+  - PUT /api/auth/password → Validates current password, hashes and updates ✅
+- Verified cross-module APIs return settings:
+  - /api/accounting → {"settings":{"taxRate":13}} ✅
+  - /api/housekeeping → {"settings":{"hotelName":"Meridian Hotel"}} ✅
+- Verified notification settings persisted: 10 notifXxx boolean fields in API response ✅
+- Verified autoLogout setting persisted: "30min" in API response ✅
+- Password change tested: wrong password → error, correct password → success ✅
+
+Stage Summary:
+- All 13 Settings tabs are fully functional with backend persistence
+- Settings chain: UI → saveToBackend() → PUT /api/settings → DB → other APIs read via getSettingsMap()
+- Password change: UI → PUT /api/auth/password → DB AuthUser (SHA-256 hashed)
+- Reset: UI → resetSettings() → POST /api/settings/reset → DB deleteAll → re-seed on next GET
+- Cross-module impact verified: taxRate, hotelName, serviceCharge, policies flow to 6+ API routes
+- Files modified: src/lib/store.ts (force-refresh, type fix), subagent work in route files

@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 
+// ─── Settings helper ──────────────────────────────────────
+async function getSettingsMap() {
+  const rows = await db.systemSetting.findMany()
+  const map: Record<string, unknown> = {}
+  for (const r of rows) {
+    if (r.type === 'number') map[r.key] = parseFloat(r.value)
+    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
+    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
+    else map[r.key] = r.value
+  }
+  return map
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -45,7 +58,15 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ folios })
+    // Read relevant settings from DB
+    const s = await getSettingsMap()
+    const taxRate = (s.taxRate as number) ?? 13
+    const serviceCharge = (s.serviceCharge as number) ?? 0
+
+    return NextResponse.json({
+      folios,
+      settings: { taxRate, serviceCharge },
+    })
   } catch (error) {
     console.error('Folio API error:', error)
     return NextResponse.json({ error: 'Failed to fetch folio data' }, { status: 500 })

@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import {
   useAuthStore, usePropertyStore, usePreferencesStore,
   useSettingsStore,
+  type SystemSettings,
 } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1235,44 +1236,35 @@ function PrintingTab() {
 
 // ─── Notifications Tab ────────────────────────────────────────────────
 
-interface NotificationSettings {
-  checkInReminders: boolean
-  checkOutReminders: boolean
-  overbookingAlerts: boolean
-  lowStockAlerts: boolean
-  paymentReceived: boolean
-  nightAuditAlert: boolean
-  newReservations: boolean
-  maintenanceAlerts: boolean
-  shiftHandover: boolean
-  hkTaskCompleted: boolean
+// Key mapping: UI short keys → backend field names
+const NOTIF_KEY_MAP: Record<string, keyof SystemSettings> = {
+  checkInReminders: 'notifCheckInReminders',
+  checkOutReminders: 'notifCheckOutReminders',
+  overbookingAlerts: 'notifOverbookingAlerts',
+  lowStockAlerts: 'notifLowStockAlerts',
+  paymentReceived: 'notifPaymentReceived',
+  nightAuditAlert: 'notifNightAuditAlert',
+  newReservations: 'notifNewReservations',
+  maintenanceAlerts: 'notifMaintenanceAlerts',
+  shiftHandover: 'notifShiftHandover',
+  hkTaskCompleted: 'notifHkTaskCompleted',
 }
 
 function NotificationsTab() {
   const { preferences, updatePreferences } = usePreferencesStore()
-  const [notifSettings, setNotifSettings] = React.useState<NotificationSettings>({
-    checkInReminders: true,
-    checkOutReminders: true,
-    overbookingAlerts: true,
-    lowStockAlerts: true,
-    paymentReceived: true,
-    nightAuditAlert: false,
-    newReservations: true,
-    maintenanceAlerts: true,
-    shiftHandover: true,
-    hkTaskCompleted: false,
-  })
+  const { settings, saveToBackend } = useSettingsStore()
 
   const masterEnabled = preferences.notifications
 
-  const handleToggle = (key: keyof NotificationSettings, value: boolean) => {
-    setNotifSettings((prev) => ({ ...prev, [key]: value }))
-    toast.success('Notification updated')
+  const handleToggle = (uiKey: string, value: boolean) => {
+    const settingsKey = NOTIF_KEY_MAP[uiKey]
+    if (settingsKey) {
+      saveToBackend({ [settingsKey]: value } as Partial<SystemSettings>)
+    }
   }
 
   const handleMasterToggle = (value: boolean) => {
     updatePreferences({ notifications: value })
-    toast.success(value ? 'Notifications enabled' : 'Notifications disabled')
   }
 
   const notifGroups = [
@@ -1280,40 +1272,40 @@ function NotificationsTab() {
       title: 'Front Desk',
       icon: Hotel,
       items: [
-        { key: 'checkInReminders' as const, icon: LogIn, label: 'Check-in Reminders', desc: 'Upcoming guest arrivals' },
-        { key: 'checkOutReminders' as const, icon: LogOut, label: 'Check-out Reminders', desc: 'Departing guests and room turnover' },
-        { key: 'newReservations' as const, icon: FileText, label: 'New Reservations', desc: 'Incoming booking confirmations' },
+        { key: 'checkInReminders', icon: LogIn, label: 'Check-in Reminders', desc: 'Upcoming guest arrivals' },
+        { key: 'checkOutReminders', icon: LogOut, label: 'Check-out Reminders', desc: 'Departing guests and room turnover' },
+        { key: 'newReservations', icon: FileText, label: 'New Reservations', desc: 'Incoming booking confirmations' },
       ],
     },
     {
       title: 'Operations',
       icon: Clock,
       items: [
-        { key: 'nightAuditAlert' as const, icon: MoonStar, label: 'Night Audit Alert', desc: 'Daily audit reminder' },
-        { key: 'shiftHandover' as const, icon: Timer, label: 'Shift Handover', desc: 'Upcoming shift change notifications' },
+        { key: 'nightAuditAlert', icon: MoonStar, label: 'Night Audit Alert', desc: 'Daily audit reminder' },
+        { key: 'shiftHandover', icon: Timer, label: 'Shift Handover', desc: 'Upcoming shift change notifications' },
       ],
     },
     {
       title: 'Housekeeping',
       icon: Users,
       items: [
-        { key: 'hkTaskCompleted' as const, icon: CheckCircle2, label: 'Task Completed', desc: 'When a housekeeping task is finished' },
+        { key: 'hkTaskCompleted', icon: CheckCircle2, label: 'Task Completed', desc: 'When a housekeeping task is finished' },
       ],
     },
     {
       title: 'Finance & Inventory',
       icon: CreditCard,
       items: [
-        { key: 'paymentReceived' as const, icon: CreditCard, label: 'Payment Received', desc: 'When a payment is recorded' },
-        { key: 'overbookingAlerts' as const, icon: AlertTriangle, label: 'Overbooking Alerts', desc: 'Double booking warnings' },
-        { key: 'lowStockAlerts' as const, icon: Package, label: 'Low Stock Alerts', desc: 'Inventory below minimum levels' },
+        { key: 'paymentReceived', icon: CreditCard, label: 'Payment Received', desc: 'When a payment is recorded' },
+        { key: 'overbookingAlerts', icon: AlertTriangle, label: 'Overbooking Alerts', desc: 'Double booking warnings' },
+        { key: 'lowStockAlerts', icon: Package, label: 'Low Stock Alerts', desc: 'Inventory below minimum levels' },
       ],
     },
     {
       title: 'Maintenance',
       icon: KeyRound,
       items: [
-        { key: 'maintenanceAlerts' as const, icon: AlertTriangle, label: 'Work Order Updates', desc: 'Maintenance task status changes' },
+        { key: 'maintenanceAlerts', icon: AlertTriangle, label: 'Work Order Updates', desc: 'Maintenance task status changes' },
       ],
     },
   ]
@@ -1349,17 +1341,20 @@ function NotificationsTab() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            {group.items.map((item, i) => (
-              <React.Fragment key={item.key}>
-                <ToggleRow
-                  icon={item.icon} label={item.label} description={item.desc}
-                  checked={notifSettings[item.key]}
-                  onCheckedChange={(v) => handleToggle(item.key, v)}
-                  disabled={!masterEnabled}
-                />
-                {i < group.items.length - 1 && <Separator />}
-              </React.Fragment>
-            ))}
+            {group.items.map((item, i) => {
+              const settingsKey = NOTIF_KEY_MAP[item.key]
+              return (
+                <React.Fragment key={item.key}>
+                  <ToggleRow
+                    icon={item.icon} label={item.label} description={item.desc}
+                    checked={settingsKey ? (settings[settingsKey] as boolean) : false}
+                    onCheckedChange={(v) => handleToggle(item.key, v)}
+                    disabled={!masterEnabled}
+                  />
+                  {i < group.items.length - 1 && <Separator />}
+                </React.Fragment>
+              )
+            })}
           </CardContent>
         </Card>
       ))}
@@ -1550,8 +1545,7 @@ function IntegrationsTab() {
 
 function SecurityTab() {
   const { user } = useAuthStore()
-  const { resetSettings } = useSettingsStore()
-  const [autoLogout, setAutoLogout] = React.useState('30min')
+  const { settings, saveToBackend, resetSettings } = useSettingsStore()
   const [loginTime] = React.useState(() => {
     const now = new Date()
     now.setHours(now.getHours() - 3)
@@ -1582,12 +1576,12 @@ function SecurityTab() {
     }
   }
 
-  const handleResetAll = () => {
-    resetSettings()
+  const handleResetAll = async () => {
+    await resetSettings()
     toast.success('All settings reset to defaults')
   }
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error('Please fill in all password fields')
       return
@@ -1600,11 +1594,24 @@ function SecurityTab() {
       toast.error('Password must be at least 8 characters')
       return
     }
-    // Simulate password change
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
-    toast.success('Password changed successfully')
+    try {
+      const res = await fetch('/api/auth/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user?.email, currentPassword, newPassword }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+        toast.success('Password changed successfully')
+      } else {
+        toast.error(data.error || 'Failed to change password')
+      }
+    } catch {
+      toast.error('Failed to change password. Please try again.')
+    }
   }
 
   const roleColorMap: Record<string, string> = {
@@ -1645,7 +1652,7 @@ function SecurityTab() {
           <Separator />
           <InfoRow label="Department" value={user?.department} />
           <Separator />
-          <InfoRow label="Property" value="Meridian Hotel" />
+          <InfoRow label="Property" value={settings.hotelName} />
         </CardContent>
       </Card>
 
@@ -1730,7 +1737,7 @@ function SecurityTab() {
           <InfoRow label="Session Duration" value={sessionDuration} />
           <Separator />
           <SettingRow icon={Timer} label="Auto Logout" description="Automatically sign out after inactivity">
-            <Select value={autoLogout} onValueChange={(v) => { setAutoLogout(v); toast.success('Auto-logout updated') }}>
+            <Select value={settings.autoLogout} onValueChange={(v) => { saveToBackend({ autoLogout: v }); toast.success('Auto-logout updated') }}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="15min">15 min</SelectItem>

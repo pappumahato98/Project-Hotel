@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 
+// ─── Settings helper ──────────────────────────────────────
+async function getSettingsMap() {
+  const rows = await db.systemSetting.findMany()
+  const map: Record<string, unknown> = {}
+  for (const r of rows) {
+    if (r.type === 'number') map[r.key] = parseFloat(r.value)
+    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
+    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
+    else map[r.key] = r.value
+  }
+  return map
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -68,7 +81,29 @@ export async function GET(request: Request) {
 
     const total = await db.reservation.count({ where })
 
-    return NextResponse.json({ reservations, total })
+    // Read relevant settings from DB
+    const s = await getSettingsMap()
+    const taxRate = (s.taxRate as number) ?? 13
+    const serviceCharge = (s.serviceCharge as number) ?? 0
+    const cancellationPolicy = (s.cancellationPolicy as string) ?? ''
+    const defaultCheckIn = (s.defaultCheckIn as string) ?? '14:00'
+    const defaultCheckOut = (s.defaultCheckOut as string) ?? '11:00'
+    const earlyCheckInCharge = (s.earlyCheckInCharge as number) ?? 0
+    const lateCheckoutCharge = (s.lateCheckoutCharge as number) ?? 0
+
+    return NextResponse.json({
+      reservations,
+      total,
+      settings: {
+        taxRate,
+        serviceCharge,
+        cancellationPolicy,
+        defaultCheckIn,
+        defaultCheckOut,
+        earlyCheckInCharge,
+        lateCheckoutCharge,
+      },
+    })
   } catch (error) {
     console.error('Reservations API error:', error)
     return NextResponse.json({ error: 'Failed to fetch reservations' }, { status: 500 })
@@ -85,6 +120,12 @@ export async function POST(request: Request) {
       notes, reservationType,
     } = body
 
+    // Read settings from DB
+    const s = await getSettingsMap()
+    const taxRate = (s.taxRate as number) ?? 13
+    const defaultCheckInTime = (s.defaultCheckIn as string) ?? '14:00'
+    const defaultCheckOutTime = (s.defaultCheckOut as string) ?? '11:00'
+
     // Generate confirmation number
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let confirmationNo = ''
@@ -92,11 +133,23 @@ export async function POST(request: Request) {
       confirmationNo += chars.charAt(Math.floor(Math.random() * chars.length))
     }
 
-    // Calculate total amount based on nights and rate
-    const checkInDate = new Date(checkIn)
-    const checkOutDate = new Date(checkOut)
+    // Apply default check-in/out times if only dates are provided (no time portion)
+    let checkInDate = new Date(checkIn)
+    let checkOutDate = new Date(checkOut)
+    if (checkInDate.getHours() === 0 && checkInDate.getMinutes() === 0) {
+      const [h, m] = defaultCheckInTime.split(':').map(Number)
+      checkInDate.setHours(h, m, 0, 0)
+    }
+    if (checkOutDate.getHours() === 0 && checkOutDate.getMinutes() === 0) {
+      const [h, m] = defaultCheckOutTime.split(':').map(Number)
+      checkOutDate.setHours(h, m, 0, 0)
+    }
+
+    // Calculate total amount based on nights and rate, with tax
     const nights = Math.max(1, Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)))
-    const totalAmount = (roomRate || 0) * nights
+    const subtotal = (roomRate || 0) * nights
+    const taxAmount = subtotal * (taxRate / 100)
+    const totalAmount = subtotal + taxAmount
 
     const reservation = await db.reservation.create({
       data: {
@@ -108,8 +161,8 @@ export async function POST(request: Request) {
         propertyId: propertyId || 'prop_01',
         adults: adults || 1,
         children: children || 0,
-        checkIn: new Date(checkIn),
-        checkOut: new Date(checkOut),
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
         roomRate: roomRate || 0,
         totalAmount,
         specialRequests: specialRequests || null,
