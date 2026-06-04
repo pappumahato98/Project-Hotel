@@ -3,6 +3,14 @@ import { db } from '@/lib/db'
 
 export async function GET() {
   try {
+    // ─── Fetch system settings ─────────────────────────────
+    const dbSettings = await db.systemSetting.findMany()
+    const sMap: Record<string, any> = {}
+    dbSettings.forEach(s => {
+      const val = s.type === 'number' ? parseFloat(s.value) : s.type === 'boolean' ? s.value === 'true' : s.type === 'json' ? JSON.parse(s.value) : s.value
+      sMap[s.key] = val
+    })
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const nextDay = new Date(today)
@@ -165,6 +173,14 @@ export async function GET() {
       },
       timeline,
       upcomingArrivals,
+      settings: {
+        hotelName: sMap.hotelName,
+        taxRate: sMap.taxRate,
+        serviceCharge: sMap.serviceCharge,
+        defaultCheckIn: sMap.defaultCheckIn,
+        defaultCheckOut: sMap.defaultCheckOut,
+        starRating: sMap.starRating,
+      },
     })
   } catch (error) {
     console.error('Front Desk Dashboard API error:', error)

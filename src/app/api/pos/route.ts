@@ -372,6 +372,15 @@ export async function GET(request: Request) {
 // ─── POST Handler - Create Order ────────────────────────────────────
 export async function POST(request: Request) {
   try {
+    // ─── Fetch system settings ─────────────────────────────
+    const dbSettings = await db.systemSetting.findMany()
+    const sMap: Record<string, any> = {}
+    dbSettings.forEach(s => {
+      const val = s.type === 'number' ? parseFloat(s.value) : s.type === 'boolean' ? s.value === 'true' : s.type === 'json' ? JSON.parse(s.value) : s.value
+      sMap[s.key] = val
+    })
+    const taxRateDecimal = (sMap.taxRate || 13) / 100
+
     const body = await request.json()
     const { action, outletId, tableNumber, items, guestCount, serverName, guestName, rush, specialInstructions } = body
 
@@ -415,7 +424,7 @@ export async function POST(request: Request) {
       // Update order totals
       const updated = await db.posOrder.update({
         where: { id: order.id },
-        data: { totalAmount, taxAmount: Math.round(totalAmount * 0.13) },
+        data: { totalAmount, taxAmount: Math.round(totalAmount * taxRateDecimal) },
       })
 
       broadcastEvent('pos:order_created', updated)

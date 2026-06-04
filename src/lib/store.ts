@@ -210,8 +210,12 @@ export interface SystemSettings {
 
 interface SettingsState {
   settings: SystemSettings
+  _loaded: boolean
+  _loading: boolean
   updateSettings: (updates: Partial<SystemSettings>) => void
   resetSettings: () => void
+  syncFromBackend: () => Promise<SystemSettings>
+  saveToBackend: (updates: Partial<SystemSettings>) => Promise<SystemSettings>
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
@@ -287,13 +291,54 @@ const DEFAULT_SETTINGS: SystemSettings = {
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       settings: DEFAULT_SETTINGS,
+      _loaded: false,
+      _loading: false,
       updateSettings: (updates) =>
         set((state) => ({
           settings: { ...state.settings, ...updates },
         })),
       resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
+      // Sync from backend API — fetches all settings and updates store
+      syncFromBackend: async () => {
+        const { _loaded } = get()
+        if (_loaded) return get().settings
+        set({ _loading: true })
+        try {
+          const res = await fetch('/api/settings')
+          if (res.ok) {
+            const data = await res.json()
+            set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true, _loading: false })
+            return data
+          }
+        } catch (err) {
+          console.error('Failed to sync settings from backend:', err)
+        }
+        set({ _loading: false })
+        return get().settings
+      },
+      // Push updates to backend — calls PUT and syncs store
+      saveToBackend: async (updates) => {
+        set((state) => ({
+          settings: { ...state.settings, ...updates },
+        }))
+        try {
+          const res = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+          })
+          if (res.ok) {
+            const data = await res.json()
+            set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true })
+            return data
+          }
+        } catch (err) {
+          console.error('Failed to save settings to backend:', err)
+        }
+        return get().settings
+      },
     }),
     {
       name: 'meridian-settings',

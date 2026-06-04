@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useAuthStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore, useSettingsStore } from '@/lib/store'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -218,6 +218,7 @@ function StatsRowSkeleton() {
 // ─── 1. Welcome Banner ──────────────────────────────────────────────────
 function WelcomeBanner({ data }: { data: DashboardData }) {
   const { user } = useAuthStore()
+  const { settings } = useSettingsStore()
   const [currentTime, setCurrentTime] = React.useState(new Date())
 
   React.useEffect(() => {
@@ -240,7 +241,7 @@ function WelcomeBanner({ data }: { data: DashboardData }) {
                 {getGreeting()}, {user?.firstName || 'Guest'}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {formatDate(currentTime)} — Meridian Hotel
+                {formatDate(currentTime)} — {settings.hotelName}
               </p>
             </div>
           </div>
@@ -842,6 +843,10 @@ function DashboardError({ error }: { error: Error }) {
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
   const queryClient = useQueryClient()
+  const { syncFromBackend } = useSettingsStore()
+
+  React.useEffect(() => { syncFromBackend() }, [])
+
   const { isConnected } = useRealtime({
     modules: ['dashboard'],
     onEvent: (_event, _data) => {

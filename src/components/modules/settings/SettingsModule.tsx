@@ -154,7 +154,7 @@ function InfoRow({ label, value, badge }: {
 function GeneralTab() {
   const { activeProperty, setActiveProperty } = usePropertyStore()
   const { preferences, updatePreferences } = usePreferencesStore()
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   const [name, setName] = React.useState(settings.hotelName)
   const [code, setCode] = React.useState(settings.hotelCode)
@@ -184,10 +184,9 @@ function GeneralTab() {
     setNightAudit(settings.nightAuditTime)
   }, [settings])
 
-  const handleSaveField = (field: string, value: string | number) => {
-    updateSettings({ [field]: value } as any)
+  const handleSaveField = async (field: string, value: string | number) => {
+    await saveToBackend({ [field]: value } as any)
     setActiveProperty({ ...activeProperty, [field]: value })
-    toast.success('Setting updated')
   }
 
   return (
@@ -201,40 +200,40 @@ function GeneralTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Hotel Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => handleSaveField('hotelName', name)} className="h-9" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={async () => { await handleSaveField('hotelName', name) }} className="h-9" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Hotel Code</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} onBlur={() => handleSaveField('hotelCode', code)} className="h-9" />
+              <Input value={code} onChange={(e) => setCode(e.target.value)} onBlur={async () => { await handleSaveField('hotelCode', code) }} className="h-9" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs">Address</Label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} onBlur={() => handleSaveField('address', address)} className="h-9" />
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} onBlur={async () => { await handleSaveField('address', address) }} className="h-9" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">City</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} onBlur={() => handleSaveField('city', city)} className="h-9" />
+              <Input value={city} onChange={(e) => setCity(e.target.value)} onBlur={async () => { await handleSaveField('city', city) }} className="h-9" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Country</Label>
-              <Input value={country} onChange={(e) => setCountry(e.target.value)} onBlur={() => handleSaveField('country', country)} className="h-9" />
+              <Input value={country} onChange={(e) => setCountry(e.target.value)} onBlur={async () => { await handleSaveField('country', country) }} className="h-9" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Phone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => handleSaveField('phone', phone)} className="h-9" />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={async () => { await handleSaveField('phone', phone) }} className="h-9" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => handleSaveField('email', email)} className="h-9" />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={async () => { await handleSaveField('email', email) }} className="h-9" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Website</Label>
-              <Input value={website} onChange={(e) => setWebsite(e.target.value)} onBlur={() => handleSaveField('website', website)} className="h-9" />
+              <Input value={website} onChange={(e) => setWebsite(e.target.value)} onBlur={async () => { await handleSaveField('website', website) }} className="h-9" />
             </div>
           </div>
           <div className="flex items-center justify-between">
             <Label className="text-xs">Star Rating</Label>
-            <Select value={starRating} onValueChange={(v) => { setStarRating(v); handleSaveField('starRating', parseInt(v)) }}>
+            <Select value={starRating} onValueChange={async (v) => { setStarRating(v); await handleSaveField('starRating', parseInt(v)) }}>
               <SelectTrigger className="w-28 h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -261,7 +260,7 @@ function GeneralTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <SettingRow icon={LogIn} label="Default Check-In" description="Standard guest arrival time">
-            <Select value={checkIn} onValueChange={(v) => { setCheckIn(v); handleSaveField('defaultCheckIn', v) }}>
+            <Select value={checkIn} onValueChange={async (v) => { setCheckIn(v); await handleSaveField('defaultCheckIn', v) }}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-48">
                 {TIME_OPTIONS.map((t) => (
@@ -272,7 +271,7 @@ function GeneralTab() {
           </SettingRow>
           <Separator />
           <SettingRow icon={LogOut} label="Default Check-Out" description="Standard guest departure time">
-            <Select value={checkOut} onValueChange={(v) => { setCheckOut(v); handleSaveField('defaultCheckOut', v) }}>
+            <Select value={checkOut} onValueChange={async (v) => { setCheckOut(v); await handleSaveField('defaultCheckOut', v) }}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-48">
                 {TIME_OPTIONS.map((t) => (
@@ -283,7 +282,7 @@ function GeneralTab() {
           </SettingRow>
           <Separator />
           <SettingRow icon={MoonStar} label="Night Audit Time" description="When the daily night audit runs">
-            <Select value={nightAudit} onValueChange={(v) => { setNightAudit(v); handleSaveField('nightAuditTime', v) }}>
+            <Select value={nightAudit} onValueChange={async (v) => { setNightAudit(v); await handleSaveField('nightAuditTime', v) }}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-48">
                 {TIME_OPTIONS.map((t) => (
@@ -464,7 +463,7 @@ function DisplayTab() {
 // ─── Tax & Fees Tab ────────────────────────────────────────────────────
 
 function TaxFeesTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
   const [taxRate, setTaxRate] = React.useState(String(settings.taxRate))
   const [serviceCharge, setServiceCharge] = React.useState(String(settings.serviceCharge))
   const [tourismTax, setTourismTax] = React.useState(String(settings.tourismTax))
@@ -489,7 +488,7 @@ function TaxFeesTab() {
                 type="number"
                 value={taxRate}
                 onChange={(e) => setTaxRate(e.target.value)}
-                onBlur={() => { updateSettings({ taxRate: parseFloat(taxRate) || 0 }); toast.success('Tax rate updated') }}
+                onBlur={async () => { await saveToBackend({ taxRate: parseFloat(taxRate) || 0 }) }}
                 className="w-20 h-8 text-xs text-right"
                 min="0" max="100" step="0.5"
               />
@@ -503,7 +502,7 @@ function TaxFeesTab() {
                 type="number"
                 value={serviceCharge}
                 onChange={(e) => setServiceCharge(e.target.value)}
-                onBlur={() => { updateSettings({ serviceCharge: parseFloat(serviceCharge) || 0 }); toast.success('Service charge updated') }}
+                onBlur={async () => { await saveToBackend({ serviceCharge: parseFloat(serviceCharge) || 0 }) }}
                 className="w-20 h-8 text-xs text-right"
                 min="0" max="100" step="0.5"
               />
@@ -517,7 +516,7 @@ function TaxFeesTab() {
                 type="number"
                 value={tourismTax}
                 onChange={(e) => setTourismTax(e.target.value)}
-                onBlur={() => { updateSettings({ tourismTax: parseFloat(tourismTax) || 0 }); toast.success('Tourism tax updated') }}
+                onBlur={async () => { await saveToBackend({ tourismTax: parseFloat(tourismTax) || 0 }) }}
                 className="w-20 h-8 text-xs text-right"
                 min="0" step="10"
               />
@@ -571,7 +570,7 @@ function TaxFeesTab() {
 // ─── Booking Policies Tab ────────────────────────────────────────────
 
 function BookingPoliciesTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   const [cancelPolicy, setCancelPolicy] = React.useState(settings.cancellationPolicy)
   const [cancelHours, setCancelHours] = React.useState(String(settings.cancellationHours))
@@ -593,9 +592,8 @@ function BookingPoliciesTab() {
     setGuaranteeRequired(settings.guaranteeRequired)
   }, [settings])
 
-  const handleSave = (field: string, value: any) => {
-    updateSettings({ [field]: value } as any)
-    toast.success('Policy updated')
+  const handleSave = async (field: string, value: any) => {
+    await saveToBackend({ [field]: value } as any)
   }
 
   return (
@@ -768,19 +766,17 @@ function BookingPoliciesTab() {
 // ─── Payment Methods Tab ──────────────────────────────────────────────
 
 function PaymentMethodsTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
-  const handleToggleMethod = (field: string, value: boolean) => {
-    updateSettings({ [field]: value } as any)
-    toast.success('Payment method updated')
+  const handleToggleMethod = async (field: string, value: boolean) => {
+    await saveToBackend({ [field]: value } as any)
   }
 
-  const handleToggleCardType = (type: string, checked: boolean) => {
+  const handleToggleCardType = async (type: string, checked: boolean) => {
     const cardTypes = checked
       ? [...settings.cardTypes, type]
       : settings.cardTypes.filter((c) => c !== type)
-    updateSettings({ cardTypes })
-    toast.success('Card type updated')
+    await saveToBackend({ cardTypes })
   }
 
   return (
@@ -885,7 +881,7 @@ function PaymentMethodsTab() {
 // ─── Room Defaults Tab ───────────────────────────────────────────────
 
 function RoomDefaultsTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   const [maxOccupancy, setMaxOccupancy] = React.useState(String(settings.defaultMaxOccupancy))
   const [defaultFloor, setDefaultFloor] = React.useState(String(settings.defaultFloor))
@@ -899,9 +895,8 @@ function RoomDefaultsTab() {
     setMaxNights(String(settings.maxNightsDefault))
   }, [settings.defaultMaxOccupancy, settings.defaultFloor, settings.minNightsDefault, settings.maxNightsDefault])
 
-  const handleSave = (field: string, value: number) => {
-    updateSettings({ [field]: value } as any)
-    toast.success('Room default updated')
+  const handleSave = async (field: string, value: number) => {
+    await saveToBackend({ [field]: value } as any)
   }
 
   return (
@@ -944,14 +939,14 @@ function RoomDefaultsTab() {
             icon={Zap} label="Auto-Assign Room on Reservation"
             description="Automatically assign best available room when a booking is made"
             checked={settings.autoAssignRoom}
-            onCheckedChange={(v) => { updateSettings({ autoAssignRoom: v }); toast.success(v ? 'Auto-assign enabled' : 'Auto-assign disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ autoAssignRoom: v }) }}
           />
           <Separator />
           <ToggleRow
             icon={CheckCircle2} label="Auto Room Status Update After Checkout"
             description="Automatically set room to dirty/vacant after guest checkout"
             checked={settings.autoRoomStatusUpdate}
-            onCheckedChange={(v) => { updateSettings({ autoRoomStatusUpdate: v }); toast.success(v ? 'Auto status update enabled' : 'Auto status update disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ autoRoomStatusUpdate: v }) }}
           />
         </CardContent>
       </Card>
@@ -998,7 +993,7 @@ function RoomDefaultsTab() {
 // ─── Email & Communication Tab ────────────────────────────────────────
 
 function EmailTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   const [smtpHost, setSmtpHost] = React.useState(settings.smtpHost)
   const [smtpPort, setSmtpPort] = React.useState(String(settings.smtpPort))
@@ -1016,9 +1011,8 @@ function EmailTab() {
     setEmailSignature(settings.emailSignature)
   }, [settings.smtpHost, settings.smtpPort, settings.smtpUser, settings.smtpEncryption, settings.emailFromName, settings.emailSignature])
 
-  const handleSave = (field: string, value: string | number) => {
-    updateSettings({ [field]: value } as any)
-    toast.success('Email setting updated')
+  const handleSave = async (field: string, value: string | number) => {
+    await saveToBackend({ [field]: value } as any)
   }
 
   return (
@@ -1114,21 +1108,21 @@ function EmailTab() {
             icon={FileText} label="Send Booking Confirmation"
             description="Automatically email guests when reservation is confirmed"
             checked={settings.sendBookingConfirmation}
-            onCheckedChange={(v) => { updateSettings({ sendBookingConfirmation: v }); toast.success(v ? 'Booking confirmations enabled' : 'Booking confirmations disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ sendBookingConfirmation: v }) }}
           />
           <Separator />
           <ToggleRow
             icon={LogOut} label="Send Checkout Reminder"
             description="Remind guests about checkout time on day of departure"
             checked={settings.sendCheckoutReminder}
-            onCheckedChange={(v) => { updateSettings({ sendCheckoutReminder: v }); toast.success(v ? 'Checkout reminders enabled' : 'Checkout reminders disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ sendCheckoutReminder: v }) }}
           />
           <Separator />
           <ToggleRow
             icon={BarChart3} label="Send Promotional Emails"
             description="Send marketing and promotional offers to guests"
             checked={settings.sendPromoEmails}
-            onCheckedChange={(v) => { updateSettings({ sendPromoEmails: v }); toast.success(v ? 'Promotional emails enabled' : 'Promotional emails disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ sendPromoEmails: v }) }}
           />
         </CardContent>
       </Card>
@@ -1139,7 +1133,7 @@ function EmailTab() {
 // ─── Printing & Documents Tab ─────────────────────────────────────────
 
 function PrintingTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   const [printHeader, setPrintHeader] = React.useState(settings.printHeader)
   const [printFooter, setPrintFooter] = React.useState(settings.printFooter)
@@ -1153,9 +1147,8 @@ function PrintingTab() {
     setReceiptCopies(String(settings.receiptCopies))
   }, [settings.printHeader, settings.printFooter, settings.invoiceFormat, settings.receiptCopies])
 
-  const handleSave = (field: string, value: string | number) => {
-    updateSettings({ [field]: value } as any)
-    toast.success('Print setting updated')
+  const handleSave = async (field: string, value: string | number) => {
+    await saveToBackend({ [field]: value } as any)
   }
 
   return (
@@ -1170,14 +1163,14 @@ function PrintingTab() {
             icon={Printer} label="Auto-Print Receipts"
             description="Automatically print a receipt when payment is recorded"
             checked={settings.autoPrintReceipt}
-            onCheckedChange={(v) => { updateSettings({ autoPrintReceipt: v }); toast.success(v ? 'Auto-print receipts enabled' : 'Auto-print receipts disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ autoPrintReceipt: v }) }}
           />
           <Separator />
           <ToggleRow
             icon={FileDown} label="Auto-Print Folio at Checkout"
             description="Automatically print guest folio when checkout is completed"
             checked={settings.autoPrintFolio}
-            onCheckedChange={(v) => { updateSettings({ autoPrintFolio: v }); toast.success(v ? 'Auto-print folio enabled' : 'Auto-print folio disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ autoPrintFolio: v }) }}
           />
         </CardContent>
       </Card>
@@ -1209,7 +1202,7 @@ function PrintingTab() {
           <SettingRow icon={Star} label="Show Hotel Logo on Print" description="Display property logo on printed receipts and invoices">
             <Switch
               checked={settings.showLogoOnPrint}
-              onCheckedChange={(v) => { updateSettings({ showLogoOnPrint: v }); toast.success(v ? 'Logo on print enabled' : 'Logo on print disabled') }}
+              onCheckedChange={async (v) => { await saveToBackend({ showLogoOnPrint: v }) }}
             />
           </SettingRow>
           <Separator />
@@ -1377,7 +1370,7 @@ function NotificationsTab() {
 // ─── Integrations Tab ────────────────────────────────────────────────
 
 function IntegrationsTab() {
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   const [webhookUrl, setWebhookUrl] = React.useState(settings.webhookUrl)
   const [channelSync, setChannelSync] = React.useState(String(settings.channelSyncInterval))
@@ -1396,13 +1389,13 @@ function IntegrationsTab() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleRegenerateKey = () => {
+  const handleRegenerateKey = async () => {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
     let key = 'mrk_api_'
     for (let i = 0; i < 24; i++) {
       key += chars.charAt(Math.floor(Math.random() * chars.length))
     }
-    updateSettings({ apiKey: key })
+    await saveToBackend({ apiKey: key })
     toast.success('API key regenerated')
   }
 
@@ -1418,7 +1411,7 @@ function IntegrationsTab() {
             icon={Zap} label="API Enabled"
             description="Allow external applications to access the API"
             checked={settings.apiEnabled}
-            onCheckedChange={(v) => { updateSettings({ apiEnabled: v }); toast.success(v ? 'API enabled' : 'API disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ apiEnabled: v }) }}
           />
           <Separator />
           <SettingRow icon={Key} label="API Key" description="Unique key for API authentication">
@@ -1457,7 +1450,7 @@ function IntegrationsTab() {
           </SettingRow>
           <Separator />
           <SettingRow icon={Timer} label="Channel Sync Interval" description="How often to sync with connected channels">
-            <Select value={channelSync} onValueChange={(v) => { setChannelSync(v); updateSettings({ channelSyncInterval: parseInt(v) }); toast.success('Sync interval updated') }}>
+            <Select value={channelSync} onValueChange={async (v) => { setChannelSync(v); await saveToBackend({ channelSyncInterval: parseInt(v) }) }}>
               <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="5">5 min</SelectItem>
@@ -1481,7 +1474,7 @@ function IntegrationsTab() {
             icon={Wifi} label="Webhooks Enabled"
             description="Send event data to external endpoints"
             checked={settings.webhooksEnabled}
-            onCheckedChange={(v) => { updateSettings({ webhooksEnabled: v }); toast.success(v ? 'Webhooks enabled' : 'Webhooks disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ webhooksEnabled: v }) }}
           />
           {settings.webhooksEnabled && (
             <>
@@ -1490,7 +1483,7 @@ function IntegrationsTab() {
                 <Input
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
-                  onBlur={() => { updateSettings({ webhookUrl: webhookUrl }); toast.success('Webhook URL updated') }}
+                  onBlur={async () => { await saveToBackend({ webhookUrl: webhookUrl }) }}
                   className="w-52 h-8 text-xs"
                   placeholder="https://your-server.com/webhook"
                 />
@@ -1510,14 +1503,14 @@ function IntegrationsTab() {
             icon={CreditCard} label="POS Integration"
             description="Connect to your Point of Sale system for F&B charges"
             checked={settings.posIntegration}
-            onCheckedChange={(v) => { updateSettings({ posIntegration: v }); toast.success(v ? 'POS integration enabled' : 'POS integration disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ posIntegration: v }) }}
           />
           <Separator />
           <ToggleRow
             icon={Users} label="CRM Integration"
             description="Sync guest data with your CRM platform"
             checked={settings.crmIntegration}
-            onCheckedChange={(v) => { updateSettings({ crmIntegration: v }); toast.success(v ? 'CRM integration enabled' : 'CRM integration disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ crmIntegration: v }) }}
           />
         </CardContent>
       </Card>
@@ -1793,7 +1786,7 @@ function SecurityTab() {
 // ─── Backup & Data Tab ───────────────────────────────────────────────
 
 function BackupTab() {
-  const { settings, updateSettings, resetSettings } = useSettingsStore()
+  const { settings, saveToBackend, resetSettings } = useSettingsStore()
 
   const [backupInterval, setBackupInterval] = React.useState(settings.autoBackupInterval)
   const [dataRetention, setDataRetention] = React.useState(String(settings.dataRetentionDays))
@@ -1837,13 +1830,13 @@ function BackupTab() {
             icon={DatabaseBackup} label="Auto Backup"
             description="Automatically create database backups on schedule"
             checked={settings.autoBackup}
-            onCheckedChange={(v) => { updateSettings({ autoBackup: v }); toast.success(v ? 'Auto backup enabled' : 'Auto backup disabled') }}
+            onCheckedChange={async (v) => { await saveToBackend({ autoBackup: v }) }}
           />
           {settings.autoBackup && (
             <>
               <Separator />
               <SettingRow icon={Timer} label="Backup Frequency" description="How often automatic backups are created">
-                <Select value={backupInterval} onValueChange={(v) => { setBackupInterval(v); updateSettings({ autoBackupInterval: v }); toast.success('Backup frequency updated') }}>
+                <Select value={backupInterval} onValueChange={async (v) => { setBackupInterval(v); await saveToBackend({ autoBackupInterval: v }) }}>
                   <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="hourly">Hourly</SelectItem>
@@ -1867,7 +1860,7 @@ function BackupTab() {
         </CardHeader>
         <CardContent className="space-y-3">
           <SettingRow icon={Timer} label="Data Retention Period" description="Automatically archive data older than this period">
-            <Select value={dataRetention} onValueChange={(v) => { setDataRetention(v); updateSettings({ dataRetentionDays: parseInt(v) }); toast.success('Data retention updated') }}>
+            <Select value={dataRetention} onValueChange={async (v) => { setDataRetention(v); await saveToBackend({ dataRetentionDays: parseInt(v) }) }}>
               <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="30">30 days</SelectItem>
@@ -2091,6 +2084,12 @@ const SETTINGS_TABS = [
 
 export function SettingsModule() {
   const [activeTab, setActiveTab] = React.useState('general')
+  const { settings, _loaded, syncFromBackend } = useSettingsStore()
+
+  // Sync settings from backend on mount
+  React.useEffect(() => {
+    syncFromBackend()
+  }, [])
 
   const renderContent = () => {
     switch (activeTab) {
@@ -2125,6 +2124,16 @@ export function SettingsModule() {
           </div>
         </div>
       </div>
+
+      {/* Sync status */}
+      {!_loaded && (
+        <div className="px-4 md:px-6 pb-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="size-3 border-2 border-muted-foreground/30 border-t-primary rounded-full animate-spin" />
+            Syncing settings...
+          </div>
+        </div>
+      )}
 
       {/* Main Content — Two Column Layout */}
       <div className="flex flex-1 min-h-0 gap-0">

@@ -650,3 +650,15 @@ model Channel {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+// ─── SYSTEM SETTINGS ────────────────────────────────────────
+model SystemSetting {
+  id          String   @id @default(cuid())
+  category    String   // general, display, tax, policies, payment, room_defaults, email, printing, notifications, integrations, security, backup
+  key         String   @unique
+  value       String   // JSON-encoded value for complex types, plain string for simple ones
+  type        String   @default("string") // string, number, boolean, json
+  description String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+}

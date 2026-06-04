@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useAuthStore, usePropertyStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore } from '@/lib/store'
 import { NAV_ITEMS } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -131,6 +131,7 @@ function QuickSearchDialog() {
 // ─── Profile Dialog ─────────────────────────────────────────────────
 function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { user, updateUser } = useAuthStore()
+  const { settings } = useSettingsStore()
   const [firstName, setFirstName] = React.useState(user?.firstName ?? '')
   const [lastName, setLastName] = React.useState(user?.lastName ?? '')
   const [phone, setPhone] = React.useState('')
@@ -217,7 +218,7 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
             <div className="flex items-center gap-3 text-sm">
               <MapPin className="size-4 text-muted-foreground" />
               <span className="text-muted-foreground">Property:</span>
-              <span className="font-medium">Meridian Hotel</span>
+              <span className="font-medium">{settings.hotelName}</span>
             </div>
           </div>
 
@@ -264,6 +265,7 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
 // ─── My Shift Dialog ────────────────────────────────────────────────
 function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { user } = useAuthStore()
+  const { settings } = useSettingsStore()
   const now = new Date()
   const hour = now.getHours()
   const shiftType = hour < 14 ? 'Morning Shift' : hour < 22 ? 'Evening Shift' : 'Night Shift'
@@ -315,7 +317,7 @@ function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Property</span>
-              <span className="font-medium">Meridian Hotel</span>
+              <span className="font-medium">{settings.hotelName}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Date</span>
@@ -557,6 +559,9 @@ function UserMenu() {
 export function AppHeader() {
   const { setSearchOpen } = useNavigationStore()
   const { activeProperty } = usePropertyStore()
+  const { syncFromBackend } = useSettingsStore()
+
+  React.useEffect(() => { syncFromBackend() }, [])
 
   return (
     <>
