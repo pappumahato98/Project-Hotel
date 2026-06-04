@@ -11,8 +11,6 @@ import { cn } from '@/lib/utils'
 import { useNavigationStore, useAuthStore, usePropertyStore } from '@/lib/store'
 import { NAV_ITEMS, type NavItem } from '@/lib/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
-import { SettingsDialog } from '@/components/shared/SettingsDialog'
 import {
   Collapsible,
   CollapsibleContent,
@@ -138,8 +136,8 @@ function NavGroup({ item }: { item: NavItem }) {
 function UserProfileFooter() {
   const { user, logout } = useAuthStore()
   const { setTheme, resolvedTheme } = useTheme()
+  const { navigateTo } = useNavigationStore()
   const [mounted, setMounted] = React.useState(false)
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
 
   React.useEffect(() => setMounted(true), [])
 
@@ -156,7 +154,7 @@ function UserProfileFooter() {
   }
 
   const handleSettings = () => {
-    setSettingsOpen(true)
+    navigateTo('settings')
   }
 
   const handleToggleTheme = () => {
@@ -226,7 +224,6 @@ function UserProfileFooter() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </>
   )
 }

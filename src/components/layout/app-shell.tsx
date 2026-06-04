@@ -26,6 +26,7 @@ import MaintenanceModule from '@/components/modules/maintenance/MaintenanceModul
 import RevenueModule from '@/components/modules/revenue/RevenueModule'
 import ChannelManagerModule from '@/components/modules/channel-manager/ChannelManagerModule'
 import { HelpModule } from '@/components/modules/help/HelpModule'
+import { SettingsModule } from '@/components/modules/settings/SettingsModule'
 
 // ─── Placeholder Content for Modules ─────────────────────────────────
 function ModulePlaceholder({ moduleId, subModuleId }: { moduleId: string; subModuleId: string | null }) {
@@ -120,6 +121,10 @@ function MainContent() {
 
   if (activeModule === 'help') {
     return <HelpModule />
+  }
+
+  if (activeModule === 'settings') {
+    return <SettingsModule />
   }
 
   return <ModulePlaceholder moduleId={activeModule} subModuleId={activeSubModule} />

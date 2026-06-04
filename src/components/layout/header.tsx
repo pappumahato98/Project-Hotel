@@ -7,18 +7,16 @@ import {
   Sun, Moon, LogOut, Settings,
   HelpCircle, Check, Clock,
   Shield, Mail, Phone, MapPin, Calendar,
-  Globe, Languages, Coins, BellRing, MonitorSmartphone,
-  Palette, ChevronRight,
+  Globe, ChevronRight,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useAuthStore, usePropertyStore, usePreferencesStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore, usePropertyStore } from '@/lib/store'
 import { NAV_ITEMS } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
@@ -58,7 +56,6 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { SettingsDialog } from '@/components/shared/SettingsDialog'
 import { toast } from 'sonner'
 
 // ─── Quick Search Dialog ────────────────────────────────────────────
@@ -264,214 +261,6 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
   )
 }
 
-// ─── Preferences Dialog ────────────────────────────────────────────
-function PreferencesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { preferences, updatePreferences } = usePreferencesStore()
-  const { setTheme, resolvedTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => setMounted(true), [])
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>My Preferences</DialogTitle>
-          <DialogDescription>Customize your workspace settings.</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-5">
-          {/* Language */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                <Languages className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Language</Label>
-                <p className="text-xs text-muted-foreground">Interface language</p>
-              </div>
-            </div>
-            <Select
-              value={preferences.language}
-              onValueChange={(v) => updatePreferences({ language: v })}
-            >
-              <SelectTrigger className="w-32 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="ne">नेपाली</SelectItem>
-                <SelectItem value="hi">हिन्दी</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Currency */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                <Coins className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Currency</Label>
-                <p className="text-xs text-muted-foreground">Display currency</p>
-              </div>
-            </div>
-            <Select
-              value={preferences.currency}
-              onValueChange={(v) => updatePreferences({ currency: v })}
-            >
-              <SelectTrigger className="w-32 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NPR">NPR (Rs.)</SelectItem>
-                <SelectItem value="USD">USD ($)</SelectItem>
-                <SelectItem value="EUR">EUR (€)</SelectItem>
-                <SelectItem value="INR">INR (₹)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Timezone */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                <Globe className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Timezone</Label>
-                <p className="text-xs text-muted-foreground">Business timezone</p>
-              </div>
-            </div>
-            <Select
-              value={preferences.timezone}
-              onValueChange={(v) => updatePreferences({ timezone: v })}
-            >
-              <SelectTrigger className="w-44 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Asia/Katmandu">Asia/Kathmandu (NPT)</SelectItem>
-                <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
-                <SelectItem value="UTC">UTC</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Date Format */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                <Calendar className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Date Format</Label>
-                <p className="text-xs text-muted-foreground">Preferred date display</p>
-              </div>
-            </div>
-            <Select
-              value={preferences.dateFormat}
-              onValueChange={(v) => updatePreferences({ dateFormat: v })}
-            >
-              <SelectTrigger className="w-36 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Separator />
-
-          {/* Notifications Toggle */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                <BellRing className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Notifications</Label>
-                <p className="text-xs text-muted-foreground">Desktop notifications</p>
-              </div>
-            </div>
-            <Switch
-              checked={preferences.notifications}
-              onCheckedChange={(v) => updatePreferences({ notifications: v })}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Compact Mode */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                <MonitorSmartphone className="size-4 text-muted-foreground" />
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Compact Mode</Label>
-                <p className="text-xs text-muted-foreground">Reduce spacing in tables</p>
-              </div>
-            </div>
-            <Switch
-              checked={preferences.compactMode}
-              onCheckedChange={(v) => updatePreferences({ compactMode: v })}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Theme */}
-          {mounted && (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex size-8 items-center justify-center rounded-lg bg-muted">
-                  <Palette className="size-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium">Appearance</Label>
-                  <p className="text-xs text-muted-foreground">Light or dark theme</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 rounded-lg border p-0.5">
-                <Button
-                  size="sm"
-                  variant={resolvedTheme === 'light' ? 'default' : 'ghost'}
-                  className="size-7 p-0 text-xs"
-                  onClick={() => setTheme('light')}
-                >
-                  <Sun className="size-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant={resolvedTheme === 'dark' ? 'default' : 'ghost'}
-                  className="size-7 p-0 text-xs"
-                  onClick={() => setTheme('dark')}
-                >
-                  <Moon className="size-3" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button onClick={() => onOpenChange(false)}>Done</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 // ─── My Shift Dialog ────────────────────────────────────────────────
 function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { user } = useAuthStore()
@@ -600,8 +389,6 @@ function UserMenu() {
   const { navigateTo } = useNavigationStore()
   const [mounted, setMounted] = React.useState(false)
   const [profileOpen, setProfileOpen] = React.useState(false)
-  const [preferencesOpen, setPreferencesOpen] = React.useState(false)
-  const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [shiftOpen, setShiftOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
 
@@ -710,9 +497,9 @@ function UserMenu() {
               <User className="mr-2 size-4" />
               My Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onSelect={() => setSettingsOpen(true)}>
+            <DropdownMenuItem className="cursor-pointer" onClick={() => navigateTo('settings')}>
               <Settings className="mr-2 size-4" />
-              My Preferences
+              Settings
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer" onSelect={() => setShiftOpen(true)}>
               <Clock className="mr-2 size-4" />
@@ -760,8 +547,6 @@ function UserMenu() {
 
       {/* Dialogs */}
       <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
-      <PreferencesDialog open={preferencesOpen} onOpenChange={setPreferencesOpen} />
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ShiftDialog open={shiftOpen} onOpenChange={setShiftOpen} />
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </>

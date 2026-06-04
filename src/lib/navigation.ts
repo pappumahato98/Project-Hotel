@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CalendarDays, BedDouble, Clock, UtensilsCrossed,
   ClipboardCheck, Users, UserCog, PartyPopper, Calculator, Package,
-  Wrench, TrendingUp, Globe, LifeBuoy, BarChart3,
+  Wrench, TrendingUp, Globe, LifeBuoy, BarChart3, Settings,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -185,5 +185,11 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'faq', label: 'FAQ' },
       { id: 'contact', label: 'Contact Support' },
     ],
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    color: 'text-slate-600',
   },
 ]

@@ -122,6 +122,104 @@ export const usePreferencesStore = create<PreferencesState>()(
   )
 )
 
+// ─── System Settings State ──────────────────────────────────
+export interface SystemSettings {
+  // Tax & Fees
+  taxRate: number
+  serviceCharge: number
+  tourismTax: number
+  gstEnabled: boolean
+
+  // Booking Policies
+  cancellationPolicy: string // flexible, moderate, strict
+  cancellationHours: number
+  noShowCharge: number
+  depositRequired: boolean
+  depositPercent: number
+  earlyCheckInCharge: number
+  lateCheckoutCharge: number
+  guaranteeRequired: boolean
+
+  // Payment Methods
+  acceptCash: boolean
+  acceptCard: boolean
+  acceptBankTransfer: boolean
+  acceptDigitalWallet: boolean
+  acceptCheque: boolean
+  cardTypes: string[] // visa, mastercard, amex
+
+  // Business Hours
+  defaultCheckIn: string
+  defaultCheckOut: string
+  nightAuditTime: string
+
+  // Property Details
+  hotelName: string
+  hotelCode: string
+  city: string
+  country: string
+  phone: string
+  email: string
+  starRating: number
+  address: string
+  website: string
+}
+
+interface SettingsState {
+  settings: SystemSettings
+  updateSettings: (updates: Partial<SystemSettings>) => void
+  resetSettings: () => void
+}
+
+const DEFAULT_SETTINGS: SystemSettings = {
+  taxRate: 13.0,
+  serviceCharge: 10.0,
+  tourismTax: 0,
+  gstEnabled: false,
+  cancellationPolicy: 'moderate',
+  cancellationHours: 24,
+  noShowCharge: 100,
+  depositRequired: false,
+  depositPercent: 20,
+  earlyCheckInCharge: 500,
+  lateCheckoutCharge: 500,
+  guaranteeRequired: true,
+  acceptCash: true,
+  acceptCard: true,
+  acceptBankTransfer: true,
+  acceptDigitalWallet: true,
+  acceptCheque: false,
+  cardTypes: ['visa', 'mastercard'],
+  defaultCheckIn: '14:00',
+  defaultCheckOut: '11:00',
+  nightAuditTime: '23:00',
+  hotelName: 'Meridian Hotel',
+  hotelCode: 'MH',
+  city: 'Kathmandu',
+  country: 'Nepal',
+  phone: '+977-1-4567890',
+  email: 'info@meridian.com',
+  starRating: 5,
+  address: 'Thamel, Kathmandu 44600',
+  website: 'www.meridianhotel.com',
+}
+
+export const useSettingsStore = create<SettingsState>()(
+  persist(
+    (set) => ({
+      settings: DEFAULT_SETTINGS,
+      updateSettings: (updates) =>
+        set((state) => ({
+          settings: { ...state.settings, ...updates },
+        })),
+      resetSettings: () => set({ settings: DEFAULT_SETTINGS }),
+    }),
+    {
+      name: 'meridian-settings',
+    }
+  )
+)
+
 // ─── Navigation State ────────────────────────────────────────
 interface NavigationState {
   activeModule: string
