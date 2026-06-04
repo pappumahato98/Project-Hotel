@@ -2128,9 +2128,9 @@ export function SettingsModule() {
 
       {/* Main Content — Two Column Layout */}
       <div className="flex flex-1 min-h-0 gap-0">
-        {/* Left Sidebar — Tab Navigation */}
-        <div className="hidden md:flex flex-col w-60 shrink-0 bg-muted/40 dark:bg-slate-800/40 border-r border-border self-stretch">
-          <ScrollArea className="flex-1">
+        {/* Left Sidebar — Tab Navigation (scroll only on hover) */}
+        <div className="group hidden md:flex flex-col w-60 shrink-0 bg-muted/40 dark:bg-slate-800/40 border-r border-border self-stretch">
+          <div className="flex-1 overflow-hidden group-hover:overflow-y-auto transition-[overflow] duration-200 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 group-hover:[&::-webkit-scrollbar-thumb]:bg-border rounded-md">
             <nav className="p-3 space-y-1">
               {SETTINGS_TABS.map((tab) => {
                 const isActive = activeTab === tab.id
@@ -2162,7 +2162,7 @@ export function SettingsModule() {
                 )
               })}
             </nav>
-          </ScrollArea>
+          </div>
         </div>
 
         {/* Mobile Tab Selector */}
