@@ -614,6 +614,26 @@ model SupportTicket {
   updatedAt     DateTime @updatedAt
 }
 
+// ─── ROOM MOVES (Drag & Drop Tracking) ────────────────────
+model RoomMoveLog {
+  id              String   @id @default(cuid())
+  reservationId   String
+  confirmationNo  String?
+  fromRoomId      String?
+  fromRoomNumber  String?
+  toRoomId        String?
+  toRoomNumber    String?
+  fromCheckIn     DateTime?
+  toCheckIn       DateTime?
+  fromCheckOut    DateTime?
+  toCheckOut      DateTime?
+  moveType        String   // room_change, date_change, both
+  reason          String
+  changedBy       String?
+  changedByName   String?
+  createdAt       DateTime @default(now())
+}
+
 // ─── CHANNELS ─────────────────────────────────────────────────
 model Channel {
   id                String   @id @default(cuid())

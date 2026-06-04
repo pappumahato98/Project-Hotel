@@ -66,9 +66,8 @@ const MODULE_DOCS: ModuleDoc[] = [
       'In-House guest management',
       'Departures with express checkout',
       'Guest Folio for billing and charges',
-      'Reservation Calendar for visual occupancy',
     ],
-    tip: 'Use the Calendar view for a visual overview of room occupancy.',
+    tip: 'Use the Room Board to see real-time room status across all floors.',
   },
   {
     id: 'room-management',

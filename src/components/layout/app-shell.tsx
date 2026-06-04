@@ -128,11 +128,13 @@ function MainContent() {
 // ─── AppShell ───────────────────────────────────────────────────────
 export function AppShell() {
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh max-h-svh overflow-hidden">
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-h-0 overflow-hidden">
         <AppHeader />
-        <MainContent />
+        <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+          <MainContent />
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )

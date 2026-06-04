@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CalendarDays, BedDouble, Clock, UtensilsCrossed,
   ClipboardCheck, Users, UserCog, PartyPopper, Calculator, Package,
-  Wrench, TrendingUp, Globe, LifeBuoy,
+  Wrench, TrendingUp, Globe, LifeBuoy, BarChart3,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -31,12 +31,14 @@ export const NAV_ITEMS: NavItem[] = [
     icon: CalendarDays,
     color: 'text-blue-600',
     children: [
+      { id: 'dashboard', label: 'Dashboard' },
       { id: 'reservations', label: 'Reservations' },
       { id: 'arrivals', label: 'Arrivals' },
       { id: 'in-house', label: 'In-House Guests' },
       { id: 'departures', label: 'Departures' },
       { id: 'folio', label: 'Guest Folio' },
       { id: 'calendar', label: 'Calendar' },
+      { id: 'reports', label: 'Reports' },
     ],
   },
   {

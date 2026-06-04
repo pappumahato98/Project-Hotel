@@ -4,7 +4,7 @@ import * as React from 'react'
 import { useTheme } from 'next-themes'
 import {
   Building2, ChevronRight, Settings, Sun, Moon, LogOut, Star,
-  LayoutDashboard,
+  LayoutDashboard, User, Shield,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -35,6 +35,16 @@ import {
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 
 // ─── Nav Group ──────────────────────────────────────────────────────
@@ -123,41 +133,21 @@ function NavGroup({ item }: { item: NavItem }) {
   )
 }
 
-// ─── Theme Toggle ────────────────────────────────────────────────────
-function ThemeToggle() {
+// ─── User Profile Footer ─────────────────────────────────────────────
+function UserProfileFooter() {
+  const { user, logout } = useAuthStore()
   const { setTheme, resolvedTheme } = useTheme()
+  const { setActiveModule } = useNavigationStore()
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => setMounted(true), [])
 
-  if (!mounted) {
-    return (
-      <SidebarMenuButton className="size-8 cursor-pointer" tooltip="Toggle theme">
-        <Sun className="size-4" />
-      </SidebarMenuButton>
-    )
-  }
+  const initials = user
+    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+    : '??'
 
-  return (
-    <SidebarMenuButton
-      className="size-8 cursor-pointer"
-      tooltip="Toggle theme"
-      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-    >
-      {resolvedTheme === 'dark' ? (
-        <Sun className="size-4 text-amber-400" />
-      ) : (
-        <Moon className="size-4 text-slate-600" />
-      )}
-    </SidebarMenuButton>
-  )
-}
-
-// ─── AppSidebar ──────────────────────────────────────────────────────
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { logout } = useAuthStore()
-  const { activeProperty } = usePropertyStore()
-  const { setActiveModule } = useNavigationStore()
+  const displayName = user ? `${user.firstName} ${user.lastName}` : 'Unknown User'
+  const displayRole = user?.position || 'Staff'
 
   const handleLogout = () => {
     logout()
@@ -167,6 +157,81 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const handleSettings = () => {
     setActiveModule('dashboard')
   }
+
+  const handleToggleTheme = () => {
+    if (mounted) setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuButton
+          tooltip="User Profile"
+          className="cursor-pointer gap-3 px-2"
+          size="lg"
+        >
+          <Avatar className="size-7 rounded-full">
+            <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
+            <AvatarFallback className="bg-amber-100 text-amber-700 text-[10px] font-semibold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-semibold text-sidebar-foreground">
+              {displayName}
+            </span>
+            <span className="truncate text-[10px] text-muted-foreground flex items-center gap-1">
+              <Shield className="size-2.5" />
+              {displayRole}
+            </span>
+          </div>
+        </SidebarMenuButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side="top"
+        align="end"
+        sideOffset={4}
+        className="w-56"
+      >
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {user?.email}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleSettings}>
+          <Settings className="size-4" />
+          <span>Settings</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleToggleTheme}>
+          {mounted && resolvedTheme === 'dark' ? (
+            <>
+              <Sun className="size-4 text-amber-400" />
+              <span>Light Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon className="size-4" />
+              <span>Dark Mode</span>
+            </>
+          )}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer gap-2 text-red-600 focus:text-red-600" onClick={handleLogout}>
+          <LogOut className="size-4" />
+          <span>Log Out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+// ─── AppSidebar ──────────────────────────────────────────────────────
+export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { activeProperty } = usePropertyStore()
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -214,25 +279,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </ScrollArea>
       </SidebarContent>
 
-      {/* Footer — Settings, Theme, Collapse */}
+      {/* Footer — User Profile + Collapse */}
       <SidebarFooter className="border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Settings" className="cursor-pointer" onClick={handleSettings}>
-              <Settings className="size-4 text-muted-foreground" />
-              <span>Settings</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Log Out" className="cursor-pointer text-red-500 hover:text-red-600" onClick={handleLogout}>
-              <LogOut className="size-4" />
-              <span>Log Out</span>
-            </SidebarMenuButton>
+            <UserProfileFooter />
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarSeparator />
-        <div className="flex items-center justify-between px-2">
-          <ThemeToggle />
+        <div className="flex items-center justify-end px-2">
           <SidebarRail />
         </div>
       </SidebarFooter>

@@ -27,7 +27,7 @@ const STEPS: GuideStep[] = [
     number: 2,
     title: 'Managing Reservations',
     description:
-      'The Front Desk module handles all guest reservations. Navigate to Front Desk > Reservations to create, edit, or manage bookings. Use the Calendar view to see room availability at a glance.',
+      'The Front Desk module handles all guest reservations. Navigate to Front Desk > Reservations to create, edit, or manage bookings. Use the Room Board to check room availability.',
   },
   {
     id: 'checkin-checkout',
