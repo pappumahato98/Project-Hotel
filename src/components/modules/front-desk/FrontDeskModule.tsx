@@ -70,8 +70,8 @@ export function FrontDeskModule() {
 
   return (
     <div className={cn(
-        'flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0',
-        currentSubModule === 'calendar' ? 'overflow-hidden' : 'overflow-y-auto',
+        'flex flex-1 flex-col min-h-0 overflow-y-auto',
+        currentSubModule === 'calendar' ? 'p-0 gap-0' : 'p-4 md:p-6 gap-4',
       )}>
       {/* Module Header with Quick Search (hidden when Calendar is active) */}
       {showModuleHeader && (
@@ -113,7 +113,7 @@ export function FrontDeskModule() {
       <Tabs
         value={currentSubModule}
         onValueChange={setActiveSubModule}
-        className="w-full shrink-0"
+        className={cn('w-full shrink-0', currentSubModule === 'calendar' ? 'px-4 pt-3 pb-0' : '')}
       >
         <TabsList className="w-full sm:w-auto overflow-x-auto">
           {Object.entries(SUB_MODULE_LABELS).map(([key, label]) => (
@@ -127,7 +127,7 @@ export function FrontDeskModule() {
       {/* Active View */}
       <div className={cn(
         'flex flex-col min-h-0',
-        currentSubModule === 'calendar' ? 'flex-1' : '',
+        currentSubModule === 'calendar' ? 'flex-1 px-4 pb-4 pt-2' : '',
       )}>
         <ActiveView />
       </div>
