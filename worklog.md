@@ -49,3 +49,24 @@ Stage Summary:
 - Store updated with all new fields and default values
 - File: /home/z/my-project/src/components/modules/settings/SettingsModule.tsx (2199 lines)
 - File: /home/z/my-project/src/lib/store.ts (updated with new settings fields)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Settings page content hiding issue
+
+Work Log:
+- Analyzed the reference image showing Export Data cards and Danger Zone card being cut off
+- Identified root cause: SettingsModule had conflicting overflow - `h-full` + `ScrollArea` with `max-h-[calc(100vh-12rem)]` inside AppShell's `overflow-y-auto` container
+- Removed `h-full` from outer div, removed `flex-1 min-h-0` from content area
+- Removed the inner `ScrollArea` wrapper entirely - let content flow naturally and scroll via parent AppShell's overflow-y-auto
+- Removed extra wrapper `<div className="sticky top-0">` around nav (was leaving orphaned closing tag)
+- Changed nav to `<nav className="sticky top-0 space-y-1">` directly
+- Verified with agent browser: All 4 sections (Auto Backup, Data Retention, Export Data, Danger Zone) render correctly and are fully scrollable
+- Verified mobile responsive view works with dropdown tab selector
+
+Stage Summary:
+- Key fix: Removed conflicting ScrollArea/fixed-height constraints, letting parent AppShell handle all scrolling
+- File changed: src/components/modules/settings/SettingsModule.tsx
+- All Settings tabs (13 total) now properly display their full content without being cut off
+- Mobile layout verified working correctly

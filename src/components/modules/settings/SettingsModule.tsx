@@ -2112,7 +2112,7 @@ export function SettingsModule() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Page Header */}
       <div className="flex items-center justify-between px-4 md:px-6 pt-5 pb-2">
         <div className="flex items-center gap-3">
@@ -2127,11 +2127,10 @@ export function SettingsModule() {
       </div>
 
       {/* Main Content — Two Column Layout */}
-      <div className="flex flex-1 min-h-0 px-4 md:px-6 pb-4 md:pb-6 gap-6">
+      <div className="flex px-4 md:px-6 pb-6 gap-6">
         {/* Left Sidebar — Tab Navigation */}
         <div className="hidden md:block w-56 shrink-0">
-          <div className="sticky top-0">
-            <nav className="space-y-1">
+          <nav className="sticky top-0 space-y-1">
               {SETTINGS_TABS.map((tab) => {
                 const isActive = activeTab === tab.id
                 return (
@@ -2161,8 +2160,7 @@ export function SettingsModule() {
                   </button>
                 )
               })}
-            </nav>
-          </div>
+          </nav>
         </div>
 
         {/* Mobile Tab Selector */}
@@ -2185,12 +2183,10 @@ export function SettingsModule() {
         </div>
 
         {/* Right Content Area */}
-        <div className="flex-1 min-h-0 min-w-0">
-          <ScrollArea className="h-full max-h-[calc(100vh-12rem)]">
-            <div className="pr-4 max-w-2xl">
-              {renderContent()}
-            </div>
-          </ScrollArea>
+        <div className="flex-1 min-w-0">
+          <div className="max-w-2xl">
+            {renderContent()}
+          </div>
         </div>
       </div>
     </div>
