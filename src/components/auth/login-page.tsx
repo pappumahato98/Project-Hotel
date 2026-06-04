@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { Building2, Star, Loader2, Eye, EyeOff } from 'lucide-react'
-import { useAuthStore } from '@/lib/store'
+import { useAuthStore, useSettingsStore } from '@/lib/store'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 
 export function LoginPage() {
   const { login } = useAuthStore()
+  const { settings } = useSettingsStore()
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
@@ -63,10 +64,10 @@ export function LoginPage() {
           {/* Hotel Name */}
           <div className="space-y-1.5">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Meridian Hotel
+              {settings.hotelName}
             </h1>
             <div className="flex items-center justify-center gap-1">
-              {[1, 2, 3, 4, 5].map((i) => (
+              {Array.from({ length: settings.starRating }).map((_, i) => (
                 <Star
                   key={i}
                   className="size-4 fill-amber-400 text-amber-400"
@@ -199,7 +200,7 @@ export function LoginPage() {
           {/* Footer */}
           <div className="mt-6 text-center">
             <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} Meridian Hotel. All rights reserved.
+              &copy; {new Date().getFullYear()} {settings.hotelName}. All rights reserved.
             </p>
           </div>
         </CardContent>

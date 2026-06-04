@@ -28,6 +28,7 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useSettingsStore, usePreferencesStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -94,6 +95,8 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
 
 export function DeparturesView() {
   const queryClient = useQueryClient()
+  const { settings } = useSettingsStore()
+  const { preferences } = usePreferencesStore()
   const today = getTodayString()
 
   // Dialog states
@@ -781,7 +784,7 @@ export function DeparturesView() {
 
             {/* Amount */}
             <div className="space-y-2">
-              <Label htmlFor="payment-amount">Amount (NPR)</Label>
+              <Label htmlFor="payment-amount">Amount ({preferences.currency})</Label>
               <Input
                 id="payment-amount"
                 type="number"

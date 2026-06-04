@@ -1,7 +1,17 @@
+import { usePreferencesStore } from '@/lib/store'
+
+function getCurrency() {
+  try {
+    return usePreferencesStore.getState().preferences.currency
+  } catch {
+    return 'NPR'
+  }
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('ne-NP', {
     style: 'currency',
-    currency: 'NPR',
+    currency: getCurrency(),
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount)
@@ -10,7 +20,7 @@ export function formatCurrency(amount: number): string {
 export function formatCurrencyDecimal(amount: number): string {
   return new Intl.NumberFormat('ne-NP', {
     style: 'currency',
-    currency: 'NPR',
+    currency: getCurrency(),
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(amount)

@@ -348,3 +348,33 @@ Stage Summary:
 - Reset: UI → resetSettings() → POST /api/settings/reset → DB deleteAll → re-seed on next GET
 - Cross-module impact verified: taxRate, hotelName, serviceCharge, policies flow to 6+ API routes
 - Files modified: src/lib/store.ts (force-refresh, type fix), subagent work in route files
+---
+Task ID: 1
+Agent: Main Agent
+Task: Implement Settings module full frontend-backend connectivity and cross-module settings integration
+
+Work Log:
+- Read and analyzed existing codebase: prisma/schema.prisma (SystemSetting model), src/lib/store.ts (useSettingsStore with syncFromBackend/saveToBackend), src/app/api/settings/route.ts (GET/PUT), SettingsModule.tsx (13 tabs)
+- Verified Settings API end-to-end: GET returns all 60+ settings keys from DB, PUT upserts and returns updated settings, POST /reset deletes all for re-seeding
+- Verified all 13 tabs already wired to saveToBackend() with onBlur/onCheckedChange handlers
+- Added centralized settings sync on app startup in providers.tsx (useSettingsStore.getState().syncFromBackend())
+- Fixed format.ts: replaced hardcoded 'NPR' with getCurrency() helper reading from usePreferencesStore
+- Fixed SettingsDialog.tsx: added useSettingsStore import, replaced 8 hardcoded initial values with store-driven values, added saveToBackend() calls for all field changes
+- Fixed FolioView.tsx: replaced 0.13 tax rate with settings.taxRate/100, currency labels with preferences.currency
+- Fixed RestaurantView.tsx: replaced 3 instances of 0.13 tax rate with settings.taxRate/100
+- Fixed InHouseView.tsx: replaced 0.13 tax rate with settings.taxRate/100
+- Fixed ReservationsView.tsx: replaced hardcoded "Meridian Hotel" with settings.hotelName
+- Fixed ArrivalsView.tsx: default checkout from '12:00' to settings.defaultCheckOut, early check-in note from hardcoded time to settings.defaultCheckIn
+- Fixed CheckInView.tsx: default checkout from '12:00' to settings.defaultCheckOut, early check-in/late checkout comparisons use settings
+- Fixed DeparturesView.tsx: currency labels use preferences.currency
+- Fixed Dashboard API (route.ts): reads SystemSetting table for credit limit threshold
+- Fixed Rooms API (route.ts): reads SystemSetting table for property name, code, address, city, currency, starRating
+- Fixed login-page.tsx: hotel name from settings.hotelName, star rating count from settings.starRating
+- All changes pass ESLint with zero errors
+
+Stage Summary:
+- Settings module is fully functional with real frontend-backend connectivity via SystemSetting table in SQLite
+- All 13 tabs persist changes to database and sync on app load
+- Cross-module impact: tax rates, hotel name, check-in/out times, currency now read from centralized settings across 12+ files
+- API routes (Dashboard, Rooms) now read settings from database instead of hardcoded values
+- Login page dynamically shows configured hotel name and star rating

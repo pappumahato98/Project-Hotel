@@ -41,7 +41,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useAuthStore, usePropertyStore, usePreferencesStore } from '@/lib/store'
+import { useAuthStore, usePropertyStore, usePreferencesStore, useSettingsStore } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -167,30 +167,39 @@ function ToggleRow({
 function GeneralTab() {
   const { activeProperty, setActiveProperty } = usePropertyStore()
   const { preferences, updatePreferences } = usePreferencesStore()
+  const { settings, saveToBackend } = useSettingsStore()
 
   // Property info local state
   const [name, setName] = React.useState(activeProperty.name)
   const [code, setCode] = React.useState(activeProperty.code)
   const [city, setCity] = React.useState(activeProperty.city)
-  const [country, setCountry] = React.useState('Nepal')
-  const [phone, setPhone] = React.useState('+977-1-4567890')
-  const [email, setEmail] = React.useState('info@meridian.com')
-  const [starRating, setStarRating] = React.useState('5')
+  const [country, setCountry] = React.useState(settings.country)
+  const [phone, setPhone] = React.useState(settings.phone)
+  const [email, setEmail] = React.useState(settings.email)
+  const [starRating, setStarRating] = React.useState(String(settings.starRating))
 
   // Business hours local state
-  const [checkIn, setCheckIn] = React.useState('14:00')
-  const [checkOut, setCheckOut] = React.useState('11:00')
-  const [nightAudit, setNightAudit] = React.useState('23:00')
+  const [checkIn, setCheckIn] = React.useState(settings.defaultCheckIn)
+  const [checkOut, setCheckOut] = React.useState(settings.defaultCheckOut)
+  const [nightAudit, setNightAudit] = React.useState(settings.nightAuditTime)
 
   // Sync with store when dialog opens
   React.useEffect(() => {
     setName(activeProperty.name)
     setCode(activeProperty.code)
     setCity(activeProperty.city)
-  }, [activeProperty.name, activeProperty.code, activeProperty.city])
+    setCountry(settings.country)
+    setPhone(settings.phone)
+    setEmail(settings.email)
+    setStarRating(String(settings.starRating))
+    setCheckIn(settings.defaultCheckIn)
+    setCheckOut(settings.defaultCheckOut)
+    setNightAudit(settings.nightAuditTime)
+  }, [activeProperty.name, activeProperty.code, activeProperty.city, settings.country, settings.phone, settings.email, settings.starRating, settings.defaultCheckIn, settings.defaultCheckOut, settings.nightAuditTime])
 
   const handlePropertySave = (field: string, value: string) => {
     setActiveProperty({ ...activeProperty, [field]: value })
+    saveToBackend({ [field]: value })
     toast.success('Property info updated')
   }
 
@@ -243,7 +252,7 @@ function GeneralTab() {
                 id="prop-country"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                onBlur={() => toast.success('Property info updated')}
+                onBlur={() => { saveToBackend({ country }); toast.success('Property info updated') }}
                 className="h-9"
               />
             </div>
@@ -253,7 +262,7 @@ function GeneralTab() {
                 id="prop-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                onBlur={() => toast.success('Property info updated')}
+                onBlur={() => { saveToBackend({ phone }); toast.success('Property info updated') }}
                 className="h-9"
               />
             </div>
@@ -264,14 +273,14 @@ function GeneralTab() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onBlur={() => toast.success('Property info updated')}
+                onBlur={() => { saveToBackend({ email }); toast.success('Property info updated') }}
                 className="h-9"
               />
             </div>
           </div>
           <div className="flex items-center justify-between">
             <Label className="text-xs">Star Rating</Label>
-            <Select value={starRating} onValueChange={(v) => { setStarRating(v); toast.success('Star rating updated') }}>
+            <Select value={starRating} onValueChange={(v) => { setStarRating(v); saveToBackend({ starRating: Number(v) }); toast.success('Star rating updated') }}>
               <SelectTrigger className="w-24 h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -304,7 +313,7 @@ function GeneralTab() {
           <SettingRow icon={LogIn} label="Default Check-In" description="Standard guest arrival time">
             <Select
               value={checkIn}
-              onValueChange={(v) => { setCheckIn(v); toast.success('Check-in time updated') }}
+              onValueChange={(v) => { setCheckIn(v); saveToBackend({ defaultCheckIn: v }); toast.success('Check-in time updated') }}
             >
               <SelectTrigger className="w-28 h-8 text-xs">
                 <SelectValue />
@@ -320,7 +329,7 @@ function GeneralTab() {
           <SettingRow icon={LogOut} label="Default Check-Out" description="Standard guest departure time">
             <Select
               value={checkOut}
-              onValueChange={(v) => { setCheckOut(v); toast.success('Check-out time updated') }}
+              onValueChange={(v) => { setCheckOut(v); saveToBackend({ defaultCheckOut: v }); toast.success('Check-out time updated') }}
             >
               <SelectTrigger className="w-28 h-8 text-xs">
                 <SelectValue />
@@ -336,7 +345,7 @@ function GeneralTab() {
           <SettingRow icon={MoonStar} label="Night Audit Time" description="When the daily night audit runs">
             <Select
               value={nightAudit}
-              onValueChange={(v) => { setNightAudit(v); toast.success('Night audit time updated') }}
+              onValueChange={(v) => { setNightAudit(v); saveToBackend({ nightAuditTime: v }); toast.success('Night audit time updated') }}
             >
               <SelectTrigger className="w-28 h-8 text-xs">
                 <SelectValue />
@@ -708,8 +717,9 @@ function NotificationsTab() {
 
 function SecurityTab() {
   const { user } = useAuthStore()
+  const { settings, saveToBackend } = useSettingsStore()
   const [twoFactor, setTwoFactor] = React.useState(false)
-  const [autoLogout, setAutoLogout] = React.useState('30min')
+  const [autoLogout, setAutoLogout] = React.useState(settings.autoLogout)
   const [loginTime] = React.useState(() => {
     const now = new Date()
     now.setHours(now.getHours() - 3)
@@ -832,6 +842,7 @@ function SecurityTab() {
               value={autoLogout}
               onValueChange={(v) => {
                 setAutoLogout(v)
+                saveToBackend({ autoLogout: v })
                 toast.success('Auto-logout timeout updated')
               }}
             >

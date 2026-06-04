@@ -30,6 +30,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/lib/store'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
@@ -155,6 +156,7 @@ const initialWalkInForm: WalkInForm = {
 
 export function ArrivalsView() {
   const queryClient = useQueryClient()
+  const { settings } = useSettingsStore()
   const today = getTodayString()
 
   // Dialog states
@@ -169,7 +171,7 @@ export function ArrivalsView() {
 
   // Check-in form states
   const [earlyCheckIn, setEarlyCheckIn] = useState(false)
-  const [checkOutTime, setCheckOutTime] = useState('12:00')
+  const [checkOutTime, setCheckOutTime] = useState(settings.defaultCheckOut)
   const [roomPreference, setRoomPreference] = useState('')
   const [pillowType, setPillowType] = useState('')
   const [wakeupCall, setWakeupCall] = useState('')
@@ -382,11 +384,11 @@ export function ArrivalsView() {
 
     // Early check-in note
     if (earlyCheckIn) {
-      parts.push('[EARLY CHECK-IN] Checked in before 2:00 PM')
+      parts.push(`[EARLY CHECK-IN] Checked in before ${settings.defaultCheckIn}`)
     }
 
     // Check-out time override
-    if (checkOutTime !== '12:00') {
+    if (checkOutTime !== settings.defaultCheckOut) {
       parts.push(`[CHECK-OUT OVERRIDE] Preferred check-out: ${checkOutTime}`)
     }
 
@@ -449,7 +451,7 @@ export function ArrivalsView() {
 
   const resetCheckInForm = () => {
     setEarlyCheckIn(false)
-    setCheckOutTime('12:00')
+    setCheckOutTime(settings.defaultCheckOut)
     setRoomPreference('')
     setPillowType('')
     setWakeupCall('')

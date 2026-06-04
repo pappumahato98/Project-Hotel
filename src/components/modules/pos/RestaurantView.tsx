@@ -23,6 +23,7 @@ import {
   usePosData, formatNPR, timeAgo,
   type TableItem, type MenuItem, type Order, type OrderItem, type GuestReservation,
 } from './pos-types'
+import { useSettingsStore } from '@/lib/store'
 
 // ─── Allergen Icons ─────────────────────────────────────────────────
 function AllergenBadges({ allergens }: { allergens?: string[] }) {
@@ -131,8 +132,9 @@ function OrderPanel({
   onPostToRoom: () => void
   isRemoving: string | null
 }) {
+  const { settings } = useSettingsStore()
   const subtotal = order?.items.reduce((sum, item) => sum + item.price * item.quantity, 0) ?? 0
-  const tax = Math.round(subtotal * 0.13)
+  const tax = Math.round(subtotal * (settings.taxRate / 100))
   const total = subtotal + tax
 
   return (
@@ -212,7 +214,7 @@ function OrderPanel({
                 <span>{formatNPR(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax (13%)</span>
+                <span className="text-muted-foreground">Tax ({settings.taxRate}%)</span>
                 <span>{formatNPR(tax)}</span>
               </div>
               <Separator />
@@ -518,8 +520,9 @@ export default function RestaurantView() {
     // Optimistic add
   }
 
+  const { settings } = useSettingsStore()
   const subtotal = currentOrder?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0
-  const total = subtotal + Math.round(subtotal * 0.13)
+  const total = subtotal + Math.round(subtotal * (settings.taxRate / 100))
 
   if (isLoading || !data) {
     return (

@@ -27,6 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useSettingsStore, usePreferencesStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -116,6 +117,8 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 
 export function FolioView() {
   const queryClient = useQueryClient()
+  const { settings } = useSettingsStore()
+  const { preferences } = usePreferencesStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [selectedFolio, setSelectedFolio] = useState<Folio | null>(null)
@@ -184,7 +187,7 @@ export function FolioView() {
     mutationFn: async () => {
       if (!activeFolio) return
       const amount = parseFloat(chargeAmount)
-      const taxAmount = amount * 0.13
+      const taxAmount = amount * (settings.taxRate / 100)
       const res = await fetch(`/api/folio/${activeFolio.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -390,7 +393,7 @@ export function FolioView() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label>Amount (NPR) *</Label>
+                          <Label>Amount ({preferences.currency}) *</Label>
                           <Input
                             type="number"
                             placeholder="0"
@@ -400,7 +403,7 @@ export function FolioView() {
                           />
                           {chargeAmount && parseFloat(chargeAmount) > 0 && (
                             <p className="text-xs text-muted-foreground">
-                              Tax (13%): {formatCurrency(parseFloat(chargeAmount) * 0.13)} • Total: {formatCurrency(parseFloat(chargeAmount) * 1.13)}
+                              Tax ({settings.taxRate}%): {formatCurrency(parseFloat(chargeAmount) * (settings.taxRate / 100))} • Total: {formatCurrency(parseFloat(chargeAmount) * (1 + settings.taxRate / 100))}
                             </p>
                           )}
                         </div>
@@ -440,7 +443,7 @@ export function FolioView() {
                           </Select>
                         </div>
                         <div className="space-y-1">
-                          <Label>Amount (NPR) *</Label>
+                          <Label>Amount ({preferences.currency}) *</Label>
                           <Input
                             type="number"
                             placeholder="0"

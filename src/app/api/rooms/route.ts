@@ -16,11 +16,18 @@ async function ensureSeedData() {
     db.roomType.create({ data: { name: 'Presidential Suite', code: 'PRSU', description: 'The finest suite with exclusive amenities', baseOccupancy: 2, maxOccupancy: 6, bedConfig: '1 King Bed + 2 Sofa Beds', areaSqFt: 1200, view: '360° Panoramic', amenities: '["WiFi","AC","TV","Minibar","Coffee Machine","Safe","Bathrobe","Slippers","Jacuzzi","Butler Service","Private Pool","Dining Room"]', sortOrder: 6 } }),
   ])
 
+  // Get settings for property defaults
+  const allSettings = await db.systemSetting.findMany()
+  const getSetting = (key: string, fallback: string) => {
+    const s = allSettings.find(s => s.key === key)
+    return s ? s.value : fallback
+  }
+
   // Get default property
   let property = await db.property.findFirst()
   if (!property) {
     property = await db.property.create({
-      data: { name: 'Meridian Hotel', code: 'MH', address: 'Durbar Marg', city: 'Kathmandu', currency: 'NPR', starRating: 5, totalRooms: 128 }
+      data: { name: getSetting('hotelName', 'Meridian Hotel'), code: getSetting('hotelCode', 'MH'), address: getSetting('address', 'Thamel, Kathmandu'), city: getSetting('city', 'Kathmandu'), currency: getSetting('currency', 'NPR'), starRating: parseInt(getSetting('starRating', '5')), totalRooms: 128 }
     })
   }
 

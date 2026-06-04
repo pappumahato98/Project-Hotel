@@ -36,7 +36,7 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -174,6 +174,7 @@ const INITIAL_FORM: NewReservationForm = {
 export function ReservationsView() {
   const queryClient = useQueryClient()
   const { navigateTo } = useNavigationStore()
+  const { settings } = useSettingsStore()
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -1477,7 +1478,7 @@ export function ReservationsView() {
               <div className="text-center border-b pb-4 mb-4">
                 <div className="flex items-center justify-center gap-2">
                   <Hotel className="size-6" />
-                  <h3 className="text-xl font-bold tracking-wide">Meridian Hotel</h3>
+                  <h3 className="text-xl font-bold tracking-wide">{settings.hotelName}</h3>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">Luxury Hospitality &bull; Premium Experience</p>
               </div>
@@ -1582,7 +1583,7 @@ export function ReservationsView() {
                   Booked on {formatDate(selectedReservation.createdAt)}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Thank you for choosing Meridian Hotel. We look forward to your stay.
+                  Thank you for choosing {settings.hotelName}. We look forward to your stay.
                 </p>
               </div>
             </div>

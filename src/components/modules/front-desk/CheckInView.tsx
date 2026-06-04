@@ -32,6 +32,7 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatCurrency, formatTime, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/lib/store'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
@@ -147,6 +148,7 @@ interface CheckInViewProps {
 
 export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   const queryClient = useQueryClient()
+  const { settings } = useSettingsStore()
   const today = getTodayString()
 
   // ─── Step state ────────────────────────────────────────────────
@@ -167,7 +169,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
   // ─── Stay preferences ─────────────────────────────────────────
   const [earlyCheckIn, setEarlyCheckIn] = useState(false)
-  const [checkOutTime, setCheckOutTime] = useState('12:00')
+  const [checkOutTime, setCheckOutTime] = useState(settings.defaultCheckOut)
   const [pillowType, setPillowType] = useState('')
   const [roomPreference, setRoomPreference] = useState('')
   const [wakeupCall, setWakeupCall] = useState('')
@@ -364,9 +366,9 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
       parts.push(activeReservation.specialRequests)
     }
     if (earlyCheckIn) {
-      parts.push('[EARLY CHECK-IN] Checked in before 2:00 PM')
+      parts.push(`[EARLY CHECK-IN] Checked in before ${settings.defaultCheckIn}`)
     }
-    if (checkOutTime !== '12:00') {
+    if (checkOutTime !== settings.defaultCheckOut) {
       parts.push(`[CHECK-OUT OVERRIDE] Preferred check-out: ${checkOutTime}`)
     }
     if (roomPreference) {

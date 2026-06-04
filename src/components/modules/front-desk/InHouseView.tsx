@@ -40,7 +40,7 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -114,6 +114,7 @@ function formatDateValue(date: Date): string {
 export function InHouseView() {
   const queryClient = useQueryClient()
   const { navigateTo } = useNavigationStore()
+  const { settings } = useSettingsStore()
 
   // ── Dialog states ──────────────────────────────────────────
   const [chargeDialogOpen, setChargeDialogOpen] = useState(false)
@@ -210,7 +211,7 @@ export function InHouseView() {
     }: {
       folioId: string; transactionType: string; description: string; amount: number
     }) => {
-      const taxRate = 0.13
+      const taxRate = settings.taxRate / 100
       const taxAmount = amount * taxRate
       const totalAmount = amount + taxAmount
 
@@ -1084,7 +1085,7 @@ export function InHouseView() {
                   />
                   {chargeAmount && parseFloat(chargeAmount) > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Tax (13%): {formatCurrency(parseFloat(chargeAmount) * 0.13)} · Total: {formatCurrency(parseFloat(chargeAmount) * 1.13)}
+                      Tax ({settings.taxRate}%): {formatCurrency(parseFloat(chargeAmount) * (settings.taxRate / 100))} · Total: {formatCurrency(parseFloat(chargeAmount) * (1 + settings.taxRate / 100))}
                     </p>
                   )}
                 </div>

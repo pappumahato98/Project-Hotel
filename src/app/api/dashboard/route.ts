@@ -10,6 +10,14 @@ export async function GET() {
     const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
 
+    // Fetch system settings
+    const allSettings = await db.systemSetting.findMany()
+    const settingsMap: Record<string, string> = {}
+    for (const s of allSettings) {
+      settingsMap[s.key] = s.value
+    }
+    const defaultCreditLimit = settingsMap['defaultCreditLimit'] ? parseFloat(settingsMap['defaultCreditLimit']) : 15000
+
     // Total rooms
     const totalRooms = await db.room.count()
 
@@ -129,7 +137,7 @@ export async function GET() {
     const creditLimitBreaches = await db.folio.findMany({
       where: {
         status: 'open',
-        balance: { gt: 15000 },
+        balance: { gt: defaultCreditLimit },
         reservation: { status: 'checked_in' },
       },
       include: { reservation: { include: { guest: true, room: true } } },
@@ -283,7 +291,7 @@ export async function GET() {
           guestName: f.reservation.guest ? `${f.reservation.guest.firstName} ${f.reservation.guest.lastName}` : 'Unknown',
           roomNumber: f.reservation.room?.number,
           balance: f.balance,
-          creditLimit: 15000,
+          creditLimit: defaultCreditLimit,
         })),
         pendingHkTasks,
         openPosOrders,
