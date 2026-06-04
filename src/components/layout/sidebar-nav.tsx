@@ -166,20 +166,20 @@ function UserProfileFooter() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="group/user flex w-full items-center gap-3 rounded-lg px-3 py-1 text-left transition-colors hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          className="group/user flex w-full items-center gap-2 rounded-md px-2 py-0.5 text-left transition-colors hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
-          <Avatar className="size-10 rounded-full shrink-0">
+          <Avatar className="size-7 rounded-full shrink-0">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
-            <AvatarFallback className="bg-amber-100 text-amber-700 text-sm font-semibold">
+            <AvatarFallback className="bg-amber-100 text-amber-700 text-[10px] font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
           <div className="grid flex-1 text-left leading-tight min-w-0">
-            <span className="truncate font-semibold text-sm text-sidebar-foreground">
+            <span className="truncate font-semibold text-xs text-sidebar-foreground">
               {displayName}
             </span>
-            <span className="truncate text-xs text-muted-foreground flex items-center gap-1">
-              <Shield className="size-3" />
+            <span className="truncate text-[10px] text-muted-foreground flex items-center gap-0.5">
+              <Shield className="size-2.5" />
               {displayRole}
             </span>
           </div>
