@@ -167,21 +167,21 @@ function UserProfileFooter() {
       <DropdownMenuTrigger asChild>
         <SidebarMenuButton
           tooltip="User Profile"
-          className="cursor-pointer gap-3 px-2"
+          className="cursor-pointer gap-3 px-3 w-full"
           size="lg"
         >
-          <Avatar className="size-7 rounded-full">
+          <Avatar className="size-8 rounded-full shrink-0">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
-            <AvatarFallback className="bg-amber-100 text-amber-700 text-[10px] font-semibold">
+            <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="grid flex-1 text-left text-sm leading-tight">
+          <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
             <span className="truncate font-semibold text-sidebar-foreground">
               {displayName}
             </span>
-            <span className="truncate text-[10px] text-muted-foreground flex items-center gap-1">
-              <Shield className="size-2.5" />
+            <span className="truncate text-[11px] text-muted-foreground flex items-center gap-1">
+              <Shield className="size-3" />
               {displayRole}
             </span>
           </div>
@@ -279,17 +279,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </ScrollArea>
       </SidebarContent>
 
-      {/* Footer — User Profile + Collapse */}
-      <SidebarFooter className="border-t border-sidebar-border">
+      {/* Footer — User Profile */}
+      <SidebarFooter className="border-t border-sidebar-border mt-auto pb-3 pt-2 gap-1">
         <SidebarMenu>
           <SidebarMenuItem>
             <UserProfileFooter />
           </SidebarMenuItem>
         </SidebarMenu>
-        <SidebarSeparator />
-        <div className="flex items-center justify-end px-2">
-          <SidebarRail />
-        </div>
+        <SidebarRail />
       </SidebarFooter>
     </Sidebar>
   )

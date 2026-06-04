@@ -313,3 +313,26 @@ Stage Summary:
 - Quick Actions panel with 6 actions: New Reservation, Walk-In Check-In, Room Transfer, Wake-Up Call, Late Checkout, Express Checkout
 - Activity Timeline with check-ins, check-outs, room moves
 - Upcoming Arrivals table with next 5 expected arrivals
+---
+Task ID: 1
+Agent: main
+Task: Fix sidebar bottom user profile - remove color gapping and widen user buttons
+
+Work Log:
+- Read sidebar-nav.tsx to understand current footer structure
+- Read sidebar.tsx (shadcn) to understand base component styling
+- Identified issues: extra SidebarSeparator creating gap, wrapping div around SidebarRail, narrow button padding
+- Removed SidebarSeparator between user profile and SidebarRail
+- Removed unnecessary wrapping div with flex items-center justify-end px-2
+- Added mt-auto to SidebarFooter to push it to bottom
+- Adjusted padding: pb-3 pt-2 gap-1
+- Widened user profile button: changed px-2 → px-3 w-full
+- Increased avatar size: size-7 → size-8, shrink-0
+- Increased text sizes: fallback text-[10px] → text-xs, role text-[10px] → text-[11px], shield icon size-2.5 → size-3
+- Verified with agent browser - all checks pass (no color gap, full width, correct separator)
+
+Stage Summary:
+- Sidebar footer now fills to bottom without color gaps
+- User profile button is properly wide (w-full + px-3)
+- Visual consistency maintained with design system
+- No lint errors
