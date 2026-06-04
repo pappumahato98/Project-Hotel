@@ -97,16 +97,16 @@ function SectionHeader({
 }
 
 function SettingRow({
-  icon, label, description, children,
+  icon: Icon, label, description, children,
 }: {
   icon?: React.ElementType; label: string; description?: string; children: React.ReactNode
 }) {
   return (
     <div className="flex items-center justify-between gap-4 py-2.5">
       <div className="flex items-center gap-3 min-w-0">
-        {icon && (
+        {Icon && (
           <div className="flex size-8 items-center justify-center rounded-lg bg-muted shrink-0">
-            <icon className="size-4 text-muted-foreground" />
+            <Icon className="size-4 text-muted-foreground" />
           </div>
         )}
         <div className="min-w-0">
