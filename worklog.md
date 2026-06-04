@@ -94,3 +94,27 @@ Stage Summary:
 - Two-column layout now has independent scroll for each panel
 - Dark contrast sub-sidebar (`bg-slate-900`) with amber accent active state
 - Content cards use improved dark-mode contrast (`bg-slate-100 dark:bg-slate-800` for icons)
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix Settings sub-sidebar scroll coupling, remove dark bg, fix bottom content hiding
+
+Work Log:
+- Added `overflow-hidden` to SettingsModule root container to prevent parent AppShell scroll from coupling with child scroll areas
+- Left sub-sidebar: changed from dark `bg-slate-900 dark:bg-slate-950` to light `bg-muted/40 dark:bg-slate-800/40`
+- Left sub-sidebar: added `self-stretch` for full viewport height coverage
+- Left sub-sidebar: changed text from light `text-slate-400` to darker `text-slate-600 dark:text-slate-300` for better contrast
+- Left sub-sidebar: changed active tab styling from amber to `text-primary bg-primary/10 ring-primary/20`
+- Left sub-sidebar: changed border from `border-slate-800` to `border-border`
+- Right content area: added `self-stretch` for proper height filling
+- Right content area: increased bottom padding from `pb-8` to `pb-16` to prevent bottom content hiding
+- Verified independent scrolling: right content scrolls to 400px while left sidebar stays at 0
+- Verified bottom content fully visible at maximum scroll (838px)
+- VLM confirmed: light gray sidebar bg, no content cut off, proper spacing, no visual defects
+
+Stage Summary:
+- File changed: src/components/modules/settings/SettingsModule.tsx
+- Three issues fixed: (1) scroll decoupling, (2) dark bg removed + darker text, (3) bottom padding
+- Left sidebar is now sticky/fixed with light neutral background and dark text
+- Right content scrolls independently with proper bottom padding

@@ -2112,7 +2112,7 @@ export function SettingsModule() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Page Header */}
       <div className="shrink-0 flex items-center justify-between px-4 md:px-6 pt-5 pb-3">
         <div className="flex items-center gap-3">
@@ -2128,8 +2128,8 @@ export function SettingsModule() {
 
       {/* Main Content — Two Column Layout */}
       <div className="flex flex-1 min-h-0 gap-0">
-        {/* Left Sidebar — Tab Navigation (dark panel) */}
-        <div className="hidden md:flex flex-col w-60 shrink-0 bg-slate-900 dark:bg-slate-950 border-r border-slate-800 dark:border-slate-800 min-h-0">
+        {/* Left Sidebar — Tab Navigation */}
+        <div className="hidden md:flex flex-col w-60 shrink-0 bg-muted/40 dark:bg-slate-800/40 border-r border-border self-stretch">
           <ScrollArea className="flex-1">
             <nav className="p-3 space-y-1">
               {SETTINGS_TABS.map((tab) => {
@@ -2141,23 +2141,23 @@ export function SettingsModule() {
                     className={cn(
                       'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all',
                       isActive
-                        ? 'bg-amber-500/20 text-amber-200 font-medium shadow-sm ring-1 ring-amber-500/30'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        ? 'bg-primary/10 text-primary font-medium shadow-sm ring-1 ring-primary/20'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-muted/60 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-slate-100'
                     )}
                   >
                     <div className={cn(
                       'flex size-8 items-center justify-center rounded-lg shrink-0 transition-colors',
                       isActive
-                        ? 'bg-amber-500/25'
-                        : 'bg-slate-800'
+                        ? 'bg-primary/15'
+                        : 'bg-muted dark:bg-slate-700/50'
                     )}>
-                      <tab.icon className={cn('size-4', isActive ? 'text-amber-400' : 'text-slate-500')} />
+                      <tab.icon className={cn('size-4', isActive ? 'text-primary' : 'text-slate-500 dark:text-slate-400')} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm truncate">{tab.label}</p>
-                      <p className="text-[10px] text-slate-500 truncate">{tab.description}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{tab.description}</p>
                     </div>
-                    {isActive && <ChevronRight className="size-3.5 ml-auto text-amber-400 shrink-0" />}
+                    {isActive && <ChevronRight className="size-3.5 ml-auto text-primary shrink-0" />}
                   </button>
                 )
               })}
@@ -2185,9 +2185,9 @@ export function SettingsModule() {
         </div>
 
         {/* Right Content Area (independently scrollable) */}
-        <div className="flex-1 min-w-0 min-h-0">
+        <div className="flex-1 min-w-0 min-h-0 self-stretch">
           <ScrollArea className="h-full">
-            <div className="p-4 md:p-6 pb-8 max-w-2xl">
+            <div className="p-4 md:p-6 pb-16 max-w-2xl">
               {renderContent()}
             </div>
           </ScrollArea>
