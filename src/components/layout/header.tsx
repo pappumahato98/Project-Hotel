@@ -58,6 +58,7 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SettingsDialog } from '@/components/shared/SettingsDialog'
 import { toast } from 'sonner'
 
 // ─── Quick Search Dialog ────────────────────────────────────────────
@@ -600,6 +601,7 @@ function UserMenu() {
   const [mounted, setMounted] = React.useState(false)
   const [profileOpen, setProfileOpen] = React.useState(false)
   const [preferencesOpen, setPreferencesOpen] = React.useState(false)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
   const [shiftOpen, setShiftOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
 
@@ -708,7 +710,7 @@ function UserMenu() {
               <User className="mr-2 size-4" />
               My Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onSelect={() => setPreferencesOpen(true)}>
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => setSettingsOpen(true)}>
               <Settings className="mr-2 size-4" />
               My Preferences
             </DropdownMenuItem>
@@ -759,6 +761,7 @@ function UserMenu() {
       {/* Dialogs */}
       <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
       <PreferencesDialog open={preferencesOpen} onOpenChange={setPreferencesOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ShiftDialog open={shiftOpen} onOpenChange={setShiftOpen} />
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </>
