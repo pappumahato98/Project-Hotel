@@ -359,7 +359,8 @@ export function CalendarView() {
   const dayWidth = containerWidth > 0
     ? Math.max(64, Math.floor((containerWidth - roomColWidth) / numDays))
     : DEFAULT_DAY_WIDTH
-  const actualGridWidth = roomColWidth + numDays * dayWidth
+  // Use ceiling for actual width so grid fills container edge-to-edge
+  const actualGridWidth = roomColWidth + numDays * Math.max(64, Math.ceil((containerWidth - roomColWidth) / numDays))
   const isCompact = containerWidth <= 768
   const isSmallScreen = containerWidth <= 480
 
@@ -1292,7 +1293,7 @@ export function CalendarView() {
               ref={scrollRef}
               className="overflow-x-auto overflow-y-hidden flex-1 min-h-0"
             >
-              <div style={{ minWidth: actualGridWidth }}>
+              <div style={{ minWidth: actualGridWidth, width: '100%' }}>
                 {/* ─── Day Column Headers (dark sticky) ──────────────────── */}
                 <div className="flex sticky top-0 z-20 bg-slate-800 dark:bg-slate-950 border-b border-slate-700 dark:border-slate-800">
                   {/* Corner cell (Room header + day header intersection) */}
@@ -1525,7 +1526,7 @@ export function CalendarView() {
                 </div>
 
                 {/* Ensure grid takes full width for proper scrolling */}
-                <div style={{ width: actualGridWidth, height: 1 }} />
+                <div style={{ width: actualGridWidth, minWidth: '100%', height: 1 }} />
               </div>
             </div>
 
