@@ -85,11 +85,11 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-start gap-3 mb-4">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-muted shrink-0 mt-0.5">
-        <Icon className="size-4 text-muted-foreground" />
+      <div className="flex size-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
+        <Icon className="size-4 text-slate-600 dark:text-slate-400" />
       </div>
       <div>
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
         <p className="text-xs text-muted-foreground">{description}</p>
       </div>
     </div>
@@ -105,12 +105,12 @@ function SettingRow({
     <div className="flex items-center justify-between gap-4 py-2.5">
       <div className="flex items-center gap-3 min-w-0">
         {Icon && (
-          <div className="flex size-8 items-center justify-center rounded-lg bg-muted shrink-0">
-            <Icon className="size-4 text-muted-foreground" />
+          <div className="flex size-8 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0">
+            <Icon className="size-4 text-slate-600 dark:text-slate-400" />
           </div>
         )}
         <div className="min-w-0">
-          <Label className="text-sm font-medium">{label}</Label>
+          <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">{label}</Label>
           {description && (
             <p className="text-xs text-muted-foreground">{description}</p>
           )}
@@ -2112,9 +2112,9 @@ export function SettingsModule() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Page Header */}
-      <div className="flex items-center justify-between px-4 md:px-6 pt-5 pb-2">
+      <div className="shrink-0 flex items-center justify-between px-4 md:px-6 pt-5 pb-3">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-sm">
             <Settings className="size-5" />
@@ -2127,10 +2127,11 @@ export function SettingsModule() {
       </div>
 
       {/* Main Content — Two Column Layout */}
-      <div className="flex px-4 md:px-6 pb-6 gap-6">
-        {/* Left Sidebar — Tab Navigation */}
-        <div className="hidden md:block w-56 shrink-0">
-          <nav className="sticky top-0 space-y-1">
+      <div className="flex flex-1 min-h-0 gap-0">
+        {/* Left Sidebar — Tab Navigation (dark panel) */}
+        <div className="hidden md:flex flex-col w-60 shrink-0 bg-slate-900 dark:bg-slate-950 border-r border-slate-800 dark:border-slate-800 min-h-0">
+          <ScrollArea className="flex-1">
+            <nav className="p-3 space-y-1">
               {SETTINGS_TABS.map((tab) => {
                 const isActive = activeTab === tab.id
                 return (
@@ -2140,31 +2141,32 @@ export function SettingsModule() {
                     className={cn(
                       'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all',
                       isActive
-                        ? 'bg-amber-50 text-amber-900 font-medium shadow-sm dark:bg-amber-950/40 dark:text-amber-200'
-                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        ? 'bg-amber-500/20 text-amber-200 font-medium shadow-sm ring-1 ring-amber-500/30'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                     )}
                   >
                     <div className={cn(
                       'flex size-8 items-center justify-center rounded-lg shrink-0 transition-colors',
                       isActive
-                        ? 'bg-amber-100 dark:bg-amber-900/60'
-                        : 'bg-muted'
+                        ? 'bg-amber-500/25'
+                        : 'bg-slate-800'
                     )}>
-                      <tab.icon className={cn('size-4', isActive ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')} />
+                      <tab.icon className={cn('size-4', isActive ? 'text-amber-400' : 'text-slate-500')} />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm truncate">{tab.label}</p>
-                      <p className="text-[10px] text-muted-foreground truncate">{tab.description}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{tab.description}</p>
                     </div>
-                    {isActive && <ChevronRight className="size-4 ml-auto text-amber-600 dark:text-amber-400 shrink-0" />}
+                    {isActive && <ChevronRight className="size-3.5 ml-auto text-amber-400 shrink-0" />}
                   </button>
                 )
               })}
-          </nav>
+            </nav>
+          </ScrollArea>
         </div>
 
         {/* Mobile Tab Selector */}
-        <div className="md:hidden w-full">
+        <div className="md:hidden shrink-0 px-4">
           <Select value={activeTab} onValueChange={setActiveTab}>
             <SelectTrigger className="w-full h-10">
               <SelectValue />
@@ -2182,11 +2184,13 @@ export function SettingsModule() {
           </Select>
         </div>
 
-        {/* Right Content Area */}
-        <div className="flex-1 min-w-0">
-          <div className="max-w-2xl">
-            {renderContent()}
-          </div>
+        {/* Right Content Area (independently scrollable) */}
+        <div className="flex-1 min-w-0 min-h-0">
+          <ScrollArea className="h-full">
+            <div className="p-4 md:p-6 pb-8 max-w-2xl">
+              {renderContent()}
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

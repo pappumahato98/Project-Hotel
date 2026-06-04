@@ -70,3 +70,27 @@ Stage Summary:
 - File changed: src/components/modules/settings/SettingsModule.tsx
 - All Settings tabs (13 total) now properly display their full content without being cut off
 - Mobile layout verified working correctly
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Settings scroll behavior and add dark contrast colors to sub-sidebar
+
+Work Log:
+- Restructured SettingsModule layout: outer container uses `flex-1 min-h-0` to fill parent without overflowing
+- Page header made `shrink-0` to stay pinned at top
+- Left sub-sidebar: dark panel (`bg-slate-900 dark:bg-slate-950`) with its own `ScrollArea` for independent scrolling
+- Right content area: its own `ScrollArea` with `h-full` for independent scrolling
+- Both columns now scroll independently — left sidebar stays visible while content scrolls
+- Updated sub-sidebar tab styling: dark background, amber accent for active tab, slate-400 for inactive text, slate-800 icon backgrounds
+- Updated SectionHeader: `bg-slate-100 dark:bg-slate-800` icon backgrounds, `text-slate-600 dark:text-slate-400` icons
+- Updated SettingRow: same dark contrast styling for icon containers and labels
+- Verified all tabs accessible including Backup & Data (Export Data + Danger Zone fully visible)
+- Verified mobile responsive dropdown still works
+- Lint passes clean
+
+Stage Summary:
+- File changed: src/components/modules/settings/SettingsModule.tsx
+- Two-column layout now has independent scroll for each panel
+- Dark contrast sub-sidebar (`bg-slate-900`) with amber accent active state
+- Content cards use improved dark-mode contrast (`bg-slate-100 dark:bg-slate-800` for icons)
