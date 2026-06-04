@@ -11,7 +11,8 @@ import {
   MoonStar, Phone, MapPin, Percent, Receipt, CreditCardIcon, Wallet,
   Building, Landmark, BadgeCheck, ShieldAlert, RotateCcw, CircleDollarSign,
   FileText, Clock4, Hotel, Globe2, ChevronRight, Save, Undo2, CheckCircle2,
-  Printer, FileDown,
+  Printer, FileDown, BedDouble, Plug, Copy, RefreshCw, Eye, EyeOff,
+  Key, Lock, Download, DatabaseBackup, Zap, BarChart3, ExternalLink, Wifi,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -63,6 +65,15 @@ const CARD_TYPES = [
   { value: 'amex', label: 'American Express', color: 'bg-amber-500' },
   { value: 'jcb', label: 'JCB', color: 'bg-green-600' },
   { value: 'unionpay', label: 'UnionPay', color: 'bg-rose-600' },
+]
+
+const CONNECTED_CHANNELS = [
+  { name: 'Booking.com', color: 'bg-sky-500', status: 'connected' as const },
+  { name: 'Agoda', color: 'bg-rose-500', status: 'connected' as const },
+  { name: 'Expedia', color: 'bg-amber-600', status: 'connected' as const },
+  { name: 'Airbnb', color: 'bg-rose-400', status: 'disconnected' as const },
+  { name: 'Trip.com', color: 'bg-cyan-600', status: 'disconnected' as const },
+  { name: 'Direct Website', color: 'bg-emerald-500', status: 'connected' as const },
 ]
 
 // ─── Shared Components ─────────────────────────────────────────────
@@ -871,6 +882,364 @@ function PaymentMethodsTab() {
   )
 }
 
+// ─── Room Defaults Tab ───────────────────────────────────────────────
+
+function RoomDefaultsTab() {
+  const { settings, updateSettings } = useSettingsStore()
+
+  const [maxOccupancy, setMaxOccupancy] = React.useState(String(settings.defaultMaxOccupancy))
+  const [defaultFloor, setDefaultFloor] = React.useState(String(settings.defaultFloor))
+  const [minNights, setMinNights] = React.useState(String(settings.minNightsDefault))
+  const [maxNights, setMaxNights] = React.useState(String(settings.maxNightsDefault))
+
+  React.useEffect(() => {
+    setMaxOccupancy(String(settings.defaultMaxOccupancy))
+    setDefaultFloor(String(settings.defaultFloor))
+    setMinNights(String(settings.minNightsDefault))
+    setMaxNights(String(settings.maxNightsDefault))
+  }, [settings.defaultMaxOccupancy, settings.defaultFloor, settings.minNightsDefault, settings.maxNightsDefault])
+
+  const handleSave = (field: string, value: number) => {
+    updateSettings({ [field]: value } as any)
+    toast.success('Room default updated')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Occupancy & Floor */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={BedDouble} title="Room Defaults" description="Default settings applied when creating new rooms" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <SettingRow icon={Users} label="Default Max Occupancy" description="Standard guest count per room">
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                value={maxOccupancy}
+                onChange={(e) => setMaxOccupancy(e.target.value)}
+                onBlur={() => handleSave('defaultMaxOccupancy', parseInt(maxOccupancy) || 2)}
+                className="w-20 h-8 text-xs text-right"
+                min="1" max="10"
+              />
+              <span className="text-xs text-muted-foreground">guests</span>
+            </div>
+          </SettingRow>
+          <Separator />
+          <SettingRow icon={Building2} label="Default Floor Assignment" description="Floor number for new rooms by default">
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                value={defaultFloor}
+                onChange={(e) => setDefaultFloor(e.target.value)}
+                onBlur={() => handleSave('defaultFloor', parseInt(defaultFloor) || 1)}
+                className="w-20 h-8 text-xs text-right"
+                min="1" max="50"
+              />
+              <span className="text-xs text-muted-foreground">floor</span>
+            </div>
+          </SettingRow>
+          <Separator />
+          <ToggleRow
+            icon={Zap} label="Auto-Assign Room on Reservation"
+            description="Automatically assign best available room when a booking is made"
+            checked={settings.autoAssignRoom}
+            onCheckedChange={(v) => { updateSettings({ autoAssignRoom: v }); toast.success(v ? 'Auto-assign enabled' : 'Auto-assign disabled') }}
+          />
+          <Separator />
+          <ToggleRow
+            icon={CheckCircle2} label="Auto Room Status Update After Checkout"
+            description="Automatically set room to dirty/vacant after guest checkout"
+            checked={settings.autoRoomStatusUpdate}
+            onCheckedChange={(v) => { updateSettings({ autoRoomStatusUpdate: v }); toast.success(v ? 'Auto status update enabled' : 'Auto status update disabled') }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Stay Limits */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Clock4} title="Stay Limits" description="Minimum and maximum night restrictions for bookings" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <SettingRow icon={Calendar} label="Minimum Nights Default" description="Shortest allowed stay duration">
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                value={minNights}
+                onChange={(e) => setMinNights(e.target.value)}
+                onBlur={() => handleSave('minNightsDefault', parseInt(minNights) || 1)}
+                className="w-20 h-8 text-xs text-right"
+                min="1" max="30"
+              />
+              <span className="text-xs text-muted-foreground">nights</span>
+            </div>
+          </SettingRow>
+          <Separator />
+          <SettingRow icon={Calendar} label="Maximum Nights Default" description="Longest allowed stay duration">
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                value={maxNights}
+                onChange={(e) => setMaxNights(e.target.value)}
+                onBlur={() => handleSave('maxNightsDefault', parseInt(maxNights) || 30)}
+                className="w-20 h-8 text-xs text-right"
+                min="1" max="365"
+              />
+              <span className="text-xs text-muted-foreground">nights</span>
+            </div>
+          </SettingRow>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Email & Communication Tab ────────────────────────────────────────
+
+function EmailTab() {
+  const { settings, updateSettings } = useSettingsStore()
+
+  const [smtpHost, setSmtpHost] = React.useState(settings.smtpHost)
+  const [smtpPort, setSmtpPort] = React.useState(String(settings.smtpPort))
+  const [smtpUser, setSmtpUser] = React.useState(settings.smtpUser)
+  const [smtpEncryption, setSmtpEncryption] = React.useState(settings.smtpEncryption)
+  const [emailFromName, setEmailFromName] = React.useState(settings.emailFromName)
+  const [emailSignature, setEmailSignature] = React.useState(settings.emailSignature)
+
+  React.useEffect(() => {
+    setSmtpHost(settings.smtpHost)
+    setSmtpPort(String(settings.smtpPort))
+    setSmtpUser(settings.smtpUser)
+    setSmtpEncryption(settings.smtpEncryption)
+    setEmailFromName(settings.emailFromName)
+    setEmailSignature(settings.emailSignature)
+  }, [settings.smtpHost, settings.smtpPort, settings.smtpUser, settings.smtpEncryption, settings.emailFromName, settings.emailSignature])
+
+  const handleSave = (field: string, value: string | number) => {
+    updateSettings({ [field]: value } as any)
+    toast.success('Email setting updated')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* SMTP Configuration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Mail} title="SMTP Configuration" description="Outgoing mail server settings for guest emails" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">SMTP Host</Label>
+              <Input
+                value={smtpHost}
+                onChange={(e) => setSmtpHost(e.target.value)}
+                onBlur={() => handleSave('smtpHost', smtpHost)}
+                className="h-9"
+                placeholder="smtp.example.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">SMTP Port</Label>
+              <Input
+                type="number"
+                value={smtpPort}
+                onChange={(e) => setSmtpPort(e.target.value)}
+                onBlur={() => handleSave('smtpPort', parseInt(smtpPort) || 587)}
+                className="h-9"
+                min="1" max="65535"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">SMTP Username</Label>
+              <Input
+                value={smtpUser}
+                onChange={(e) => setSmtpUser(e.target.value)}
+                onBlur={() => handleSave('smtpUser', smtpUser)}
+                className="h-9"
+                placeholder="noreply@example.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">SMTP Encryption</Label>
+              <Select value={smtpEncryption} onValueChange={(v) => { setSmtpEncryption(v); handleSave('smtpEncryption', v) }}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tls">TLS</SelectItem>
+                  <SelectItem value="ssl">SSL</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Identity */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Mail} title="Email Identity" description="Sender name and signature for outgoing emails" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Email From Name</Label>
+            <Input
+              value={emailFromName}
+              onChange={(e) => setEmailFromName(e.target.value)}
+              onBlur={() => handleSave('emailFromName', emailFromName)}
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Email Signature</Label>
+            <Textarea
+              value={emailSignature}
+              onChange={(e) => setEmailSignature(e.target.value)}
+              onBlur={() => handleSave('emailSignature', emailSignature)}
+              className="min-h-[80px] text-xs"
+              rows={4}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Automated Emails */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={BellRing} title="Automated Emails" description="Toggle which guest emails are sent automatically" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={FileText} label="Send Booking Confirmation"
+            description="Automatically email guests when reservation is confirmed"
+            checked={settings.sendBookingConfirmation}
+            onCheckedChange={(v) => { updateSettings({ sendBookingConfirmation: v }); toast.success(v ? 'Booking confirmations enabled' : 'Booking confirmations disabled') }}
+          />
+          <Separator />
+          <ToggleRow
+            icon={LogOut} label="Send Checkout Reminder"
+            description="Remind guests about checkout time on day of departure"
+            checked={settings.sendCheckoutReminder}
+            onCheckedChange={(v) => { updateSettings({ sendCheckoutReminder: v }); toast.success(v ? 'Checkout reminders enabled' : 'Checkout reminders disabled') }}
+          />
+          <Separator />
+          <ToggleRow
+            icon={BarChart3} label="Send Promotional Emails"
+            description="Send marketing and promotional offers to guests"
+            checked={settings.sendPromoEmails}
+            onCheckedChange={(v) => { updateSettings({ sendPromoEmails: v }); toast.success(v ? 'Promotional emails enabled' : 'Promotional emails disabled') }}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Printing & Documents Tab ─────────────────────────────────────────
+
+function PrintingTab() {
+  const { settings, updateSettings } = useSettingsStore()
+
+  const [printHeader, setPrintHeader] = React.useState(settings.printHeader)
+  const [printFooter, setPrintFooter] = React.useState(settings.printFooter)
+  const [invoiceFormat, setInvoiceFormat] = React.useState(settings.invoiceFormat)
+  const [receiptCopies, setReceiptCopies] = React.useState(String(settings.receiptCopies))
+
+  React.useEffect(() => {
+    setPrintHeader(settings.printHeader)
+    setPrintFooter(settings.printFooter)
+    setInvoiceFormat(settings.invoiceFormat)
+    setReceiptCopies(String(settings.receiptCopies))
+  }, [settings.printHeader, settings.printFooter, settings.invoiceFormat, settings.receiptCopies])
+
+  const handleSave = (field: string, value: string | number) => {
+    updateSettings({ [field]: value } as any)
+    toast.success('Print setting updated')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Auto-Print */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Printer} title="Auto-Print Settings" description="Configure automatic printing behavior" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={Printer} label="Auto-Print Receipts"
+            description="Automatically print a receipt when payment is recorded"
+            checked={settings.autoPrintReceipt}
+            onCheckedChange={(v) => { updateSettings({ autoPrintReceipt: v }); toast.success(v ? 'Auto-print receipts enabled' : 'Auto-print receipts disabled') }}
+          />
+          <Separator />
+          <ToggleRow
+            icon={FileDown} label="Auto-Print Folio at Checkout"
+            description="Automatically print guest folio when checkout is completed"
+            checked={settings.autoPrintFolio}
+            onCheckedChange={(v) => { updateSettings({ autoPrintFolio: v }); toast.success(v ? 'Auto-print folio enabled' : 'Auto-print folio disabled') }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Receipt & Invoice Format */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={FileText} title="Receipt & Invoice Format" description="Customize the appearance of printed documents" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Receipt/Invoice Header Text</Label>
+            <Input
+              value={printHeader}
+              onChange={(e) => setPrintHeader(e.target.value)}
+              onBlur={() => handleSave('printHeader', printHeader)}
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Receipt/Invoice Footer Text</Label>
+            <Input
+              value={printFooter}
+              onChange={(e) => setPrintFooter(e.target.value)}
+              onBlur={() => handleSave('printFooter', printFooter)}
+              className="h-9"
+            />
+          </div>
+          <SettingRow icon={Star} label="Show Hotel Logo on Print" description="Display property logo on printed receipts and invoices">
+            <Switch
+              checked={settings.showLogoOnPrint}
+              onCheckedChange={(v) => { updateSettings({ showLogoOnPrint: v }); toast.success(v ? 'Logo on print enabled' : 'Logo on print disabled') }}
+            />
+          </SettingRow>
+          <Separator />
+          <SettingRow icon={FileText} label="Invoice Format" description="Level of detail on printed invoices">
+            <Select value={invoiceFormat} onValueChange={(v) => { setInvoiceFormat(v); handleSave('invoiceFormat', v) }}>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="detailed">Detailed</SelectItem>
+                <SelectItem value="summary">Summary</SelectItem>
+                <SelectItem value="mini">Mini</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingRow>
+          <Separator />
+          <SettingRow icon={Printer} label="Number of Receipt Copies" description="How many copies to print per receipt">
+            <Select value={receiptCopies} onValueChange={(v) => { setReceiptCopies(v); handleSave('receiptCopies', parseInt(v)) }}>
+              <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">1</SelectItem>
+                <SelectItem value="2">2</SelectItem>
+                <SelectItem value="3">3</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingRow>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ─── Notifications Tab ────────────────────────────────────────────────
 
 interface NotificationSettings {
@@ -978,7 +1347,7 @@ function NotificationsTab() {
       </Card>
 
       {/* Notification Groups */}
-      {notifGroups.map((group, idx) => (
+      {notifGroups.map((group) => (
         <Card key={group.title}>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
@@ -1005,16 +1374,204 @@ function NotificationsTab() {
   )
 }
 
+// ─── Integrations Tab ────────────────────────────────────────────────
+
+function IntegrationsTab() {
+  const { settings, updateSettings } = useSettingsStore()
+
+  const [webhookUrl, setWebhookUrl] = React.useState(settings.webhookUrl)
+  const [channelSync, setChannelSync] = React.useState(String(settings.channelSyncInterval))
+  const [showApiKey, setShowApiKey] = React.useState(false)
+  const [copied, setCopied] = React.useState(false)
+
+  React.useEffect(() => {
+    setWebhookUrl(settings.webhookUrl)
+    setChannelSync(String(settings.channelSyncInterval))
+  }, [settings.webhookUrl, settings.channelSyncInterval])
+
+  const handleCopyKey = () => {
+    navigator.clipboard.writeText(settings.apiKey)
+    setCopied(true)
+    toast.success('API key copied to clipboard')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleRegenerateKey = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    let key = 'mrk_api_'
+    for (let i = 0; i < 24; i++) {
+      key += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    updateSettings({ apiKey: key })
+    toast.success('API key regenerated')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* API Configuration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Key} title="API Configuration" description="Manage your API access credentials" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={Zap} label="API Enabled"
+            description="Allow external applications to access the API"
+            checked={settings.apiEnabled}
+            onCheckedChange={(v) => { updateSettings({ apiEnabled: v }); toast.success(v ? 'API enabled' : 'API disabled') }}
+          />
+          <Separator />
+          <SettingRow icon={Key} label="API Key" description="Unique key for API authentication">
+            <div className="flex items-center gap-1.5">
+              <Input
+                type={showApiKey ? 'text' : 'password'}
+                value={settings.apiKey}
+                readOnly
+                className="w-48 h-8 text-xs font-mono"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-8 p-0"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-8 p-0"
+                onClick={handleCopyKey}
+              >
+                {copied ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="size-8 p-0"
+                onClick={handleRegenerateKey}
+              >
+                <RefreshCw className="size-3.5" />
+              </Button>
+            </div>
+          </SettingRow>
+          <Separator />
+          <SettingRow icon={Timer} label="Channel Sync Interval" description="How often to sync with connected channels">
+            <Select value={channelSync} onValueChange={(v) => { setChannelSync(v); updateSettings({ channelSyncInterval: parseInt(v) }); toast.success('Sync interval updated') }}>
+              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 min</SelectItem>
+                <SelectItem value="10">10 min</SelectItem>
+                <SelectItem value="15">15 min</SelectItem>
+                <SelectItem value="30">30 min</SelectItem>
+                <SelectItem value="60">60 min</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingRow>
+        </CardContent>
+      </Card>
+
+      {/* Webhooks */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Wifi} title="Webhooks" description="Receive real-time event notifications via HTTP" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={Wifi} label="Webhooks Enabled"
+            description="Send event data to external endpoints"
+            checked={settings.webhooksEnabled}
+            onCheckedChange={(v) => { updateSettings({ webhooksEnabled: v }); toast.success(v ? 'Webhooks enabled' : 'Webhooks disabled') }}
+          />
+          {settings.webhooksEnabled && (
+            <>
+              <Separator />
+              <SettingRow icon={ExternalLink} label="Webhook URL" description="Endpoint to receive webhook payloads">
+                <Input
+                  value={webhookUrl}
+                  onChange={(e) => setWebhookUrl(e.target.value)}
+                  onBlur={() => { updateSettings({ webhookUrl: webhookUrl }); toast.success('Webhook URL updated') }}
+                  className="w-52 h-8 text-xs"
+                  placeholder="https://your-server.com/webhook"
+                />
+              </SettingRow>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Third-Party Integrations */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Plug} title="Third-Party Integrations" description="Connect to POS and CRM systems" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={CreditCard} label="POS Integration"
+            description="Connect to your Point of Sale system for F&B charges"
+            checked={settings.posIntegration}
+            onCheckedChange={(v) => { updateSettings({ posIntegration: v }); toast.success(v ? 'POS integration enabled' : 'POS integration disabled') }}
+          />
+          <Separator />
+          <ToggleRow
+            icon={Users} label="CRM Integration"
+            description="Sync guest data with your CRM platform"
+            checked={settings.crmIntegration}
+            onCheckedChange={(v) => { updateSettings({ crmIntegration: v }); toast.success(v ? 'CRM integration enabled' : 'CRM integration disabled') }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Connected Channels */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Globe2} title="Connected Channels" description="Status of your OTA and distribution channel connections" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {CONNECTED_CHANNELS.map((channel) => (
+              <div
+                key={channel.name}
+                className="flex items-center gap-3 rounded-lg border p-3"
+              >
+                <div className={cn('size-3 rounded-full shrink-0', channel.status === 'connected' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600')} />
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className={cn('size-6 rounded flex items-center justify-center text-white text-[8px] font-bold shrink-0', channel.color)}>
+                    {channel.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{channel.name}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{channel.status}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ─── Security Tab ─────────────────────────────────────────────────────
 
 function SecurityTab() {
   const { user } = useAuthStore()
+  const { resetSettings } = useSettingsStore()
   const [autoLogout, setAutoLogout] = React.useState('30min')
   const [loginTime] = React.useState(() => {
     const now = new Date()
     now.setHours(now.getHours() - 3)
     return now
   })
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = React.useState('')
+  const [newPassword, setNewPassword] = React.useState('')
+  const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [showCurrentPw, setShowCurrentPw] = React.useState(false)
+  const [showNewPw, setShowNewPw] = React.useState(false)
+  const [showConfirmPw, setShowConfirmPw] = React.useState(false)
 
   const sessionDuration = React.useMemo(() => {
     const diff = Date.now() - loginTime.getTime()
@@ -1032,10 +1589,29 @@ function SecurityTab() {
     }
   }
 
-  const { resetSettings } = useSettingsStore()
   const handleResetAll = () => {
     resetSettings()
     toast.success('All settings reset to defaults')
+  }
+
+  const handleChangePassword = () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match')
+      return
+    }
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+    // Simulate password change
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+    toast.success('Password changed successfully')
   }
 
   const roleColorMap: Record<string, string> = {
@@ -1077,6 +1653,76 @@ function SecurityTab() {
           <InfoRow label="Department" value={user?.department} />
           <Separator />
           <InfoRow label="Property" value="Meridian Hotel" />
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Lock} title="Change Password" description="Update your account password" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Current Password</Label>
+            <div className="relative">
+              <Input
+                type={showCurrentPw ? 'text' : 'password'}
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="h-9 pr-9"
+                placeholder="Enter current password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowCurrentPw(!showCurrentPw)}
+              >
+                {showCurrentPw ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">New Password</Label>
+            <div className="relative">
+              <Input
+                type={showNewPw ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="h-9 pr-9"
+                placeholder="Enter new password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowNewPw(!showNewPw)}
+              >
+                {showNewPw ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Confirm New Password</Label>
+            <div className="relative">
+              <Input
+                type={showConfirmPw ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-9 pr-9"
+                placeholder="Re-enter new password"
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowConfirmPw(!showConfirmPw)}
+              >
+                {showConfirmPw ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+              </button>
+            </div>
+          </div>
+          <Button size="sm" onClick={handleChangePassword} className="h-8 text-xs">
+            <Key className="size-3.5 mr-1.5" />
+            Update Password
+          </Button>
         </CardContent>
       </Card>
 
@@ -1138,6 +1784,182 @@ function SecurityTab() {
               This will clear all locally stored preferences, settings, and cached data. You will need to reconfigure your settings.
             </p>
           </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Backup & Data Tab ───────────────────────────────────────────────
+
+function BackupTab() {
+  const { settings, updateSettings, resetSettings } = useSettingsStore()
+
+  const [backupInterval, setBackupInterval] = React.useState(settings.autoBackupInterval)
+  const [dataRetention, setDataRetention] = React.useState(String(settings.dataRetentionDays))
+  const [showConfirmReset, setShowConfirmReset] = React.useState(false)
+
+  React.useEffect(() => {
+    setBackupInterval(settings.autoBackupInterval)
+    setDataRetention(String(settings.dataRetentionDays))
+  }, [settings.autoBackupInterval, settings.dataRetentionDays])
+
+  const lastBackupFormatted = React.useMemo(() => {
+    try {
+      return new Date(settings.lastBackupDate).toLocaleString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    } catch {
+      return 'Never'
+    }
+  }, [settings.lastBackupDate])
+
+  const handleExportData = (type: string) => {
+    toast.success(`${type} data exported successfully`)
+  }
+
+  const handleResetAllSettings = () => {
+    resetSettings()
+    setShowConfirmReset(false)
+    toast.success('All settings have been reset to defaults')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Auto Backup */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={DatabaseBackup} title="Auto Backup" description="Configure automatic database backup settings" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={DatabaseBackup} label="Auto Backup"
+            description="Automatically create database backups on schedule"
+            checked={settings.autoBackup}
+            onCheckedChange={(v) => { updateSettings({ autoBackup: v }); toast.success(v ? 'Auto backup enabled' : 'Auto backup disabled') }}
+          />
+          {settings.autoBackup && (
+            <>
+              <Separator />
+              <SettingRow icon={Timer} label="Backup Frequency" description="How often automatic backups are created">
+                <Select value={backupInterval} onValueChange={(v) => { setBackupInterval(v); updateSettings({ autoBackupInterval: v }); toast.success('Backup frequency updated') }}>
+                  <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hourly">Hourly</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingRow>
+            </>
+          )}
+          <Separator />
+          <InfoRow label="Last Backup" value={lastBackupFormatted} />
+        </CardContent>
+      </Card>
+
+      {/* Data Retention */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={HardDrive} title="Data Retention" description="Manage how long historical data is kept" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <SettingRow icon={Timer} label="Data Retention Period" description="Automatically archive data older than this period">
+            <Select value={dataRetention} onValueChange={(v) => { setDataRetention(v); updateSettings({ dataRetentionDays: parseInt(v) }); toast.success('Data retention updated') }}>
+              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 days</SelectItem>
+                <SelectItem value="90">90 days</SelectItem>
+                <SelectItem value="180">180 days</SelectItem>
+                <SelectItem value="365">365 days</SelectItem>
+                <SelectItem value="730">730 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </SettingRow>
+        </CardContent>
+      </Card>
+
+      {/* Export Data */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader icon={Download} title="Export Data" description="Download reports and data in various formats" />
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {[
+              { label: 'Guest List', desc: 'Export all guest records', icon: Users },
+              { label: 'Reservations', desc: 'Export booking history', icon: FileText },
+              { label: 'Revenue Report', desc: 'Export financial data', icon: BarChart3 },
+            ].map((item) => (
+              <button
+                key={item.label}
+                className="flex flex-col items-center gap-2 rounded-lg border p-4 text-center transition-all hover:bg-muted/50"
+                onClick={() => handleExportData(item.label)}
+              >
+                <div className="flex size-10 items-center justify-center rounded-lg bg-muted shrink-0">
+                  <item.icon className="size-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone — Reset */}
+      <Card className="border-red-200 dark:border-red-800/50">
+        <CardHeader className="pb-3">
+          <SectionHeader icon={AlertTriangle} title="Danger Zone" description="Irreversible actions — proceed with caution" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!showConfirmReset ? (
+            <div>
+              <Button
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-800/50 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+                onClick={() => setShowConfirmReset(true)}
+              >
+                <Trash2 className="size-4 mr-2" />
+                Reset All Settings
+              </Button>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                This will restore every setting on all tabs to factory defaults. This action cannot be undone.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/30">
+              <p className="text-sm font-semibold text-red-700 dark:text-red-400 mb-1">
+                Are you absolutely sure?
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-400 mb-3">
+                All settings across every tab will be reset to their default values. You will lose your current configuration.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={handleResetAllSettings}
+                >
+                  <Trash2 className="size-3.5 mr-1.5" />
+                  Yes, Reset Everything
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setShowConfirmReset(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -1257,8 +2079,13 @@ const SETTINGS_TABS = [
   { id: 'tax', label: 'Tax & Fees', icon: Percent, description: 'Tax rates & charges' },
   { id: 'policies', label: 'Booking Policies', icon: FileText, description: 'Cancellation & deposit rules' },
   { id: 'payment', label: 'Payment Methods', icon: CreditCard, description: 'Accepted payment types' },
+  { id: 'room-defaults', label: 'Room Defaults', icon: BedDouble, description: 'Default room settings' },
+  { id: 'email', label: 'Email & Comms', icon: Mail, description: 'SMTP & email templates' },
+  { id: 'printing', label: 'Printing & Docs', icon: Printer, description: 'Receipt & invoice format' },
   { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Alert preferences' },
+  { id: 'integrations', label: 'Integrations', icon: Plug, description: 'API & channel connections' },
   { id: 'security', label: 'Security', icon: ShieldCheck, description: 'Account & session settings' },
+  { id: 'backup', label: 'Backup & Data', icon: DatabaseBackup, description: 'Backup & data management' },
   { id: 'about', label: 'About', icon: Info, description: 'System info & support' },
 ]
 
@@ -1272,8 +2099,13 @@ export function SettingsModule() {
       case 'tax': return <TaxFeesTab />
       case 'policies': return <BookingPoliciesTab />
       case 'payment': return <PaymentMethodsTab />
+      case 'room-defaults': return <RoomDefaultsTab />
+      case 'email': return <EmailTab />
+      case 'printing': return <PrintingTab />
       case 'notifications': return <NotificationsTab />
+      case 'integrations': return <IntegrationsTab />
       case 'security': return <SecurityTab />
+      case 'backup': return <BackupTab />
       case 'about': return <AboutTab />
       default: return <GeneralTab />
     }

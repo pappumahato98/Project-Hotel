@@ -163,6 +163,49 @@ export interface SystemSettings {
   starRating: number
   address: string
   website: string
+
+  // Room Defaults
+  defaultMaxOccupancy: number
+  defaultFloor: number
+  autoAssignRoom: boolean
+  autoRoomStatusUpdate: boolean
+  minNightsDefault: number
+  maxNightsDefault: number
+
+  // Email & Communication
+  smtpHost: string
+  smtpPort: number
+  smtpUser: string
+  smtpEncryption: string
+  emailFromName: string
+  emailSignature: string
+  sendBookingConfirmation: boolean
+  sendCheckoutReminder: boolean
+  sendPromoEmails: boolean
+
+  // Printing & Documents
+  autoPrintReceipt: boolean
+  autoPrintFolio: boolean
+  printHeader: string
+  printFooter: string
+  showLogoOnPrint: boolean
+  invoiceFormat: string
+  receiptCopies: number
+
+  // Integrations
+  apiKey: string
+  apiEnabled: boolean
+  channelSyncInterval: number
+  webhooksEnabled: boolean
+  webhookUrl: string
+  posIntegration: boolean
+  crmIntegration: boolean
+
+  // Backup & Data
+  autoBackup: boolean
+  autoBackupInterval: string
+  lastBackupDate: string
+  dataRetentionDays: number
 }
 
 interface SettingsState {
@@ -202,6 +245,44 @@ const DEFAULT_SETTINGS: SystemSettings = {
   starRating: 5,
   address: 'Thamel, Kathmandu 44600',
   website: 'www.meridianhotel.com',
+  // Room Defaults
+  defaultMaxOccupancy: 2,
+  defaultFloor: 1,
+  autoAssignRoom: false,
+  autoRoomStatusUpdate: true,
+  minNightsDefault: 1,
+  maxNightsDefault: 30,
+  // Email & Communication
+  smtpHost: 'smtp.meridianhotel.com',
+  smtpPort: 587,
+  smtpUser: 'noreply@meridianhotel.com',
+  smtpEncryption: 'tls',
+  emailFromName: 'Meridian Hotel',
+  emailSignature: 'Best regards,\nMeridian Hotel Front Desk',
+  sendBookingConfirmation: true,
+  sendCheckoutReminder: true,
+  sendPromoEmails: false,
+  // Printing & Documents
+  autoPrintReceipt: false,
+  autoPrintFolio: false,
+  printHeader: 'MERIDIAN HOTEL — Thamel, Kathmandu',
+  printFooter: 'Thank you for staying with us!',
+  showLogoOnPrint: true,
+  invoiceFormat: 'detailed',
+  receiptCopies: 1,
+  // Integrations
+  apiKey: 'mrk_api_xxxxxxxxxxxxxxxxxxxx',
+  apiEnabled: false,
+  channelSyncInterval: 15,
+  webhooksEnabled: false,
+  webhookUrl: '',
+  posIntegration: false,
+  crmIntegration: true,
+  // Backup & Data
+  autoBackup: true,
+  autoBackupInterval: 'daily',
+  lastBackupDate: new Date().toISOString(),
+  dataRetentionDays: 365,
 }
 
 export const useSettingsStore = create<SettingsState>()(
