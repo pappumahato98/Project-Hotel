@@ -165,27 +165,25 @@ function UserProfileFooter() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuButton
-          tooltip="User Profile"
-          className="cursor-pointer gap-3 px-3 w-full"
-          size="lg"
+        <button
+          className="group/user flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
-          <Avatar className="size-8 rounded-full shrink-0">
+          <Avatar className="size-9 rounded-full shrink-0">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt="User" />
-            <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
+            <AvatarFallback className="bg-amber-100 text-amber-700 text-sm font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
-            <span className="truncate font-semibold text-sidebar-foreground">
+          <div className="grid flex-1 text-left leading-tight min-w-0">
+            <span className="truncate font-semibold text-sm text-sidebar-foreground">
               {displayName}
             </span>
-            <span className="truncate text-[11px] text-muted-foreground flex items-center gap-1">
+            <span className="truncate text-xs text-muted-foreground flex items-center gap-1">
               <Shield className="size-3" />
               {displayRole}
             </span>
           </div>
-        </SidebarMenuButton>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         side="top"
@@ -280,12 +278,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       {/* Footer — User Profile */}
-      <SidebarFooter className="border-t border-sidebar-border mt-auto pb-3 pt-2 gap-1">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <UserProfileFooter />
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarFooter className="border-t border-sidebar-border mt-auto p-0">
+        <div className="px-2 pb-2 pt-2">
+          <UserProfileFooter />
+        </div>
         <SidebarRail />
       </SidebarFooter>
     </Sidebar>
