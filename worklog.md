@@ -405,3 +405,30 @@ Stage Summary:
 - Settings backend integration confirmed: data loads from SystemSetting table and renders in UI
 - All 13 Settings tabs accessible and populated with backend data
 - No runtime errors or console errors detected
+
+---
+Task ID: browser-verification-final
+Agent: Main Agent
+Task: Full browser verification and fix production/static asset issues
+
+Work Log:
+- Discovered lightningcss native binary cache corruption causing HTTP 500 errors
+- Fixed by clearing .next cache (rm -rf .next) which resolved the stale module reference
+- Fixed cross-origin warning in next.config.ts by adding allowedDevOrigins: ['*']
+- Built production version successfully with npx next build
+- Fixed production static assets 404 by copying .next/static and public to .next/standalone/
+- Verified via agent-browser end-to-end:
+  1. Login page renders with "Meridian Hotel" heading and hotel name from settings
+  2. Login with admin@meridian.com / password123 succeeds (POST /api/auth/login 200)
+  3. Dashboard loads with all 14 modules in sidebar
+  4. Settings module loads with all 13 tabs and backend data:
+     - General: Hotel Name "Meridian Hotel", Code "MH", Address, City, Country, Phone, Email, Website
+     - Tax & Fees: Tax Rate 15%, Service Charge 10%, Tourism Fee 0%
+  5. Zero browser console errors
+  6. Navigation between Dashboard and Settings works correctly
+
+Stage Summary:
+- Root cause of preview failures: (1) lightningcss cache corruption causing 500, (2) production static files not copied causing 404
+- Both issues resolved - application fully verified via browser automation
+- Login → Dashboard → Settings all working end-to-end
+- All 13 Settings tabs populated with backend data from SystemSetting table
