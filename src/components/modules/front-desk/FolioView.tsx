@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
@@ -27,7 +27,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useSettingsStore, usePreferencesStore } from '@/lib/store'
+import { useSettingsStore, usePreferencesStore, useFolioContextStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -119,6 +119,7 @@ export function FolioView() {
   const queryClient = useQueryClient()
   const { settings } = useSettingsStore()
   const { preferences } = usePreferencesStore()
+  const { folioContext, clearFolioContext } = useFolioContextStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const [selectedFolio, setSelectedFolio] = useState<Folio | null>(null)
@@ -134,6 +135,37 @@ export function FolioView() {
   const [payMethod, setPayMethod] = useState('cash')
   const [payAmount, setPayAmount] = useState('')
   const [payReference, setPayReference] = useState('')
+
+  // Auto-load folio from context (when navigated from InHouse or other views)
+  React.useEffect(() => {
+    if (folioContext && !selectedFolio) {
+      setSelectedFolio({
+        id: folioContext.folioId || '',
+        folioType: 'guest',
+        status: 'open',
+        balance: 0,
+        reservation: {
+          id: folioContext.reservationId,
+          confirmationNo: folioContext.confirmationNo,
+          checkIn: '',
+          checkOut: '',
+          roomRate: 0,
+          status: 'checked_in',
+          creditLimit: 15000,
+          room: { number: folioContext.roomNumber },
+        },
+        guest: {
+          id: folioContext.guestId,
+          firstName: folioContext.guestName.split(' ')[0] || '',
+          lastName: folioContext.guestName.split(' ').slice(1).join(' ') || '',
+          vipLevel: 'none',
+        },
+        transactions: [],
+        payments: [],
+      })
+      clearFolioContext()
+    }
+  }, [folioContext])
 
   // Search folios
   const searchFolios = async (query: string) => {
@@ -162,15 +194,17 @@ export function FolioView() {
 
   // Fetch selected folio detail
   const { data: folioDetail, isLoading: folioLoading } = useQuery({
-    queryKey: ['folio-detail', selectedFolio?.id],
+    queryKey: ['folio-detail', selectedFolio?.id, selectedFolio?.reservation?.id],
     queryFn: async () => {
       if (!selectedFolio) return null
-      const res = await fetch(`/api/folio?reservationId=${selectedFolio.reservation.id}`)
+      const resId = selectedFolio.reservation?.id
+      if (!resId) return null
+      const res = await fetch(`/api/folio?reservationId=${resId}`)
       if (!res.ok) throw new Error('Failed to fetch folio detail')
       const data = await res.json()
       return data.folios?.[0] || null
     },
-    enabled: !!selectedFolio,
+    enabled: !!selectedFolio && !!selectedFolio.reservation?.id,
   })
 
   const activeFolio = folioDetail || selectedFolio

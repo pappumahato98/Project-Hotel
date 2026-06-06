@@ -5,6 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   UtensilsCrossed, Users, DollarSign, ShoppingBag, Plus, Minus,
   Trash2, Search, X, CreditCard, BedDouble, AlertTriangle, Clock, PartyPopper,
+  Percent, Scissors, Receipt, Hash,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,6 +24,7 @@ import {
   usePosData, formatNPR, timeAgo,
   type TableItem, type MenuItem, type Order, type OrderItem, type GuestReservation,
 } from './pos-types'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSettingsStore } from '@/lib/store'
 
 // ─── Allergen Icons ─────────────────────────────────────────────────
@@ -122,7 +124,10 @@ function OrderPanel({
   onOpenMenu,
   onPay,
   onPostToRoom,
+  onOpenDiscount,
+  onOpenSplitBill,
   isRemoving,
+  discountAmount,
 }: {
   order: Order | null
   onUpdateQty: (itemId: string, delta: number) => void
@@ -130,12 +135,15 @@ function OrderPanel({
   onOpenMenu: () => void
   onPay: () => void
   onPostToRoom: () => void
+  onOpenDiscount: () => void
+  onOpenSplitBill: () => void
   isRemoving: string | null
+  discountAmount: number
 }) {
   const { settings } = useSettingsStore()
   const subtotal = order?.items.reduce((sum, item) => sum + item.price * item.quantity, 0) ?? 0
-  const tax = Math.round(subtotal * (settings.taxRate / 100))
-  const total = subtotal + tax
+  const tax = Math.round((subtotal - discountAmount) * (settings.taxRate / 100))
+  const total = subtotal - discountAmount + tax
 
   return (
     <Card className="flex h-full flex-col">
@@ -213,6 +221,12 @@ function OrderPanel({
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatNPR(subtotal)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div className="flex justify-between text-emerald-600">
+                  <span>Discount</span>
+                  <span>-{formatNPR(discountAmount)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tax ({settings.taxRate}%)</span>
                 <span>{formatNPR(tax)}</span>
@@ -224,12 +238,18 @@ function OrderPanel({
               </div>
             </div>
 
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button onClick={onOpenMenu} variant="outline" className="flex-1 gap-1.5 text-xs">
                 <Plus className="h-3.5 w-3.5" /> Add Item
               </Button>
               <Button onClick={onPostToRoom} variant="outline" className="flex-1 gap-1.5 text-xs">
                 <BedDouble className="h-3.5 w-3.5" /> Post to Room
+              </Button>
+              <Button onClick={onOpenDiscount} variant="outline" className="flex-1 gap-1.5 text-xs">
+                <Percent className="h-3.5 w-3.5" /> Discount
+              </Button>
+              <Button onClick={onOpenSplitBill} variant="outline" className="flex-1 gap-1.5 text-xs">
+                <Scissors className="h-3.5 w-3.5" /> Split
               </Button>
               <Button onClick={onPay} className="flex-1 gap-1.5 text-xs">
                 <CreditCard className="h-3.5 w-3.5" /> Pay
@@ -474,6 +494,301 @@ function PostToRoomDialog({
   )
 }
 
+// ─── Discount Dialog ─────────────────────────────────────────────────
+function DiscountDialog({
+  open,
+  onClose,
+  orderId,
+  subtotal,
+  discountAmount: currentDiscount,
+}: {
+  open: boolean
+  onClose: () => void
+  orderId: string | null
+  subtotal: number
+  discountAmount: number
+}) {
+  const queryClient = useQueryClient()
+  const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage')
+  const [discountValue, setDiscountValue] = useState('')
+  const [reason, setReason] = useState('')
+
+  const calculatedDiscount = useMemo(() => {
+    const val = parseFloat(discountValue) || 0
+    if (discountType === 'percentage') return Math.round(subtotal * (Math.min(val, 100) / 100))
+    return Math.min(val, subtotal)
+  }, [discountType, discountValue, subtotal])
+
+  const discountMutation = useMutation({
+    mutationFn: async (data: { orderId: string; discountType: string; discountValue: number; reason?: string }) => {
+      const res = await fetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'apply_discount', ...data }),
+      })
+      if (!res.ok) throw new Error('Failed to apply discount')
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success(`Discount of ${formatNPR(calculatedDiscount)} applied successfully`)
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      setDiscountValue('')
+      setReason('')
+      onClose()
+    },
+    onError: () => {
+      toast.error('Failed to apply discount')
+    },
+  })
+
+  const handleApply = () => {
+    if (!orderId || !discountValue) return
+    discountMutation.mutate({
+      orderId,
+      discountType,
+      discountValue: calculatedDiscount,
+      reason: reason || undefined,
+    })
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Percent className="h-4 w-4" />
+            Apply Discount
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="rounded-lg bg-muted p-3 text-sm">
+            <span className="text-muted-foreground">Order Subtotal: </span>
+            <span className="font-bold">{formatNPR(subtotal)}</span>
+          </div>
+          <div>
+            <label className="text-sm font-medium">Discount Type</label>
+            <Select value={discountType} onValueChange={(v) => setDiscountType(v as 'percentage' | 'fixed')}>
+              <SelectTrigger className="mt-1.5">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percentage">Percentage (%)</SelectItem>
+                <SelectItem value="fixed">Fixed Amount (NPR)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm font-medium">
+              Discount Value {discountType === 'percentage' ? '(%)' : '(NPR)'}
+            </label>
+            <Input
+              type="number"
+              min="0"
+              max={discountType === 'percentage' ? '100' : String(subtotal)}
+              step={discountType === 'percentage' ? '0.5' : '1'}
+              placeholder={discountType === 'percentage' ? 'e.g. 10' : 'e.g. 500'}
+              value={discountValue}
+              onChange={(e) => setDiscountValue(e.target.value)}
+              className="mt-1.5"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Reason (optional)</label>
+            <Input
+              placeholder="e.g. Loyalty discount, manager approval..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="mt-1.5"
+            />
+          </div>
+          {calculatedDiscount > 0 && (
+            <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 p-3 text-sm">
+              <span className="text-emerald-700 dark:text-emerald-300">Discount Amount: </span>
+              <span className="font-bold text-emerald-700 dark:text-emerald-300">
+                -{formatNPR(calculatedDiscount)}
+              </span>
+              <span className="text-emerald-600 dark:text-emerald-400 ml-2">
+                (Net: {formatNPR(subtotal - calculatedDiscount)})
+              </span>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            onClick={handleApply}
+            disabled={!orderId || !discountValue || calculatedDiscount <= 0 || discountMutation.isPending}
+          >
+            {discountMutation.isPending ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5" />
+            ) : null}
+            Apply Discount
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Split Bill Dialog ────────────────────────────────────────────────
+function SplitBillDialog({
+  open,
+  onClose,
+  order,
+}: {
+  open: boolean
+  onClose: () => void
+  order: Order | null
+}) {
+  const queryClient = useQueryClient()
+  const [splitCount, setSplitCount] = useState(2)
+  const [assignments, setAssignments] = useState<Record<string, number>>({})
+
+  const splitSubtotals = useMemo(() => {
+    if (!order) return []
+    const subs = Array(splitCount).fill(0)
+    order.items.forEach((item) => {
+      const split = assignments[item.id] ?? 1
+      if (split >= 1 && split <= splitCount) {
+        subs[split - 1] += item.price * item.quantity
+      }
+    })
+    return subs
+  }, [order, splitCount, assignments])
+
+  const splitMutation = useMutation({
+    mutationFn: async (data: { orderId: string; assignments: Record<string, number>; splitSubtotals: number[] }) => {
+      const res = await fetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'split_bill', ...data }),
+      })
+      if (!res.ok) throw new Error('Failed to split bill')
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Bill split successfully recorded')
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      onClose()
+    },
+    onError: () => {
+      toast.error('Failed to split bill')
+    },
+  })
+
+  const handleApplySplit = () => {
+    if (!order) return
+    splitMutation.mutate({
+      orderId: order.id,
+      assignments,
+      splitSubtotals,
+    })
+  }
+
+  const handleReset = () => {
+    setAssignments({})
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Scissors className="h-4 w-4" />
+            Split Bill — Order {order?.id}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium">Number of Splits</label>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => { setSplitCount(Math.max(2, splitCount - 1)); handleReset() }}
+                disabled={splitCount <= 2}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="w-8 text-center font-bold">{splitCount}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => { setSplitCount(Math.min(5, splitCount + 1)); handleReset() }}
+                disabled={splitCount >= 5}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs ml-auto" onClick={handleReset}>
+              Reset Assignments
+            </Button>
+          </div>
+
+          {/* Split subtotal cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {splitSubtotals.map((sub, idx) => (
+              <div key={idx} className="rounded-lg border p-2 text-center">
+                <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+                  <Hash className="h-3 w-3" />
+                  Split {idx + 1}
+                </div>
+                <p className="text-sm font-bold mt-1">{formatNPR(sub)}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Item assignments */}
+          {order && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Assign items to splits:</p>
+              {order.items.map((item) => {
+                const assigned = assignments[item.id] ?? 1
+                return (
+                  <div key={item.id} className="flex items-center gap-3 rounded-md border p-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {item.name} <span className="text-muted-foreground">×{item.quantity}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatNPR(item.price * item.quantity)}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: splitCount }, (_, idx) => idx + 1).map((n) => (
+                        <Button
+                          key={n}
+                          variant={assigned === n ? 'default' : 'outline'}
+                          size="sm"
+                          className={`h-7 w-7 text-xs p-0 ${assigned === n ? '' : ''}`}
+                          onClick={() => setAssignments((prev) => ({ ...prev, [item.id]: n }))}
+                        >
+                          {n}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={handleApplySplit} disabled={splitMutation.isPending}>
+            {splitMutation.isPending ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5" />
+            ) : (
+              <Receipt className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Apply Split
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ─── Main RestaurantView ────────────────────────────────────────────
 export default function RestaurantView() {
   const { data, isLoading } = usePosData('restaurant')
@@ -482,7 +797,10 @@ export default function RestaurantView() {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [voidDialog, setVoidDialog] = useState<{ open: boolean; itemName: string; itemId: string }>({ open: false, itemName: '', itemId: '' })
   const [postToRoomOpen, setPostToRoomOpen] = useState(false)
+  const [discountOpen, setDiscountOpen] = useState(false)
+  const [splitBillOpen, setSplitBillOpen] = useState(false)
   const [isRemoving, setIsRemoving] = useState<string | null>(null)
+  const [discountAmount, setDiscountAmount] = useState(0)
 
   const tables = data?.tables ?? []
   const menuItems = data?.menuItems ?? []
@@ -497,6 +815,7 @@ export default function RestaurantView() {
 
   const handleSelectTable = (id: number) => {
     setSelectedTable(selectedTable === id ? null : id)
+    setDiscountAmount(0)
   }
 
   const handleUpdateQty = (itemId: string, delta: number) => {
@@ -522,7 +841,8 @@ export default function RestaurantView() {
 
   const { settings } = useSettingsStore()
   const subtotal = currentOrder?.items.reduce((s, i) => s + i.price * i.quantity, 0) ?? 0
-  const total = subtotal + Math.round(subtotal * (settings.taxRate / 100))
+  const tax = Math.round((subtotal - discountAmount) * (settings.taxRate / 100))
+  const total = subtotal - discountAmount + tax
 
   if (isLoading || !data) {
     return (
@@ -578,7 +898,10 @@ export default function RestaurantView() {
           onOpenMenu={() => setMenuOpen(true)}
           onPay={() => setPaymentOpen(true)}
           onPostToRoom={() => setPostToRoomOpen(true)}
+          onOpenDiscount={() => setDiscountOpen(true)}
+          onOpenSplitBill={() => setSplitBillOpen(true)}
           isRemoving={isRemoving}
+          discountAmount={discountAmount}
         />
       </div>
 
@@ -606,6 +929,22 @@ export default function RestaurantView() {
         open={postToRoomOpen}
         onClose={() => setPostToRoomOpen(false)}
         reservations={reservations}
+      />
+
+      {/* Discount Dialog */}
+      <DiscountDialog
+        open={discountOpen}
+        onClose={() => setDiscountOpen(false)}
+        orderId={currentOrder?.id ?? null}
+        subtotal={subtotal}
+        discountAmount={discountAmount}
+      />
+
+      {/* Split Bill Dialog */}
+      <SplitBillDialog
+        open={splitBillOpen}
+        onClose={() => setSplitBillOpen(false)}
+        order={currentOrder}
       />
     </div>
   )

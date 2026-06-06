@@ -428,3 +428,26 @@ export const useNavigationStore = create<NavigationState>((set) => ({
         : state.expandedItems,
     })),
 }))
+
+// ─── Folio Context State ──────────────────────────────
+// Used to pass reservation/folio context from InHouse → Folio view
+export interface FolioContext {
+  reservationId: string
+  guestId: string
+  guestName: string
+  roomNumber: string
+  confirmationNo: string
+  folioId?: string
+}
+
+interface FolioContextState {
+  folioContext: FolioContext | null
+  setFolioContext: (ctx: FolioContext | null) => void
+  clearFolioContext: () => void
+}
+
+export const useFolioContextStore = create<FolioContextState>((set) => ({
+  folioContext: null,
+  setFolioContext: (ctx) => set({ folioContext: ctx }),
+  clearFolioContext: () => set({ folioContext: null }),
+}))

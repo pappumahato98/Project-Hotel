@@ -19,6 +19,7 @@ import {
   Receipt,
   RefreshCw,
   Percent,
+  Download,
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -38,6 +39,9 @@ import { Separator } from '@/components/ui/separator'
 import { formatDate, formatCurrency, formatDateTime } from '@/lib/format'
 import { nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { exportToCSV } from '@/lib/sort-csv'
+import { toast } from 'sonner'
+import { useQueryClient } from '@tanstack/react-query'
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -1120,10 +1124,32 @@ function RevenueReport() {
 // ─── Main Component ──────────────────────────────────────────────────
 
 export function ReportsView() {
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<ReportType>('summary')
 
   const activeTabConfig = REPORT_TABS.find((t) => t.value === activeTab)
   const ActiveIcon = activeTabConfig?.icon || BarChart3
+
+  const handleExportCSV = () => {
+    const cacheData = queryClient.getQueryData(['front-desk-reports', activeTab])
+    if (!cacheData) {
+      toast.error('No data to export. Please wait for the report to load.')
+      return
+    }
+    const data = cacheData as Record<string, unknown>
+    const extractRows = (obj: Record<string, unknown>): Record<string, unknown>[] => {
+      // Try to find the array of rows in the report data
+      for (const key of ['reservations', 'moves', 'days']) {
+        if (Array.isArray(obj[key])) return obj[key] as Record<string, unknown>[]
+      }
+      // For summary/revenue, wrap the single object
+      return [obj]
+    }
+    const rows = extractRows(data)
+    const today = new Date().toISOString().split('T')[0]
+    exportToCSV(rows, `front-desk-${activeTab}-${today}`)
+    toast.success(`${activeTab.replace(/-/g, ' ')} report exported as CSV`)
+  }
 
   const reportDescriptions: Record<ReportType, string> = {
     summary: "Today's operational overview with key metrics and financials",
@@ -1148,6 +1174,15 @@ export function ReportsView() {
             Operational insights and daily performance metrics
           </p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs"
+          onClick={handleExportCSV}
+        >
+          <Download className="size-3.5" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Tabs */}

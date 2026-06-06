@@ -1,10 +1,10 @@
 'use client'
 import { toast } from 'sonner'
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import {
-  ChefHat, Flame, Clock, AlertTriangle, CheckCircle, Eye,
-  Undo2, PartyPopper,
+  ChefHat, Flame, Clock, AlertTriangle, CheckCircle,
+  Undo2, PartyPopper, Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ import {
   usePosData, timeAgo,
   type KitchenTicket,
 } from './pos-types'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 // ─── Urgency Color ──────────────────────────────────────────────────
 function getUrgencyColor(createdAt: string, status: string): string {
@@ -87,13 +88,16 @@ function TicketCard({
   ticket,
   onAction,
   onRecall,
+  pendingTicketId,
 }: {
   ticket: KitchenTicket
   onAction: (ticketId: string, action: 'preparing' | 'ready' | 'served') => void
   onRecall: (ticketId: string) => void
+  pendingTicketId: string | null
 }) {
   const urgencyColor = getUrgencyColor(ticket.createdAt, ticket.status)
   const urgencyLabel = getUrgencyLabel(ticket.createdAt)
+  const isPending = pendingTicketId === ticket.id
 
   const actionConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline'; color?: string }> = {
     pending: { label: 'Start Preparing', variant: 'default' },
@@ -156,7 +160,7 @@ function TicketCard({
           {ticket.items.map((item, idx) => (
             <div key={idx} className="flex items-center justify-between text-sm">
               <span>
-                <span className="font-bold text-primary mr-1">×{item.quantity}</span>
+                <span className="font-bold text-primary mr-1">x{item.quantity}</span>
                 {item.name}
               </span>
             </div>
@@ -180,8 +184,9 @@ function TicketCard({
                 ''
               }`}
               onClick={() => onAction(ticket.id, ticket.status === 'pending' ? 'preparing' : ticket.status === 'preparing' ? 'ready' : 'served')}
+              disabled={isPending}
             >
-              <CheckCircle className="h-3 w-3 mr-1" />
+              {isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckCircle className="h-3 w-3 mr-1" />}
               {config.label}
             </Button>
           )}
@@ -191,8 +196,10 @@ function TicketCard({
               variant="outline"
               className="flex-1 text-[11px]"
               onClick={() => onRecall(ticket.id)}
+              disabled={isPending}
             >
-              <Undo2 className="h-3 w-3 mr-1" /> Recall
+              {isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Undo2 className="h-3 w-3 mr-1" />}
+              Recall
             </Button>
           )}
         </div>
@@ -207,11 +214,13 @@ function StationColumn({
   tickets,
   onAction,
   onRecall,
+  pendingTicketId,
 }: {
   station: KitchenTicket['station']
   tickets: KitchenTicket[]
   onAction: (ticketId: string, action: 'preparing' | 'ready' | 'served') => void
   onRecall: (ticketId: string) => void
+  pendingTicketId: string | null
 }) {
   const stationTickets = tickets.filter((t) => t.station === station && t.status !== 'served')
   const completedTickets = tickets.filter((t) => t.station === station && t.status === 'served').slice(-5)
@@ -233,16 +242,16 @@ function StationColumn({
                 ticket={ticket}
                 onAction={onAction}
                 onRecall={onRecall}
+                pendingTicketId={pendingTicketId}
               />
             ))
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-dashed">
               <CheckCircle className="h-8 w-8 text-emerald-400" />
-              <p className="mt-2 text-sm text-muted-foreground">All caught up! 🎉</p>
+              <p className="mt-2 text-sm text-muted-foreground">All caught up!</p>
             </div>
           )}
 
-          {/* Completed Queue */}
           {completedTickets.length > 0 && (
             <div className="mt-4 pt-3 border-t">
               <div className="flex items-center gap-2 mb-2">
@@ -257,6 +266,7 @@ function StationColumn({
                   ticket={ticket}
                   onAction={onAction}
                   onRecall={onRecall}
+                  pendingTicketId={pendingTicketId}
                 />
               ))}
             </div>
@@ -270,14 +280,35 @@ function StationColumn({
 // ─── Main KitchenDisplayView ────────────────────────────────────────
 export default function KitchenDisplayView() {
   const { data, isLoading } = usePosData('kitchen-display')
+  const queryClient = useQueryClient()
   const [localOverrides, setLocalOverrides] = useState<Record<string, KitchenTicket>>({})
   const [station, setStation] = useState('all')
+  const [pendingTicketId, setPendingTicketId] = useState<string | null>(null)
 
   const tickets = useMemo(() => {
     const base = data?.kitchenTickets ?? []
     if (Object.keys(localOverrides).length === 0) return base
     return base.map((t) => localOverrides[t.id] ?? t)
   }, [data?.kitchenTickets, localOverrides])
+
+  const updateItemStatusMutation = useMutation({
+    mutationFn: async (params: { ticketId: string; orderId: string; action: 'preparing' | 'ready' | 'served' }) => {
+      const res = await fetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_order_status', orderId: params.orderId, status: params.action }),
+      })
+      if (!res.ok) throw new Error('Failed to update status')
+      return res.json()
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['pos', 'kitchen-display'] })
+      toast.success(`Ticket ${variables.ticketId} marked as ${variables.action.replace('_', ' ')}`)
+    },
+    onError: () => {
+      toast.error('Failed to update ticket status')
+    },
+  })
 
   const handleAction = useCallback((ticketId: string, action: 'preparing' | 'ready' | 'served') => {
     setLocalOverrides((prev) => {
@@ -292,8 +323,18 @@ export default function KitchenDisplayView() {
         },
       }
     })
-    toast.success(`Ticket ${ticketId} marked as ${action.replace('_', ' ')}`)
-  }, [])
+    setPendingTicketId(ticketId)
+
+    const ticket = tickets.find((t) => t.id === ticketId)
+    if (ticket) {
+      updateItemStatusMutation.mutate(
+        { ticketId, orderId: ticket.orderId, action },
+        { onSettled: () => setPendingTicketId(null) }
+      )
+    } else {
+      setPendingTicketId(null)
+    }
+  }, [tickets, updateItemStatusMutation])
 
   const handleRecall = useCallback((ticketId: string) => {
     setLocalOverrides((prev) => {
@@ -308,8 +349,19 @@ export default function KitchenDisplayView() {
         },
       }
     })
-    toast.info(`Ticket ${ticketId} recalled for re-preparation`)
-  }, [])
+    setPendingTicketId(ticketId)
+
+    const ticket = tickets.find((t) => t.id === ticketId)
+    if (ticket) {
+      updateItemStatusMutation.mutate(
+        { ticketId, orderId: ticket.orderId, action: 'preparing' },
+        { onSettled: () => setPendingTicketId(null) }
+      )
+    } else {
+      setPendingTicketId(null)
+      toast.info(`Ticket ${ticketId} recalled for re-preparation`)
+    }
+  }, [tickets, updateItemStatusMutation])
 
   const activeTickets = tickets.filter((t) => t.status !== 'served')
   const completedCount = tickets.filter((t) => t.status === 'served').length
@@ -370,13 +422,13 @@ export default function KitchenDisplayView() {
       {/* Station Columns */}
       {station === 'all' ? (
         <div className="grid gap-4 lg:grid-cols-3 min-h-[500px]">
-          <StationColumn station="hot_kitchen" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} />
-          <StationColumn station="cold_kitchen" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} />
-          <StationColumn station="bar" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} />
+          <StationColumn station="hot_kitchen" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />
+          <StationColumn station="cold_kitchen" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />
+          <StationColumn station="bar" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />
         </div>
       ) : (
         <div className="min-h-[500px]">
-          <StationColumn station={station as KitchenTicket['station']} tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} />
+          <StationColumn station={station as KitchenTicket['station']} tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />
         </div>
       )}
     </div>

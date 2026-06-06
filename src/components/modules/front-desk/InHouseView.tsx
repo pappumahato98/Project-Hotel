@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import {
   BedDouble, CreditCard, AlertTriangle, Crown, Receipt, ArrowRightLeft, Plus,
   CalendarPlus, LogOut, StickyNote, ChevronRight, ChevronDown, Filter, UtensilsCrossed,
-  Wine, Shirt, Phone, Loader2, X, Maximize2,
+  Wine, Shirt, Phone, Loader2, X, Maximize2, Bell, BellRing,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -40,7 +40,7 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useSettingsStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore, useFolioContextStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -145,6 +145,12 @@ export function InHouseView() {
   // ── Note form state ────────────────────────────────────────
   const [noteText, setNoteText] = useState('')
 
+  // ── Wake-up call state ─────────────────────────────────
+  const [wakeUpCalls, setWakeUpCalls] = useState<Record<string, { time: string; note: string; set: boolean }>>({})
+  const [wakeUpDialogOpen, setWakeUpDialogOpen] = useState(false)
+  const [wakeUpTime, setWakeUpTime] = useState('')
+  const [wakeUpNote, setWakeUpNote] = useState('')
+
   // ── Filter state ────────────────────────────────────────────
   const [floorFilter, setFloorFilter] = useState<string>('all')
   const [vipOnlyFilter, setVipOnlyFilter] = useState(false)
@@ -203,6 +209,7 @@ export function InHouseView() {
     const balance = r.folios[0]?.balance || 0
     return balance >= r.creditLimit
   }).length
+  const activeWakeUpCalls = Object.values(wakeUpCalls).filter((w) => w.set).length
 
   // ── Post charge mutation ───────────────────────────────────
   const postChargeMutation = useMutation({
@@ -357,10 +364,45 @@ export function InHouseView() {
     setChargeAmount(String(preset.amount))
   }
 
+  // Auto-create folio if missing, then post charge
+  const ensureFolioAndPostCharge = async (reservation: InHouseReservation) => {
+    let folioId = reservation.folios[0]?.id
+    if (!folioId) {
+      // Auto-create folio for this reservation
+      try {
+        const res = await fetch('/api/folio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            reservationId: reservation.id,
+            guestId: reservation.guest.id,
+            folioType: 'guest',
+          }),
+        })
+        const data = await res.json()
+        folioId = data.folio?.id
+        if (!folioId) throw new Error('Folio creation failed')
+        toast.info('Folio auto-created for this guest')
+      } catch {
+        toast.error('Failed to create folio for this guest')
+        return
+      }
+    }
+    postChargeMutation.mutate({
+      folioId,
+      transactionType: chargeType,
+      description: chargeDesc,
+      amount: parseFloat(chargeAmount),
+    })
+  }
+
   function submitCharge() {
     if (!selectedReservation || !chargeAmount || !chargeDesc) return
     const folio = selectedReservation.folios[0]
-    if (!folio) return
+    if (!folio) {
+      ensureFolioAndPostCharge(selectedReservation)
+      return
+    }
     postChargeMutation.mutate({
       folioId: folio.id,
       transactionType: chargeType,
@@ -435,7 +477,51 @@ export function InHouseView() {
   }
 
   function handleViewFolio(reservation: InHouseReservation) {
+    const { setFolioContext } = useFolioContextStore.getState()
+    setFolioContext({
+      reservationId: reservation.id,
+      guestId: reservation.guest.id,
+      guestName: `${reservation.guest.firstName} ${reservation.guest.lastName}`,
+      roomNumber: reservation.room.number,
+      confirmationNo: reservation.confirmationNo,
+      folioId: reservation.folios[0]?.id,
+    })
     navigateTo('front-desk', 'folio')
+  }
+
+  function handleWakeUpCall(reservation: InHouseReservation) {
+    setSelectedReservation(reservation)
+    const existing = wakeUpCalls[reservation.id]
+    if (existing?.set) {
+      setWakeUpTime(existing.time)
+      setWakeUpNote(existing.note)
+    } else {
+      setWakeUpTime('')
+      setWakeUpNote('')
+    }
+    setWakeUpDialogOpen(true)
+  }
+
+  function submitWakeUpCall() {
+    if (!selectedReservation || !wakeUpTime) return
+    const existing = wakeUpCalls[selectedReservation.id]
+    if (existing?.set) {
+      setWakeUpCalls((prev) => {
+        const next = { ...prev }
+        delete next[selectedReservation.id]
+        return next
+      })
+      toast.success(`Wake-up call cancelled for Room ${selectedReservation.room.number}`)
+    } else {
+      setWakeUpCalls((prev) => ({
+        ...prev,
+        [selectedReservation.id]: { time: wakeUpTime, note: wakeUpNote, set: true },
+      }))
+      toast.success(`Wake-up call set for ${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName} at ${wakeUpTime}`, {
+        description: `Room ${selectedReservation.room.number}`,
+      })
+    }
+    setWakeUpDialogOpen(false)
   }
 
   // Toggle inline row expansion
@@ -538,6 +624,17 @@ export function InHouseView() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-950">
+              <BellRing className="size-5 text-sky-600 dark:text-sky-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">{activeWakeUpCalls}</p>
+              <p className="text-xs text-muted-foreground">Wake-Up Calls</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter Row */}
@@ -635,7 +732,17 @@ export function InHouseView() {
                               <ChevronRight className="size-4 text-muted-foreground" />
                             </div>
                           </TableCell>
-                          <TableCell className="font-bold font-mono">{res.room.number}</TableCell>
+                          <TableCell className="font-bold font-mono">
+                          <div className="flex items-center gap-1">
+                            {res.room.number}
+                            {wakeUpCalls[res.id]?.set && (
+                              <span className="relative flex size-4 items-center justify-center">
+                                <span className="absolute inline-flex h-3 w-3 rounded-full bg-amber-400 opacity-75 animate-ping" />
+                                <Bell className="size-3.5 text-amber-600" />
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{res.guest.firstName} {res.guest.lastName}</span>
@@ -823,6 +930,14 @@ export function InHouseView() {
                                     onClick={(e) => { e.stopPropagation(); handleAddNote(res) }}
                                   >
                                     <StickyNote className="size-3" /> Add Note
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-8 gap-1.5"
+                                    onClick={(e) => { e.stopPropagation(); handleWakeUpCall(res) }}
+                                  >
+                                    <Bell className="size-3" /> Wake-Up Call
                                   </Button>
                                   <Button
                                     size="sm"

@@ -345,6 +345,78 @@ export async function GET(request: Request) {
     data.kitchenTickets = KITCHEN_TICKETS
   }
 
+  if (section === 'order-history') {
+    const dateFilter = searchParams.get('date')
+    const statusFilter = searchParams.get('status') ?? 'all'
+
+    const today = new Date()
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+    // Build where clause
+    const where: Record<string, unknown> = {}
+    if (dateFilter) {
+      const filterDate = new Date(dateFilter)
+      const filterStart = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate())
+      const filterEnd = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate(), 23, 59, 59, 999)
+      where.createdAt = { gte: filterStart, lte: filterEnd }
+    }
+    if (statusFilter !== 'all') {
+      where.status = statusFilter
+    }
+
+    const historyOrders = await db.posOrder.findMany({
+      where,
+      include: {
+        items: {
+          include: { menuItem: { select: { name: true } } },
+          },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const formattedOrders = historyOrders.map((o) => {
+      const subtotal = o.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+      return {
+        id: o.id,
+        tableId: o.tableNumber,
+        items: o.items.map((i) => ({
+          id: i.id,
+          name: i.menuItem?.name || 'Unknown',
+          price: i.unitPrice,
+          quantity: i.quantity,
+          notes: i.notes || undefined,
+        })),
+        itemCount: o.items.length,
+        subtotal,
+        taxAmount: o.taxAmount,
+        discountAmount: o.discountAmount,
+        totalAmount: o.totalAmount,
+        status: o.status,
+        paymentStatus: o.paymentStatus,
+        createdAt: o.createdAt.toISOString(),
+        updatedAt: o.updatedAt.toISOString(),
+      }
+    })
+
+    // Stats (always for today)
+    const allTodayOrders = await db.posOrder.findMany({
+      where: { createdAt: { gte: todayStart } },
+    })
+    const todayClosed = allTodayOrders.filter((o) => o.status === 'closed')
+    const todayRevenue = todayClosed.reduce((s, o) => s + o.totalAmount, 0)
+    const todayVoided = allTodayOrders.filter((o) => o.status === 'voided')
+
+    data.orders = formattedOrders
+    data.stats = {
+      todayOrders: allTodayOrders.length,
+      todayRevenue,
+      avgOrderValue: todayClosed.length > 0 ? Math.round(todayRevenue / todayClosed.length) : 0,
+      voidCount: todayVoided.length,
+    }
+
+    return NextResponse.json(data)
+  }
+
   // Compute stats from DB
   const allOrders = await db.posOrder.findMany()
   const openOrders = allOrders.filter((o) => o.status !== 'closed' && o.status !== 'voided')
@@ -449,6 +521,69 @@ export async function POST(request: Request) {
       })
       broadcastEvent('pos:item_updated', updated)
       return NextResponse.json(updated)
+    }
+
+    if (action === 'apply_discount') {
+      const { orderId: discOrderId, discountType: discType, discountValue: discValue, reason: discReason } = body
+
+      const existingOrder = await db.posOrder.findUnique({
+        where: { id: discOrderId },
+        include: { items: true },
+      })
+
+      if (!existingOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      }
+
+      const subtotal = existingOrder.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+      const discountAmount = Math.min(discValue, subtotal)
+      const taxableAmount = subtotal - discountAmount
+      const taxAmount = Math.round(taxableAmount * taxRateDecimal)
+      const totalAmount = taxableAmount + taxAmount
+
+      const updated = await db.posOrder.update({
+        where: { id: discOrderId },
+        data: {
+          discountAmount,
+          taxAmount,
+          totalAmount,
+        },
+      })
+
+      broadcastEvent('pos:discount_applied', { orderId: discOrderId, discountAmount, reason: discReason })
+      return NextResponse.json(updated)
+    }
+
+    if (action === 'split_bill') {
+      const { orderId: splitOrderId, assignments: splitAssignments, splitSubtotals } = body
+
+      const existingOrder = await db.posOrder.findUnique({ where: { id: splitOrderId } })
+      if (!existingOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      }
+
+      // Store split bill info as a special order item note
+      const splitInfo = JSON.stringify({
+        type: 'split_bill',
+        assignments: splitAssignments,
+        splitSubtotals,
+        createdAt: new Date().toISOString(),
+      })
+
+      await db.orderItem.create({
+        data: {
+          orderId: splitOrderId,
+          menuItemId: '',
+          quantity: 0,
+          unitPrice: 0,
+          totalPrice: 0,
+          status: 'served',
+          notes: splitInfo,
+        },
+      })
+
+      broadcastEvent('pos:bill_split', { orderId: splitOrderId, splitSubtotals })
+      return NextResponse.json({ success: true, orderId: splitOrderId, splitSubtotals })
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })

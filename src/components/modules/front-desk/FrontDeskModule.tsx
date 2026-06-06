@@ -13,12 +13,17 @@ import { DeparturesView } from './DeparturesView'
 import { FolioView } from './FolioView'
 import { CalendarView } from './CalendarView'
 import { ReportsView } from './ReportsView'
+import { CheckInView } from './CheckInView'
+import { WaitlistView } from './WaitlistView'
+import { WakeUpCallsView } from './WakeUpCallsView'
+import { GuestDirectoryView } from './GuestDirectoryView'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CalendarDays, BedDouble } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const SUB_MODULE_MAP: Record<string, React.ComponentType> = {
+  'check-in': CheckInView,
   dashboard: FrontDeskDashboard,
   reservations: ReservationsView,
   arrivals: ArrivalsView,
@@ -27,9 +32,13 @@ const SUB_MODULE_MAP: Record<string, React.ComponentType> = {
   folio: FolioView,
   calendar: CalendarView,
   reports: ReportsView,
+  waitlist: WaitlistView,
+  'wake-up-calls': WakeUpCallsView,
+  'guest-directory': GuestDirectoryView,
 }
 
 const SUB_MODULE_LABELS: Record<string, string> = {
+  'check-in': 'Check-In Wizard',
   dashboard: 'Dashboard',
   reservations: 'Reservations',
   arrivals: 'Arrivals',
@@ -38,6 +47,9 @@ const SUB_MODULE_LABELS: Record<string, string> = {
   folio: 'Folio',
   calendar: 'Calendar',
   reports: 'Reports',
+  waitlist: 'Waitlist',
+  'wake-up-calls': 'Wake-up Calls',
+  'guest-directory': 'Guest Directory',
 }
 
 export function FrontDeskModule() {
@@ -115,9 +127,9 @@ export function FrontDeskModule() {
         onValueChange={setActiveSubModule}
         className={cn('w-full shrink-0', currentSubModule === 'calendar' ? 'px-4 pt-3 pb-0' : '')}
       >
-        <TabsList className="w-full sm:w-auto overflow-x-auto">
+        <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap max-w-full">
           {Object.entries(SUB_MODULE_LABELS).map(([key, label]) => (
-            <TabsTrigger key={key} value={key} className="text-xs sm:text-sm">
+            <TabsTrigger key={key} value={key} className="text-xs sm:text-sm whitespace-nowrap shrink-0">
               {label}
             </TabsTrigger>
           ))}

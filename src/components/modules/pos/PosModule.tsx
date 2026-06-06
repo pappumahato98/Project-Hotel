@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { UtensilsCrossed, Wine, Flower2, Monitor, ChefHat } from 'lucide-react'
+import { UtensilsCrossed, Wine, Flower2, Monitor, ChefHat, ClipboardList, BellRing, CalendarCheck, TrendingUp } from 'lucide-react'
 import { useNavigationStore } from '@/lib/store'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import RestaurantView from './RestaurantView'
@@ -9,6 +9,10 @@ import BarView from './BarView'
 import SpaView from './SpaView'
 import BusinessCenterView from './BusinessCenterView'
 import KitchenDisplayView from './KitchenDisplayView'
+import OrderHistoryView from './OrderHistoryView'
+import RoomServiceView from './RoomServiceView'
+import TableReservationsView from './TableReservationsView'
+import DailySalesReportView from './DailySalesReportView'
 
 const SUB_TABS = [
   { id: 'restaurant', label: 'Restaurant', icon: UtensilsCrossed },
@@ -16,6 +20,10 @@ const SUB_TABS = [
   { id: 'spa', label: 'Spa', icon: Flower2 },
   { id: 'business-center', label: 'Business Center', icon: Monitor },
   { id: 'kitchen-display', label: 'Kitchen Display', icon: ChefHat },
+  { id: 'order-history', label: 'Order History', icon: ClipboardList },
+  { id: 'room-service', label: 'Room Service', icon: BellRing },
+  { id: 'table-reservations', label: 'Reservations', icon: CalendarCheck },
+  { id: 'daily-sales', label: 'Sales Report', icon: TrendingUp },
 ] as const
 
 export default function PosModule() {
@@ -52,6 +60,10 @@ export default function PosModule() {
           {currentTab === 'spa' && <SpaView />}
           {currentTab === 'business-center' && <BusinessCenterView />}
           {currentTab === 'kitchen-display' && <KitchenDisplayView />}
+          {currentTab === 'order-history' && <OrderHistoryView />}
+          {currentTab === 'room-service' && <RoomServiceView />}
+          {currentTab === 'table-reservations' && <TableReservationsView />}
+          {currentTab === 'daily-sales' && <DailySalesReportView />}
         </div>
       </Tabs>
     </div>

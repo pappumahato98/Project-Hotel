@@ -75,6 +75,7 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'spa', label: 'Spa' },
       { id: 'business-center', label: 'Business Center' },
       { id: 'kitchen-display', label: 'Kitchen Display' },
+      { id: 'order-history', label: 'Order History' },
     ],
   },
   {
@@ -140,6 +141,8 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'stock', label: 'Stock Levels' },
       { id: 'vendors', label: 'Vendors' },
       { id: 'requisitions', label: 'Requisitions' },
+      { id: 'adjustments', label: 'Stock Adjustments' },
+      { id: 'purchase-orders', label: 'Purchase Orders' },
     ],
   },
   {

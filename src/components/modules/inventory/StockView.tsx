@@ -1,21 +1,33 @@
 'use client'
-import { toast } from 'sonner'
 
-import { useQuery } from '@tanstack/react-query'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { toast } from 'sonner'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, AlertTriangle, Package, DollarSign } from 'lucide-react'
-import { useState } from 'react'
-import { formatNPR } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { Search, AlertTriangle, Package, DollarSign, Plus, Pencil, Trash2 } from 'lucide-react'
+import { formatNPR, cn } from '@/lib/utils'
 
+// ── Types ────────────────────────────────────────────────────
 interface InventoryItem {
   id: string
   name: string
@@ -31,6 +43,25 @@ interface InventoryItem {
   active: boolean
 }
 
+const UNITS = ['pcs', 'kg', 'ltr', 'mtr', 'box', 'pack', 'set']
+
+const EMPTY_FORM = {
+  name: '',
+  category: '',
+  unit: 'pcs',
+  currentStock: 0,
+  reorderPoint: 0,
+  minStock: 0,
+  maxStock: 0,
+  unitCost: 0,
+  supplier: '',
+  location: '',
+  active: true,
+}
+
+type ItemForm = typeof EMPTY_FORM
+
+// ── API helpers ──────────────────────────────────────────────
 async function fetchInventory(category?: string) {
   const params = new URLSearchParams()
   if (category) params.set('category', category)
@@ -39,10 +70,20 @@ async function fetchInventory(category?: string) {
   return res.json()
 }
 
+// ── Component ────────────────────────────────────────────────
 export function StockView() {
+  const queryClient = useQueryClient()
   const [filterCategory, setFilterCategory] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Dialog states
+  const [createOpen, setCreateOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [form, setForm] = useState<ItemForm>(EMPTY_FORM)
+
+  // ── Queries ─────────────────────────────────────────────────
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', filterCategory],
     queryFn: () => fetchInventory(filterCategory || undefined),
@@ -51,30 +92,116 @@ export function StockView() {
   const filteredItems = data?.items?.filter((item: InventoryItem) => {
     if (!searchQuery) return true
     const q = searchQuery.toLowerCase()
-    return item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+    return item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.supplier?.toLowerCase().includes(q)
   })
+
+  // ── Mutations ───────────────────────────────────────────────
+  const createMutation = useMutation({
+    mutationFn: async (body: ItemForm) => {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error('Failed to create item')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+      toast.success('Item created successfully')
+      setCreateOpen(false)
+      setForm(EMPTY_FORM)
+    },
+    onError: () => toast.error('Failed to create item'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...body }: InventoryItem & { id: string }) => {
+      const res = await fetch(`/api/inventory/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) throw new Error('Failed to update item')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+      toast.success('Item updated successfully')
+      setEditOpen(false)
+      setSelectedItem(null)
+      setForm(EMPTY_FORM)
+    },
+    onError: () => toast.error('Failed to update item'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete item')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+      toast.success('Item deleted successfully')
+      setDeleteOpen(false)
+      setSelectedItem(null)
+    },
+    onError: () => toast.error('Failed to delete item'),
+  })
+
+  // ── Helpers ─────────────────────────────────────────────────
+  const openCreate = () => {
+    setForm(EMPTY_FORM)
+    setCreateOpen(true)
+  }
+
+  const openEdit = (item: InventoryItem) => {
+    setSelectedItem(item)
+    setForm({
+      name: item.name,
+      category: item.category,
+      unit: item.unit,
+      currentStock: item.currentStock,
+      reorderPoint: item.reorderPoint,
+      minStock: item.minStock,
+      maxStock: item.maxStock,
+      unitCost: item.unitCost,
+      supplier: item.supplier || '',
+      location: item.location || '',
+      active: item.active,
+    })
+    setEditOpen(true)
+  }
+
+  const openDelete = (item: InventoryItem) => {
+    setSelectedItem(item)
+    setDeleteOpen(true)
+  }
 
   const getStockPercentage = (item: InventoryItem) => {
     if (item.maxStock <= 0) return 0
     return Math.min(100, Math.round((item.currentStock / item.maxStock) * 100))
   }
 
-  const getStockColor = (item: InventoryItem) => {
-    if (item.currentStock <= item.reorderPoint) return 'destructive'
-    if (item.currentStock <= item.minStock) return 'warning' as const
-    return 'default' as const
-  }
-
+  // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Stock Levels</h1>
           <p className="text-sm text-muted-foreground">Current inventory status and stock levels</p>
         </div>
-        <Badge variant="outline" className="text-sm">
-          {data?.total ?? 0} items
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-sm">
+            {data?.total ?? 0} items
+          </Badge>
+          <Button className="gap-1.5" onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -186,13 +313,14 @@ export function StockView() {
                   <TableHead className="text-right hidden lg:table-cell">Unit Cost</TableHead>
                   <TableHead className="hidden md:table-cell">Stock Level</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   Array.from({ length: 10 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
+                      {Array.from({ length: 8 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-[80px]" />
                         </TableCell>
@@ -201,7 +329,7 @@ export function StockView() {
                   ))
                 ) : filteredItems?.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       No inventory items found.
                     </TableCell>
                   </TableRow>
@@ -247,6 +375,16 @@ export function StockView() {
                           {item.currentStock <= item.reorderPoint ? 'Low' : item.currentStock <= item.minStock * 1.5 ? 'Warning' : 'Good'}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => openDelete(item)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -255,6 +393,170 @@ export function StockView() {
           </ScrollArea>
         </CardContent>
       </Card>
+
+      {/* ── Create Item Dialog ─────────────────────────────────── */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Inventory Item</DialogTitle>
+            <DialogDescription>Create a new item in the inventory.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Item Name *</Label>
+                <Input placeholder="e.g., Bath Towel" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Category *</Label>
+                <Input placeholder="e.g., Linen" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit *</Label>
+                <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {UNITS.map((u) => (
+                      <SelectItem key={u} value={u}>{u.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Current Stock</Label>
+                <Input type="number" value={form.currentStock} onChange={(e) => setForm((f) => ({ ...f, currentStock: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Reorder Point</Label>
+                <Input type="number" value={form.reorderPoint} onChange={(e) => setForm((f) => ({ ...f, reorderPoint: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Min Stock</Label>
+                <Input type="number" value={form.minStock} onChange={(e) => setForm((f) => ({ ...f, minStock: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Stock</Label>
+                <Input type="number" value={form.maxStock} onChange={(e) => setForm((f) => ({ ...f, maxStock: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit Cost</Label>
+                <Input type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm((f) => ({ ...f, unitCost: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <Input placeholder="e.g., ABC Supplies" value={form.supplier} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Input placeholder="e.g., Store Room A" value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch checked={form.active} onCheckedChange={(checked) => setForm((f) => ({ ...f, active: checked }))} />
+              <Label>Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={() => createMutation.mutate(form)} disabled={!form.name || !form.category || createMutation.isPending}>
+              {createMutation.isPending ? 'Creating...' : 'Create Item'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Item Dialog ──────────────────────────────────── */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Inventory Item</DialogTitle>
+            <DialogDescription>Update item details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Item Name *</Label>
+                <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Category *</Label>
+                <Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit *</Label>
+                <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {UNITS.map((u) => (
+                      <SelectItem key={u} value={u}>{u.toUpperCase()}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Current Stock</Label>
+                <Input type="number" value={form.currentStock} onChange={(e) => setForm((f) => ({ ...f, currentStock: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Reorder Point</Label>
+                <Input type="number" value={form.reorderPoint} onChange={(e) => setForm((f) => ({ ...f, reorderPoint: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Min Stock</Label>
+                <Input type="number" value={form.minStock} onChange={(e) => setForm((f) => ({ ...f, minStock: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Max Stock</Label>
+                <Input type="number" value={form.maxStock} onChange={(e) => setForm((f) => ({ ...f, maxStock: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Unit Cost</Label>
+                <Input type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm((f) => ({ ...f, unitCost: Number(e.target.value) }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <Input value={form.supplier} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch checked={form.active} onCheckedChange={(checked) => setForm((f) => ({ ...f, active: checked }))} />
+              <Label>Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={() => selectedItem && updateMutation.mutate({ id: selectedItem.id, ...form })} disabled={!form.name || !form.category || updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete Confirmation Dialog ─────────────────────────── */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Item</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{selectedItem?.name}&rdquo;? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => selectedItem && deleteMutation.mutate(selectedItem.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
