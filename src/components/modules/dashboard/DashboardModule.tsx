@@ -857,6 +857,25 @@ export function DashboardModule() {
     refetchInterval: 30000, // refresh every 30s
   })
 
+  // Defensive defaults — guard against partial API responses
+  const safeData: DashboardData = {
+    kpis: data?.kpis ?? {
+      totalRooms: 0, occupiedRooms: 0, occupancy: 0, occupancyTrend: 0,
+      arrivals: 0, departures: 0, vacantClean: 0,
+      totalRevenue: 0, roomRevenue: 0, fAndBRevenue: 0, otherRevenue: 0,
+      adr: 0, revpar: 0, revenueTrend: 0, adrTrend: 0, revparTrend: 0,
+    },
+    roomStatusBreakdown: data?.roomStatusBreakdown ?? {},
+    alerts: data?.alerts ?? {
+      vipArrivals: [], overdueCheckouts: 0,
+      emergencyWorkOrders: [], outOfOrderRooms: [], outOfOrderCount: 0,
+      unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0, openPosOrders: 0,
+    },
+    revenueChart: data?.revenueChart ?? [],
+    recentActivity: data?.recentActivity ?? [],
+    settings: data?.settings,
+  }
+
   if (isLoading) return <DashboardLoading />
   if (isError || !data) return <DashboardError error={error ?? new Error('Unknown error')} />
 
@@ -864,7 +883,7 @@ export function DashboardModule() {
     <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 overflow-y-auto">
       {/* 1. Welcome Banner */}
       <div className="flex items-center gap-2">
-        <WelcomeBanner data={data} />
+        <WelcomeBanner data={safeData} />
       </div>
 
       {/* Live Indicator */}
@@ -879,24 +898,24 @@ export function DashboardModule() {
       )}
 
       {/* 2. KPI Cards */}
-      <KpiCards data={data} />
+      <KpiCards data={safeData} />
 
       {/* 3. Quick Stats Row */}
-      <QuickStatsRow data={data} />
+      <QuickStatsRow data={safeData} />
 
       {/* Two-column layout: Alerts + Room Status | Chart */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
           {/* 4. Operational Alerts */}
-          <OperationalAlerts data={data} />
+          <OperationalAlerts data={safeData} />
 
           {/* 6. Room Status Overview */}
-          <RoomStatusOverview data={data} />
+          <RoomStatusOverview data={safeData} />
         </div>
 
         {/* 5. Revenue Chart */}
         <div className="lg:col-span-2">
-          <RevenueChart data={data} />
+          <RevenueChart data={safeData} />
         </div>
       </div>
 
@@ -904,7 +923,7 @@ export function DashboardModule() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* 7. Recent Activity Feed */}
         <div className="lg:col-span-2">
-          <RecentActivityFeed data={data} />
+          <RecentActivityFeed data={safeData} />
         </div>
 
         {/* 8. Quick Actions */}
