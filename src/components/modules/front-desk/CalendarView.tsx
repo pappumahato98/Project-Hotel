@@ -50,7 +50,6 @@ import { usePreferencesStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useNavigationStore } from '@/lib/store'
-import { QuickSearch } from './QuickSearch'
 import { useSidebar } from '@/components/ui/sidebar'
 import {
   ChevronLeft,
@@ -1226,8 +1225,6 @@ export function CalendarView() {
                 <p className="text-[10px] text-muted-foreground">Drag &amp; drop to move reservations</p>
               </div>
             </div>
-            <div className="w-px h-6 bg-border hidden sm:block" />
-            <QuickSearch />
             <Button
               variant="ghost"
               size="sm"
@@ -1326,7 +1323,7 @@ export function CalendarView() {
           <Card className="overflow-hidden rounded-lg flex-1 min-h-0 flex flex-col">
             <div
               ref={scrollRef}
-              className="overflow-x-auto overflow-y-hidden flex-1 min-h-0"
+              className="overflow-auto flex-1 min-h-0"
             >
               <div style={{ minWidth: actualGridWidth, width: '100%' }}>
                 {/* ─── Day Column Headers (dark sticky) ──────────────────── */}

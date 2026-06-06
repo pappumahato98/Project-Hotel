@@ -1192,3 +1192,23 @@ Stage Summary:
 - Modified: src/components/modules/dashboard/DashboardModule.tsx (removed duplicate syncFromBackend)
 - Result: Dev server I/O reduced ~90%, connection storm eliminated, error resilience added
 - All 14 modules verified working in browser with zero errors
+
+---
+Task ID: calendar-fixes
+Agent: Main Agent
+Task: Remove search box from calendar page and fix reservation calendar scrolling
+
+Work Log:
+- Identified QuickSearch component on CalendarView.tsx (line 53 import, line 1230 render)
+- Removed QuickSearch import and usage from CalendarView.tsx
+- Removed the divider line before QuickSearch
+- Changed scroll container from `overflow-x-auto overflow-y-hidden` to `overflow-auto` (line 1326) to enable both horizontal AND vertical scrolling
+- Verified via agent-browser: Calendar page no longer has search box, only "Reservation Calendar" title + "Room Board" button
+- Ran lint — 0 errors
+
+Stage Summary:
+- Modified: src/components/modules/front-desk/CalendarView.tsx
+  - Removed QuickSearch import and component
+  - Changed scroll container to `overflow-auto` for full scroll support
+- Calendar page now has clean header without search box
+- Calendar grid is now scrollable both horizontally (days) and vertically (rooms)
