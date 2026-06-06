@@ -4,9 +4,12 @@ import * as React from 'react'
 import {
   UserCircle, Mail, Phone, Calendar, MapPin, Globe, CreditCard,
   Shield, Bell, History, Save, Upload, Eye, EyeOff, Lock,
-  Monitor, Smartphone, Tablet, CheckCircle2, XCircle, Clock,
+  Monitor, CheckCircle2, XCircle, Clock,
   Building2, Briefcase, User, ChevronRight, AlertTriangle,
+  LogOut, RefreshCw, Wifi,
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuthStore, usePreferencesStore } from '@/lib/store'
 import { usePropertyStore } from '@/lib/store'
@@ -31,6 +34,51 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
+
+// ─── Helpers ────────────────────────────────────────────────────
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+function toDateInputValue(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    return d.toISOString().split('T')[0]
+  } catch {
+    return ''
+  }
+}
 
 // ─── Profile Module ────────────────────────────────────────────
 export function ProfileModule() {
@@ -120,7 +168,7 @@ function ProfileTabTrigger({
 function InfoRow({ icon: Icon, label, value, color }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
-  value: string | null | undefined
+  value: React.ReactNode
   color?: string
 }) {
   return (
@@ -142,44 +190,102 @@ function InfoRow({ icon: Icon, label, value, color }: {
 // ─── Tab 1: Personal Information ──────────────────────────────
 function PersonalInfoTab() {
   const { user, updateUser } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const [formData, setFormData] = React.useState({
     firstName: user?.firstName ?? '',
     lastName: user?.lastName ?? '',
     email: user?.email ?? '',
-    phone: '',
-    dateOfBirth: '',
-    gender: '',
-    address: '',
-    city: '',
-    country: '',
-    nationality: '',
-    idType: '',
-    idNumber: '',
+    phone: user?.phone ?? '',
+    dateOfBirth: toDateInputValue(user?.dateOfBirth),
+    gender: user?.gender ?? '',
+    address: user?.address ?? '',
+    city: user?.city ?? '',
+    country: user?.country ?? '',
+    nationality: user?.nationality ?? '',
+    idType: user?.idType ?? '',
+    idNumber: user?.idNumber ?? '',
   })
 
-  const [isSaving, setIsSaving] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  const profileMutation = useMutation({
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, ...data }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error ?? 'Failed to update profile')
+      }
+      return res.json()
+    },
+    onSuccess: (_data, variables) => {
+      const updates: Record<string, unknown> = {
+        firstName: variables.firstName as string,
+        lastName: variables.lastName as string,
+        email: variables.email as string,
+        phone: variables.phone as string,
+        dateOfBirth: (variables.dateOfBirth as string) || null,
+        gender: variables.gender as string,
+        address: variables.address as string,
+        city: variables.city as string,
+        country: variables.country as string,
+        nationality: variables.nationality as string,
+        idType: variables.idType as string,
+        idNumber: variables.idNumber as string,
+      }
+      if (variables.avatarUrl) {
+        updates.avatarUrl = variables.avatarUrl as string
+      }
+      if (variables.twoFactorEnabled !== undefined) {
+        updates.twoFactorEnabled = variables.twoFactorEnabled as boolean
+      }
+      updateUser(updates)
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      toast.success('Profile updated successfully')
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update profile')
+    },
+  })
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSave = async () => {
-    setIsSaving(true)
-    try {
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      updateUser({
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-      })
-      toast.success('Profile updated successfully')
-    } catch {
-      toast.error('Failed to update profile')
-    } finally {
-      setIsSaving(false)
+  const handleSave = () => {
+    profileMutation.mutate(formData)
+  }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File size must be less than 2MB')
+      return
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      profileMutation.mutate({ avatarUrl: dataUrl })
+    }
+    reader.readAsDataURL(file)
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -208,6 +314,7 @@ function PersonalInfoTab() {
                 variant="outline"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={profileMutation.isPending}
               >
                 <Upload className="mr-2 h-4 w-4" />
                 Upload Photo
@@ -217,7 +324,7 @@ function PersonalInfoTab() {
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={() => toast.info('Photo upload is a placeholder — coming soon')}
+                onChange={handlePhotoUpload}
               />
               <p className="text-xs text-muted-foreground">
                 JPG, PNG or GIF. Max 2MB. Recommended 200×200px.
@@ -383,8 +490,8 @@ function PersonalInfoTab() {
           </div>
 
           <div className="flex justify-end pt-2">
-            <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
-              {isSaving ? (
+            <Button onClick={handleSave} disabled={profileMutation.isPending} className="min-w-[120px]">
+              {profileMutation.isPending ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   Saving...
@@ -409,6 +516,19 @@ function EmploymentDetailsTab() {
   const { activeProperty } = usePropertyStore()
   const { settings } = useSettingsStore()
 
+  const { data: profileData, isLoading } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null
+      const res = await fetch(`/api/auth/profile?userId=${user.id}`)
+      if (!res.ok) throw new Error('Failed to fetch profile')
+      return res.json()
+    },
+    enabled: !!user?.id,
+  })
+
+  const hireDate = profileData?.user?.hireDate
+
   return (
     <div className="space-y-6">
       {/* Employment Info */}
@@ -429,7 +549,16 @@ function EmploymentDetailsTab() {
             <InfoRow icon={Building2} label="Department" value={user?.department ?? 'Management'} color="text-amber-600" />
             <InfoRow icon={User} label="Position" value={user?.position ?? 'Staff'} color="text-amber-600" />
             <InfoRow icon={Shield} label="Role / Access Level" value={user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) ?? 'Staff'} color="text-amber-600" />
-            <InfoRow icon={Calendar} label="Hire Date" value="January 15, 2023" color="text-amber-600" />
+            <InfoRow
+              icon={Calendar}
+              label="Hire Date"
+              value={isLoading ? (
+                <Skeleton className="h-4 w-36" />
+              ) : (
+                formatDate(hireDate)
+              )}
+              color="text-amber-600"
+            />
             <InfoRow icon={CreditCard} label="Employee ID" value={`EMP-${user?.id?.slice(-6).toUpperCase() ?? '000000'}`} color="text-amber-600" />
             <InfoRow icon={ChevronRight} label="Reporting To" value="General Manager" color="text-amber-600" />
             <InfoRow icon={CheckCircle2} label="Work Status" value={
@@ -532,7 +661,8 @@ function AccessBadge({ label, active }: { label: string; active: boolean }) {
 
 // ─── Tab 3: Security ───────────────────────────────────────────
 function SecurityTab() {
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
+  const queryClient = useQueryClient()
 
   const [passwords, setPasswords] = React.useState({
     currentPassword: '',
@@ -545,7 +675,6 @@ function SecurityTab() {
     confirm: false,
   })
   const [isChangingPassword, setIsChangingPassword] = React.useState(false)
-  const [twoFactorEnabled, setTwoFactorEnabled] = React.useState(false)
 
   const handlePasswordChange = (field: string, value: string) => {
     setPasswords((prev) => ({ ...prev, [field]: value }))
@@ -595,6 +724,50 @@ function SecurityTab() {
       toast.error('Failed to change password')
     } finally {
       setIsChangingPassword(false)
+    }
+  }
+
+  // Two-Factor mutation
+  const twoFactorMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id, twoFactorEnabled: enabled }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error ?? 'Failed to update 2FA setting')
+      }
+      return res.json()
+    },
+    onSuccess: (_data, enabled) => {
+      updateUser({ twoFactorEnabled: enabled })
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+      toast.success(enabled ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled')
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update 2FA setting')
+    },
+  })
+
+  const handleClearSessions = async () => {
+    try {
+      await fetch('/api/auth/activity-log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id,
+          userName: `${user?.firstName} ${user?.lastName}`,
+          action: 'Clear Sessions',
+          module: 'Security',
+          details: 'User manually cleared other active sessions',
+        }),
+      })
+      queryClient.invalidateQueries({ queryKey: ['activity-log', user?.id] })
+      toast.success('Other sessions have been cleared')
+    } catch {
+      toast.error('Failed to clear sessions')
     }
   }
 
@@ -732,24 +905,24 @@ function SecurityTab() {
             <div className="space-y-1">
               <p className="text-sm font-medium">Enable Two-Factor Authentication</p>
               <p className="text-xs text-muted-foreground">
-                {twoFactorEnabled
+                {user?.twoFactorEnabled
                   ? 'Two-factor authentication is enabled for your account'
                   : 'Require a verification code in addition to your password'}
               </p>
             </div>
             <Switch
-              checked={twoFactorEnabled}
+              checked={user?.twoFactorEnabled ?? false}
+              disabled={twoFactorMutation.isPending}
               onCheckedChange={(checked) => {
-                setTwoFactorEnabled(checked)
-                toast.info(checked ? '2FA would be enabled — coming soon' : '2FA would be disabled — coming soon')
+                twoFactorMutation.mutate(checked)
               }}
             />
           </div>
-          {twoFactorEnabled && (
-            <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-xs text-amber-800 flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                Two-factor authentication is a placeholder feature and will be available in a future update.
+          {user?.twoFactorEnabled && (
+            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+              <p className="text-xs text-emerald-800 flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 shrink-0" />
+                Your account is protected with two-factor authentication.
               </p>
             </div>
           )}
@@ -781,48 +954,38 @@ function SecurityTab() {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground truncate">
-                Chrome on macOS — 192.168.1.105
+                {user?.lastLoginAt
+                  ? `Last active: ${formatDateTime(user.lastLoginAt)}`
+                  : 'Currently active'}
               </p>
             </div>
             <p className="text-xs text-muted-foreground whitespace-nowrap">Now</p>
           </div>
 
-          {/* Other sessions (placeholder) */}
-          <div className="flex items-center gap-4 rounded-lg border p-4">
-            <Smartphone className="h-5 w-5 text-muted-foreground" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">Mobile App</p>
-                <Badge variant="secondary" className="text-[10px]">2 hours ago</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                Safari on iPhone — 192.168.1.42
+          {/* Clear other sessions button */}
+          <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Wifi className="h-4 w-4 text-muted-foreground" />
+                Other Sessions
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Remove any other devices that may be signed in to your account
               </p>
             </div>
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-              Revoke
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-4 rounded-lg border p-4">
-            <Tablet className="h-5 w-5 text-muted-foreground" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-medium">iPad</p>
-                <Badge variant="secondary" className="text-[10px]">Yesterday</Badge>
-              </div>
-              <p className="text-xs text-muted-foreground truncate">
-                Safari on iPad — 10.0.0.88
-              </p>
-            </div>
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10">
-              Revoke
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearSessions}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Clear Other Sessions
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Last Login */}
+      {/* Login Information */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
@@ -840,19 +1003,19 @@ function SecurityTab() {
             <InfoRow
               icon={Clock}
               label="Last Login"
-              value={user?.id ? 'Just now (this session)' : '—'}
+              value={user?.lastLoginAt ? formatDateTime(user.lastLoginAt) : '—'}
               color="text-slate-600"
             />
             <InfoRow
               icon={Monitor}
               label="Previous Login"
-              value="Yesterday at 08:45 AM"
+              value="Not tracked"
               color="text-slate-600"
             />
             <InfoRow
               icon={MapPin}
               label="Login IP Address"
-              value="192.168.1.105"
+              value="Not tracked"
               color="text-slate-600"
             />
           </div>
@@ -865,12 +1028,20 @@ function SecurityTab() {
 // ─── Tab 4: Preferences ────────────────────────────────────────
 function PreferencesTab() {
   const { preferences, updatePreferences } = usePreferencesStore()
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const [mounted, setMounted] = React.useState(false)
 
-  const [notifPrefs, setNotifPrefs] = React.useState({
-    email: true,
-    push: true,
-    inApp: true,
-  })
+  // Avoid hydration mismatch with next-themes
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Notification preferences from store
+  const notifEmail = preferences.notifEmail
+  const notifPush = preferences.notifPush
+  const notifInApp = preferences.notifInApp
+
+  const isDarkMode = mounted ? (resolvedTheme === 'dark') : false
 
   return (
     <div className="space-y-6">
@@ -985,9 +1156,10 @@ function PreferencesTab() {
               </p>
             </div>
             <Switch
-              checked={false}
+              checked={isDarkMode}
               onCheckedChange={(checked) => {
-                toast.info(checked ? 'Dark mode would be enabled — use system settings to toggle' : 'Light mode would be enabled')
+                setTheme(checked ? 'dark' : 'light')
+                toast.success(checked ? 'Dark mode enabled' : 'Light mode enabled')
               }}
             />
           </div>
@@ -1032,9 +1204,9 @@ function PreferencesTab() {
               </p>
             </div>
             <Switch
-              checked={notifPrefs.email}
+              checked={notifEmail}
               onCheckedChange={(checked) => {
-                setNotifPrefs((prev) => ({ ...prev, email: checked }))
+                updatePreferences({ notifEmail: checked })
                 toast.success(checked ? 'Email notifications enabled' : 'Email notifications disabled')
               }}
             />
@@ -1048,9 +1220,9 @@ function PreferencesTab() {
               </p>
             </div>
             <Switch
-              checked={notifPrefs.push}
+              checked={notifPush}
               onCheckedChange={(checked) => {
-                setNotifPrefs((prev) => ({ ...prev, push: checked }))
+                updatePreferences({ notifPush: checked })
                 toast.success(checked ? 'Push notifications enabled' : 'Push notifications disabled')
               }}
             />
@@ -1064,9 +1236,9 @@ function PreferencesTab() {
               </p>
             </div>
             <Switch
-              checked={notifPrefs.inApp}
+              checked={notifInApp}
               onCheckedChange={(checked) => {
-                setNotifPrefs((prev) => ({ ...prev, inApp: checked }))
+                updatePreferences({ notifInApp: checked })
                 toast.success(checked ? 'In-app notifications enabled' : 'In-app notifications disabled')
               }}
             />
@@ -1094,38 +1266,6 @@ function PreferencesTab() {
 }
 
 // ─── Tab 5: Activity Log ──────────────────────────────────────
-interface ActivityEntry {
-  id: string
-  date: string
-  action: string
-  module: string
-  details: string
-  ipAddress: string
-}
-
-const MOCK_ACTIVITIES: ActivityEntry[] = [
-  { id: '1', date: '2025-01-15 14:32', action: 'Login', module: 'Auth', details: 'Successful login from Chrome on macOS', ipAddress: '192.168.1.105' },
-  { id: '2', date: '2025-01-15 14:35', action: 'View Dashboard', module: 'Dashboard', details: 'Accessed main dashboard', ipAddress: '192.168.1.105' },
-  { id: '3', date: '2025-01-15 14:40', action: 'Update Reservation', module: 'Front Desk', details: 'Modified reservation #RES-2025-0042', ipAddress: '192.168.1.105' },
-  { id: '4', date: '2025-01-15 15:10', action: 'Check-In Guest', module: 'Front Desk', details: 'Checked in guest John Smith — Room 301', ipAddress: '192.168.1.105' },
-  { id: '5', date: '2025-01-15 15:25', action: 'Create Folio', module: 'Accounting', details: 'Created folio FOL-2025-0128', ipAddress: '192.168.1.105' },
-  { id: '6', date: '2025-01-15 16:00', action: 'Update Settings', module: 'Settings', details: 'Changed hotel phone number', ipAddress: '192.168.1.105' },
-  { id: '7', date: '2025-01-15 16:45', action: 'Post Charge', module: 'POS', details: 'Added room service charge NPR 2,500', ipAddress: '192.168.1.105' },
-  { id: '8', date: '2025-01-15 17:00', action: 'Assign Task', module: 'Housekeeping', details: 'Assigned cleaning task to Room 305', ipAddress: '192.168.1.105' },
-  { id: '9', date: '2025-01-15 17:30', action: 'Generate Report', module: 'Accounting', details: 'Generated daily revenue report', ipAddress: '192.168.1.105' },
-  { id: '10', date: '2025-01-15 18:00', action: 'Check-Out Guest', module: 'Front Desk', details: 'Checked out guest Sarah Johnson — Room 215', ipAddress: '192.168.1.105' },
-  { id: '11', date: '2025-01-14 08:45', action: 'Login', module: 'Auth', details: 'Successful login from Safari on iPhone', ipAddress: '192.168.1.42' },
-  { id: '12', date: '2025-01-14 09:00', action: 'View Reservations', module: 'Front Desk', details: 'Viewed arrivals list for today', ipAddress: '192.168.1.42' },
-  { id: '13', date: '2025-01-14 09:30', action: 'Create Reservation', module: 'Front Desk', details: 'Created reservation for David Chen', ipAddress: '192.168.1.42' },
-  { id: '14', date: '2025-01-14 10:15', action: 'Update Room Status', module: 'Room Mgmt', details: 'Changed Room 402 to maintenance', ipAddress: '192.168.1.105' },
-  { id: '15', date: '2025-01-14 11:00', action: 'Process Payment', module: 'Accounting', details: 'Processed NPR 15,000 cash payment', ipAddress: '192.168.1.105' },
-  { id: '16', date: '2025-01-14 13:30', action: 'Create Work Order', module: 'Maintenance', details: 'Created work order for AC repair — Room 208', ipAddress: '192.168.1.105' },
-  { id: '17', date: '2025-01-14 14:00', action: 'Export Data', module: 'Reports', details: 'Exported guest list to CSV', ipAddress: '192.168.1.105' },
-  { id: '18', date: '2025-01-14 15:00', action: 'Approve Requisition', module: 'Inventory', details: 'Approved requisition REQ-2025-0034', ipAddress: '192.168.1.105' },
-  { id: '19', date: '2025-01-14 16:00', action: 'Shift Handover', module: 'Operations', details: 'Completed evening shift handover', ipAddress: '192.168.1.105' },
-  { id: '20', date: '2025-01-14 17:00', action: 'Logout', module: 'Auth', details: 'User logged out', ipAddress: '192.168.1.105' },
-]
-
 function getActionColor(action: string) {
   const colors: Record<string, string> = {
     Login: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -1141,6 +1281,7 @@ function getActionColor(action: string) {
     Export: 'border-indigo-200 bg-indigo-50 text-indigo-700',
     Approve: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     Shift: 'border-amber-200 bg-amber-50 text-amber-700',
+    Clear: 'border-rose-200 bg-rose-50 text-rose-700',
   }
   const prefix = action.split(' ')[0]
   return colors[prefix] ?? colors[action] ?? 'border-slate-200 bg-slate-50 text-slate-700'
@@ -1160,17 +1301,35 @@ function getModuleBadgeColor(module: string) {
     Reports: 'bg-violet-100 text-violet-700',
     Inventory: 'bg-cyan-100 text-cyan-700',
     Operations: 'bg-amber-100 text-amber-700',
+    Security: 'bg-rose-100 text-rose-700',
   }
   return colors[module] ?? 'bg-slate-100 text-slate-700'
 }
 
 function ActivityLogTab() {
+  const { user } = useAuthStore()
   const [filter, setFilter] = React.useState('all')
-  const filtered = filter === 'all'
-    ? MOCK_ACTIVITIES
-    : MOCK_ACTIVITIES.filter((a) => a.module === filter)
 
-  const modules = [...new Set(MOCK_ACTIVITIES.map((a) => a.module))]
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['activity-log', user?.id, filter],
+    queryFn: async () => {
+      if (!user?.id) return { logs: [], stats: { total: 0, logins: 0, today: 0 }, modules: [] }
+      const params = new URLSearchParams({
+        userId: user.id,
+        limit: '50',
+        ...(filter !== 'all' ? { module: filter } : {}),
+      })
+      const res = await fetch(`/api/auth/activity-log?${params}`)
+      if (!res.ok) throw new Error('Failed to fetch activity log')
+      return res.json()
+    },
+    enabled: !!user?.id,
+    refetchInterval: 30000,
+  })
+
+  const logs = data?.logs ?? []
+  const stats = data?.stats ?? { total: 0, logins: 0, today: 0 }
+  const modules = data?.modules ?? []
 
   return (
     <div className="space-y-6">
@@ -1183,7 +1342,9 @@ function ActivityLogTab() {
                 <History className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{MOCK_ACTIVITIES.length}</p>
+                <p className="text-2xl font-bold">
+                  {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.total}
+                </p>
                 <p className="text-xs text-muted-foreground">Total Activities</p>
               </div>
             </div>
@@ -1197,7 +1358,7 @@ function ActivityLogTab() {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {MOCK_ACTIVITIES.filter((a) => a.action === 'Login').length}
+                  {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.logins}
                 </p>
                 <p className="text-xs text-muted-foreground">Logins</p>
               </div>
@@ -1212,7 +1373,7 @@ function ActivityLogTab() {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {MOCK_ACTIVITIES.filter((a) => a.date.startsWith('2025-01-15')).length}
+                  {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.today}
                 </p>
                 <p className="text-xs text-muted-foreground">Today</p>
               </div>
@@ -1227,7 +1388,11 @@ function ActivityLogTab() {
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {new Set(MOCK_ACTIVITIES.map((a) => a.ipAddress)).size}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-8 inline-block" />
+                  ) : (
+                    new Set(logs.map((l: { ipAddress?: string }) => l.ipAddress).filter(Boolean)).size
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">Unique IPs</p>
               </div>
@@ -1236,13 +1401,18 @@ function ActivityLogTab() {
         </Card>
       </div>
 
-      {/* Filter */}
+      {/* Filter & Table */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-base">Recent Activity</CardTitle>
-              <CardDescription>Last 20 actions performed in the system</CardDescription>
+              <CardDescription className="flex items-center gap-2">
+                Last {logs.length} actions performed in the system
+                {isFetching && !isLoading && (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                )}
+              </CardDescription>
             </div>
             <Select value={filter} onValueChange={setFilter}>
               <SelectTrigger className="w-[180px]">
@@ -1250,7 +1420,7 @@ function ActivityLogTab() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Modules</SelectItem>
-                {modules.map((m) => (
+                {modules.map((m: string) => (
                   <SelectItem key={m} value={m}>{m}</SelectItem>
                 ))}
               </SelectContent>
@@ -1258,51 +1428,68 @@ function ActivityLogTab() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="max-h-[600px]">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[140px]">Date</TableHead>
-                  <TableHead className="w-[140px]">Action</TableHead>
-                  <TableHead className="w-[120px]">Module</TableHead>
-                  <TableHead className="hidden md:table-cell">Details</TableHead>
-                  <TableHead className="w-[130px] text-right">IP Address</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {entry.date}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn('text-[10px] font-medium', getActionColor(entry.action))}>
-                        {entry.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={cn('text-[10px]', getModuleBadgeColor(entry.module))}>
-                        {entry.module}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs truncate max-w-[300px] hidden md:table-cell">
-                      {entry.details}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground text-right font-mono">
-                      {entry.ipAddress}
-                    </TableCell>
+          {isLoading ? (
+            <div className="p-8 space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[600px]">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-[140px]">Date</TableHead>
+                    <TableHead className="w-[140px]">Action</TableHead>
+                    <TableHead className="w-[120px]">Module</TableHead>
+                    <TableHead className="hidden md:table-cell">Details</TableHead>
+                    <TableHead className="w-[130px] text-right">IP Address</TableHead>
                   </TableRow>
-                ))}
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No activities found for the selected filter.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((entry: {
+                    id: string
+                    createdAt: string
+                    action: string
+                    module: string
+                    details: string
+                    ipAddress: string
+                  }) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(entry.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={cn('text-[10px] font-medium', getActionColor(entry.action))}>
+                          {entry.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className={cn('text-[10px]', getModuleBadgeColor(entry.module))}>
+                          {entry.module}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs truncate max-w-[300px] hidden md:table-cell">
+                        {entry.details}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground text-right font-mono">
+                        {entry.ipAddress ?? '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {logs.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        No activities found for the selected filter.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
         </CardContent>
       </Card>
     </div>

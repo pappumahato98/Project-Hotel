@@ -18,10 +18,22 @@ model AuthUser {
   department    String   @default("Management")
   position      String   @default("Staff")
   avatarUrl     String?
+  phone         String?
+  dateOfBirth   String?  // ISO date string YYYY-MM-DD
+  gender        String?
+  address       String?
+  city          String?
+  country       String?
+  nationality   String?
+  idType        String?  // passport, national_id, citizenship, license, voter_id
+  idNumber      String?
+  twoFactorEnabled Boolean @default(false)
   active        Boolean  @default(true)
   lastLoginAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  activityLogs ActivityLog[]
 }
 
 // ─── PROPERTY & CONFIG ────────────────────────────────────────
@@ -649,6 +661,23 @@ model Channel {
   notes             String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+// ─── ACTIVITY LOG ─────────────────────────────────────────
+model ActivityLog {
+  id            String   @id @default(cuid())
+  userId        String
+  userName      String
+  action        String   // login, logout, profile_update, password_change, settings_update, reservation_create, check_in, check_out, etc.
+  module        String   // Auth, Front Desk, Settings, Accounting, POS, Housekeeping, etc.
+  details       String?
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+
+  user          AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // ─── SYSTEM SETTINGS ────────────────────────────────────────

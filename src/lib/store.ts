@@ -11,6 +11,18 @@ interface AuthUser {
   department: string
   position: string
   avatarUrl: string | null
+  phone: string | null
+  dateOfBirth: string | null
+  gender: string | null
+  address: string | null
+  city: string | null
+  country: string | null
+  nationality: string | null
+  idType: string | null
+  idNumber: string | null
+  twoFactorEnabled: boolean
+  lastLoginAt: string | null
+  createdAt: string
 }
 
 interface AuthState {
@@ -111,6 +123,9 @@ interface UserPreferences {
   dateFormat: string
   notifications: boolean
   compactMode: boolean
+  notifEmail: boolean
+  notifPush: boolean
+  notifInApp: boolean
   nepaliStandards: NepaliStandards
 }
 
@@ -129,6 +144,9 @@ export const usePreferencesStore = create<PreferencesState>()(
         dateFormat: 'DD/MM/YYYY',
         notifications: true,
         compactMode: false,
+        notifEmail: true,
+        notifPush: true,
+        notifInApp: true,
         nepaliStandards: {
           dualCalendar: true,
           holidayAlerts: true,
