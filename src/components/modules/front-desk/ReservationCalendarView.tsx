@@ -457,7 +457,10 @@ export function ReservationCalendarView() {
           source: form.source,
         }),
       })
-      if (!res.ok) throw new Error('Failed to create reservation')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to create reservation')
+      }
       return res.json()
     },
     onSuccess: () => {
@@ -466,8 +469,8 @@ export function ReservationCalendarView() {
       setNewResOpen(false)
       toast.success('Reservation created successfully')
     },
-    onError: () => {
-      toast.error('Failed to create reservation')
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to create reservation')
     },
   })
 

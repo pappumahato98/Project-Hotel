@@ -117,8 +117,30 @@ export async function POST(request: Request) {
       guestId, roomId, roomTypeId, ratePlanId, propertyId,
       adults, children, checkIn, checkOut, roomRate,
       specialRequests, source, guaranteed, company, poNumber,
-      notes, reservationType,
+      notes, reservationType, status,
     } = body
+
+    // Validate required dates
+    if (!checkIn || !checkOut) {
+      return NextResponse.json({ error: 'Check-in and check-out dates are required' }, { status: 400 })
+    }
+
+    const checkInDate = new Date(checkIn)
+    const checkOutDate = new Date(checkOut)
+    if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid check-in or check-out date' }, { status: 400 })
+    }
+    if (checkOutDate <= checkInDate) {
+      return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
+    }
+
+    // Resolve property ID — look up from DB if not provided
+    const property = propertyId
+      ? await db.property.findUnique({ where: { id: propertyId } })
+      : await db.property.findFirst({ where: { active: true } })
+    if (!property) {
+      return NextResponse.json({ error: 'No active property found in the system' }, { status: 400 })
+    }
 
     // Read settings from DB
     const s = await getSettingsMap()
@@ -126,16 +148,23 @@ export async function POST(request: Request) {
     const defaultCheckInTime = (s.defaultCheckIn as string) ?? '14:00'
     const defaultCheckOutTime = (s.defaultCheckOut as string) ?? '11:00'
 
-    // Generate confirmation number
+    // Generate unique confirmation number
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let confirmationNo = ''
-    for (let i = 0; i < 8; i++) {
-      confirmationNo += chars.charAt(Math.floor(Math.random() * chars.length))
+    let isUnique = false
+    for (let attempt = 0; attempt < 10; attempt++) {
+      confirmationNo = ''
+      for (let i = 0; i < 8; i++) {
+        confirmationNo += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      const existing = await db.reservation.findUnique({ where: { confirmationNo } })
+      if (!existing) { isUnique = true; break }
+    }
+    if (!isUnique) {
+      return NextResponse.json({ error: 'Failed to generate unique confirmation number' }, { status: 500 })
     }
 
     // Apply default check-in/out times if only dates are provided (no time portion)
-    let checkInDate = new Date(checkIn)
-    let checkOutDate = new Date(checkOut)
     if (checkInDate.getHours() === 0 && checkInDate.getMinutes() === 0) {
       const [h, m] = defaultCheckInTime.split(':').map(Number)
       checkInDate.setHours(h, m, 0, 0)
@@ -158,7 +187,8 @@ export async function POST(request: Request) {
         roomId: roomId || null,
         roomTypeId: roomTypeId || null,
         ratePlanId: ratePlanId || null,
-        propertyId: propertyId || 'prop_01',
+        propertyId: property.id,
+        status: status || 'confirmed',
         adults: adults || 1,
         children: children || 0,
         checkIn: checkInDate,
@@ -183,6 +213,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ reservation }, { status: 201 })
   } catch (error) {
     console.error('Create reservation error:', error)
-    return NextResponse.json({ error: 'Failed to create reservation' }, { status: 500 })
+    const msg = error instanceof Error ? error.message : 'Failed to create reservation'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
