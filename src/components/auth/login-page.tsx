@@ -17,34 +17,54 @@ export function LoginPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
-  const DEMO_USERS: Record<string, { user: { id: string; email: string; firstName: string; lastName: string; role: string; department: string; position: string; avatarUrl: string | null }; token: string }> = {
+  // Fallback demo users — used ONLY when server is unreachable
+  const DEMO_USERS: Record<string, { user: { id: string; email: string; firstName: string; lastName: string; role: string; department: string; position: string; avatarUrl: string | null; phone: string | null; dateOfBirth: string | null; gender: string | null; address: string | null; city: string | null; country: string | null; nationality: string | null; idType: string | null; idNumber: string | null; twoFactorEnabled: boolean; lastLoginAt: string | null; createdAt: string }; token: string }> = {
     'admin@meridian.com': {
-      user: { id: 'admin-001', email: 'admin@meridian.com', firstName: 'Admin', lastName: 'User', role: 'admin', department: 'Management', position: 'Administrator', avatarUrl: null },
+      user: { id: 'demo-admin', email: 'admin@meridian.com', firstName: 'Admin', lastName: 'User', role: 'admin', department: 'Management', position: 'Administrator', avatarUrl: null, phone: null, dateOfBirth: null, gender: null, address: null, city: null, country: null, nationality: null, idType: null, idNumber: null, twoFactorEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() },
       token: 'demo-admin-token',
     },
     'gm@meridian.com': {
-      user: { id: 'gm-001', email: 'gm@meridian.com', firstName: 'Rajesh', lastName: 'Sharma', role: 'general_manager', department: 'Management', position: 'General Manager', avatarUrl: null },
+      user: { id: 'demo-gm', email: 'gm@meridian.com', firstName: 'Rajesh', lastName: 'Sharma', role: 'general_manager', department: 'Management', position: 'General Manager', avatarUrl: null, phone: null, dateOfBirth: null, gender: null, address: null, city: null, country: null, nationality: null, idType: null, idNumber: null, twoFactorEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() },
       token: 'demo-gm-token',
     },
     'sunita@meridian.com': {
-      user: { id: 'staff-001', email: 'sunita@meridian.com', firstName: 'Sunita', lastName: 'Thapa', role: 'front_desk', department: 'Front Office', position: 'Receptionist', avatarUrl: null },
+      user: { id: 'demo-staff', email: 'sunita@meridian.com', firstName: 'Sunita', lastName: 'Thapa', role: 'front_desk', department: 'Front Office', position: 'Receptionist', avatarUrl: null, phone: null, dateOfBirth: null, gender: null, address: null, city: null, country: null, nationality: null, idType: null, idNumber: null, twoFactorEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() },
       token: 'demo-staff-token',
     },
   }
 
-  // Instant demo login — bypasses server entirely
-  const handleDemoLogin = (demoEmail: string) => {
+  // Demo login — tries server first, falls back to local data
+  const handleDemoLogin = async (demoEmail: string) => {
     const demo = DEMO_USERS[demoEmail]
-    if (demo) {
-      setLoading(true)
-      setEmail(demoEmail)
-      setPassword('password123')
-      // Small delay for visual feedback
-      setTimeout(() => {
-        login(demo.user, demo.token)
+    if (!demo) return
+
+    setLoading(true)
+    setEmail(demoEmail)
+    setPassword('password123')
+
+    try {
+      // Try real server login first
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: demoEmail, password: 'password123' }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      const data = await res.json()
+      if (res.ok) {
+        login(data.user, data.token)
         setLoading(false)
-      }, 400)
+        return
+      }
+    } catch {
+      // Server unreachable — use fallback
     }
+    // Fallback: use local demo data
+    login(demo.user, demo.token)
+    setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

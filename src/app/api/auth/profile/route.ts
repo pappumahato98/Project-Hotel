@@ -72,7 +72,7 @@ export async function PUT(req: NextRequest) {
     const allowedFields = [
       'firstName', 'lastName', 'email', 'phone',
       'dateOfBirth', 'gender', 'address', 'city', 'country', 'nationality',
-      'idType', 'idNumber', 'twoFactorEnabled',
+      'idType', 'idNumber', 'twoFactorEnabled', 'avatarUrl',
     ]
 
     const data: Record<string, string | boolean | null> = {}
