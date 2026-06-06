@@ -835,3 +835,29 @@ Stage Summary:
 - Updated: src/components/modules/front-desk/CalendarView.tsx (server error message in toast)
 - Updated: src/components/modules/front-desk/ReservationCalendarView.tsx (server error message in toast)
 - Reservation creation now works correctly via all entry points (Reservations tab, Calendar, Walk-in, Dashboard)
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix "Failed to move reservation" error on calendar drag-and-drop
+
+Work Log:
+- Diagnosed root cause via API testing: PATCH /api/reservations/[id] rejects date-only strings like "2026-06-10"
+- Prisma SQLite requires ISO-8601 DateTime format, error: "Invalid value for argument `checkIn`: premature end of input. Expected ISO-8601 DateTime."
+- The CalendarView drag-and-drop move uses `dateToKey()` which outputs "YYYY-MM-DD" format
+- The PATCH handler was passing the body directly to Prisma without date conversion
+- Fixed PATCH handler in src/app/api/reservations/[id]/route.ts:
+  - Added date string conversion loop for `checkIn` and `checkOut` fields
+  - Parses "YYYY-MM-DD" strings to ISO DateTime via `new Date().toISOString()`
+  - Improved error message: returns actual Prisma error message instead of generic text
+- Fixed frontend error display in CalendarView.tsx:
+  - Extract actual error from server response JSON
+  - Show server error message in toast notification
+- Verified all 3 move scenarios work: date-only change, room change, combined date+room change
+- Lint passes clean with 0 errors
+
+Stage Summary:
+- Root cause: Calendar sends "YYYY-MM-DD" date strings; Prisma requires ISO-8601 DateTime
+- Updated: src/app/api/reservations/[id]/route.ts (date string → ISO DateTime conversion)
+- Updated: src/components/modules/front-desk/CalendarView.tsx (server error message in toast)
+- Reservation moves (drag-and-drop, date change, room change) now work correctly

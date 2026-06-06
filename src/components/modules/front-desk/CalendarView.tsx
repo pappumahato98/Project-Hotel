@@ -678,7 +678,10 @@ export function CalendarView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patchBody),
       })
-      if (!res.ok) throw new Error('Failed to move reservation')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to move reservation')
+      }
       return res.json()
     },
     onSuccess: () => {
@@ -692,8 +695,8 @@ export function CalendarView() {
       setMoveCustomReason('')
       setDragReservation(null)
     },
-    onError: () => {
-      toast.error('Failed to move reservation')
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to move reservation')
     },
   })
 

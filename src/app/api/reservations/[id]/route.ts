@@ -41,6 +41,18 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
+    // Convert date-only strings ("YYYY-MM-DD") to ISO DateTime for Prisma
+    // Prisma SQLite requires ISO-8601 format for DateTime fields
+    const DATE_FIELDS = ['checkIn', 'checkOut'] as const
+    for (const field of DATE_FIELDS) {
+      if (body[field] && typeof body[field] === 'string') {
+        const parsed = new Date(body[field])
+        if (!isNaN(parsed.getTime())) {
+          body[field] = parsed.toISOString()
+        }
+      }
+    }
+
     // Handle special status transitions
     if (body.status === 'checked_in' && body.roomId) {
       await db.room.update({
@@ -69,7 +81,8 @@ export async function PATCH(
     return NextResponse.json({ reservation })
   } catch (error) {
     console.error('Update reservation error:', error)
-    return NextResponse.json({ error: 'Failed to update reservation' }, { status: 500 })
+    const msg = error instanceof Error ? error.message : 'Failed to update reservation'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
