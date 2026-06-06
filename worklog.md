@@ -861,3 +861,243 @@ Stage Summary:
 - Updated: src/app/api/reservations/[id]/route.ts (date string → ISO DateTime conversion)
 - Updated: src/components/modules/front-desk/CalendarView.tsx (server error message in toast)
 - Reservation moves (drag-and-drop, date change, room change) now work correctly
+
+---
+Task ID: 3
+Agent: fullstack-dev (profile-module)
+Task: Build User Profile module
+
+Work Log:
+- Read worklog.md and analyzed existing project structure: navigation.ts, store.ts, app-shell.tsx, auth API routes
+- Confirmed existing PUT /api/auth/password endpoint uses SHA-256 hashing (created by previous agent)
+- Added UserCircle import to navigation.ts and added "My Profile" nav item (id: profile, icon: UserCircle, color: text-violet-600) after Help & Support and before Settings
+- Created src/components/modules/profile/ProfileModule.tsx with 5 tabs:
+  - Personal Information: Editable form with avatar upload placeholder, first/last name, email, phone, DOB, gender, address, city, country, nationality, ID type, ID number; Save button calls updateUser from useAuthStore
+  - Employment Details: Read-only display of department, position, role, hire date, employee ID, reporting to, work status; current property card from usePropertyStore and useSettingsStore; access summary with role-based module badges
+  - Security: Change password form with show/hide toggles, validates all fields and calls PUT /api/auth/password; 2FA placeholder toggle with info note; active sessions (current + 2 placeholder devices with revoke buttons); last login info card
+  - Preferences: Language selector (English/Nepali), date format selector, currency display, timezone (disabled), dark mode placeholder toggle, compact mode toggle via usePreferencesStore, email/push/in-app notification toggles, master notification toggle via updatePreferences
+  - Activity Log: 4 summary cards (total activities, logins, today, unique IPs), module filter dropdown, table with 20 mock activity entries showing date, action, module, details, IP; color-coded action and module badges
+- Registered ProfileModule in app-shell.tsx: imported component and added routing for activeModule === 'profile'
+- Used shadcn/ui components throughout: Card, Tabs, Input, Label, Select, Button, Badge, Separator, Avatar, Switch, Table, ScrollArea
+- Lint passed clean — 0 errors
+- Dev server compiled successfully
+
+Stage Summary:
+- Created: src/components/modules/profile/ProfileModule.tsx (full 5-tab profile page)
+- Updated: src/lib/navigation.ts (added My Profile nav item with UserCircle icon)
+- Updated: src/components/layout/app-shell.tsx (wired ProfileModule routing)
+- Existing API reused: PUT /api/auth/password (SHA-256 password change)
+- All tabs use existing Zustand stores: useAuthStore (updateUser), usePreferencesStore (updatePreferences), usePropertyStore, useSettingsStore
+- Color scheme: violet/amber/warm tones matching hotel theme
+---
+Task ID: 4
+Agent: fullstack-dev (staff-management)
+Task: Build Staff Management module
+
+Work Log:
+- Read worklog.md and analyzed existing HR module: EmployeesView (read-only with useQuery), AttendanceView, PayrollView, HrModule (basic switch with 3 routes)
+- Verified existing API routes: GET/POST /api/employees, GET/PATCH/DELETE /api/employees/[id] — all already present
+- Updated src/lib/navigation.ts: changed HR children from 3 (Employees, Attendance, Payroll) to 6 (Staff Directory, Departments, Attendance, Payroll, Schedules, Performance)
+- Rewrote src/components/modules/hr/EmployeesView.tsx with full CRUD:
+  - Add Employee dialog: form with First Name, Last Name, Email, Phone, Department (Select with 12 departments), Position, Role (Select: admin/gm/manager/supervisor/staff), Hire Date, Salary, Status
+  - Edit Employee dialog: pre-filled from clicked employee row or detail dialog
+  - Delete Employee: AlertDialog confirmation with destructive styling
+  - React Query mutations (createMutation, updateMutation, deleteMutation) with query invalidation and toast notifications
+  - Summary cards: Total Staff, Active, On Leave, Avg Salary
+  - Department breakdown cards (clickable to filter)
+  - Filters: search, department, status, clear button
+  - Table with Actions column (Edit/Delete buttons)
+  - Detail dialog now includes Edit and Delete buttons
+- Created src/components/modules/hr/DepartmentsView.tsx:
+  - Stats cards: Departments count, Total Staff, Total Payroll, Avg Salary
+  - Department cards grid showing employee count, avg salary, head of department
+  - Click department card to open detail dialog with staff list
+  - Add Department dialog (name + description)
+  - Data derived from employees grouped by department (no new API needed)
+- Created src/components/modules/hr/SchedulesView.tsx:
+  - Week navigator with prev/next buttons and Today reset
+  - Shift types: Morning (06:00–14:00), Evening (14:00–22:00), Night (22:00–06:00), Off
+  - Summary cards: Morning/Evening/Night/Off shift counts
+  - Shift legend with color-coded badges
+  - Department filter dropdown
+  - Visual grid: days as columns, staff as rows, shift badges with icons
+  - Export CSV button
+  - Placeholder data for 13 employees across 7 departments
+- Created src/components/modules/hr/PerformanceView.tsx:
+  - Summary cards: Avg Performance, Avg Attendance, Guest Satisfaction, Staff Tracked
+  - Top 3 Performers cards with rank badges and progress bars
+  - Department attendance bar chart (pure CSS, no chart library)
+  - Department performance table
+  - Employee ranking table with rank badges, avatar, scores, progress bars
+  - Color-coded scores: green (90+), teal (80+), amber (70+), red (<70)
+  - Department and time period filters
+  - Placeholder data for 13 employees
+- Updated src/components/modules/hr/HrModule.tsx: added imports and routing for all 6 sub-views
+- Ran bun run lint — 0 errors
+
+Stage Summary:
+- Updated: src/lib/navigation.ts (HR children expanded from 3 to 6)
+- Updated: src/components/modules/hr/EmployeesView.tsx (full CRUD with dialogs, mutations, filters, stats)
+- Updated: src/components/modules/hr/HrModule.tsx (routes for departments, schedules, performance)
+- Created: src/components/modules/hr/DepartmentsView.tsx (department cards, detail dialog, staff list)
+- Created: src/components/modules/hr/SchedulesView.tsx (weekly grid, shift types, export CSV)
+- Created: src/components/modules/hr/PerformanceView.tsx (rankings, bar chart, top performers)
+- API routes already existed: GET/POST /api/employees, GET/PATCH/DELETE /api/employees/[id]
+- All views use shadcn/ui (Dialog, AlertDialog, Select, Badge, Button, Card, Table), toast from sonner, useMutation/useQuery from @tanstack/react-query
+- Color scheme: emerald/teal/amber tones (no indigo/blue)
+---
+Task ID: 5
+Agent: fullstack-dev (nepali-standards)
+Task: Add Nepali Standard features to PMS
+
+Work Log:
+- Created src/lib/nepali-calendar.ts with comprehensive BS/AD conversion:
+  - Lookup table for BS years 2070-2090 with days per month (12 months each)
+  - adToBS() and bsToAD() conversion functions using reference date BS 2070/01/01 = AD 2013/04/14
+  - Nepali month names (Nepali + English), day names, Nepali digit conversion (toNepaliDigits)
+  - formatBSDateNepali(), formatBSDateEnglish(), formatBSDateShort() formatting functions
+  - 18 Nepali public holidays (Dashain, Tihar, Holi, Shivaratri, New Year, Republic Day, etc.)
+  - isNepaliHoliday(), getNepaliHolidays(), isBSHoliday() holiday detection
+  - getDualDateString(), getCompactDualDate() helper formatters
+- Created src/lib/nepali-rules.ts with Nepal tax and business rules:
+  - NEPAL_TAX_CONFIG: 13% VAT, 10% service charge, NPR 500 tourism fee
+  - NEPAL_BUSINESS_RULES: check-in/out times, cash limits, occupancy rules, guest registration
+  - calculateNepaliBill() function for full bill calculation with VAT + service + tourism
+  - formatNPR() and formatNPRDecimal() with Nepali number grouping (last 3, then pairs)
+  - amountInNepaliWords() for invoice amount-to-words conversion in Nepali script
+  - getTaxRate() per service type, needsForexDeclaration(), isCashTransactionCompliant()
+- Created src/components/shared/dual-calendar.tsx:
+  - DualCalendarDisplay component with 3 variants: full, compact, badge
+  - HolidayBadge component for standalone holiday indicators
+  - Tooltip support showing full AD+BS date and holiday info on hover
+  - Controlled by showBS/showAD/showDayName/showNepaliDay/showHoliday props
+- Updated src/lib/store.ts:
+  - Added NepaliStandards interface with dualCalendar, holidayAlerts, autoTaxRules, foreignGuestRegistration, tourismFee, localBodyTaxRate
+  - Added nepaliStandards to UserPreferences with sensible defaults (dualCalendar: true, holidayAlerts: true)
+- Updated src/components/layout/header.tsx:
+  - Added DualCalendarDisplay in header bar (next to property name, hidden on small screens)
+  - Shows compact dual date (AD | BS) when dualCalendar preference is enabled
+- Updated src/lib/format.ts:
+  - Added formatDateWithBS(), formatDateShortWithBS() dual-date formatting
+  - Added getHolidayInfo(), getNepaliDayForDate() helper functions
+  - All BS-aware formatters respect the nepaliStandards.dualCalendar preference
+- Updated src/components/modules/front-desk/CalendarView.tsx:
+  - BS date shown below AD month in calendar day headers (when dual calendar enabled)
+  - Holiday highlighting: orange header background, saffron dot indicator, orange cell tint
+  - Holiday tooltips showing holiday name (e.g., "🎉 Vijaya Dashami")
+  - Toggle button (amber "BS" button) in calendar toolbar to switch dual calendar on/off
+  - Holiday-aware cell backgrounds for date grid cells
+- Updated src/components/modules/settings/SettingsModule.tsx:
+  - Added NepalStandardsTab with 4 setting cards:
+    1. Dual Calendar (AD+BS) toggle with preview
+    2. Nepali Holiday Awareness toggle with holiday badge list (10 shown + 8 more)
+    3. Nepal Tax Rules toggle with tourism fee and local body tax inputs
+    4. Foreign Guest Registration toggle with Nepal Tourism Board guidelines info box
+  - Added "Nepal Standards" tab (Landmark icon) to SETTINGS_TABS array (between Room Defaults and Email)
+  - Wired case 'nepal-standards' in renderContent switch
+- Ran bun run lint — 0 errors
+
+Stage Summary:
+- Created: src/lib/nepali-calendar.ts (BS/AD conversion, 18 holidays, Nepali formatting)
+- Created: src/lib/nepali-rules.ts (Nepal tax config, NPR formatting, business rules, amount-to-words)
+- Created: src/components/shared/dual-calendar.tsx (DualCalendarDisplay with full/compact/badge variants, HolidayBadge)
+- Updated: src/lib/store.ts (added NepaliStandards to UserPreferences)
+- Updated: src/components/layout/header.tsx (dual calendar date display in header)
+- Updated: src/lib/format.ts (formatDateWithBS, getHolidayInfo, getNepaliDayForDate helpers)
+- Updated: src/components/modules/front-desk/CalendarView.tsx (BS dates, holiday highlights, BS toggle button)
+- Updated: src/components/modules/settings/SettingsModule.tsx (Nepal Standards tab — 14th settings tab)
+- Settings now has 14 tabs total (was 13)
+- All features use warm amber/saffron/orange color scheme — no indigo/blue
+- All Nepali preferences persisted via Zustand localStorage
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix "Failed to move reservation" + set default date format DD-MM-YYYY
+
+Work Log:
+- Fixed PATCH /api/reservations/[id] endpoint: added field whitelist (ALLOWED_FIELDS set), only known Reservation fields accepted
+- Fixed date handling: pass Date objects to Prisma instead of ISO strings for DateTime fields
+- Added date validation: checkOut must be after checkIn (returns 400)
+- Added room existence validation: validates target roomId exists before update
+- Added room status side-effect for room changes on checked-in guests (frees old room, occupies new room)
+- Fixed check-out: fetches current reservation's roomId before freeing room (not relying on body.roomId)
+- Enhanced DELETE: frees room if reservation is checked-in before deleting
+- Fixed CalendarView date comparison bug: normalized fromCheckIn/fromCheckOut to YYYY-MM-DD before comparing with new dates (was always true due to ISO vs date-only format mismatch)
+- Fixed moveData to store normalized from dates instead of raw ISO strings
+- Changed default date format from MM/DD/YYYY to DD/MM/YYYY in preferences store
+- Updated format.ts: formatDate uses en-GB locale (DD/MM/YYYY), formatTime uses 12h format
+- Added formatDateShort (DD-Mon-YYYY) and formatDateLong (DD Month YYYY) helpers
+
+Stage Summary:
+- Fixed: src/app/api/reservations/[id]/route.ts (whitelist, Date objects, validation, room status management)
+- Fixed: src/components/modules/front-desk/CalendarView.tsx (date comparison normalization)
+- Updated: src/lib/store.ts (dateFormat default to DD/MM/YYYY)
+- Updated: src/lib/format.ts (en-GB locale, new format helpers)
+
+---
+Task ID: 3
+Agent: fullstack-dev (profile-module)
+Task: Build User Profile module
+
+Work Log:
+- Added "My Profile" nav item to navigation.ts (id: profile, icon: UserCircle, color: text-violet-600)
+- Created ProfileModule.tsx with 5 tabs: Personal Information, Employment Details, Security, Preferences, Activity Log
+- Personal Info tab: avatar, editable fields (name, email, phone, DOB, gender, address, city, country, nationality, ID type/number)
+- Employment Details tab: read-only cards showing department, position, role, hire date, property info
+- Security tab: change password form (calls PUT /api/auth/password), 2FA toggle, active sessions, last login
+- Preferences tab: language, date format, currency, timezone, dark mode, compact mode, notification toggles
+- Activity Log tab: summary cards, module filter, 20-row table with action/module badges
+- Registered ProfileModule in app-shell.tsx MainContent router
+
+Stage Summary:
+- Created: src/components/modules/profile/ProfileModule.tsx
+- Updated: src/lib/navigation.ts (added profile nav item)
+- Updated: src/components/layout/app-shell.tsx (added profile route)
+
+---
+Task ID: 4
+Agent: fullstack-dev (staff-management)
+Task: Build Staff Management module
+
+Work Log:
+- Enhanced EmployeesView with full CRUD: Add Employee dialog, Edit Employee dialog, Delete confirmation
+- Department cards now clickable for quick filtering, summary cards (total, active, on leave, avg salary)
+- React Query mutations for create/update/delete with cache invalidation
+- Created DepartmentsView: department cards with employee count, avg salary, head of department
+- Created SchedulesView: weekly schedule grid with shift types (Morning/Evening/Night/Off), color-coded badges
+- Created PerformanceView: employee ranking table, top performers, department attendance bar chart
+- Updated HR navigation children from 3 to 6 (added Departments, Schedules, Performance)
+- Updated HrModule router to handle all 6 sub-views
+
+Stage Summary:
+- Updated: src/components/modules/hr/EmployeesView.tsx (full CRUD with mutations)
+- Created: src/components/modules/hr/DepartmentsView.tsx
+- Created: src/components/modules/hr/SchedulesView.tsx
+- Created: src/components/modules/hr/PerformanceView.tsx
+- Updated: src/components/modules/hr/HrModule.tsx (6 routes)
+- Updated: src/lib/navigation.ts (6 HR children)
+
+---
+Task ID: 5
+Agent: fullstack-dev (nepali-standards)
+Task: Add Nepali Standard features to PMS
+
+Work Log:
+- Created nepali-calendar.ts: BS↔AD conversion (years 2070-2090), Nepali month/day names, digit conversion, 18 public holidays
+- Created nepali-rules.ts: Nepal tax config (13% VAT, 10% service charge), NPR formatting, amount in Nepali words, forex/cash compliance checks
+- Created dual-calendar.tsx: 3 variants (full/compact/badge), holiday badges, tooltips showing AD+BS dates
+- Added nepaliStandards preferences to Zustand store (dualCalendar, holidayAlerts, autoTaxRules, tourismFee, etc.)
+- Integrated dual calendar display into header bar (compact variant showing AD | BS)
+- Added BS date support to CalendarView: BS dates in column headers, orange holiday highlighting, BS toggle button
+- Added Nepal Standards tab to Settings module (14th tab) with toggles for dual calendar, holiday alerts, tax rules, foreign guest registration
+- Added formatDateWithBS, formatDateShortWithBS, getHolidayInfo, getNepaliDayForDate to format.ts
+
+Stage Summary:
+- Created: src/lib/nepali-calendar.ts (BS calendar engine)
+- Created: src/lib/nepali-rules.ts (Nepal tax & business rules)
+- Created: src/components/shared/dual-calendar.tsx (dual calendar component)
+- Updated: src/lib/store.ts (nepaliStandards preferences)
+- Updated: src/components/layout/header.tsx (dual calendar in header)
+- Updated: src/lib/format.ts (BS-aware formatting)
+- Updated: src/components/modules/front-desk/CalendarView.tsx (BS dates + holidays)
+- Updated: src/components/modules/settings/SettingsModule.tsx (Nepal Standards tab)

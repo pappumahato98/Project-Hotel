@@ -95,6 +95,15 @@ export const usePropertyStore = create<PropertyState>()(
 )
 
 // ─── User Preferences State ────────────────────────────────────
+interface NepaliStandards {
+  dualCalendar: boolean
+  holidayAlerts: boolean
+  autoTaxRules: boolean
+  foreignGuestRegistration: boolean
+  tourismFee: number
+  localBodyTaxRate: number
+}
+
 interface UserPreferences {
   language: string
   currency: string
@@ -102,6 +111,7 @@ interface UserPreferences {
   dateFormat: string
   notifications: boolean
   compactMode: boolean
+  nepaliStandards: NepaliStandards
 }
 
 interface PreferencesState {
@@ -116,9 +126,17 @@ export const usePreferencesStore = create<PreferencesState>()(
         language: 'en',
         currency: 'NPR',
         timezone: 'Asia/Katmandu',
-        dateFormat: 'MM/DD/YYYY',
+        dateFormat: 'DD/MM/YYYY',
         notifications: true,
         compactMode: false,
+        nepaliStandards: {
+          dualCalendar: true,
+          holidayAlerts: true,
+          autoTaxRules: true,
+          foreignGuestRegistration: true,
+          tourismFee: 500,
+          localBodyTaxRate: 0,
+        },
       },
       updatePreferences: (updates) =>
         set((state) => ({

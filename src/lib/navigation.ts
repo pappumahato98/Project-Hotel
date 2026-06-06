@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, CalendarDays, BedDouble, Clock, UtensilsCrossed,
   ClipboardCheck, Users, UserCog, PartyPopper, Calculator, Package,
-  Wrench, TrendingUp, Globe, LifeBuoy, BarChart3, Settings,
+  Wrench, TrendingUp, Globe, LifeBuoy, BarChart3, Settings, UserCircle,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -106,9 +106,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: UserCog,
     color: 'text-pink-600',
     children: [
-      { id: 'employees', label: 'Employees' },
+      { id: 'employees', label: 'Staff Directory' },
+      { id: 'departments', label: 'Departments' },
       { id: 'attendance', label: 'Attendance' },
       { id: 'payroll', label: 'Payroll' },
+      { id: 'schedules', label: 'Schedules' },
+      { id: 'performance', label: 'Performance' },
     ],
   },
   {
@@ -188,6 +191,12 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'faq', label: 'FAQ' },
       { id: 'contact', label: 'Contact Support' },
     ],
+  },
+  {
+    id: 'profile',
+    label: 'My Profile',
+    icon: UserCircle,
+    color: 'text-violet-600',
   },
   {
     id: 'settings',

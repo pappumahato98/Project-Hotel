@@ -11,7 +11,8 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore } from '@/lib/store'
+import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore, usePreferencesStore } from '@/lib/store'
+import { DualCalendarDisplay } from '@/components/shared/dual-calendar'
 import { NAV_ITEMS } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -560,6 +561,8 @@ export function AppHeader() {
   const { setSearchOpen } = useNavigationStore()
   const { activeProperty } = usePropertyStore()
   const { syncFromBackend } = useSettingsStore()
+  const { preferences } = usePreferencesStore()
+  const showDualCalendar = preferences.nepaliStandards?.dualCalendar !== false
 
   React.useEffect(() => { syncFromBackend() }, [])
 
@@ -576,6 +579,22 @@ export function AppHeader() {
           <Building2 className="size-4 text-amber-600 hidden sm:block" />
           <span className="text-sm font-semibold hidden sm:block">{activeProperty.name}</span>
         </div>
+
+        {/* Dual Calendar Date (hidden on small screens) */}
+        {showDualCalendar && (
+          <>
+            <Separator orientation="vertical" className="hidden lg:block h-4" />
+            <div className="hidden lg:block">
+              <DualCalendarDisplay
+                date={new Date()}
+                variant="compact"
+                showAD
+                showBS
+                showHoliday
+              />
+            </div>
+          </>
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />

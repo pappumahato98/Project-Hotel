@@ -2071,6 +2071,171 @@ function AboutTab() {
   )
 }
 
+// ─── Nepal Standards Tab ────────────────────────────────────────────────
+
+function NepalStandardsTab() {
+  const { preferences, updatePreferences } = usePreferencesStore()
+  const ns = preferences.nepaliStandards || {
+    dualCalendar: true,
+    holidayAlerts: true,
+    autoTaxRules: true,
+    foreignGuestRegistration: true,
+    tourismFee: 500,
+    localBodyTaxRate: 0,
+  }
+
+  const updateNS = (updates: Partial<typeof ns>) => {
+    updatePreferences({ nepaliStandards: { ...ns, ...updates } })
+    toast.success('Nepal standards updated')
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Dual Calendar */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader
+            icon={Calendar}
+            title="Dual Calendar (AD + BS)"
+            description="Show Bikram Sambat dates alongside Gregorian (AD) dates throughout the system"
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={Calendar}
+            label="Enable Dual Calendar"
+            description="Display both AD and BS dates in the header, calendar, and reports"
+            checked={ns.dualCalendar}
+            onCheckedChange={(v) => updateNS({ dualCalendar: v })}
+          />
+          <Separator />
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">Preview</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              When enabled, dates will appear as: &quot;15/07/2025 | १/०४/२०८२&quot;
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Holiday Alerts */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader
+            icon={Bell}
+            title="Nepali Holiday Awareness"
+            description="Highlight Nepali public holidays on the calendar and warn during bookings"
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={Bell}
+            label="Holiday Alerts"
+            description="Highlight Dashain, Tihar, Holi, and other major holidays on the calendar"
+            checked={ns.holidayAlerts}
+            onCheckedChange={(v) => updateNS({ holidayAlerts: v })}
+          />
+          <Separator />
+          <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 p-3">
+            <p className="text-xs font-semibold text-orange-800 dark:text-orange-300 mb-1">Supported Holidays (18)</p>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {['New Year', 'Republic Day', 'Dashain', 'Tihar', 'Holi', 'Shivaratri', 'Chhath', 'Saraswati Puja', 'Makar Sankranti', 'Ram Navami'].map((h) => (
+                <Badge key={h} variant="outline" className="text-[9px] px-1.5 py-0 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-400">
+                  {h}
+                </Badge>
+              ))}
+              <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground">+8 more</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tax Rules */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader
+            icon={Percent}
+            title="Nepal Tax Rules"
+            description="Auto-apply Nepal-standard tax rates (VAT 13%, Service Charge 10%) to invoices"
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={Percent}
+            label="Auto-Apply Nepal Tax Rules"
+            description="Automatically calculate VAT and service charge per Nepal government standards"
+            checked={ns.autoTaxRules}
+            onCheckedChange={(v) => updateNS({ autoTaxRules: v })}
+          />
+          <Separator />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <SettingRow icon={Landmark} label="Tourism Fee / Night" description="Per-night tourism levy">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Rs.</span>
+                <Input
+                  type="number"
+                  value={String(ns.tourismFee)}
+                  onChange={(e) => updateNS({ tourismFee: parseInt(e.target.value) || 0 })}
+                  className="w-20 h-8 text-xs text-right"
+                  min="0" step="100"
+                />
+              </div>
+            </SettingRow>
+            <SettingRow icon={Building} label="Local Body Tax %" description="Municipality tax rate">
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="number"
+                  value={String(ns.localBodyTaxRate)}
+                  onChange={(e) => updateNS({ localBodyTaxRate: parseFloat(e.target.value) || 0 })}
+                  className="w-20 h-8 text-xs text-right"
+                  min="0" max="100" step="0.5"
+                />
+                <span className="text-xs text-muted-foreground">%</span>
+              </div>
+            </SettingRow>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Guest Registration */}
+      <Card>
+        <CardHeader className="pb-3">
+          <SectionHeader
+            icon={ShieldCheck}
+            title="Foreign Guest Registration"
+            description="Nepal requires passport/ID registration for all foreign nationals"
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ToggleRow
+            icon={ShieldCheck}
+            label="Require Passport for Foreign Guests"
+            description="Prompt for passport number and nationality during check-in"
+            checked={ns.foreignGuestRegistration}
+            onCheckedChange={(v) => updateNS({ foreignGuestRegistration: v })}
+          />
+          <Separator />
+          <div className="rounded-lg bg-muted/50 p-3">
+            <div className="flex items-start gap-2">
+              <Info className="size-4 text-muted-foreground mt-0.5 shrink-0" />
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>As per Nepal Tourism Board guidelines, all hotels must register foreign guests with their:</p>
+                <ul className="list-disc list-inside space-y-0.5 ml-1">
+                  <li>Passport number</li>
+                  <li>Nationality</li>
+                  <li>Visa type and expiry</li>
+                  <li>Entry/departure dates</li>
+                </ul>
+                <p className="mt-1">Transactions exceeding NPR 200,000 in cash must be reported.</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // ─── Main Settings Module ──────────────────────────────────────────────
 
 const SETTINGS_TABS = [
@@ -2080,6 +2245,7 @@ const SETTINGS_TABS = [
   { id: 'policies', label: 'Booking Policies', icon: FileText, description: 'Cancellation & deposit rules' },
   { id: 'payment', label: 'Payment Methods', icon: CreditCard, description: 'Accepted payment types' },
   { id: 'room-defaults', label: 'Room Defaults', icon: BedDouble, description: 'Default room settings' },
+  { id: 'nepal-standards', label: 'Nepal Standards', icon: Landmark, description: 'BS calendar, holidays & tax rules' },
   { id: 'email', label: 'Email & Comms', icon: Mail, description: 'SMTP & email templates' },
   { id: 'printing', label: 'Printing & Docs', icon: Printer, description: 'Receipt & invoice format' },
   { id: 'notifications', label: 'Notifications', icon: Bell, description: 'Alert preferences' },
@@ -2106,6 +2272,7 @@ export function SettingsModule() {
       case 'policies': return <BookingPoliciesTab />
       case 'payment': return <PaymentMethodsTab />
       case 'room-defaults': return <RoomDefaultsTab />
+      case 'nepal-standards': return <NepalStandardsTab />
       case 'email': return <EmailTab />
       case 'printing': return <PrintingTab />
       case 'notifications': return <NotificationsTab />

@@ -45,6 +45,8 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge'
 import { EmptyState, NoScheduleIllustration } from '@/components/shared/illustrations'
 import { formatDate, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
+import { adToBS, isNepaliHoliday, getNepaliMonthShortEnglish } from '@/lib/nepali-calendar'
+import { usePreferencesStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useNavigationStore } from '@/lib/store'
@@ -240,6 +242,10 @@ const ROOM_STATUS_LABELS: Record<string, string> = {
 
 const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// Saffron color for holiday highlighting
+const HOLIDAY_HEADER_BG = 'bg-orange-900/30'
+const HOLIDAY_CELL_BG = 'bg-orange-50/50 dark:bg-orange-950/20'
+
 // ─── Date Helpers ────────────────────────────────────────────────────────
 
 function addDays(date: Date, days: number): Date {
@@ -326,6 +332,9 @@ export function CalendarView() {
   // ─── Responsive container sizing ────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(0)
   const [viewMode, setViewMode] = useState<'week' | 'twoWeeks'>('twoWeeks')
+  const { preferences } = usePreferencesStore()
+  const showBSDates = preferences.nepaliStandards?.dualCalendar !== false
+  const showHolidayAlerts = preferences.nepaliStandards?.holidayAlerts !== false
 
   // Observe container resize + react to sidebar state changes
   const recalcWidth = useCallback(() => {
@@ -896,7 +905,10 @@ export function CalendarView() {
       const newCheckIn = targetDateStr
       const newCheckOut = dateToKey(addDays(targetDate, nightCount))
 
-      const datesChanged = newCheckIn !== fromCheckIn || newCheckOut !== fromCheckOut
+      // Normalize original dates to YYYY-MM-DD for accurate comparison
+      const origCIKey = dateToKey(origCI)
+      const origCOKey = dateToKey(origCO)
+      const datesChanged = newCheckIn !== origCIKey || newCheckOut !== origCOKey
 
       if (!roomChanged && !datesChanged) {
         setDragReservation(null)
@@ -912,8 +924,8 @@ export function CalendarView() {
         fromRoomNumber: fromRoomNumber || '—',
         toRoomId: targetRoomId,
         toRoomNumber: targetRoom?.number || '—',
-        fromCheckIn,
-        fromCheckOut,
+        fromCheckIn: origCIKey,
+        fromCheckOut: origCOKey,
         toCheckIn: newCheckIn,
         toCheckOut: newCheckOut,
         roomChanged,
@@ -1260,6 +1272,23 @@ export function CalendarView() {
             <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={goToNextWeek}>
               <ChevronRight className="size-3.5" />
             </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={showBSDates ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn('h-8 gap-1 text-xs', showBSDates && 'bg-amber-600 hover:bg-amber-700 text-white')}
+                  onClick={() => {
+                    const updated = { ...preferences.nepaliStandards, dualCalendar: !showBSDates }
+                    usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
+                  }}
+                >
+                  <span className="hidden sm:inline">BS</span>
+                  <span className="sm:hidden">बि</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent className="text-xs">Toggle Bikram Sambat calendar</TooltipContent>
+            </Tooltip>
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs"
@@ -1314,47 +1343,80 @@ export function CalendarView() {
                     {dayHeaders.map((date, i) => {
                       const isToday = isSameDay(date, today)
                       const weekend = isWeekend(date)
+                      const holidayInfo = showHolidayAlerts ? isNepaliHoliday(date) : { isHoliday: false }
+                      const bs = showBSDates ? adToBS(date) : null
+                      const isHoliday = holidayInfo.isHoliday
                       return (
-                        <div
-                          key={i}
-                          className={cn(
-                            'flex flex-col items-center justify-center border-r last:border-r-0 select-none bg-slate-800 dark:bg-slate-950',
-                          )}
-                          style={{ width: dayWidth, height: HEADER_HEIGHT }}
-                        >
-                          <span
-                            className={cn(
-                              'text-[9px] sm:text-[10px] font-medium leading-tight',
-                              isToday ? 'text-emerald-400' : 'text-slate-400',
-                            )}
-                          >
-                            {isCompact ? DAY_ABBR[date.getDay()].slice(0, 3) : DAY_ABBR[date.getDay()]}
-                          </span>
-                          <span
-                            className={cn(
-                              'text-xs sm:text-sm font-bold leading-none mt-0.5',
-                              isToday ? 'text-emerald-300' : weekend ? 'text-rose-400' : 'text-white',
-                            )}
-                          >
-                            {String(date.getDate()).padStart(2, '0')}
-                          </span>
-                          {!isSmallScreen && (
-                            <span
+                        <Tooltip key={i}>
+                          <TooltipTrigger asChild>
+                            <div
                               className={cn(
-                                'text-[8px] sm:text-[9px] font-medium mt-0.5',
-                                isToday
-                                  ? 'text-emerald-400'
-                                  : weekend
-                                    ? 'text-rose-400/70'
-                                    : 'text-slate-500',
+                                'flex flex-col items-center justify-center border-r last:border-r-0 select-none bg-slate-800 dark:bg-slate-950',
+                                isHoliday && HOLIDAY_HEADER_BG,
                               )}
+                              style={{ width: dayWidth, height: HEADER_HEIGHT }}
                             >
-                              {isToday
-                                ? 'Today'
-                                : `${date.toLocaleDateString('en-US', { month: 'short' })}`}
-                            </span>
-                          )}
-                        </div>
+                              <span
+                                className={cn(
+                                  'text-[9px] sm:text-[10px] font-medium leading-tight',
+                                  isToday ? 'text-emerald-400' : isHoliday ? 'text-orange-400' : 'text-slate-400',
+                                )}
+                              >
+                                {isCompact ? DAY_ABBR[date.getDay()].slice(0, 3) : DAY_ABBR[date.getDay()]}
+                              </span>
+                              <span
+                                className={cn(
+                                  'text-xs sm:text-sm font-bold leading-none mt-0.5',
+                                  isToday ? 'text-emerald-300' : isHoliday ? 'text-orange-300' : weekend ? 'text-rose-400' : 'text-white',
+                                )}
+                              >
+                                {String(date.getDate()).padStart(2, '0')}
+                              </span>
+                              {!isSmallScreen && (
+                                <>
+                                  <span
+                                    className={cn(
+                                      'text-[8px] sm:text-[9px] font-medium mt-0.5',
+                                      isToday
+                                        ? 'text-emerald-400'
+                                        : isHoliday
+                                          ? 'text-orange-400/70'
+                                          : weekend
+                                            ? 'text-rose-400/70'
+                                            : 'text-slate-500',
+                                    )}
+                                  >
+                                    {isToday
+                                      ? 'Today'
+                                      : `${date.toLocaleDateString('en-US', { month: 'short' })}`}
+                                  </span>
+                                  {bs && !isToday && (
+                                    <span className={cn(
+                                      'text-[7px] sm:text-[8px] font-medium leading-tight',
+                                      isHoliday ? 'text-orange-400/60' : 'text-amber-500/50'
+                                    )}>
+                                      {bs.day} {getNepaliMonthShortEnglish(bs.month)}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                              {isHoliday && (
+                                <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-orange-500" />
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                            <div className="space-y-0.5">
+                              <p className="font-medium">{DAY_ABBR[date.getDay()]}, {date.getDate()} {date.toLocaleDateString('en-US', { month: 'short' })} {date.getFullYear()}</p>
+                              {bs && (
+                                <p className="text-amber-500">BS: {bs.day} {getNepaliMonthShortEnglish(bs.month)} {bs.year}</p>
+                              )}
+                              {isHoliday && holidayInfo.nameEn && (
+                                <p className="text-orange-500 font-medium">🎉 {holidayInfo.nameEn}</p>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
                       )
                     })}
                   </div>
@@ -1408,6 +1470,7 @@ export function CalendarView() {
                           {dayHeaders.map((date, dayIdx) => {
                             const isToday = isSameDay(date, today)
                             const weekend = isWeekend(date)
+                            const cellHoliday = showHolidayAlerts ? isNepaliHoliday(date) : { isHoliday: false }
 
                             return (
                               <div
@@ -1416,6 +1479,7 @@ export function CalendarView() {
                                   'relative border-r last:border-r-0 cursor-pointer group',
                                   isToday && 'bg-primary/[0.03]',
                                   weekend && !isToday && 'bg-muted/10',
+                                  cellHoliday.isHoliday && !isToday && !weekend && HOLIDAY_CELL_BG,
                                   dragReservation && 'ring-0 ring-inset ring-primary/10',
                                 )}
                                 style={{ width: dayWidth, height: ROW_HEIGHT }}
