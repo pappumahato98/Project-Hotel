@@ -1212,3 +1212,21 @@ Stage Summary:
   - Changed scroll container to `overflow-auto` for full scroll support
 - Calendar page now has clean header without search box
 - Calendar grid is now scrollable both horizontally (days) and vertically (rooms)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Remove search box from calendar page and fix reservation calendar scrolling
+
+Work Log:
+- Analyzed CalendarView.tsx and ReservationCalendarView.tsx to find search-related components
+- Identified that the "Search... ⌘ K" button in AppHeader (header.tsx) was visible on all pages including calendar
+- Identified that FrontDeskModule wrapper had `overflow-y-auto` which prevented CalendarView from having its own internal scroll
+- Modified header.tsx: Added `isCalendarPage` detection using `activeModule` and `activeSubModule` from navigation store; wrapped search buttons in `{!isCalendarPage && (...)}` conditional
+- Modified FrontDeskModule.tsx: Changed wrapper from `overflow-y-auto` to `overflow-hidden` when calendar sub-module is active; added `overflow-hidden` to the active view container when calendar is active
+- Verified via agent-browser: Confirmed search button is NOT visible on calendar page (confirmed by snapshot lacking the Search... ⌘ K button)
+- Verified page loads correctly with no errors
+
+Stage Summary:
+- Search box successfully removed from calendar page header (both desktop and mobile search buttons)
+- Calendar scrolling fixed by preventing parent `overflow-y-auto` from competing with CalendarView's internal `overflow-auto` scroll container
+- Files changed: src/components/layout/header.tsx, src/components/modules/front-desk/FrontDeskModule.tsx

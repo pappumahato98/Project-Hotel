@@ -558,10 +558,12 @@ function UserMenu() {
 
 // ─── AppHeader ────────────────────────────────────────────────────────
 export function AppHeader() {
-  const { setSearchOpen } = useNavigationStore()
+  const { setSearchOpen, activeModule, activeSubModule } = useNavigationStore()
   const { activeProperty } = usePropertyStore()
   const { preferences } = usePreferencesStore()
   const showDualCalendar = preferences.nepaliStandards?.dualCalendar !== false
+  // Hide search button on calendar page to maximize space
+  const isCalendarPage = activeModule === 'front-desk' && activeSubModule === 'calendar'
 
   return (
     <>
@@ -596,29 +598,33 @@ export function AppHeader() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Search button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="hidden sm:inline-flex h-8 gap-2 text-muted-foreground w-64 justify-start font-normal"
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search className="size-3.5" />
-          <span>Search...</span>
-          <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-            <span className="text-xs">&#8984;</span>K
-          </kbd>
-        </Button>
-        {/* Mobile search */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="sm:hidden size-8"
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search className="size-4" />
-          <span className="sr-only">Search</span>
-        </Button>
+        {/* Search button (hidden on calendar page) */}
+        {!isCalendarPage && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex h-8 gap-2 text-muted-foreground w-64 justify-start font-normal"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="size-3.5" />
+            <span>Search...</span>
+            <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              <span className="text-xs">&#8984;</span>K
+            </kbd>
+          </Button>
+        )}
+        {/* Mobile search (hidden on calendar page) */}
+        {!isCalendarPage && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="sm:hidden size-8"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="size-4" />
+            <span className="sr-only">Search</span>
+          </Button>
+        )}
 
         {/* Notifications */}
         <DropdownMenu>

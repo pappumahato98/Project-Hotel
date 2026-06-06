@@ -82,8 +82,8 @@ export function FrontDeskModule() {
 
   return (
     <div className={cn(
-        'flex flex-1 flex-col min-h-0 overflow-y-auto',
-        currentSubModule === 'calendar' ? 'p-0 gap-0' : 'p-4 md:p-6 gap-4',
+        'flex flex-1 flex-col min-h-0',
+        currentSubModule === 'calendar' ? 'overflow-hidden p-0 gap-0' : 'overflow-y-auto p-4 md:p-6 gap-4',
       )}>
       {/* Module Header with Quick Search (hidden when Calendar is active) */}
       {showModuleHeader && (
@@ -139,7 +139,7 @@ export function FrontDeskModule() {
       {/* Active View */}
       <div className={cn(
         'flex flex-col min-h-0',
-        currentSubModule === 'calendar' ? 'flex-1 px-4 pb-4 pt-2' : '',
+        currentSubModule === 'calendar' ? 'flex-1 overflow-hidden px-4 pb-4 pt-2' : '',
       )}>
         <ActiveView />
       </div>
