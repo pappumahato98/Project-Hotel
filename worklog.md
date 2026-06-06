@@ -772,3 +772,33 @@ Stage Summary:
 - Updated: src/app/api/reservations/[id]/route.ts (auto-create/close folio on status change)
 - Updated: src/components/modules/front-desk/FolioView.tsx (always load folio context)
 - All 3 bugs fixed, lint passes clean
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix login navigation issue — signing in doesn't redirect to dashboard
+
+Work Log:
+- Diagnosed root cause: Zustand persist hydration race condition
+  - When `login()` is called before persist middleware finishes hydrating from localStorage, the state change (`isAuthenticated: true`) can be silently overwritten by the hydration merge
+  - This is a well-known Zustand persist issue in Next.js App Router
+- Added `_hasHydrated` boolean flag and `_setHasHydrated` action to AuthState in store.ts
+- Added `onRehydrateStorage` callback to persist config that sets `_hasHydrated: true` after hydration completes
+- Updated `page.tsx` to wait for hydration before rendering:
+  - Shows branded loading spinner ("Loading Meridian PMS...") while `_hasHydrated` is false
+  - Only renders LoginPage or AppShell after hydration is complete
+  - Prevents state changes from being overwritten by late hydration
+- Updated `login-page.tsx` to call `setLoading(false)` in all code paths (success and fallback)
+- Browser verified:
+  - Demo login (Admin button) → navigates to dashboard ✅
+  - Manual login (Enter key) → navigates to dashboard ✅
+  - Logout → redirects back to login page ✅
+  - Re-login after logout works correctly ✅
+- Lint passes clean with 0 errors
+
+Stage Summary:
+- Root cause: Zustand persist hydration race condition overwriting `isAuthenticated: true`
+- Updated: src/lib/store.ts (added `_hasHydrated` flag + `onRehydrateStorage` callback)
+- Updated: src/app/page.tsx (hydration guard with loading spinner)
+- Updated: src/components/auth/login-page.tsx (setLoading(false) in all paths)
+- Login flow now works reliably: demo buttons and manual form submission both navigate to dashboard

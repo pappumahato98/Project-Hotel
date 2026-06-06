@@ -77,12 +77,14 @@ export function LoginPage() {
       }
 
       login(data.user, data.token)
+      setLoading(false)
     } catch (err) {
       // If aborted (timeout) or network error → try demo fallback
       const demo = DEMO_USERS[trimmedEmail]
       if (demo && password === 'password123') {
         // Silent fallback — user doesn't see an error
         login(demo.user, demo.token)
+        setLoading(false)
       } else if (demo) {
         setError('Server unreachable. Try the "Quick Demo Login" button below.')
         setLoading(false)
@@ -91,7 +93,6 @@ export function LoginPage() {
         setLoading(false)
       }
     }
-    // Note: no finally block — loading is reset in each branch
   }
 
   return (
