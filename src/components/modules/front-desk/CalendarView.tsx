@@ -165,8 +165,8 @@ interface NewReservationForm {
 // Default/fallback constants (used when container size is unknown)
 const DEFAULT_NUM_DAYS = 14
 const DEFAULT_DAY_WIDTH = 100
-const ROW_HEIGHT = 44
-const HEADER_HEIGHT = 44
+const ROW_HEIGHT = 40
+const HEADER_HEIGHT = 50
 const DEFAULT_ROOM_COL_WIDTH = 140
 
 const SOURCE_OPTIONS = [
@@ -240,6 +240,7 @@ const ROOM_STATUS_LABELS: Record<string, string> = {
 }
 
 const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAY_ABBR_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 // Saffron color for holiday highlighting
 const HOLIDAY_HEADER_BG = 'bg-orange-900/30'
@@ -332,7 +333,7 @@ export function CalendarView() {
   const [containerWidth, setContainerWidth] = useState(0)
   const [viewMode, setViewMode] = useState<'week' | 'twoWeeks'>('twoWeeks')
   const { preferences } = usePreferencesStore()
-  const showBSDates = preferences.nepaliStandards?.dualCalendar !== false
+  const showBSDates = preferences.nepaliStandards?.dualCalendar === true
   const showHolidayAlerts = preferences.nepaliStandards?.holidayAlerts !== false
 
   // Observe container resize + react to sidebar state changes
@@ -394,6 +395,7 @@ export function CalendarView() {
 
   // ─── Floor filter ────────────────────────────────────────────────────
   const [floorFilter, setFloorFilter] = useState<string>('all')
+  const clearFloorFilter = useCallback(() => setFloorFilter('all'), [])
 
   // ─── Dialog state ─────────────────────────────────────────────────────
   const [selectedReservation, setSelectedReservation] = useState<CalendarReservation | null>(null)
@@ -1239,19 +1241,30 @@ export function CalendarView() {
           {/* Right side: Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Floor filter, view mode, navigation, new booking */}
-            <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger className="w-[110px] h-8 text-xs">
-                <SelectValue placeholder="All Floors" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Floors</SelectItem>
-                {uniqueFloors.map((f) => (
-                  <SelectItem key={f} value={f.toString()}>
-                    Floor {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="relative">
+              <Select value={floorFilter} onValueChange={setFloorFilter}>
+                <SelectTrigger className={cn('w-[110px] h-8 text-xs', floorFilter !== 'all' && 'pr-7')}>
+                  <SelectValue placeholder="All Floors" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Floors</SelectItem>
+                  {uniqueFloors.map((f) => (
+                    <SelectItem key={f} value={f.toString()}>
+                      Floor {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {floorFilter !== 'all' && (
+                <button
+                  onClick={clearFloorFilter}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-4 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Clear floor filter"
+                >
+                  <XCircle className="size-3" />
+                </button>
+              )}
+            </div>
             <Button variant="outline" size="sm" className={cn('h-8 gap-1 text-xs', viewMode === 'week' ? 'bg-secondary' : '')} onClick={() => setViewMode('week')}>
               <CalendarDays className="size-3.5" />
               <span className="hidden md:inline">Week</span>
@@ -1274,17 +1287,17 @@ export function CalendarView() {
                 <Button
                   variant={showBSDates ? 'default' : 'outline'}
                   size="sm"
-                  className={cn('h-8 gap-1 text-xs', showBSDates && 'bg-amber-600 hover:bg-amber-700 text-white')}
+                  className={cn('h-8 gap-1 text-xs font-medium', showBSDates && 'bg-amber-600 hover:bg-amber-700 text-white')}
                   onClick={() => {
                     const updated = { ...preferences.nepaliStandards, dualCalendar: !showBSDates }
                     usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
                   }}
                 >
-                  <span className="hidden sm:inline">BS</span>
-                  <span className="sm:hidden">बि</span>
+                  <span className="hidden sm:inline">{showBSDates ? 'बि.सं BS' : 'AD'}</span>
+                  <span className="sm:hidden">{showBSDates ? 'बि' : 'AD'}</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="text-xs">Toggle Bikram Sambat calendar</TooltipContent>
+              <TooltipContent className="text-xs">{showBSDates ? 'Switch to AD dates' : 'Switch to BS dates'}</TooltipContent>
             </Tooltip>
             <Button
               size="sm"
@@ -1338,7 +1351,7 @@ export function CalendarView() {
                   {/* Date column headers */}
                   <div className="flex">
                     {dayHeaders.map((date, i) => {
-                      const isToday = isSameDay(date, today)
+                      const isTodayCol = isSameDay(date, today)
                       const weekend = isWeekend(date)
                       const holidayInfo = showHolidayAlerts ? isNepaliHoliday(date) : { isHoliday: false }
                       const bs = showBSDates ? adToBS(date) : null
@@ -1348,61 +1361,60 @@ export function CalendarView() {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                'flex flex-col items-center justify-center border-r last:border-r-0 select-none bg-slate-800 dark:bg-slate-950',
-                                isHoliday && HOLIDAY_HEADER_BG,
+                                'flex flex-col items-center justify-center border-r last:border-r-0 select-none',
+                                isTodayCol && 'bg-emerald-900/40',
+                                !isTodayCol && weekend && 'bg-rose-900/20',
+                                !isTodayCol && isHoliday && HOLIDAY_HEADER_BG,
+                                !isTodayCol && !weekend && !isHoliday && 'bg-slate-800 dark:bg-slate-950',
                               )}
                               style={{ width: dayWidth, height: HEADER_HEIGHT }}
                             >
-                              <span
-                                className={cn(
-                                  'text-[9px] sm:text-[10px] font-medium leading-tight',
-                                  isToday ? 'text-emerald-400' : isHoliday ? 'text-orange-400' : 'text-slate-400',
-                                )}
-                              >
-                                {isCompact ? DAY_ABBR[date.getDay()].slice(0, 3) : DAY_ABBR[date.getDay()]}
-                              </span>
-                              <span
-                                className={cn(
-                                  'text-xs sm:text-sm font-bold leading-none mt-0.5',
-                                  isToday ? 'text-emerald-300' : isHoliday ? 'text-orange-300' : weekend ? 'text-rose-400' : 'text-white',
-                                )}
-                              >
-                                {String(date.getDate()).padStart(2, '0')}
-                              </span>
-                              {!isSmallScreen && (
-                                <>
-                                  <span
-                                    className={cn(
-                                      'text-[8px] sm:text-[9px] font-medium mt-0.5',
-                                      isToday
-                                        ? 'text-emerald-400'
-                                        : isHoliday
-                                          ? 'text-orange-400/70'
-                                          : weekend
-                                            ? 'text-rose-400/70'
-                                            : 'text-slate-500',
-                                    )}
-                                  >
-                                    {isToday
-                                      ? 'Today'
-                                      : `${date.toLocaleDateString('en-US', { month: 'short' })}`}
-                                  </span>
-                                  {bs && !isToday && (
-                                    <span className={cn(
-                                      'text-[7px] sm:text-[8px] font-medium leading-tight',
-                                      isHoliday ? 'text-orange-400/60' : 'text-amber-500/50'
-                                    )}>
-                                      {bs.day} {getNepaliMonthShortEnglish(bs.month)}
-                                    </span>
+                              {/* Day name + Date number on one line */}
+                              <div className="flex items-baseline gap-0.5">
+                                <span
+                                  className={cn(
+                                    'text-[10px] sm:text-xs font-semibold leading-none',
+                                    isTodayCol ? 'text-emerald-400' : isHoliday ? 'text-orange-400' : weekend ? 'text-rose-400/80' : 'text-slate-400',
                                   )}
-                                </>
-                              )}
+                                >
+                                  {isCompact ? DAY_ABBR_SHORT[date.getDay()] : DAY_ABBR[date.getDay()]}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'text-xs sm:text-sm font-bold leading-none',
+                                    isTodayCol ? 'text-emerald-300' : isHoliday ? 'text-orange-300' : weekend ? 'text-rose-400/90' : 'text-white',
+                                  )}
+                                >
+                                  {showBSDates && bs
+                                    ? String(bs.day).padStart(2, '0')
+                                    : String(date.getDate()).padStart(2, '0')}
+                                </span>
+                              </div>
+                              {/* Sub-label: Today, month, or BS month */}
+                              <span
+                                className={cn(
+                                  'text-[8px] sm:text-[9px] font-medium leading-tight mt-0.5',
+                                  isTodayCol
+                                    ? 'text-emerald-400 font-bold uppercase'
+                                    : isHoliday
+                                      ? 'text-orange-400/70'
+                                      : weekend
+                                        ? 'text-rose-400/60'
+                                        : 'text-slate-500',
+                                )}
+                              >
+                                {isTodayCol
+                                  ? 'Today'
+                                  : showBSDates && bs
+                                    ? getNepaliMonthShortEnglish(bs.month)
+                                    : date.toLocaleDateString('en-US', { month: 'short' })}
+                              </span>
                               {isHoliday && (
                                 <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-orange-500" />
                               )}
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent side="bottom" className="text-xs max-w-[200px]">
+                          <TooltipContent side="bottom" className="text-xs max-w-[220px]">
                             <div className="space-y-0.5">
                               <p className="font-medium">{DAY_ABBR[date.getDay()]}, {date.getDate()} {date.toLocaleDateString('en-US', { month: 'short' })} {date.getFullYear()}</p>
                               {bs && (
@@ -1455,9 +1467,8 @@ export function CalendarView() {
                           </Tooltip>
                           <div className="min-w-0 flex-1">
                             <p className="text-[10px] sm:text-xs font-bold truncate leading-tight text-white">#{room.number}</p>
-                            <p className="text-[9px] sm:text-[10px] text-slate-400 leading-tight truncate">
-                              {room.type.code}
-                              {room.wing ? ` · ${room.wing}` : ''}
+                            <p className="text-[8px] sm:text-[9px] text-slate-500 leading-tight truncate">
+                              {room.type.code}{room.wing ? ` · ${room.wing}` : ''} · F{room.floor}
                             </p>
                           </div>
                         </div>
@@ -1465,7 +1476,7 @@ export function CalendarView() {
                         {/* ─── Date Cells ────────────────────────────────── */}
                         <div className="relative flex">
                           {dayHeaders.map((date, dayIdx) => {
-                            const isToday = isSameDay(date, today)
+                            const isTodayCell = isSameDay(date, today)
                             const weekend = isWeekend(date)
                             const cellHoliday = showHolidayAlerts ? isNepaliHoliday(date) : { isHoliday: false }
 
@@ -1474,10 +1485,10 @@ export function CalendarView() {
                                 key={dayIdx}
                                 className={cn(
                                   'relative border-r last:border-r-0 cursor-pointer group',
-                                  isToday && 'bg-primary/[0.03]',
-                                  weekend && !isToday && 'bg-muted/10',
-                                  cellHoliday.isHoliday && !isToday && !weekend && HOLIDAY_CELL_BG,
-                                  dragReservation && 'ring-0 ring-inset ring-primary/10',
+                                  isTodayCell && 'bg-emerald-50/50 dark:bg-emerald-950/20',
+                                  !isTodayCell && weekend && 'bg-rose-50/30 dark:bg-rose-950/10',
+                                  cellHoliday.isHoliday && !isTodayCell && !weekend && HOLIDAY_CELL_BG,
+                                  !isTodayCell && !weekend && !cellHoliday.isHoliday && roomIdx % 2 !== 0 && 'bg-muted/10',
                                 )}
                                 style={{ width: dayWidth, height: ROW_HEIGHT }}
                                 onDoubleClick={() => handleCellDoubleClick(room.id, date)}
@@ -1485,8 +1496,8 @@ export function CalendarView() {
                                 onDrop={(e) => handleDrop(e, room.id, date)}
                               >
                                 {/* Today vertical indicator */}
-                                {isToday && (
-                                  <div className="absolute inset-y-0 left-0 w-0.5 bg-primary/30 z-10" />
+                                {isTodayCell && (
+                                  <div className="absolute inset-y-0 left-0 w-0.5 bg-emerald-500/40 z-10" />
                                 )}
                                 {/* Empty cell hover indicator */}
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -1598,23 +1609,17 @@ export function CalendarView() {
             </div>
 
             {/* ─── Bottom Status Legend Bar ──────────────────────────── */}
-            <div className="flex items-center gap-4 px-3 py-1.5 bg-muted/30 border-t text-xs shrink-0">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Status:</span>
-              {LEGEND_ITEMS.map((item) => (
-                <div key={item.key} className="flex items-center gap-1.5">
-                  <div className={cn('size-2.5 rounded-sm shrink-0', item.dotClass)} />
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">{item.label}</span>
-                </div>
-              ))}
-              <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
-                <span>{filteredRooms.length} rooms</span>
-                <span>·</span>
-                <span>{summary.totalReservations} reservations</span>
-                <span>·</span>
-                <span>{summary.arrivals} arrivals</span>
-                <span>·</span>
-                <span>{summary.departures} departures</span>
+            <div className="flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[10px] shrink-0">
+              <div className="flex items-center gap-2">
+                {LEGEND_ITEMS.map((item) => (
+                  <div key={item.key} className="flex items-center gap-1">
+                    <div className={cn('size-2 rounded-sm shrink-0', item.dotClass)} />
+                    <span className="text-muted-foreground whitespace-nowrap">{item.label}</span>
+                  </div>
+                ))}
               </div>
+              <Separator orientation="vertical" className="h-3" />
+              <span className="text-muted-foreground">{filteredRooms.length} rooms · {summary.totalReservations} bookings · {summary.arrivals} arr · {summary.departures} dep</span>
             </div>
           </Card>
         )}
@@ -1831,28 +1836,33 @@ export function CalendarView() {
 
         {/* ─── New Reservation Dialog ────────────────────────────────────── */}
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-          <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="px-4 pt-4 pb-2 border-b shrink-0">
+          <DialogContent className="sm:max-w-xl max-h-[85vh] p-0 gap-0 overflow-hidden flex flex-col rounded-xl">
+            {/* Header with gradient */}
+            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 pt-5 pb-3 border-b shrink-0">
               <DialogHeader className="gap-1">
-                <DialogTitle className="flex items-center gap-2 text-base">
-                  <Plus className="size-4" />
-                  New Reservation
+                <DialogTitle className="flex items-center gap-2.5 text-lg">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Plus className="size-4 text-primary" />
+                  </div>
+                  New Booking
                 </DialogTitle>
-                <DialogDescription className="text-xs">
+                <DialogDescription className="text-xs ml-[42px]">
                   {newForm.roomId
-                    ? `Booking for Room #${filteredRooms.find((r) => r.id === newForm.roomId)?.number || ''} on ${newForm.checkIn}`
-                    : 'Create a new guest reservation'}
+                    ? `Room #${filteredRooms.find((r) => r.id === newForm.roomId)?.number || ''} · ${newForm.checkIn} → ${newForm.checkOut}`
+                    : 'Fill in details to create a new reservation'}
                 </DialogDescription>
               </DialogHeader>
             </div>
 
-            {/* Form content - no scroll */}
-            <div className="overflow-hidden flex-1 min-h-0 px-4 py-2">
-              <div className="space-y-3">
-                {/* Guest Selection */}
-                <div>
-                  <Label className="text-xs font-medium">Guest</Label>
+            {/* Form content */}
+            <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4">
+              <div className="space-y-4">
+                {/* Guest Section */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <User className="size-3" />
+                    Guest Information
+                  </Label>
                   <Select
                     value={newForm.guestId}
                     onValueChange={(v) => {
@@ -1869,228 +1879,132 @@ export function CalendarView() {
                       }
                     }}
                   >
-                    <SelectTrigger className="w-full h-8 text-xs">
-                      <SelectValue placeholder="Select guest..." />
+                    <SelectTrigger className="w-full h-9 text-sm">
+                      <SelectValue placeholder="Select existing guest..." />
                     </SelectTrigger>
                     <SelectContent>
                       {guests.map((g: Record<string, unknown>) => (
                         <SelectItem key={g.id as string} value={g.id as string}>
                           {(g as CalendarGuest).firstName} {(g as CalendarGuest).lastName}
+                          {(g as CalendarGuest).phone ? ` · ${(g as CalendarGuest).phone}` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-center text-[10px] text-muted-foreground mt-1">— or enter new guest —</p>
+                  <p className="text-center text-[10px] text-muted-foreground">— or create new guest —</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px]">First Name</Label>
-                      <Input
-                        placeholder="First"
-                        className="h-8 text-xs"
-                        value={newForm.firstName}
-                        onChange={(e) =>
-                          setNewForm((p) => ({ ...p, firstName: e.target.value }))
-                        }
-                      />
+                      <Label className="text-[11px]">First Name</Label>
+                      <Input placeholder="First" className="h-9 text-sm" value={newForm.firstName} onChange={(e) => setNewForm((p) => ({ ...p, firstName: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Last Name</Label>
-                      <Input
-                        placeholder="Last"
-                        className="h-8 text-xs"
-                        value={newForm.lastName}
-                        onChange={(e) =>
-                          setNewForm((p) => ({ ...p, lastName: e.target.value }))
-                        }
-                      />
+                      <Label className="text-[11px]">Last Name</Label>
+                      <Input placeholder="Last" className="h-9 text-sm" value={newForm.lastName} onChange={(e) => setNewForm((p) => ({ ...p, lastName: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Phone</Label>
-                      <Input
-                        placeholder="Phone"
-                        className="h-8 text-xs"
-                        value={newForm.phone}
-                        onChange={(e) =>
-                          setNewForm((p) => ({ ...p, phone: e.target.value }))
-                        }
-                      />
+                      <Label className="text-[11px]">Phone</Label>
+                      <Input placeholder="+977-" className="h-9 text-sm" value={newForm.phone} onChange={(e) => setNewForm((p) => ({ ...p, phone: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px]">Email</Label>
-                      <Input
-                        placeholder="Email"
-                        className="h-8 text-xs"
-                        value={newForm.email}
-                        onChange={(e) =>
-                          setNewForm((p) => ({ ...p, email: e.target.value }))
-                        }
-                      />
+                      <Label className="text-[11px]">Email</Label>
+                      <Input placeholder="email@example.com" className="h-9 text-sm" value={newForm.email} onChange={(e) => setNewForm((p) => ({ ...p, email: e.target.value }))} />
                     </div>
                   </div>
                 </div>
 
                 <Separator />
 
-                {/* Stay Details - compact */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Room</Label>
-                    <Select
-                      value={newForm.roomId}
-                      onValueChange={(v) => setNewForm((p) => ({ ...p, roomId: v }))}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select room" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredRooms.map((r) => (
-                          <SelectItem key={r.id} value={r.id}>
-                            #{r.number} — {r.type.code} (F{r.floor})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Source</Label>
-                    <Select
-                      value={newForm.source}
-                      onValueChange={(v) => setNewForm((p) => ({ ...p, source: v }))}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SOURCE_OPTIONS.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Check-in</Label>
-                    <Input
-                      type="date"
-                      className="h-8 text-xs"
-                      value={newForm.checkIn}
-                      onChange={(e) =>
-                        setNewForm((p) => ({ ...p, checkIn: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Check-out</Label>
-                    <Input
-                      type="date"
-                      className="h-8 text-xs"
-                      value={newForm.checkOut}
-                      onChange={(e) =>
-                        setNewForm((p) => ({ ...p, checkOut: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Adults</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      className="h-8 text-xs"
-                      value={newForm.adults}
-                      onChange={(e) =>
-                        setNewForm((p) => ({
-                          ...p,
-                          adults: parseInt(e.target.value) || 1,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px]">Children</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      className="h-8 text-xs"
-                      value={newForm.children}
-                      onChange={(e) =>
-                        setNewForm((p) => ({
-                          ...p,
-                          children: parseInt(e.target.value) || 0,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1 col-span-2">
-                    <Label className="text-[10px]">Rate (NPR/night)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      className="h-8 text-xs"
-                      value={newForm.roomRate || ''}
-                      placeholder="e.g. 12000"
-                      onChange={(e) =>
-                        setNewForm((p) => ({
-                          ...p,
-                          roomRate: parseFloat(e.target.value) || 0,
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                {newFormNights > 0 && newForm.roomRate > 0 && (
-                  <p className="text-[10px] text-muted-foreground bg-muted/50 rounded-md px-2.5 py-1.5">
-                    {newFormNights} night{newFormNights > 1 ? 's' : ''} ×{' '}
-                    {formatCurrency(newForm.roomRate)}/night ={' '}
-                    <span className="font-semibold text-foreground">
-                      {formatCurrency(newFormTotal)}
-                    </span>
-                  </p>
-                )}
-
-                <div className="space-y-1">
-                  <Label className="text-[10px]">Special Requests</Label>
-                  <Textarea
-                    placeholder="Any special requests..."
-                    className="text-xs"
-                    value={newForm.specialRequests}
-                    onChange={(e) =>
-                      setNewForm((p) => ({ ...p, specialRequests: e.target.value }))
-                    }
-                    rows={2}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="guaranteed"
-                    checked={newForm.guaranteed}
-                    onCheckedChange={(checked) =>
-                      setNewForm((p) => ({ ...p, guaranteed: !!checked }))
-                    }
-                  />
-                  <Label htmlFor="guaranteed" className="text-xs">
-                    Guaranteed reservation
+                {/* Stay Details */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <BedDouble className="size-3" />
+                    Stay Details
                   </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Room</Label>
+                      <Select value={newForm.roomId} onValueChange={(v) => setNewForm((p) => ({ ...p, roomId: v }))}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select room" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredRooms.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              #{r.number} — {r.type.code} (F{r.floor})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Source</Label>
+                      <Select value={newForm.source} onValueChange={(v) => setNewForm((p) => ({ ...p, source: v }))}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SOURCE_OPTIONS.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Check-in</Label>
+                      <Input type="date" className="h-9 text-sm" value={newForm.checkIn} onChange={(e) => setNewForm((p) => ({ ...p, checkIn: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Check-out</Label>
+                      <Input type="date" className="h-9 text-sm" value={newForm.checkOut} onChange={(e) => setNewForm((p) => ({ ...p, checkOut: e.target.value }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Adults</Label>
+                      <Input type="number" min={1} className="h-9 text-sm" value={newForm.adults} onChange={(e) => setNewForm((p) => ({ ...p, adults: parseInt(e.target.value) || 1 }))} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px]">Children</Label>
+                      <Input type="number" min={0} className="h-9 text-sm" value={newForm.children} onChange={(e) => setNewForm((p) => ({ ...p, children: parseInt(e.target.value) || 0 }))} />
+                    </div>
+                    <div className="col-span-2 space-y-1">
+                      <Label className="text-[11px]">Rate (NPR/night)</Label>
+                      <Input type="number" min={0} className="h-9 text-sm" value={newForm.roomRate || ''} placeholder="e.g. 12000" onChange={(e) => setNewForm((p) => ({ ...p, roomRate: parseFloat(e.target.value) || 0 }))} />
+                    </div>
+                  </div>
+                  {newFormNights > 0 && newForm.roomRate > 0 && (
+                    <div className="bg-primary/5 border border-primary/10 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{newFormNights} night{newFormNights > 1 ? 's' : ''} × {formatCurrency(newForm.roomRate)}/night</span>
+                      <span className="font-bold text-primary">= {formatCurrency(newFormTotal)}</span>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Extra Details */}
+                <div className="space-y-2">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <StickyNote className="size-3" />
+                    Additional
+                  </Label>
+                  <Textarea placeholder="Special requests..." className="text-sm" value={newForm.specialRequests} onChange={(e) => setNewForm((p) => ({ ...p, specialRequests: e.target.value }))} rows={2} />
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="guaranteed" checked={newForm.guaranteed} onCheckedChange={(checked) => setNewForm((p) => ({ ...p, guaranteed: !!checked }))} />
+                    <Label htmlFor="guaranteed" className="text-xs">Guaranteed reservation</Label>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-2.5 border-t shrink-0 bg-background">
+            <div className="px-5 py-3 border-t shrink-0 bg-background">
               <DialogFooter className="gap-2">
-                <Button variant="outline" size="sm" onClick={() => setShowNewDialog(false)}>
+                <Button variant="ghost" size="sm" onClick={() => setShowNewDialog(false)}>
                   Cancel
                 </Button>
-                <Button
-                  size="sm"
-                  onClick={handleCreateSubmit}
-                  disabled={createReservationMutation.isPending}
-                >
-                  {createReservationMutation.isPending
-                    ? 'Creating...'
-                    : 'Create Reservation'}
+                <Button size="sm" onClick={handleCreateSubmit} disabled={createReservationMutation.isPending}>
+                  {createReservationMutation.isPending ? 'Creating...' : 'Create Booking'}
                 </Button>
               </DialogFooter>
             </div>

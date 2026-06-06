@@ -1253,3 +1253,31 @@ Stage Summary:
 - Calendar scrolling: VERIFIED ✅ (overflow containers properly configured)
 - No runtime errors: VERIFIED ✅
 - Note: "sandbox is inactive" is an infrastructure limitation - dev server process gets killed between tool invocations
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Enhance calendar page - 7 improvements
+
+Work Log:
+- Enhanced date header format: Changed from 3-line layout (day, date, month) to 2-line layout ("Sat 06" + "Today" or month). Today column now clearly shows "Today" label below the date with green highlighting.
+- Fixed BS/AD date toggle: When BS mode is active, date headers show BS dates (e.g., "Wed21 Jes") and BS months only. When AD mode (default), shows AD dates (e.g., "Sat 06 Jun"). Not both simultaneously. Button now shows "बि.सं BS" when in BS mode and "AD" when in AD mode.
+- Added close X button on floor filter: When a floor is selected (not "All Floors"), an X icon appears on the Select trigger that clears the filter back to "All Floors".
+- Enhanced New Booking dialog: Replaced cramped form with modern design - gradient header with icon, section headers with uppercase labels and icons (User, BedDouble, StickyNote), larger inputs (h-9, text-sm), scrollable content area, and styled pricing summary card with primary colors.
+- Fixed calendar footer spacing: Reduced from py-1.5 to py-1, changed from muted/30 bg to slate-100/slate-900 bg for better contrast, compacted legend dots from size-2.5 to size-2, condensed stats into single line.
+- Improved drag & drop: Cleaned up cell backgrounds for drag targets (removed dragReservation state that was causing layout issues), added alternating row backgrounds that respect weekend/holiday/today states.
+- Enhanced room labels: Made floor info show as "DLXK · East · F2" format, reduced font size for cleaner look, improved text contrast.
+- Changed default showBSDates to false (AD dates by default): `preferences.nepaliStandards?.dualCalendar === true` (was `!== false`)
+- Adjusted ROW_HEIGHT from 44 to 40, HEADER_HEIGHT from 44 to 50 for better proportions.
+- Added DAY_ABBR_SHORT for compact mode display.
+
+Stage Summary:
+- All 7 enhancements applied successfully
+- No lint errors
+- No runtime errors in browser console
+- Calendar loads with 44 rooms and 27 reservations
+- Date headers show clean "Sat 06" format with "Today" indicator
+- BS/AD toggle switches between date systems (not both)
+- Floor filter X button clears selection
+- New Booking dialog has modern, spacious design
+- Footer legend is compact with no gapping space
