@@ -1281,3 +1281,34 @@ Stage Summary:
 - Floor filter X button clears selection
 - New Booking dialog has modern, spacious design
 - Footer legend is compact with no gapping space
+
+---
+Task ID: calendar-enhancements
+Agent: Main Agent
+Task: Implement 7 calendar enhancements (date format, BS/AD toggle, filter chips, footer gap, new booking dialog, drag-and-drop, UI polish)
+
+Work Log:
+- Read full CalendarView.tsx (2200+ lines) to understand Gantt-style timeline structure
+- Analyzed reference image via VLM CLI to understand target UI (date format, filter chips, spacing)
+- Fixed date header format: Changed from two-line (day name + date number separately) to single-line "Sat 06" format
+- Added "today" label below date for today's column (lowercase, emerald green, bold)
+- BS/AD toggle: Updated to show only one date format at a time (BS dates when BS selected, AD when not)
+- Updated tooltip to only show the active date format (not both)
+- Added filter chips row below toolbar: Floor filter chip and BS Calendar chip with X close buttons
+- Added X icon import from lucide-react for close buttons
+- Fixed bottom status bar gap: Card component default gap-6 py-6 overridden with gap-0 py-0
+- Enhanced new booking dialog: Emerald-to-teal gradient header, section icon badges, emerald-colored total/CTA
+- Improved drag-and-drop visual feedback: Added dragOverRoomId state for target highlighting, grip indicators on reservation blocks, opacity change on source during drag, ring highlight on target room row
+- Added confirmationNo to drag data transfer for better move logging
+- Increased HEADER_HEIGHT from 50 to 56 for better date header spacing
+- Removed gap-2 from main container to eliminate all unnecessary spacing
+- Seeded 10 sample reservations near current date range for demo visibility
+- All 12 browser verification checks passed
+
+Stage Summary:
+- File changed: src/components/modules/front-desk/CalendarView.tsx
+- Key changes: Date format "Sat 06", "today" label, filter chips with X, BS/AD single format, footer gap removed, enhanced booking dialog, drag-and-drop visual feedback
+- New imports: X, GripVertical from lucide-react
+- State additions: dragOverRoomId for drag visual feedback
+- 10 sample reservations seeded for visible demo data
+- Lint passes clean, all verifications passed

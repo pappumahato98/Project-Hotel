@@ -80,6 +80,8 @@ import {
   ShieldCheck,
   TrendingUp,
   ArrowRightLeft,
+  X,
+  GripVertical,
 } from 'lucide-react'
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -166,7 +168,7 @@ interface NewReservationForm {
 const DEFAULT_NUM_DAYS = 14
 const DEFAULT_DAY_WIDTH = 100
 const ROW_HEIGHT = 40
-const HEADER_HEIGHT = 50
+const HEADER_HEIGHT = 56
 const DEFAULT_ROOM_COL_WIDTH = 140
 
 const SOURCE_OPTIONS = [
@@ -241,6 +243,7 @@ const ROOM_STATUS_LABELS: Record<string, string> = {
 
 const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAY_ABBR_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+const DAY_ABBR_THREE = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // Saffron color for holiday highlighting
 const HOLIDAY_HEADER_BG = 'bg-orange-900/30'
@@ -408,6 +411,7 @@ export function CalendarView() {
 
   // ─── Drag & Drop state ───────────────────────────────────────────────
   const [dragReservation, setDragReservation] = useState<CalendarReservation | null>(null)
+  const [dragOverRoomId, setDragOverRoomId] = useState<string | null>(null)
   const [showMoveDialog, setShowMoveDialog] = useState(false)
   const [moveData, setMoveData] = useState<{
     reservationId: string
@@ -872,18 +876,25 @@ export function CalendarView() {
   const handleDragStart = useCallback((e: React.DragEvent, res: CalendarReservation) => {
     e.dataTransfer.setData('application/json', JSON.stringify({
       reservationId: res.id,
+      confirmationNo: res.confirmationNo,
       fromRoomId: res.room?.id || '',
       fromRoomNumber: res.room?.number || '',
       fromCheckIn: res.checkIn,
       fromCheckOut: res.checkOut,
+      guestName: res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : 'Unknown',
     }))
     e.dataTransfer.effectAllowed = 'move'
     setDragReservation(res)
   }, [])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent, roomId: string) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
+    setDragOverRoomId(roomId)
+  }, [])
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverRoomId(null)
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent, targetRoomId: string, targetDate: Date) => {
@@ -892,7 +903,7 @@ export function CalendarView() {
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json') || '{}')
-      const { reservationId, fromRoomId, fromRoomNumber, fromCheckIn, fromCheckOut } = data
+      const { reservationId, fromRoomId, fromRoomNumber, fromCheckIn, fromCheckOut, confirmationNo: confNo } = data
 
       if (!reservationId) return
 
@@ -920,7 +931,7 @@ export function CalendarView() {
 
       setMoveData({
         reservationId,
-        confirmationNo: '',
+        confirmationNo: confNo || '',
         fromRoomId,
         fromRoomNumber: fromRoomNumber || '—',
         toRoomId: targetRoomId,
@@ -943,6 +954,7 @@ export function CalendarView() {
 
   const handleDragEnd = useCallback(() => {
     setDragReservation(null)
+    setDragOverRoomId(null)
   }, [])
 
   const handleMoveConfirm = useCallback(() => {
@@ -1213,7 +1225,7 @@ export function CalendarView() {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div ref={containerRef} className="flex flex-col gap-2 flex-1 min-h-0 overflow-hidden">
+      <div ref={containerRef} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* ─── Header Toolbar ────────────────────────────────────────────── */}
         <div className="flex items-center justify-between gap-2 shrink-0 flex-wrap">
           {/* Left side: Title + Search + Room Board */}
@@ -1240,31 +1252,20 @@ export function CalendarView() {
 
           {/* Right side: Controls */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Floor filter, view mode, navigation, new booking */}
-            <div className="relative">
-              <Select value={floorFilter} onValueChange={setFloorFilter}>
-                <SelectTrigger className={cn('w-[110px] h-8 text-xs', floorFilter !== 'all' && 'pr-7')}>
-                  <SelectValue placeholder="All Floors" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Floors</SelectItem>
-                  {uniqueFloors.map((f) => (
-                    <SelectItem key={f} value={f.toString()}>
-                      Floor {f}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {floorFilter !== 'all' && (
-                <button
-                  onClick={clearFloorFilter}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-4 flex items-center justify-center rounded-full bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  title="Clear floor filter"
-                >
-                  <XCircle className="size-3" />
-                </button>
-              )}
-            </div>
+            {/* Floor filter dropdown */}
+            <Select value={floorFilter} onValueChange={setFloorFilter}>
+              <SelectTrigger className="w-[110px] h-8 text-xs">
+                <SelectValue placeholder="All Floors" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Floors</SelectItem>
+                {uniqueFloors.map((f) => (
+                  <SelectItem key={f} value={f.toString()}>
+                    Floor {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" className={cn('h-8 gap-1 text-xs', viewMode === 'week' ? 'bg-secondary' : '')} onClick={() => setViewMode('week')}>
               <CalendarDays className="size-3.5" />
               <span className="hidden md:inline">Week</span>
@@ -1313,6 +1314,33 @@ export function CalendarView() {
           </div>
         </div>
 
+        {/* ─── Active Filter Chips ─────────────────────────────────────── */}
+        {(floorFilter !== 'all' || showBSDates) && (
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {floorFilter !== 'all' && (
+              <button
+                onClick={clearFloorFilter}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
+              >
+                <span>Floor {floorFilter}</span>
+                <X className="size-3" />
+              </button>
+            )}
+            {showBSDates && (
+              <button
+                onClick={() => {
+                  const updated = { ...preferences.nepaliStandards, dualCalendar: false }
+                  usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
+                }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 text-[11px] font-medium hover:bg-amber-200 dark:hover:bg-amber-950/60 transition-colors"
+              >
+                <span>BS Calendar</span>
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* ─── Calendar Grid ────────────────────────────────────────────── */}
         {isLoading ? (
           <Card>
@@ -1333,7 +1361,7 @@ export function CalendarView() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="overflow-hidden rounded-lg flex-1 min-h-0 flex flex-col">
+          <Card className="overflow-hidden rounded-lg flex-1 min-h-0 flex flex-col gap-0 py-0">
             <div
               ref={scrollRef}
               className="overflow-auto flex-1 min-h-0"
@@ -1361,39 +1389,30 @@ export function CalendarView() {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                'flex flex-col items-center justify-center border-r last:border-r-0 select-none',
-                                isTodayCol && 'bg-emerald-900/40',
+                                'relative flex flex-col items-center justify-center border-r last:border-r-0 select-none',
+                                isTodayCol && 'bg-emerald-900/50',
                                 !isTodayCol && weekend && 'bg-rose-900/20',
                                 !isTodayCol && isHoliday && HOLIDAY_HEADER_BG,
                                 !isTodayCol && !weekend && !isHoliday && 'bg-slate-800 dark:bg-slate-950',
                               )}
                               style={{ width: dayWidth, height: HEADER_HEIGHT }}
                             >
-                              {/* Day name + Date number on one line */}
-                              <div className="flex items-baseline gap-0.5">
-                                <span
-                                  className={cn(
-                                    'text-[10px] sm:text-xs font-semibold leading-none',
-                                    isTodayCol ? 'text-emerald-400' : isHoliday ? 'text-orange-400' : weekend ? 'text-rose-400/80' : 'text-slate-400',
-                                  )}
-                                >
-                                  {isCompact ? DAY_ABBR_SHORT[date.getDay()] : DAY_ABBR[date.getDay()]}
-                                </span>
-                                <span
-                                  className={cn(
-                                    'text-xs sm:text-sm font-bold leading-none',
-                                    isTodayCol ? 'text-emerald-300' : isHoliday ? 'text-orange-300' : weekend ? 'text-rose-400/90' : 'text-white',
-                                  )}
-                                >
-                                  {showBSDates && bs
-                                    ? String(bs.day).padStart(2, '0')
-                                    : String(date.getDate()).padStart(2, '0')}
-                                </span>
-                              </div>
-                              {/* Sub-label: Today, month, or BS month */}
+                              {/* Day + Date: "Sat 06" format */}
                               <span
                                 className={cn(
-                                  'text-[8px] sm:text-[9px] font-medium leading-tight mt-0.5',
+                                  'text-xs sm:text-sm font-bold leading-none tracking-tight',
+                                  isTodayCol ? 'text-emerald-300' : isHoliday ? 'text-orange-300' : weekend ? 'text-rose-400/90' : 'text-white',
+                                )}
+                              >
+                                {isCompact ? DAY_ABBR_SHORT[date.getDay()] : DAY_ABBR_THREE[date.getDay()]}{' '}
+                                {showBSDates && bs
+                                  ? String(bs.day).padStart(2, '0')
+                                  : String(date.getDate()).padStart(2, '0')}
+                              </span>
+                              {/* Sub-label: "today" or month */}
+                              <span
+                                className={cn(
+                                  'text-[8px] sm:text-[9px] font-medium leading-tight mt-1',
                                   isTodayCol
                                     ? 'text-emerald-400 font-bold uppercase'
                                     : isHoliday
@@ -1404,9 +1423,9 @@ export function CalendarView() {
                                 )}
                               >
                                 {isTodayCol
-                                  ? 'Today'
+                                  ? 'today'
                                   : showBSDates && bs
-                                    ? getNepaliMonthShortEnglish(bs.month)
+                                    ? `${getNepaliMonthShortEnglish(bs.month)} ${bs.year}`
                                     : date.toLocaleDateString('en-US', { month: 'short' })}
                               </span>
                               {isHoliday && (
@@ -1416,9 +1435,10 @@ export function CalendarView() {
                           </TooltipTrigger>
                           <TooltipContent side="bottom" className="text-xs max-w-[220px]">
                             <div className="space-y-0.5">
-                              <p className="font-medium">{DAY_ABBR[date.getDay()]}, {date.getDate()} {date.toLocaleDateString('en-US', { month: 'short' })} {date.getFullYear()}</p>
-                              {bs && (
-                                <p className="text-amber-500">BS: {bs.day} {getNepaliMonthShortEnglish(bs.month)} {bs.year}</p>
+                              {showBSDates && bs ? (
+                                <p className="font-medium">{DAY_ABBR[date.getDay()]}, {bs.day} {getNepaliMonthShortEnglish(bs.month)} {bs.year} (BS)</p>
+                              ) : (
+                                <p className="font-medium">{DAY_ABBR[date.getDay()]}, {date.getDate()} {date.toLocaleDateString('en-US', { month: 'short' })} {date.getFullYear()}</p>
                               )}
                               {isHoliday && holidayInfo.nameEn && (
                                 <p className="text-orange-500 font-medium">🎉 {holidayInfo.nameEn}</p>
@@ -1474,7 +1494,10 @@ export function CalendarView() {
                         </div>
 
                         {/* ─── Date Cells ────────────────────────────────── */}
-                        <div className="relative flex">
+                        <div className={cn(
+                          'relative flex',
+                          dragReservation && dragOverRoomId === room.id && 'ring-2 ring-primary/50 ring-inset rounded-sm',
+                        )}>
                           {dayHeaders.map((date, dayIdx) => {
                             const isTodayCell = isSameDay(date, today)
                             const weekend = isWeekend(date)
@@ -1489,10 +1512,12 @@ export function CalendarView() {
                                   !isTodayCell && weekend && 'bg-rose-50/30 dark:bg-rose-950/10',
                                   cellHoliday.isHoliday && !isTodayCell && !weekend && HOLIDAY_CELL_BG,
                                   !isTodayCell && !weekend && !cellHoliday.isHoliday && roomIdx % 2 !== 0 && 'bg-muted/10',
+                                  dragReservation && dragOverRoomId === room.id && 'bg-primary/5',
                                 )}
                                 style={{ width: dayWidth, height: ROW_HEIGHT }}
                                 onDoubleClick={() => handleCellDoubleClick(room.id, date)}
-                                onDragOver={handleDragOver}
+                                onDragOver={(e) => handleDragOver(e, room.id)}
+                                onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, room.id, date)}
                               >
                                 {/* Today vertical indicator */}
@@ -1534,7 +1559,7 @@ export function CalendarView() {
                                       'shadow-sm hover:shadow-md hover:z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                       colorClass,
                                       hoverClass,
-                                      'opacity-90 hover:opacity-100',
+                                      dragReservation?.id === res.id ? 'opacity-40 scale-95' : 'opacity-90 hover:opacity-100',
                                     )}
                                     style={{
                                       left: pos.left + 2,
@@ -1544,6 +1569,9 @@ export function CalendarView() {
                                     onClick={() => handleReservationClick(res)}
                                   >
                                     <div className="flex items-center gap-0.5 truncate">
+                                      {pos.width >= dayWidth * 1.5 && (
+                                        <GripVertical className="size-2.5 shrink-0 opacity-40" />
+                                      )}
                                       {isVip && (
                                         <Sparkles className="size-3 shrink-0 text-amber-500" />
                                       )}
@@ -1609,7 +1637,7 @@ export function CalendarView() {
             </div>
 
             {/* ─── Bottom Status Legend Bar ──────────────────────────── */}
-            <div className="flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[10px] shrink-0">
+            <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[10px] shrink-0">
               <div className="flex items-center gap-2">
                 {LEGEND_ITEMS.map((item) => (
                   <div key={item.key} className="flex items-center gap-1">
@@ -1619,7 +1647,7 @@ export function CalendarView() {
                 ))}
               </div>
               <Separator orientation="vertical" className="h-3" />
-              <span className="text-muted-foreground">{filteredRooms.length} rooms · {summary.totalReservations} bookings · {summary.arrivals} arr · {summary.departures} dep</span>
+              <span className="text-muted-foreground font-medium">{filteredRooms.length} rooms · {summary.totalReservations} bookings · {summary.arrivals} arr · {summary.departures} dep</span>
             </div>
           </Card>
         )}
@@ -1838,15 +1866,15 @@ export function CalendarView() {
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
           <DialogContent className="sm:max-w-xl max-h-[85vh] p-0 gap-0 overflow-hidden flex flex-col rounded-xl">
             {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 pt-5 pb-3 border-b shrink-0">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 pt-5 pb-4 shrink-0">
               <DialogHeader className="gap-1">
-                <DialogTitle className="flex items-center gap-2.5 text-lg">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-                    <Plus className="size-4 text-primary" />
+                <DialogTitle className="flex items-center gap-2.5 text-lg text-white">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
+                    <Plus className="size-4.5 text-white" />
                   </div>
                   New Booking
                 </DialogTitle>
-                <DialogDescription className="text-xs ml-[42px]">
+                <DialogDescription className="text-xs ml-[46px] text-white/70">
                   {newForm.roomId
                     ? `Room #${filteredRooms.find((r) => r.id === newForm.roomId)?.number || ''} · ${newForm.checkIn} → ${newForm.checkOut}`
                     : 'Fill in details to create a new reservation'}
@@ -1858,9 +1886,11 @@ export function CalendarView() {
             <div className="overflow-y-auto flex-1 min-h-0 px-5 py-4">
               <div className="space-y-4">
                 {/* Guest Section */}
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="size-3" />
+                    <div className="flex size-5 items-center justify-center rounded bg-slate-100 dark:bg-slate-800">
+                      <User className="size-3" />
+                    </div>
                     Guest Information
                   </Label>
                   <Select
@@ -1892,7 +1922,7 @@ export function CalendarView() {
                     </SelectContent>
                   </Select>
                   <p className="text-center text-[10px] text-muted-foreground">— or create new guest —</p>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <Label className="text-[11px]">First Name</Label>
                       <Input placeholder="First" className="h-9 text-sm" value={newForm.firstName} onChange={(e) => setNewForm((p) => ({ ...p, firstName: e.target.value }))} />
@@ -1915,12 +1945,14 @@ export function CalendarView() {
                 <Separator />
 
                 {/* Stay Details */}
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <BedDouble className="size-3" />
+                    <div className="flex size-5 items-center justify-center rounded bg-slate-100 dark:bg-slate-800">
+                      <BedDouble className="size-3" />
+                    </div>
                     Stay Details
                   </Label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5">
                     <div className="space-y-1">
                       <Label className="text-[11px]">Room</Label>
                       <Select value={newForm.roomId} onValueChange={(v) => setNewForm((p) => ({ ...p, roomId: v }))}>
@@ -1973,9 +2005,9 @@ export function CalendarView() {
                     </div>
                   </div>
                   {newFormNights > 0 && newForm.roomRate > 0 && (
-                    <div className="bg-primary/5 border border-primary/10 rounded-lg px-3 py-2 flex items-center justify-between text-sm">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2.5 flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{newFormNights} night{newFormNights > 1 ? 's' : ''} × {formatCurrency(newForm.roomRate)}/night</span>
-                      <span className="font-bold text-primary">= {formatCurrency(newFormTotal)}</span>
+                      <span className="font-bold text-emerald-700 dark:text-emerald-300">= {formatCurrency(newFormTotal)}</span>
                     </div>
                   )}
                 </div>
@@ -1983,9 +2015,11 @@ export function CalendarView() {
                 <Separator />
 
                 {/* Extra Details */}
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <StickyNote className="size-3" />
+                    <div className="flex size-5 items-center justify-center rounded bg-slate-100 dark:bg-slate-800">
+                      <StickyNote className="size-3" />
+                    </div>
                     Additional
                   </Label>
                   <Textarea placeholder="Special requests..." className="text-sm" value={newForm.specialRequests} onChange={(e) => setNewForm((p) => ({ ...p, specialRequests: e.target.value }))} rows={2} />
@@ -1998,12 +2032,12 @@ export function CalendarView() {
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-3 border-t shrink-0 bg-background">
+            <div className="px-5 py-3 border-t shrink-0 bg-muted/30">
               <DialogFooter className="gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setShowNewDialog(false)}>
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleCreateSubmit} disabled={createReservationMutation.isPending}>
+                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={handleCreateSubmit} disabled={createReservationMutation.isPending}>
                   {createReservationMutation.isPending ? 'Creating...' : 'Create Booking'}
                 </Button>
               </DialogFooter>
