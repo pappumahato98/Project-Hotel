@@ -36,35 +36,36 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtimeReturn
 
     connectionCount++
 
-    // Create singleton connection
+    // Create singleton connection (graceful — won't spam if service is unavailable)
     if (!socketInstance) {
       socketInstance = io('/?XTransformPort=3004', {
         path: '/socket.io/',
-        transports: ['websocket', 'polling'],
+        transports: ['polling'],
         reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 10000,
+        reconnectionAttempts: 2,
+        reconnectionDelay: 3000,
+        reconnectionDelayMax: 10000,
+        timeout: 5000,
       })
 
+      let connectErrors = 0
       socketInstance.on('connect', () => {
-        console.log('[Realtime] Connected to server')
         setIsConnected(true)
+        connectErrors = 0
       })
 
       socketInstance.on('disconnect', (reason) => {
-        console.log('[Realtime] Disconnected:', reason)
         setIsConnected(false)
       })
 
-      socketInstance.on('connect_error', (error) => {
-        console.warn('[Realtime] Connection error:', error.message)
+      socketInstance.on('connect_error', () => {
+        connectErrors++
         setIsConnected(false)
-      })
-
-      socketInstance.on('connected', (data: { socketId: string }) => {
-        console.log('[Realtime] Server acknowledged connection:', data.socketId)
+        // Stop retrying after 2 failures to avoid spam
+        if (connectErrors >= 2 && socketInstance) {
+          socketInstance.disconnect()
+          socketInstance = null
+        }
       })
     }
 

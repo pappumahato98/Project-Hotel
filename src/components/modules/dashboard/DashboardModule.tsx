@@ -843,9 +843,6 @@ function DashboardError({ error }: { error: Error }) {
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
   const queryClient = useQueryClient()
-  const { syncFromBackend } = useSettingsStore()
-
-  React.useEffect(() => { syncFromBackend() }, [])
 
   const { isConnected } = useRealtime({
     modules: ['dashboard'],

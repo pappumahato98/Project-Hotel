@@ -560,11 +560,8 @@ function UserMenu() {
 export function AppHeader() {
   const { setSearchOpen } = useNavigationStore()
   const { activeProperty } = usePropertyStore()
-  const { syncFromBackend } = useSettingsStore()
   const { preferences } = usePreferencesStore()
   const showDualCalendar = preferences.nepaliStandards?.dualCalendar !== false
-
-  React.useEffect(() => { syncFromBackend() }, [])
 
   return (
     <>
