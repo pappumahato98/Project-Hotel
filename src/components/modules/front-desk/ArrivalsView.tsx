@@ -31,6 +31,7 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/lib/store'
+import { fetchWithRetry } from '@/lib/fetch-retry'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
@@ -286,8 +287,8 @@ export function ArrivalsView() {
 
   const walkInMutation = useMutation({
     mutationFn: async (form: WalkInForm) => {
-      // 1. Create guest
-      const guestRes = await fetch('/api/guests', {
+      // 1. Create guest (with retry for server instability)
+      const guestRes = await fetchWithRetry('/api/guests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -300,7 +301,10 @@ export function ArrivalsView() {
           idNumber: form.idNumber || null,
         }),
       })
-      if (!guestRes.ok) throw new Error('Failed to create guest')
+      if (!guestRes.ok) {
+        const errData = await guestRes.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to create guest')
+      }
       const guestData = await guestRes.json()
       const guestId = guestData.guest.id
 
@@ -308,14 +312,14 @@ export function ArrivalsView() {
       const vacantRoom = availableRooms[0]
       if (!vacantRoom) throw new Error('No available rooms')
 
-      // 3. Create reservation as checked_in (walk-in)
+      // 3. Create reservation as checked_in (walk-in) (with retry)
       const checkOutDate = form.checkOutDate || (() => {
         const d = new Date()
         d.setDate(d.getDate() + 1)
         return d
       })()
 
-      const res = await fetch('/api/reservations', {
+      const res = await fetchWithRetry('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -331,7 +335,10 @@ export function ArrivalsView() {
           guaranteed: false,
         }),
       })
-      if (!res.ok) throw new Error('Failed to create reservation')
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || 'Failed to create reservation')
+      }
       return { roomNumber: vacantRoom.number, reservation: (await res.json()).reservation }
     },
     onSuccess: (result) => {
