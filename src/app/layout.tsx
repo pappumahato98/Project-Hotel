@@ -56,6 +56,28 @@ export default function RootLayout({
           <Providers>{children}</Providers>
         </ThemeProvider>
         <Toaster />
+        {/* ChunkLoadError auto-recovery: reloads page if a chunk fails to load */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('error', function(e) {
+                if (e.target && e.target.tagName === 'SCRIPT' && e.message && e.message.includes('Loading chunk')) {
+                  e.preventDefault();
+                  console.warn('[ChunkLoadError] Auto-recovering by reloading...');
+                  window.location.reload();
+                }
+              }, true);
+              // Also handle unhandled promise rejections from dynamic imports
+              window.addEventListener('unhandledrejection', function(e) {
+                if (e.reason && e.reason.message && e.reason.message.includes('Loading chunk')) {
+                  e.preventDefault();
+                  console.warn('[ChunkLoadError] Auto-recovering by reloading...');
+                  window.location.reload();
+                }
+              });
+            `,
+          }}
+        />
       </body>
     </html>
   );

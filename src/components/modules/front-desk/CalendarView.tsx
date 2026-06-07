@@ -1322,8 +1322,8 @@ export function CalendarView() {
                 onClick={clearFloorFilter}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
               >
+                <X className="size-3 shrink-0" />
                 <span>Floor {floorFilter}</span>
-                <X className="size-3" />
               </button>
             )}
             {showBSDates && (
@@ -1334,8 +1334,8 @@ export function CalendarView() {
                 }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 text-[11px] font-medium hover:bg-amber-200 dark:hover:bg-amber-950/60 transition-colors"
               >
+                <X className="size-3 shrink-0" />
                 <span>BS Calendar</span>
-                <X className="size-3" />
               </button>
             )}
           </div>
@@ -1494,10 +1494,46 @@ export function CalendarView() {
                         </div>
 
                         {/* ─── Date Cells ────────────────────────────────── */}
-                        <div className={cn(
-                          'relative flex',
-                          dragReservation && dragOverRoomId === room.id && 'ring-2 ring-primary/50 ring-inset rounded-sm',
-                        )}>
+                        <div
+                          className={cn(
+                            'relative flex',
+                            dragReservation && dragOverRoomId === room.id && 'ring-2 ring-primary/50 ring-inset rounded-sm',
+                          )}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'move'
+                            // Calculate which date cell the mouse is over
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            const roomLabelWidth = roomColWidth
+                            const mouseX = e.clientX - rect.left - roomLabelWidth
+                            if (mouseX >= 0) {
+                              const dayIndex = Math.min(Math.floor(mouseX / dayWidth), numDays - 1)
+                              setDragOverRoomId(room.id)
+                            }
+                          }}
+                          onDragLeave={(e) => {
+                            // Only clear if actually leaving the room row (not entering a child)
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                              setDragOverRoomId(null)
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            try {
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              const roomLabelWidth = roomColWidth
+                              const mouseX = e.clientX - rect.left - roomLabelWidth
+                              const dayIndex = Math.max(0, Math.min(Math.floor(mouseX / dayWidth), numDays - 1))
+                              const targetDate = dayHeaders[dayIndex]
+                              if (targetDate) {
+                                handleDrop(e, room.id, targetDate)
+                              }
+                            } catch {
+                              setDragReservation(null)
+                            }
+                          }}
+                        >
                           {dayHeaders.map((date, dayIdx) => {
                             const isTodayCell = isSameDay(date, today)
                             const weekend = isWeekend(date)
@@ -1516,9 +1552,6 @@ export function CalendarView() {
                                 )}
                                 style={{ width: dayWidth, height: ROW_HEIGHT }}
                                 onDoubleClick={() => handleCellDoubleClick(room.id, date)}
-                                onDragOver={(e) => handleDragOver(e, room.id)}
-                                onDragLeave={handleDragLeave}
-                                onDrop={(e) => handleDrop(e, room.id, date)}
                               >
                                 {/* Today vertical indicator */}
                                 {isTodayCell && (
@@ -1555,6 +1588,7 @@ export function CalendarView() {
                                     onDragEnd={handleDragEnd}
                                     className={cn(
                                       'absolute top-[3px] rounded-md border-l-[3px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all z-10',
+                                      dragReservation && dragReservation.id !== res.id && 'pointer-events-none',
                                       'text-[10px] sm:text-[11px] font-medium leading-tight overflow-hidden',
                                       'shadow-sm hover:shadow-md hover:z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                       colorClass,
@@ -1633,11 +1667,9 @@ export function CalendarView() {
 
                 {/* Ensure grid takes full width for proper scrolling */}
                 <div style={{ width: actualGridWidth, minWidth: '100%', height: 1 }} />
-              </div>
-            </div>
 
-            {/* ─── Bottom Status Legend Bar ──────────────────────────── */}
-            <div className="flex items-center gap-3 px-3 py-1.5 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[10px] shrink-0">
+                {/* ─── Bottom Status Legend Bar (sticky at bottom of scroll) ── */}
+                <div className="flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[10px] shrink-0 sticky bottom-0 z-10">
               <div className="flex items-center gap-2">
                 {LEGEND_ITEMS.map((item) => (
                   <div key={item.key} className="flex items-center gap-1">
@@ -1648,6 +1680,8 @@ export function CalendarView() {
               </div>
               <Separator orientation="vertical" className="h-3" />
               <span className="text-muted-foreground font-medium">{filteredRooms.length} rooms · {summary.totalReservations} bookings · {summary.arrivals} arr · {summary.departures} dep</span>
+            </div>
+              </div>
             </div>
           </Card>
         )}

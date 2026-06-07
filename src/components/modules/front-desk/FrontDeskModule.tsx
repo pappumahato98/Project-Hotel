@@ -139,7 +139,7 @@ export function FrontDeskModule() {
       {/* Active View */}
       <div className={cn(
         'flex flex-col min-h-0',
-        currentSubModule === 'calendar' ? 'flex-1 overflow-hidden px-4 pb-4 pt-2' : '',
+        currentSubModule === 'calendar' ? 'flex-1 overflow-hidden px-4 pb-0 pt-2' : '',
       )}>
         <ActiveView />
       </div>

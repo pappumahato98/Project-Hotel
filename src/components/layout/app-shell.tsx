@@ -142,7 +142,7 @@ export function AppShell() {
       <AppSidebar />
       <SidebarInset className="min-h-0 overflow-hidden">
         <AppHeader />
-        <div className="flex-1 min-h-0 flex flex-col overflow-y-auto">
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <MainContent />
         </div>
       </SidebarInset>

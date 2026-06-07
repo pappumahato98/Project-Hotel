@@ -1312,3 +1312,24 @@ Stage Summary:
 - State additions: dragOverRoomId for drag visual feedback
 - 10 sample reservations seeded for visible demo data
 - Lint passes clean, all verifications passed
+---
+Task ID: 1-6
+Agent: Main Agent (with subagents)
+Task: Fix 6 issues in hotel PMS calendar and layout
+
+Work Log:
+- Fixed ChunkLoadError by adding webpack splitChunks optimization (minSize, maxAsyncRequests, maxInitialRequests) in next.config.ts and auto-recovery script in layout.tsx
+- Fixed drag & drop: moved drag handlers from individual date cells to room row container level, calculates target date from mouse position, added pointer-events-none to non-dragged reservation blocks during drag
+- Moved X close icon BEFORE text in Floor Filter and BS Calendar filter chips
+- Removed bottom gap by making status legend bar sticky at bottom of scroll container (sticky bottom-0 z-10)
+- Fixed vertical scrolling by changing AppShell overflow from overflow-y-auto to overflow-hidden, removing pb-4 from calendar wrapper
+- Changed sidebar collapsed width from 3rem (48px) to 3.5rem (56px) to match header h-14 (56px)
+- All changes verified with browser automation and VLM screenshot analysis
+
+Stage Summary:
+- All 6 fixes implemented and verified
+- Calendar drag & drop now works via row-level drop handlers
+- Filter chips show ✕ before text
+- No bottom gap in calendar - status bar is sticky at bottom
+- Vertical scrolling works properly
+- Sidebar collapse width matches header height
