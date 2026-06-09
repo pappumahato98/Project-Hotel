@@ -166,7 +166,7 @@ interface NewReservationForm {
 // ─── Constants ──────────────────────────────────────────────────────────
 
 // Default/fallback constants (used when container size is unknown)
-const DEFAULT_NUM_DAYS = 14
+const DEFAULT_NUM_DAYS = 15
 const DEFAULT_DAY_WIDTH = 100
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 64
@@ -335,7 +335,7 @@ export function CalendarView() {
 
   // ─── Responsive container sizing ────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(0)
-  const [viewMode, setViewMode] = useState<'week' | 'twoWeeks'>('twoWeeks')
+  const [viewMode, setViewMode] = useState<'7days' | '15days'>('15days')
   const { preferences } = usePreferencesStore()
   const showBSDates = preferences.nepaliStandards?.dualCalendar === true
   const showHolidayAlerts = preferences.nepaliStandards?.holidayAlerts !== false
@@ -360,14 +360,19 @@ export function CalendarView() {
     return () => observer.disconnect()
   }, [])
 
-  // Re-measure when sidebar expands/collapses (add small delay for CSS transition)
+  // Re-measure when sidebar expands/collapses (add delay for CSS transition)
   useEffect(() => {
-    const timer = setTimeout(recalcWidth, 350)
-    return () => clearTimeout(timer)
+    // Measure at multiple intervals to catch sidebar CSS transition completion
+    const timers = [
+      setTimeout(recalcWidth, 100),
+      setTimeout(recalcWidth, 300),
+      setTimeout(recalcWidth, 500),
+    ]
+    return () => timers.forEach(clearTimeout)
   }, [sidebarState, sidebarOpen, isMobile, recalcWidth])
 
   // Dynamically compute grid dimensions based on container width
-  const numDays = viewMode === 'week' ? 7 : DEFAULT_NUM_DAYS
+  const numDays = viewMode === '7days' ? 7 : DEFAULT_NUM_DAYS
   const roomColWidth = containerWidth > 1024 ? 140 : containerWidth > 640 ? 110 : 90
   const dayWidth = containerWidth > 0
     ? Math.max(64, Math.floor((containerWidth - roomColWidth) / numDays))
@@ -390,7 +395,8 @@ export function CalendarView() {
   const endDate = useMemo(() => addDays(startDate, numDays - 1), [startDate, numDays])
 
   const startDateStr = useMemo(() => dateToKey(startDate), [startDate])
-  const endDateStr = useMemo(() => dateToKey(endDate), [endDate])
+  // Add a 7-day buffer beyond the visible range so extended stays are still fetched
+  const endDateStr = useMemo(() => dateToKey(addDays(endDate, 7)), [endDate])
 
   // ─── Navigation ──────────────────────────────────────────────────────
   const goToPrevWeek = useCallback(() => setStartDate((d) => addDays(d, -7)), [])
@@ -447,16 +453,20 @@ export function CalendarView() {
     },
   })
 
-  // ─── Fetch reservations overlapping the date range ───────────────────
+  // ─── Fetch reservations overlapping the full date range ──────────────
   const { data: reservationsRaw, isLoading: resLoading } = useQuery({
     queryKey: ['reservations', startDateStr, endDateStr],
     queryFn: async () => {
       const params = new URLSearchParams()
-      params.set('date', startDateStr)
+      // Use dateFrom/dateTo to fetch ALL reservations overlapping the visible range
+      // This ensures moved reservations remain visible after drag-drop
+      params.set('dateFrom', startDateStr)
+      params.set('dateTo', endDateStr)
       const res = await fetch(`/api/reservations?${params.toString()}`)
       if (!res.ok) throw new Error('Failed to fetch reservations')
       return res.json()
     },
+    staleTime: 15_000,
   })
 
   // ─── Fetch guests for new reservation dialog ──────────────────────────
@@ -1269,29 +1279,29 @@ export function CalendarView() {
               </button>
             </div>
 
-            {/* Segmented view toggle: 2W | 4W */}
+            {/* Segmented view toggle: 7 Days | 15 Days */}
             <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-0.5">
               <button
-                onClick={() => setViewMode('week')}
+                onClick={() => setViewMode('7days')}
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                  viewMode === 'week'
+                  viewMode === '7days'
                     ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
                 )}
               >
-                {isSmallScreen ? '1W' : '2W'}
+                7D
               </button>
               <button
-                onClick={() => setViewMode('twoWeeks')}
+                onClick={() => setViewMode('15days')}
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                  viewMode === 'twoWeeks'
+                  viewMode === '15days'
                     ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
                 )}
               >
-                {isSmallScreen ? '2W' : '4W'}
+                15D
               </button>
             </div>
           </div>

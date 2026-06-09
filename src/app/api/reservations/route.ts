@@ -51,6 +51,21 @@ export async function GET(request: Request) {
       ]
     }
 
+    // dateFrom/dateTo: fetch all reservations overlapping the range [dateFrom, dateTo]
+    // Used by calendar view to display all bookings within the visible date window
+    const dateFrom = searchParams.get('dateFrom')
+    const dateTo = searchParams.get('dateTo')
+    if (dateFrom && dateTo) {
+      const from = new Date(dateFrom)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(dateTo)
+      to.setHours(23, 59, 59, 999)
+      where.AND = [
+        { checkIn: { lt: to } },
+        { checkOut: { gt: from } },
+      ]
+    }
+
     if (checkInDate) {
       const d = new Date(checkInDate)
       d.setHours(0, 0, 0, 0)

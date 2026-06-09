@@ -1617,3 +1617,30 @@ Stage Summary:
 - Solution: Eliminated all socket.io client usage (made useRealtime a no-op)
 - Files modified: src/hooks/use-realtime.ts, src/components/modules/dashboard/DashboardModule.tsx, src/components/modules/front-desk/FrontDeskModule.tsx, src/app/layout.tsx
 - Status: VERIFIED — zero reloads, zero errors, stable for 20+ seconds
+
+---
+Task ID: calendar-fixes
+Agent: Main Agent
+Task: Calendar 7/15 days toggle, responsive sidebar sizing, and drag-drop fix
+
+Work Log:
+- Read and analyzed CalendarView.tsx (2377 lines) to understand the full calendar implementation
+- Identified root cause of drag-drop "auto-removed" bug: CalendarView query only sent `date=startDateStr` (single date) to API, so after moving a reservation to a date outside that single-day window, it disappeared from the results
+- Changed `DEFAULT_NUM_DAYS` from 14 to 15
+- Updated `viewMode` type from `'week' | 'twoWeeks'` to `'7days' | '15days'`
+- Updated `numDays` calculation: `viewMode === '7days' ? 7 : DEFAULT_NUM_DAYS`
+- Updated view toggle buttons: replaced "2W/4W" labels with "7D/15D"
+- Fixed sidebar responsive sizing: replaced single 350ms timeout with three staggered measurements (100ms, 300ms, 500ms) to properly catch sidebar CSS transition completion
+- Updated CalendarView reservations query: now sends `dateFrom` and `dateTo` parameters instead of single `date`
+- Added 7-day buffer beyond visible end date: `endDateStr = addDays(endDate, 7)` for fetching extended stays
+- Added `staleTime: 15_000` to reservations query to reduce unnecessary refetches
+- Updated reservations API route: added `dateFrom`/`dateTo` parameter support that returns all reservations where `checkIn < toDate AND checkOut > fromDate`
+- Verified with agent-browser: 7D toggle switches to 7 date columns, 15D shows 15 columns
+- Verified sidebar collapse: calendar grid properly fills expanded space
+- Verified via VLM analysis: layout is clean, professional, no gaps or overflow
+
+Stage Summary:
+- Modified: src/components/modules/front-desk/CalendarView.tsx (7/15D toggle, sidebar fix, full date range query)
+- Modified: src/app/api/reservations/route.ts (added dateFrom/dateTo overlapping range filter)
+- Root cause of drag-drop auto-removal fixed: API now fetches full visible date range instead of single date
+- Calendar responsive to sidebar toggle with proper multi-point measurement
