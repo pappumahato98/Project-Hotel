@@ -1426,33 +1426,6 @@ export function CalendarView() {
           </div>
         </div>
 
-        {/* ─── Active Filter Chips ─────────────────────────────────────── */}
-        {(floorFilter !== 'all' || showBSDates) && (
-          <div className="flex items-center gap-2 px-3 py-1.5 shrink-0 flex-wrap bg-white dark:bg-gray-950">
-            {floorFilter !== 'all' && (
-              <button
-                onClick={clearFloorFilter}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 text-[11px] font-medium hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
-              >
-                <X className="size-3 shrink-0" />
-                <span>Floor {floorFilter}</span>
-              </button>
-            )}
-            {showBSDates && (
-              <button
-                onClick={() => {
-                  const updated = { ...preferences.nepaliStandards, dualCalendar: false }
-                  usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
-                }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 text-[11px] font-medium hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
-              >
-                <X className="size-3 shrink-0" />
-                <span>BS Calendar</span>
-              </button>
-            )}
-          </div>
-        )}
-
         {/* ─── Calendar Grid ────────────────────────────────────────────── */}
         {isLoading ? (
           <div className="flex-1 min-h-0 bg-white dark:bg-gray-950">
