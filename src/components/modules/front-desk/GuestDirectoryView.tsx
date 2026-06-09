@@ -347,54 +347,6 @@ export function GuestDirectoryView() {
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-950">
-              <Users className="size-5 text-sky-600 dark:text-sky-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalGuests}</p>
-              <p className="text-xs text-muted-foreground">Total Guests</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <Crown className="size-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{vipGuests}</p>
-              <p className="text-xs text-muted-foreground">VIP Guests</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950">
-              <CalendarDays className="size-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{avgStay}</p>
-              <p className="text-xs text-muted-foreground">Avg Stay (Days)</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-950">
-              <UserCheck className="size-5 text-violet-600 dark:text-violet-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{newToday}</p>
-              <p className="text-xs text-muted-foreground">New Today</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Filters */}
       <Card>
         <CardContent className="p-4">

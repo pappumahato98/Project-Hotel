@@ -724,54 +724,6 @@ export function ReservationsView() {
         </Dialog>
       </div>
 
-      {/* Summary Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex items-center justify-center size-10 rounded-lg bg-primary/10 text-primary">
-              <CalendarRange className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Total Reservations</p>
-              <p className="text-xl font-bold">{stats.total}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex items-center justify-center size-10 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
-              <ArrowDownToLine className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Today&apos;s Check-ins</p>
-              <p className="text-xl font-bold">{stats.todayCheckIns}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex items-center justify-center size-10 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
-              <ArrowUpFromLine className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Today&apos;s Check-outs</p>
-              <p className="text-xl font-bold">{stats.todayCheckOuts}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex items-center justify-center size-10 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <DollarSign className="size-5" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground font-medium">Revenue Total</p>
-              <p className="text-xl font-bold">{formatCurrency(stats.revenue)}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Filters */}
       <Card>
         <CardContent className="p-4">

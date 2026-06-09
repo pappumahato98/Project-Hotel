@@ -398,54 +398,6 @@ export function DeparturesView() {
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-950">
-              <LogOut className="size-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalDepartures}</p>
-              <p className="text-xs text-muted-foreground">Total Departures</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
-              <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{checkedOutCount}</p>
-              <p className="text-xs text-muted-foreground">Checked Out</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <BedDouble className="size-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{pendingDepartures}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
-              <CreditCard className="size-5 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{formatCurrency(outstandingBalance)}</p>
-              <p className="text-xs text-muted-foreground">Outstanding</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Departures List */}
       <Card className="py-0">
         <CardContent className="p-0">

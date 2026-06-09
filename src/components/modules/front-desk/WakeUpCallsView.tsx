@@ -367,54 +367,6 @@ export function WakeUpCallsView() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-950">
-              <BellRing className="size-5 text-sky-600 dark:text-sky-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalScheduled}</p>
-              <p className="text-xs text-muted-foreground">Total Scheduled</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950">
-              <CheckCircle2 className="size-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{completedCount}</p>
-              <p className="text-xs text-muted-foreground">Completed</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <Clock className="size-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{pendingCount}</p>
-              <p className="text-xs text-muted-foreground">Pending</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
-              <AlertTriangle className="size-5 text-red-600 dark:text-red-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{missedCount}</p>
-              <p className="text-xs text-muted-foreground">Missed</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Filters */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <Tabs value={filterTab} onValueChange={setFilterTab}>

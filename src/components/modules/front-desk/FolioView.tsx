@@ -557,39 +557,7 @@ export function FolioView() {
         </p>
       </div>
 
-      {/* ─── 2. Summary Stat Cards ─────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatCard
-          icon={<FileText className="size-4" />}
-          label="Open Folios"
-          value={stats ? String(stats.openFolios) : '—'}
-          loading={foliosLoading}
-          iconBg="bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
-        />
-        <StatCard
-          icon={<DollarSign className="size-4" />}
-          label="Total Outstanding"
-          value={stats ? formatCurrency(stats.totalOutstanding) : '—'}
-          loading={foliosLoading}
-          iconBg="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-        />
-        <StatCard
-          icon={<ArrowUpDown className="size-4" />}
-          label="Today's Charges"
-          value={stats ? formatCurrency(stats.todayCharges) : '—'}
-          loading={foliosLoading}
-          iconBg="bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-        />
-        <StatCard
-          icon={<CreditCard className="size-4" />}
-          label="Today's Payments"
-          value={stats ? formatCurrency(stats.todayPayments) : '—'}
-          loading={foliosLoading}
-          iconBg="bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-        />
-      </div>
-
-      {/* ─── 3. Search Bar ─────────────────────────────────────── */}
+      {/* ─── 2. Search Bar ─────────────────────────────────────── */}
       <div className="relative" ref={searchRef}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -904,36 +872,6 @@ export function FolioView() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
-
-// ─── Stat Card ──────────────────────────────────────────────────────────
-
-function StatCard({ icon, label, value, loading, iconBg }: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  loading: boolean
-  iconBg: string
-}) {
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-3">
-          <div className={cn('flex size-10 items-center justify-center rounded-lg shrink-0', iconBg)}>
-            {icon}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground truncate">{label}</p>
-            {loading ? (
-              <Skeleton className="h-5 w-20 mt-0.5" />
-            ) : (
-              <p className="text-lg font-bold truncate">{value}</p>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 

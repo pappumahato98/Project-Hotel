@@ -491,54 +491,6 @@ export function ArrivalsView() {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
-              <Users className="size-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalArrivals}</p>
-              <p className="text-xs text-muted-foreground">Total Arrivals</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
-              <CheckCircle2 className="size-5 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{totalArrivals - pendingArrivals}</p>
-              <p className="text-xs text-muted-foreground">Checked In</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <AlertTriangle className="size-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{unassignedArrivals}</p>
-              <p className="text-xs text-muted-foreground">Unassigned</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <Crown className="size-5 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{vipArrivals}</p>
-              <p className="text-xs text-muted-foreground">VIP Guests</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Arrivals List */}
       <Card className="py-0">
         <CardContent className="p-0">
