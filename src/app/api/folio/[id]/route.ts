@@ -140,6 +140,113 @@ export async function POST(
   }
 }
 
+// DELETE: Void a transaction or payment (soft delete)
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+    const { type, transactionId, paymentId, reason } = body
+
+    if (!reason) {
+      return NextResponse.json({ error: 'Reason is required for void operations' }, { status: 400 })
+    }
+
+    const folio = await db.folio.findUnique({
+      where: { id },
+    })
+
+    if (!folio) {
+      return NextResponse.json({ error: 'Folio not found' }, { status: 404 })
+    }
+
+    if (type === 'void_transaction' && transactionId) {
+      // Verify the transaction belongs to this folio
+      const txn = await db.folioTransaction.findFirst({
+        where: { id: transactionId, folioId: id },
+      })
+
+      if (!txn) {
+        return NextResponse.json({ error: 'Transaction not found in this folio' }, { status: 404 })
+      }
+
+      // Soft-delete: set amounts to 0, append reason to description
+      await db.folioTransaction.update({
+        where: { id: transactionId },
+        data: {
+          amount: 0,
+          taxAmount: 0,
+          totalAmount: 0,
+          description: `${txn.description} [VOIDED: ${reason}]`,
+        },
+      })
+    } else if (type === 'void_payment' && paymentId) {
+      // Verify the payment belongs to this folio
+      const pay = await db.folioPayment.findFirst({
+        where: { id: paymentId, folioId: id },
+      })
+
+      if (!pay) {
+        return NextResponse.json({ error: 'Payment not found in this folio' }, { status: 404 })
+      }
+
+      // Soft-delete: set amount to 0, append reason to reference
+      await db.folioPayment.update({
+        where: { id: paymentId },
+        data: {
+          amount: 0,
+          reference: pay.reference ? `${pay.reference} [VOIDED: ${reason}]` : `[VOIDED: ${reason}]`,
+        },
+      })
+    } else {
+      return NextResponse.json({ error: 'Invalid void type. Provide type: void_transaction or void_payment' }, { status: 400 })
+    }
+
+    // Recalculate balance
+    const charges = await db.folioTransaction.findMany({
+      where: { folioId: id },
+      select: { totalAmount: true },
+    })
+    const totalCharges = charges.reduce((sum, c) => sum + c.totalAmount, 0)
+
+    const payments = await db.folioPayment.findMany({
+      where: { folioId: id },
+      select: { amount: true },
+    })
+    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
+
+    const newBalance = totalCharges - totalPayments
+    await db.folio.update({
+      where: { id },
+      data: { balance: newBalance },
+    })
+
+    // Return updated folio
+    const updatedFolio = await db.folio.findUnique({
+      where: { id },
+      include: {
+        reservation: {
+          select: {
+            id: true, confirmationNo: true, checkIn: true, checkOut: true,
+            roomRate: true, status: true, creditLimit: true,
+            room: { select: { number: true } },
+          },
+        },
+        guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true } },
+        transactions: { orderBy: { createdAt: 'desc' } },
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+    })
+
+    return NextResponse.json({ folio: updatedFolio })
+  } catch (error) {
+    console.error('Folio void error:', error)
+    return NextResponse.json({ error: 'Failed to void transaction' }, { status: 500 })
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }

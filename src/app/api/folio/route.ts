@@ -63,8 +63,56 @@ export async function GET(request: Request) {
     const taxRate = (s.taxRate as number) ?? 13
     const serviceCharge = (s.serviceCharge as number) ?? 0
 
+    // ─── Compute stats ───────────────────────────────────────
+    // Only compute when no search/filter params (full list view)
+    const isFullList = !reservationId && !guestId && !search
+
+    let stats: {
+      openFolios: number
+      totalOutstanding: number
+      todayCharges: number
+      todayPayments: number
+    } | null = null
+
+    if (isFullList) {
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const todayEnd = new Date()
+      todayEnd.setHours(23, 59, 59, 999)
+
+      // Open folios count and outstanding
+      const openFolios = await db.folio.findMany({
+        where: { status: 'open' },
+        select: { balance: true },
+      })
+
+      // Today's charges
+      const todayTxns = await db.folioTransaction.findMany({
+        where: {
+          createdAt: { gte: todayStart, lte: todayEnd },
+        },
+        select: { totalAmount: true },
+      })
+
+      // Today's payments
+      const todayPayments = await db.folioPayment.findMany({
+        where: {
+          createdAt: { gte: todayStart, lte: todayEnd },
+        },
+        select: { amount: true },
+      })
+
+      stats = {
+        openFolios: openFolios.length,
+        totalOutstanding: openFolios.reduce((sum, f) => sum + f.balance, 0),
+        todayCharges: todayTxns.reduce((sum, t) => sum + t.totalAmount, 0),
+        todayPayments: todayPayments.reduce((sum, p) => sum + p.amount, 0),
+      }
+    }
+
     return NextResponse.json({
       folios,
+      stats,
       settings: { taxRate, serviceCharge },
     })
   } catch (error) {
