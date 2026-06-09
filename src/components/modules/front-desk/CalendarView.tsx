@@ -378,8 +378,8 @@ export function CalendarView() {
   const dayWidth = containerWidth > 0
     ? Math.max(64, Math.floor((containerWidth - roomColWidth) / numDays))
     : DEFAULT_DAY_WIDTH
-  // Use ceiling for actual width so grid fills container edge-to-edge
-  const actualGridWidth = roomColWidth + numDays * Math.max(64, Math.ceil((containerWidth - roomColWidth) / numDays))
+  // Match dayWidth exactly to prevent grid from exceeding container width
+  const actualGridWidth = roomColWidth + numDays * dayWidth
   const isCompact = containerWidth <= 768
   const isSmallScreen = containerWidth <= 480
 
@@ -1485,7 +1485,7 @@ export function CalendarView() {
               ref={scrollRef}
               className="overflow-auto h-full"
             >
-              <div style={{ minWidth: actualGridWidth, width: '100%' }}>
+              <div style={{ width: '100%' }}>
                 {/* ─── Day Column Headers (white, clean) ──────────────────── */}
                 <div className="flex sticky top-0 z-20 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
                   {/* Corner cell */}
@@ -1791,8 +1791,7 @@ export function CalendarView() {
                   })}
                 </div>
 
-                {/* Ensure grid takes full width for proper scrolling */}
-                <div style={{ width: actualGridWidth, minWidth: '100%', height: 1 }} />
+                {/* Grid width is handled by CSS flex — no spacer needed */}
 
                 {/* ─── Bottom Legend Bar (clean, light) ────────────────── */}
                 <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 text-[10px] shrink-0 sticky bottom-0 z-10">

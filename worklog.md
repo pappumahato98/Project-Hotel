@@ -1696,3 +1696,32 @@ Stage Summary:
 - Reservation block text is truncated with ellipsis instead of wrapping or expanding cells
 - Mobile devices get smaller text/padding; rate info hidden on mobile to reduce clutter
 - File modified: src/components/modules/front-desk/CalendarView.tsx
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix calendar stretching issue — grid overflowing container horizontally
+
+Work Log:
+- Analyzed uploaded screenshot via VLM: confirmed grid extends beyond visible container, rightmost columns truncated, horizontal scrollbar present
+- Read CalendarView.tsx (~2400 lines) and identified root cause:
+  - `actualGridWidth` used `Math.ceil` while `dayWidth` used `Math.floor` → mismatch of up to numDays pixels
+  - This made actualGridWidth > containerWidth, causing unnecessary horizontal overflow
+  - Spacer div at line 1795 with `width: actualGridWidth, minWidth: 100%` forced grid wider
+  - Wrapper div had `minWidth: actualGridWidth, width: 100%` → when minWidth > parent, caused overflow
+- Applied 3 fixes to CalendarView.tsx:
+  1. Changed `actualGridWidth` to `roomColWidth + numDays * dayWidth` (matching floor-based dayWidth)
+  2. Removed `minWidth` from wrapper div → just `width: 100%`
+  3. Removed spacer div that forced grid wider than necessary
+- Verified via agent-browser in multiple configurations:
+  - 7-day view: all 7 columns fully visible, no scrollbar, no overflow ✅
+  - 10-day view: all 10 columns fully visible, no scrollbar ✅
+  - Mobile viewport (375px): fits screen without overflow ✅
+  - Sidebar collapsed: still fits without overflow ✅
+  - Click reservation block → detail dialog opens correctly ✅
+
+Stage Summary:
+- Root cause: Math.ceil vs Math.floor mismatch in actualGridWidth calculation caused grid to exceed container width by up to numDays pixels
+- Fixed: src/components/modules/front-desk/CalendarView.tsx (3 targeted edits: actualGridWidth calc, wrapper div, spacer div)
+- Calendar now fits within its container in all view modes (7D, 10D) and screen sizes (mobile, desktop)
+
