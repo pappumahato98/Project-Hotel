@@ -2,7 +2,6 @@
 
 import { toast } from 'sonner'
 import { useNavigationStore } from '@/lib/store'
-import { QuickSearch } from './QuickSearch'
 import { FrontDeskDashboard } from './FrontDeskDashboard'
 import { ReservationsView } from './ReservationsView'
 import { ArrivalsView } from './ArrivalsView'
@@ -16,7 +15,7 @@ import { WaitlistView } from './WaitlistView'
 import { WakeUpCallsView } from './WakeUpCallsView'
 import { GuestDirectoryView } from './GuestDirectoryView'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CalendarDays, BedDouble } from 'lucide-react'
+import { BedDouble } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -56,56 +55,39 @@ export function FrontDeskModule() {
   const currentSubModule = activeSubModule || 'dashboard'
   const ActiveView = SUB_MODULE_MAP[currentSubModule] || ReservationsView
 
-  // Calendar tab has its own full toolbar — hide module header for it
-  // Dashboard always shows the module header
-  const showModuleHeader = currentSubModule === 'calendar' ? false : true
-
   return (
     <div className={cn(
         'flex flex-1 flex-col min-h-0',
         currentSubModule === 'calendar' ? 'overflow-hidden p-0 gap-0' : 'overflow-y-auto p-4 md:p-6 gap-4',
       )}>
-      {/* Module Header with Quick Search (hidden when Calendar is active) */}
-      {showModuleHeader && (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
-            <CalendarDays className="size-5 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight">Front Desk</h1>
-            <p className="text-xs text-muted-foreground">Reservations, arrivals, in-house &amp; departures</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <QuickSearch />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-muted-foreground"
-            onClick={() => navigateTo('rooms', 'room-board')}
-          >
-            <BedDouble className="size-3.5" />
-            <span className="hidden sm:inline">Room Board</span>
-          </Button>
-        </div>
+      {/* Sub-module Tabs + Room Board */}
+      <div className={cn(
+        'flex items-center justify-between gap-3 shrink-0',
+        currentSubModule === 'calendar' ? 'px-4 pt-3 pb-0' : '',
+      )}>
+        <Tabs
+          value={currentSubModule}
+          onValueChange={setActiveSubModule}
+          className="w-full shrink-0"
+        >
+          <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap max-w-full">
+            {Object.entries(SUB_MODULE_LABELS).map(([key, label]) => (
+              <TabsTrigger key={key} value={key} className="text-xs sm:text-sm whitespace-nowrap shrink-0">
+                {label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-xs text-muted-foreground shrink-0"
+          onClick={() => navigateTo('rooms', 'room-board')}
+        >
+          <BedDouble className="size-3.5" />
+          <span className="hidden sm:inline">Room Board</span>
+        </Button>
       </div>
-      )}
-
-      {/* Sub-module Tabs */}
-      <Tabs
-        value={currentSubModule}
-        onValueChange={setActiveSubModule}
-        className={cn('w-full shrink-0', currentSubModule === 'calendar' ? 'px-4 pt-3 pb-0' : '')}
-      >
-        <TabsList className="w-full sm:w-auto overflow-x-auto flex-nowrap max-w-full">
-          {Object.entries(SUB_MODULE_LABELS).map(([key, label]) => (
-            <TabsTrigger key={key} value={key} className="text-xs sm:text-sm whitespace-nowrap shrink-0">
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
 
       {/* Active View */}
       <div className={cn(
