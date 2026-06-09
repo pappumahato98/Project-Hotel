@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
-  ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
+  ArrowLeft, ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
   StickyNote, XCircle, Activity, CircleAlert, Ban,
 } from 'lucide-react'
 
@@ -644,14 +644,6 @@ export function FolioView() {
         />
       ) : (
         <div className="space-y-4">
-          {/* Back button on mobile */}
-          <button
-            onClick={handleBackToList}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors md:hidden"
-          >
-            ← Back to folio list
-          </button>
-
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Folio Detail Panel */}
             <div className="flex-1 min-w-0 space-y-4">
@@ -666,6 +658,7 @@ export function FolioView() {
                 currency={preferences.currency}
                 taxRate={settings.taxRate}
                 activityTimeline={activityTimeline}
+                onBack={handleBackToList}
                 onChargeClick={() => setChargeDialogOpen(true)}
                 onPaymentClick={handleOpenPaymentDialog}
                 onVoidTransaction={(id, desc, amt) => handleOpenVoidDialog({ type: 'transaction', id, description: desc, amount: amt })}
@@ -1102,7 +1095,7 @@ function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }
 function FolioDetailPanel({
   folio, loading, totalCharges, totalPayments, outstandingBalance,
   creditLimit, creditPct, currency, taxRate, activityTimeline,
-  onChargeClick, onPaymentClick,
+  onBack, onChargeClick, onPaymentClick,
   onVoidTransaction, onVoidPayment, onNotesChange, folioNotes,
 }: {
   folio: Folio
@@ -1115,6 +1108,7 @@ function FolioDetailPanel({
   currency: string
   taxRate: number
   activityTimeline: Array<{ id: string; type: 'charge' | 'payment'; description: string; amount: number; date: string; meta?: string }>
+  onBack: () => void
   onChargeClick: () => void
   onPaymentClick: () => void
   onVoidTransaction: (id: string, desc: string, amt: number) => void
@@ -1129,6 +1123,15 @@ function FolioDetailPanel({
       {/* Guest & Stay Info */}
       <Card>
         <CardContent className="p-4 md:p-6">
+          {/* Back Button */}
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+          >
+            <ArrowLeft className="size-4" />
+            <span>Back</span>
+          </button>
+
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
