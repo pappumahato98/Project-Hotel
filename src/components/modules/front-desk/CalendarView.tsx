@@ -166,7 +166,7 @@ interface NewReservationForm {
 // ─── Constants ──────────────────────────────────────────────────────────
 
 // Default/fallback constants (used when container size is unknown)
-const DEFAULT_NUM_DAYS = 15
+const DEFAULT_NUM_DAYS = 10
 const DEFAULT_DAY_WIDTH = 100
 const ROW_HEIGHT = 48
 const HEADER_HEIGHT = 64
@@ -335,7 +335,7 @@ export function CalendarView() {
 
   // ─── Responsive container sizing ────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(0)
-  const [viewMode, setViewMode] = useState<'7days' | '15days'>('15days')
+  const [viewMode, setViewMode] = useState<'7days' | '10days'>('7days')
   const { preferences } = usePreferencesStore()
   const showBSDates = preferences.nepaliStandards?.dualCalendar === true
   const showHolidayAlerts = preferences.nepaliStandards?.holidayAlerts !== false
@@ -373,6 +373,7 @@ export function CalendarView() {
 
   // Dynamically compute grid dimensions based on container width
   const numDays = viewMode === '7days' ? 7 : DEFAULT_NUM_DAYS
+  const prevOffset = numDays // Navigate by the full view range
   const roomColWidth = containerWidth > 1024 ? 140 : containerWidth > 640 ? 110 : 90
   const dayWidth = containerWidth > 0
     ? Math.max(64, Math.floor((containerWidth - roomColWidth) / numDays))
@@ -391,7 +392,8 @@ export function CalendarView() {
 
   const todayStr = useMemo(() => dateToKey(today), [today])
 
-  const [startDate, setStartDate] = useState(() => addDays(today, -3))
+  const [startDate, setStartDate] = useState(() => addDays(today, -2))
+  const hasAutoScrolledRef = useRef(false)
   const endDate = useMemo(() => addDays(startDate, numDays - 1), [startDate, numDays])
 
   const startDateStr = useMemo(() => dateToKey(startDate), [startDate])
@@ -399,9 +401,12 @@ export function CalendarView() {
   const endDateStr = useMemo(() => dateToKey(addDays(endDate, 7)), [endDate])
 
   // ─── Navigation ──────────────────────────────────────────────────────
-  const goToPrevWeek = useCallback(() => setStartDate((d) => addDays(d, -7)), [])
-  const goToNextWeek = useCallback(() => setStartDate((d) => addDays(d, 7)), [])
-  const goToToday = useCallback(() => setStartDate(addDays(today, -3)), [today])
+  const goToPrevWeek = useCallback(() => setStartDate((d) => addDays(d, -prevOffset)), [prevOffset])
+  const goToNextWeek = useCallback(() => setStartDate((d) => addDays(d, prevOffset)), [prevOffset])
+  const goToToday = useCallback(() => {
+    setStartDate(addDays(today, -2))
+    hasAutoScrolledRef.current = false // Re-enable auto-scroll for today
+  }, [today])
 
   // ─── Floor filter ────────────────────────────────────────────────────
   const [floorFilter, setFloorFilter] = useState<string>('all')
@@ -603,6 +608,13 @@ export function CalendarView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      // Real-time impact on other modules
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
+      queryClient.invalidateQueries({ queryKey: ['departures'] })
+      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: ['guests'] })
     },
     onError: () => {
       toast.error('Failed to update reservation')
@@ -654,6 +666,11 @@ export function CalendarView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      // Real-time impact on other modules
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      queryClient.invalidateQueries({ queryKey: ['guests'] })
       setShowNewDialog(false)
       toast.success('Reservation created successfully')
     },
@@ -674,6 +691,8 @@ export function CalendarView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       setShowNoteDialog(false)
       setNoteText('')
       toast.success('Note added successfully')
@@ -713,6 +732,12 @@ export function CalendarView() {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
+      // Real-time impact on other modules
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
+      queryClient.invalidateQueries({ queryKey: ['departures'] })
+      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      queryClient.invalidateQueries({ queryKey: ['room-moves'] })
       toast.success('Reservation moved successfully')
       setShowMoveDialog(false)
       setMoveData(null)
@@ -875,6 +900,10 @@ export function CalendarView() {
         if (res.ok) {
           toast.success('Stay extended by 1 night')
           queryClient.invalidateQueries({ queryKey: ['reservations'] })
+          queryClient.invalidateQueries({ queryKey: ['calendar'] })
+          queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+          queryClient.invalidateQueries({ queryKey: ['arrivals'] })
+          queryClient.invalidateQueries({ queryKey: ['in-house'] })
           setShowDetailDialog(false)
           setSelectedReservation(null)
         }
@@ -1221,16 +1250,23 @@ export function CalendarView() {
     [todayStr, handleCheckIn, handleCheckOut, handleConfirmReservation, handleViewFolio, handleOpenNoteDialog, handleExtendStay, updateStatusMutation.isPending],
   )
 
-  // ─── Auto-scroll to today's column on mount ──────────────────────────
+  // ─── Auto-scroll to today's column on mount and navigation (NOT on resize) ──
   useEffect(() => {
-    if (scrollRef.current) {
-      const todayIndex = dayHeaders.findIndex((d) => isSameDay(d, today))
-      if (todayIndex > 1) {
-        const scrollTarget = todayIndex * dayWidth - dayWidth
-        scrollRef.current.scrollLeft = scrollTarget
-      }
+    if (!scrollRef.current || hasAutoScrolledRef.current) return
+    const todayIndex = dayHeaders.findIndex((d) => isSameDay(d, today))
+    if (todayIndex > 0) {
+      // Use requestAnimationFrame to ensure layout is settled before scrolling
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          const scrollTarget = todayIndex * dayWidth - dayWidth * 0.5
+          scrollRef.current.scrollLeft = Math.max(0, scrollTarget)
+          hasAutoScrolledRef.current = true
+        }
+      })
+    } else {
+      hasAutoScrolledRef.current = true
     }
-  }, [dayHeaders, today, dayWidth])
+  }, [dayHeaders, today, viewMode]) // Re-scroll when viewMode changes, but NOT on resize
 
   // ─── Track month boundaries for month labels ─────────────────────────
   const monthBoundaries = useMemo(() => {
@@ -1282,7 +1318,10 @@ export function CalendarView() {
             {/* Segmented view toggle: 7 Days | 15 Days */}
             <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-0.5">
               <button
-                onClick={() => setViewMode('7days')}
+                onClick={() => {
+                  setViewMode('7days')
+                  hasAutoScrolledRef.current = false
+                }}
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
                   viewMode === '7days'
@@ -1293,15 +1332,18 @@ export function CalendarView() {
                 7D
               </button>
               <button
-                onClick={() => setViewMode('15days')}
+                onClick={() => {
+                  setViewMode('10days')
+                  hasAutoScrolledRef.current = false
+                }}
                 className={cn(
                   'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
-                  viewMode === '15days'
+                  viewMode === '10days'
                     ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
                 )}
               >
-                15D
+                10D
               </button>
             </div>
           </div>

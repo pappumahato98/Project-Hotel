@@ -1644,3 +1644,33 @@ Stage Summary:
 - Modified: src/app/api/reservations/route.ts (added dateFrom/dateTo overlapping range filter)
 - Root cause of drag-drop auto-removal fixed: API now fetches full visible date range instead of single date
 - Calendar responsive to sidebar toggle with proper multi-point measurement
+---
+Task ID: 1
+Agent: Main Agent
+Task: Calendar 7/10 day toggle, responsive fix, real-time cache invalidation
+
+Work Log:
+- Read and analyzed CalendarView.tsx (2387 lines) to understand full calendar implementation
+- Analyzed date range logic, navigation, responsive sizing, drag-drop, and mutation cache invalidation
+- Changed DEFAULT_NUM_DAYS from 15 to 10
+- Changed viewMode type from '7days'|'15days' to '7days'|'10days' with 7 as default
+- Updated startDate initial offset from -3 to -2 for 7-day default
+- Updated navigation (prev/next) to use dynamic prevOffset (= numDays) instead of fixed 7
+- Updated goToToday to reset auto-scroll flag and use -2 offset
+- Updated toggle button labels from "7D/15D" to "7D/10D"
+- Fixed auto-scroll: Added hasAutoScrolledRef to prevent scroll-loop on resize; auto-scroll only fires on mount, viewMode change, and today navigation (NOT on container resize/dayWidth change)
+- Added viewMode to auto-scroll useEffect dependency to re-center on today when switching views
+- Enhanced all mutation onSuccess handlers with cross-module cache invalidation:
+  - updateStatusMutation: invalidates dashboard, arrivals, departures, in-house, rooms, guests
+  - createReservationMutation: invalidates dashboard, arrivals, rooms, guests
+  - addNoteMutation: invalidates dashboard
+  - moveReservationMutation: invalidates dashboard, arrivals, departures, in-house, room-moves
+  - handleExtendStay: invalidates calendar, dashboard, arrivals, in-house
+- Verified all changes with ESLint (clean)
+- Browser verification: logged in, navigated to Calendar tab, confirmed 7D active by default, 10D toggle shows 10 columns, responsive tested on mobile (375px), tablet (768px), and desktop (1440px)
+
+Stage Summary:
+- Calendar now defaults to 7-day view with 10-day option toggle
+- Auto-scroll no longer causes jitter on resize — only scrolls on mount/navigation/view change
+- All calendar mutations (status change, create, move, extend stay, notes) propagate to other module caches in real-time via React Query invalidation
+- File modified: src/components/modules/front-desk/CalendarView.tsx
