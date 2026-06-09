@@ -1350,39 +1350,61 @@ export function CalendarView() {
 
           {/* Right side: Floor filter, BS/AD, New Booking */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Floor filter */}
-            <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger className="w-[100px] h-8 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-full">
-                <SelectValue placeholder="All Floors" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Floors</SelectItem>
-                {uniqueFloors.map((f) => (
-                  <SelectItem key={f} value={f.toString()}>
-                    Floor {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Floor filter — with clear button */}
+            {floorFilter !== 'all' ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={clearFloorFilter}
+                    className="inline-flex items-center gap-1 h-8 pl-2.5 pr-1.5 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+                  >
+                    <span>Floor {floorFilter}</span>
+                    <span className="flex size-4.5 items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors">
+                      <X className="size-2.5" />
+                    </span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="text-xs">Clear floor filter</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Select value={floorFilter} onValueChange={setFloorFilter}>
+                <SelectTrigger className="w-[100px] h-8 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-full">
+                  <SelectValue placeholder="All Floors" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Floors</SelectItem>
+                  {uniqueFloors.map((f) => (
+                    <SelectItem key={f} value={f.toString()}>
+                      Floor {f}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-            {/* BS/AD toggle — subtle ghost */}
+            {/* BS/AD toggle — with clear X when BS active */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    'h-8 px-2.5 text-xs font-medium rounded-full',
+                    'h-8 text-xs font-medium rounded-full gap-1',
                     showBSDates
-                      ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                      ? 'pl-2.5 pr-1.5 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50 border border-amber-200 dark:border-amber-800'
+                      : 'px-2.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
                   )}
                   onClick={() => {
                     const updated = { ...preferences.nepaliStandards, dualCalendar: !showBSDates }
                     usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
                   }}
                 >
-                  {showBSDates ? 'बि.सं' : 'AD'}
+                  <span>{showBSDates ? 'बि.सं' : 'AD'}</span>
+                  {showBSDates && (
+                    <span className="flex size-4.5 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors">
+                      <X className="size-2.5" />
+                    </span>
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="text-xs">{showBSDates ? 'Switch to AD dates' : 'Switch to BS dates'}</TooltipContent>
@@ -1487,10 +1509,10 @@ export function CalendarView() {
             >
               <div style={{ width: '100%' }}>
                 {/* ─── Day Column Headers (white, clean) ──────────────────── */}
-                <div className="flex sticky top-0 z-20 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-                  {/* Corner cell */}
+                <div className="flex sticky top-0 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+                  {/* Corner cell — always fixed at top-left corner */}
                   <div
-                    className="sticky left-0 z-30 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 shrink-0 flex items-center justify-center"
+                    className="sticky left-0 z-40 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 shrink-0 flex items-center justify-center"
                     style={{ width: roomColWidth, height: HEADER_HEIGHT }}
                   >
                     <span className="text-[10px] sm:text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Room</span>
@@ -1590,11 +1612,13 @@ export function CalendarView() {
                         )}
                         style={{ height: ROW_HEIGHT }}
                       >
-                        {/* ─── Room Label (light sticky left) ──────────────── */}
+                        {/* ─── Room Label (sticky left, below header) ──────────────── */}
                         <div
                           className={cn(
-                            'sticky left-0 z-20 border-r border-gray-200 dark:border-gray-800 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3',
-                            'bg-white dark:bg-gray-950',
+                            'sticky left-0 z-10 border-r border-gray-200 dark:border-gray-800 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3',
+                            roomIdx % 2 === 0
+                              ? 'bg-white dark:bg-gray-950'
+                              : 'bg-gray-50 dark:bg-gray-900/50',
                           )}
                           style={{ width: roomColWidth }}
                         >

@@ -1725,3 +1725,40 @@ Stage Summary:
 - Fixed: src/components/modules/front-desk/CalendarView.tsx (3 targeted edits: actualGridWidth calc, wrapper div, spacer div)
 - Calendar now fits within its container in all view modes (7D, 10D) and screen sizes (mobile, desktop)
 
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix Room sticky header + add X close buttons to Floor filter and BS/AD toggle
+
+Work Log:
+- Analyzed screenshot showing calendar with floor dropdown open and BS calendar active
+- Fixed ROOM corner cell sticky behavior during vertical scroll:
+  - Header row z-index increased from z-20 to z-30
+  - Corner cell z-index increased from z-30 to z-40
+  - Room row label z-index decreased from z-20 to z-10 (always below header)
+  - Room label backgrounds made opaque: bg-gray-50 instead of bg-gray-50/50
+- Added X close button to Floor filter:
+  - When a floor is selected (not "All Floors"), the Select dropdown is replaced by a pill-shaped button showing "Floor N" with an X close button in a circle
+  - Clicking X calls clearFloorFilter() to reset to "All Floors"
+  - Shows "All Floors" dropdown again after clearing
+- Added X close button to BS/AD toggle:
+  - When BS is active (showBSDates=true), the button shows "बि.सं" with an X close button in a circle
+  - Button gets amber border styling to indicate active state
+  - Clicking toggles back to AD mode
+  - When AD is active, shows clean ghost "AD" button without X
+- Verified all changes via agent-browser:
+  - Floor filter X button appears when Floor 1 selected, clears back to dropdown ✅
+  - BS/AD X button appears when BS active, toggles to AD ✅
+  - ROOM label and day headers stay fixed during vertical scroll ✅
+  - Room numbers stay visible at left during vertical scroll ✅
+  - Calendar grid still fits without overflow ✅
+- Lint passes clean with 0 errors
+
+Stage Summary:
+- File changed: src/components/modules/front-desk/CalendarView.tsx
+- Sticky header: z-index hierarchy corrected (header z-30, corner z-40, room labels z-10)
+- Floor filter: conditional render — pill with X when active, Select dropdown when default
+- BS/AD toggle: X button appears in active state, clean ghost button when inactive
+- Both X buttons have circular background for easy click target
+
