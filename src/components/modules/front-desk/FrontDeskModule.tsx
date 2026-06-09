@@ -56,10 +56,10 @@ export function FrontDeskModule() {
   const isCalendar = currentSubModule === 'calendar'
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 overflow-y-auto">
+    <div className="flex flex-1 flex-col min-h-0">
       {/* Sub-module Tabs + Room Board — always pinned below app header */}
       <div className={cn(
-        'sticky top-14 z-20 flex items-center justify-between gap-3 shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b',
+        'sticky top-0 z-20 flex items-center justify-between gap-3 shrink-0 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 border-b shadow-sm',
         isCalendar ? 'px-4 pt-3 pb-2' : 'px-4 md:px-6 pt-3 pb-3',
       )}>
         <Tabs

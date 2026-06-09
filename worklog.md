@@ -1855,3 +1855,27 @@ Stage Summary:
 - Features: Search, list/detail views, post charge, record payment, void transactions, activity timeline, notes
 - Backend dependencies: @radix-ui/react-progress@1.1.9
 
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Remove top gap and add glass foam effect to Front Desk sub-sidebar tabs
+
+Work Log:
+- Analyzed user's screenshot showing visible gap between app header and sub-sidebar tabs
+- Root cause: `sticky top-14` in FrontDeskModule created 56px gap because the sticky element's scroll container (parent div with overflow-y-auto) starts AFTER the header, so top-14 was 56px from the top of the scroll container (not the viewport)
+- Fix 1: Changed `sticky top-14` → `sticky top-0` (scroll container starts below header, so top-0 is correct)
+- Fix 2: Removed `overflow-y-auto` from FrontDeskModule outer div (let parent AppShell handle scrolling, avoiding nested scroll containers)
+- Fix 3: Enhanced glass foam effect: `bg-background/95 backdrop-blur` → `bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 shadow-sm`
+- Verified with Agent Browser:
+  - DOM measurement: headerBottom=56, tabsTop=56, gap=0px ✅
+  - CSS computed: backdropFilter=blur(24px) saturate(1.5), backgroundColor=oklab(1 0 0 / 0.5) ✅
+  - Dark mode: VLM confirmed frosted glass/glassmorphism effect visible ✅
+  - No gap between header and tabs ✅
+  - Sticky tabs pin correctly when scrolling ✅
+
+Stage Summary:
+- File changed: src/components/modules/front-desk/FrontDeskModule.tsx
+- Top gap removed (0px measured between header and tabs)
+- Glass foam effect applied: backdrop-blur-xl + backdrop-saturate-150 + 50% transparent background + shadow
+- Effect visible in dark mode; in light mode the blur is present but subtle due to white-on-white
