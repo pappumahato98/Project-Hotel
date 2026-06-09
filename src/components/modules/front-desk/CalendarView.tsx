@@ -1512,7 +1512,7 @@ export function CalendarView() {
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                'relative flex flex-col items-center justify-center border-r last:border-r-0 select-none',
+                                'relative flex flex-col items-center justify-center border-r last:border-r-0 select-none shrink-0',
                                 'bg-white dark:bg-gray-950',
                                 !isTodayCol && weekend && 'bg-gray-50/80 dark:bg-gray-900/40',
                                 !isTodayCol && isHoliday && HOLIDAY_HEADER_BG,
@@ -1585,7 +1585,7 @@ export function CalendarView() {
                       <div
                         key={room.id}
                         className={cn(
-                          'flex border-b border-gray-100 dark:border-gray-800 last:border-b-0',
+                          'flex border-b border-gray-100 dark:border-gray-800 last:border-b-0 shrink-0',
                           roomIdx % 2 === 0 ? 'bg-white dark:bg-gray-950' : 'bg-gray-50/50 dark:bg-gray-900/20',
                         )}
                         style={{ height: ROW_HEIGHT }}
@@ -1622,7 +1622,7 @@ export function CalendarView() {
                         {/* ─── Date Cells ────────────────────────────────── */}
                         <div
                           className={cn(
-                            'relative flex',
+                            'relative flex shrink-0 overflow-hidden',
                             dragReservation && dragOverRoomId === room.id && 'ring-2 ring-blue-300/60 dark:ring-blue-600/40 ring-inset',
                           )}
                           onDragOver={(e) => {
@@ -1669,7 +1669,7 @@ export function CalendarView() {
                               <div
                                 key={dayIdx}
                                 className={cn(
-                                  'relative border-r border-gray-100 dark:border-gray-800 last:border-r-0 cursor-pointer group',
+                                  'relative border-r border-gray-100 dark:border-gray-800 last:border-r-0 cursor-pointer group shrink-0',
                                   isTodayCell && 'bg-blue-50/40 dark:bg-blue-950/20',
                                   !isTodayCell && weekend && 'bg-gray-100/30 dark:bg-gray-900/30',
                                   cellHoliday.isHoliday && !isTodayCell && !weekend && HOLIDAY_CELL_BG,
@@ -1713,9 +1713,9 @@ export function CalendarView() {
                                     onDragStart={(e) => handleDragStart(e, res)}
                                     onDragEnd={handleDragEnd}
                                     className={cn(
-                                      'absolute top-[3px] rounded-lg border-l-[3px] px-2 py-1 cursor-grab active:cursor-grabbing transition-all z-10',
+                                      'absolute top-[3px] rounded-lg border-l-[3px] px-1 sm:px-2 py-0.5 sm:py-1 cursor-grab active:cursor-grabbing transition-all z-10',
                                       dragReservation && dragReservation.id !== res.id && 'pointer-events-none',
-                                      'text-xs font-medium leading-tight overflow-hidden',
+                                      'text-[10px] sm:text-xs font-medium leading-tight overflow-hidden whitespace-nowrap',
                                       'shadow-sm hover:shadow-md hover:z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                       colorClass,
                                       hoverClass,
@@ -1728,17 +1728,17 @@ export function CalendarView() {
                                     }}
                                     onClick={() => handleReservationClick(res)}
                                   >
-                                    <div className="flex items-center gap-0.5 truncate group">
+                                    <div className="flex items-center gap-0.5 truncate group min-w-0">
                                       {pos.width >= dayWidth * 1.5 && (
                                         <GripVertical className="size-2.5 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" />
                                       )}
                                       {isVip && (
                                         <Sparkles className="size-3 shrink-0 text-amber-500" />
                                       )}
-                                      <span className="truncate font-semibold">{guestName}</span>
+                                      <span className="truncate font-semibold text-ellipsis">{guestName}</span>
                                     </div>
                                     {pos.width >= dayWidth * 2 && (
-                                      <div className={cn('text-[9px] opacity-70 truncate mt-px flex items-center gap-0.5', isCompact && 'text-[8px]')}>
+                                      <div className={cn('text-[8px] sm:text-[9px] opacity-70 truncate mt-0 flex items-center gap-0.5', isCompact && 'text-[7px] sm:text-[8px]')}>
                                         <Clock className="size-2.5 shrink-0" />
                                         <span className="truncate">
                                           {formatDate(res.checkIn).replace(/,?\s*\d{4}$/, '')} →{' '}
@@ -1747,7 +1747,7 @@ export function CalendarView() {
                                       </div>
                                     )}
                                     {pos.width >= dayWidth * 3 && res.roomRate > 0 && (
-                                      <div className={cn('opacity-60 truncate', isCompact ? 'text-[8px]' : 'text-[9px]')}>
+                                      <div className={cn('opacity-60 truncate hidden sm:block', isCompact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[9px]')}>
                                         {nights} night{nights > 1 ? 's' : ''} · {formatCurrency(res.roomRate)}/n
                                       </div>
                                     )}

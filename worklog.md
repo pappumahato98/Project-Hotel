@@ -1674,3 +1674,25 @@ Stage Summary:
 - Auto-scroll no longer causes jitter on resize — only scrolls on mount/navigation/view change
 - All calendar mutations (status change, create, move, extend stay, notes) propagate to other module caches in real-time via React Query invalidation
 - File modified: src/components/modules/front-desk/CalendarView.tsx
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix calendar stretching caused by guest name text - prevent cell expansion
+
+Work Log:
+- Identified root cause: date cells and room rows in the flex container lacked `shrink-0`, causing them to compress/stretch when content (guest names, reservation blocks) pushed the layout
+- Added `shrink-0` (flex-shrink: 0) to all date cells in header and room rows — prevents cells from being compressed by flex
+- Added `shrink-0` to all room row containers — prevents row width from shrinking below calculated grid width
+- Added `overflow-hidden` to the date cell container (parent of cells + reservation blocks) — clips any absolute-positioned blocks that extend beyond bounds
+- Added `whitespace-nowrap` on reservation block text — prevents text wrapping that could push block height
+- Made text sizes responsive: `text-[10px] sm:text-xs`, `px-1 sm:px-2`, `py-0.5 sm:py-1` — smaller on mobile, normal on desktop
+- Added `text-ellipsis` on guest name spans for clean truncation
+- Made rate/nights info `hidden sm:block` on mobile to save space
+- Made date subtitle text responsive: `text-[7px] sm:text-[8px]` on compact
+- Verified on 4 breakpoints: Mobile (375px, scrolls), Tablet (768px, slight scroll), 1024px (no scroll), Desktop (1440px, fits)
+
+Stage Summary:
+- Calendar grid now has fixed cell widths that never shrink or stretch regardless of content
+- Reservation block text is truncated with ellipsis instead of wrapping or expanding cells
+- Mobile devices get smaller text/padding; rate info hidden on mobile to reduce clutter
+- File modified: src/components/modules/front-desk/CalendarView.tsx
