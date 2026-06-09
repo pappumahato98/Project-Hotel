@@ -1,6 +1,5 @@
 'use client'
 
-import { toast } from 'sonner'
 import { useNavigationStore } from '@/lib/store'
 import { FrontDeskDashboard } from './FrontDeskDashboard'
 import { ReservationsView } from './ReservationsView'
@@ -54,16 +53,14 @@ export function FrontDeskModule() {
 
   const currentSubModule = activeSubModule || 'dashboard'
   const ActiveView = SUB_MODULE_MAP[currentSubModule] || ReservationsView
+  const isCalendar = currentSubModule === 'calendar'
 
   return (
-    <div className={cn(
-        'flex flex-1 flex-col min-h-0',
-        currentSubModule === 'calendar' ? 'overflow-hidden p-0 gap-0' : 'overflow-y-auto p-4 md:p-6 gap-4',
-      )}>
-      {/* Sub-module Tabs + Room Board */}
+    <div className="flex flex-1 flex-col min-h-0 overflow-y-auto">
+      {/* Sub-module Tabs + Room Board — always pinned below app header */}
       <div className={cn(
-        'flex items-center justify-between gap-3 shrink-0',
-        currentSubModule === 'calendar' ? 'px-4 pt-3 pb-0' : '',
+        'sticky top-14 z-20 flex items-center justify-between gap-3 shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b',
+        isCalendar ? 'px-4 pt-3 pb-2' : 'px-4 md:px-6 pt-3 pb-3',
       )}>
         <Tabs
           value={currentSubModule}
@@ -89,10 +86,10 @@ export function FrontDeskModule() {
         </Button>
       </div>
 
-      {/* Active View */}
+      {/* Active View — scrollable content area */}
       <div className={cn(
-        'flex flex-col min-h-0',
-        currentSubModule === 'calendar' ? 'flex-1 overflow-hidden px-4 pb-0 pt-2' : '',
+        'flex-1',
+        isCalendar ? '' : 'p-4 md:p-6',
       )}>
         <ActiveView />
       </div>
