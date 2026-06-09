@@ -540,7 +540,7 @@ export function FolioView() {
           </Card>
 
           {/* Tabs: Charges / Payments */}
-          <Card>
+          <Card className="py-0">
             <CardContent className="p-0">
               <Tabs defaultValue="charges" className="w-full">
                 <div className="border-b px-4">

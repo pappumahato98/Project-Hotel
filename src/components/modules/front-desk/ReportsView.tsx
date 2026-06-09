@@ -237,7 +237,7 @@ function StatsCardSkeleton() {
 
 function TableSkeleton({ cols = 5, rows = 6 }: { cols?: number; rows?: number }) {
   return (
-    <Card>
+    <Card className="py-0">
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -474,7 +474,7 @@ function ArrivalsReport({ date }: { date?: string }) {
   }
 
   return (
-    <Card>
+    <Card className="py-0">
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -585,7 +585,7 @@ function DeparturesReport({ date }: { date?: string }) {
   }
 
   return (
-    <Card>
+    <Card className="py-0">
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -690,7 +690,7 @@ function InHouseReport() {
   }
 
   return (
-    <Card>
+    <Card className="py-0">
       <CardContent className="p-0">
         <div className="max-h-96 overflow-y-auto">
           <Table>
@@ -790,7 +790,7 @@ function RoomMovesReport() {
   }
 
   return (
-    <Card>
+    <Card className="py-0">
       <CardContent className="p-0">
         <div className="max-h-96 overflow-y-auto">
           <Table>
@@ -913,7 +913,7 @@ function OccupancyReport() {
         })()}
       </div>
 
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <Table>
             <TableHeader>

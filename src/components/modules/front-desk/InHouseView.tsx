@@ -679,7 +679,7 @@ export function InHouseView() {
       </Card>
 
       {/* In-House Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0 overflow-auto max-h-[65vh]">
           <Table>
               <TableHeader>

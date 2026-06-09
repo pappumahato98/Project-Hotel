@@ -60,7 +60,10 @@ export const useAuthStore = create<AuthState>()(
       }),
       onRehydrateStorage: () => {
         return (state) => {
-          state?._setHasHydrated(true)
+          // Defer setState to avoid "Can't perform React state update on unmounted component"
+          queueMicrotask(() => {
+            state?._setHasHydrated(true)
+          })
         }
       },
     }

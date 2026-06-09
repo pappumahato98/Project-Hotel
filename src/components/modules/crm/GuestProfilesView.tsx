@@ -367,7 +367,7 @@ export function GuestProfilesView() {
       </div>
 
       {/* Guest Table */}
-      <Card>
+      <Card className="py-0">
         <ScrollArea className="max-h-[520px]">
           <Table>
             <TableHeader>

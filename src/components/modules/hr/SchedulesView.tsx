@@ -236,7 +236,7 @@ export function SchedulesView() {
       </div>
 
       {/* Schedule Grid */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[600px]">
             <div className="min-w-[900px]">

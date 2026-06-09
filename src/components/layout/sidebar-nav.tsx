@@ -200,6 +200,10 @@ function UserProfileFooter() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigateTo('profile')}>
+          <User className="size-4" />
+          <span>My Profile</span>
+        </DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleSettings}>
           <Settings className="size-4" />
           <span>Settings</span>

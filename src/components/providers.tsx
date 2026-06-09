@@ -1,9 +1,7 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
-import { RealtimeProvider } from '@/components/providers/realtime-provider'
 import { useSettingsStore } from '@/lib/store'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -20,15 +18,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   )
 
-  React.useEffect(() => {
+  // Sync settings from backend once after mount
+  useEffect(() => {
     useSettingsStore.getState().syncFromBackend()
   }, [])
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RealtimeProvider>
-        {children}
-      </RealtimeProvider>
+      {children}
     </QueryClientProvider>
   )
 }

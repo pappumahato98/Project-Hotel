@@ -11,20 +11,44 @@ const nextConfig: NextConfig = {
   // Webpack optimizations to prevent ChunkLoadError in sandbox
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Merge chunks to reduce the number of files that need to load
       config.optimization = {
         ...config.optimization,
         splitChunks: {
           ...((config.optimization as Record<string, unknown>)?.splitChunks as Record<string, unknown>),
-          // Increase minimum chunk size to reduce number of chunks
           minSize: 20000,
-          // Keep maxAsyncRequests and maxInitialRequests low to reduce parallel loading
-          maxAsyncRequests: 6,
+          maxAsyncRequests: 12,
           maxInitialRequests: 4,
+          cacheGroups: {
+            ...((config.optimization as Record<string, unknown>)?.splitChunks as Record<string, Record<string, unknown>>)?.cacheGroups,
+            // React core into its own chunk (always needed, load first)
+            framework: {
+              name: 'framework',
+              chunks: 'all' as const,
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 40,
+              enforce: true,
+            },
+            // Socket.io into separate chunk (heavy, lazy-loaded)
+            socketio: {
+              name: 'socketio',
+              chunks: 'all' as const,
+              test: /[\\/]node_modules[\\/](socket\.io-client|engine\.io-client)[\\/]/,
+              priority: 30,
+              enforce: true,
+            },
+          },
         },
       }
     }
     return config
+  },
+  // Allow preview CDN domain for cross-origin asset loading
+  allowedDevOrigins: [
+    '*.space-z.ai',
+  ],
+  // Increase experimental chunk timeout for slow CDN environments
+  experimental: {
+    cpus: 1,
   },
 };
 

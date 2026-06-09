@@ -36,6 +36,14 @@ import { useSettingsStore } from '@/lib/store'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
+const TITLE_OPTIONS = [
+  { value: 'mr', label: 'Mr.' },
+  { value: 'mrs', label: 'Mrs.' },
+  { value: 'ms', label: 'Ms.' },
+  { value: 'dr', label: 'Dr.' },
+  { value: 'prof', label: 'Prof.' },
+]
+
 const NATIONALITIES = [
   'Nepal', 'India', 'China', 'USA', 'UK', 'Japan', 'South Korea',
   'Germany', 'France', 'Australia', 'Canada', 'Singapore', 'Malaysia',
@@ -160,10 +168,15 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   const [roomSearchFilter, setRoomSearchFilter] = useState('')
 
   // ─── Registration card form ────────────────────────────────────
+  const [regTitle, setRegTitle] = useState('')
+  const [regFirstName, setRegFirstName] = useState('')
+  const [regLastName, setRegLastName] = useState('')
+  const [regContactNo, setRegContactNo] = useState('')
+  const [regEmail, setRegEmail] = useState('')
+  const [regAddress, setRegAddress] = useState('')
   const [regNationality, setRegNationality] = useState('')
   const [regIdType, setRegIdType] = useState('passport')
   const [regIdNumber, setRegIdNumber] = useState('')
-  const [regAddress, setRegAddress] = useState('')
   const [regCity, setRegCity] = useState('')
   const [regCountry, setRegCountry] = useState('')
 
@@ -303,6 +316,11 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   React.useEffect(() => {
     if (activeReservation?.guest) {
       const g = activeReservation.guest
+      setRegTitle('')
+      setRegFirstName(g.firstName || '')
+      setRegLastName(g.lastName || '')
+      setRegContactNo(g.phone || '')
+      setRegEmail(g.email || '')
       setRegNationality(g.nationality || '')
       setRegIdType(g.idType || 'passport')
       setRegIdNumber(g.idNumber || '')
@@ -935,37 +953,148 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   const renderPreferencesAndRegistration = () => {
     return (
       <div className="space-y-6">
-        {/* Registration Card */}
+        {/* Guest Registration Table */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Shield className="size-4" />
-              Registration Card
+              Guest Registration
             </CardTitle>
             <CardDescription className="text-xs">
               Capture or update guest identification details as required by local regulations.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-1.5">
-                <Label className="text-xs">Nationality *</Label>
-                <Select value={regNationality} onValueChange={setRegNationality}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-48 overflow-y-auto">
-                    {NATIONALITIES.map((n) => (
-                      <SelectItem key={n} value={n}>{n}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                {/* Header Row */}
+                <thead>
+                  <tr className="bg-gray-100 dark:bg-gray-800/60">
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 w-[40px] whitespace-nowrap">SN</th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 w-[70px] whitespace-nowrap">Title</th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[140px] whitespace-nowrap">
+                      First Name
+                    </th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[130px] whitespace-nowrap">Last Name</th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[120px] whitespace-nowrap">Nationality</th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[160px] whitespace-nowrap">Email</th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[160px] whitespace-nowrap">Address</th>
+                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[130px] whitespace-nowrap">Contact No</th>
+                  </tr>
+                </thead>
+                {/* Data Row */}
+                <tbody>
+                  <tr>
+                    {/* SN */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">
+                      <span className="text-xs font-medium text-gray-500">1</span>
+                    </td>
+                    {/* Title dropdown */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <Select value={regTitle} onValueChange={setRegTitle}>
+                        <SelectTrigger className="h-8 w-full border-gray-300 dark:border-gray-600 text-xs rounded-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TITLE_OPTIONS.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    {/* First Name with search icon */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={regFirstName}
+                          onChange={(e) => setRegFirstName(e.target.value)}
+                          placeholder="First name"
+                          className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 pr-7 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                          title="Search guest"
+                        >
+                          <Search className="size-3" />
+                        </button>
+                      </div>
+                    </td>
+                    {/* Last Name */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <input
+                        type="text"
+                        value={regLastName}
+                        onChange={(e) => setRegLastName(e.target.value)}
+                        placeholder="Last name"
+                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                      />
+                    </td>
+                    {/* Nationality dropdown */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <Select value={regNationality} onValueChange={setRegNationality}>
+                        <SelectTrigger className="h-8 w-full border-gray-300 dark:border-gray-600 text-xs rounded-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-48 overflow-y-auto">
+                          {NATIONALITIES.map((n) => (
+                            <SelectItem key={n} value={n}>{n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    {/* Email */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <input
+                        type="email"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="Email address"
+                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                      />
+                    </td>
+                    {/* Address */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <input
+                        type="text"
+                        value={regAddress}
+                        onChange={(e) => setRegAddress(e.target.value)}
+                        placeholder="Street address"
+                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                      />
+                    </td>
+                    {/* Contact No */}
+                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+                      <input
+                        type="text"
+                        value={regContactNo}
+                        onChange={(e) => setRegContactNo(e.target.value)}
+                        placeholder="Phone number"
+                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
 
+        {/* ID Verification Row */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+              <Shield className="size-3" />
+              ID Verification
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="grid gap-1.5">
-                <Label className="text-xs">ID Type *</Label>
+                <Label className="text-xs">ID Type</Label>
                 <Select value={regIdType} onValueChange={setRegIdType}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-8 border-gray-300 dark:border-gray-600 text-xs rounded-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -975,40 +1104,36 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
                   </SelectContent>
                 </Select>
               </div>
-
               <div className="grid gap-1.5 sm:col-span-2">
-                <Label className="text-xs">ID Number *</Label>
-                <Input
+                <Label className="text-xs">ID Number</Label>
+                <input
+                  type="text"
                   value={regIdNumber}
                   onChange={(e) => setRegIdNumber(e.target.value)}
                   placeholder="Enter ID or passport number"
+                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
                 />
               </div>
-
-              <div className="grid gap-1.5 sm:col-span-2">
-                <Label className="text-xs">Address</Label>
-                <Input
-                  value={regAddress}
-                  onChange={(e) => setRegAddress(e.target.value)}
-                  placeholder="Street address"
-                />
-              </div>
-
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div className="grid gap-1.5">
                 <Label className="text-xs">City</Label>
-                <Input
+                <input
+                  type="text"
                   value={regCity}
                   onChange={(e) => setRegCity(e.target.value)}
                   placeholder="City"
+                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
                 />
               </div>
-
               <div className="grid gap-1.5">
                 <Label className="text-xs">Country</Label>
-                <Input
+                <input
+                  type="text"
                   value={regCountry}
                   onChange={(e) => setRegCountry(e.target.value)}
                   placeholder="Country"
+                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
                 />
               </div>
             </div>

@@ -56,25 +56,58 @@ export default function RootLayout({
           <Providers>{children}</Providers>
         </ThemeProvider>
         <Toaster />
-        {/* ChunkLoadError auto-recovery: reloads page if a chunk fails to load */}
+        {/* ChunkLoadError auto-recovery: only reloads on actual webpack chunk loading failures */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.addEventListener('error', function(e) {
-                if (e.target && e.target.tagName === 'SCRIPT' && e.message && e.message.includes('Loading chunk')) {
-                  e.preventDefault();
-                  console.warn('[ChunkLoadError] Auto-recovering by reloading...');
-                  window.location.reload();
+              (function() {
+                var reloadCount = parseInt(sessionStorage.getItem('_chunkReload') || '0', 10);
+                var lastReloadTime = parseInt(sessionStorage.getItem('_chunkReloadTime') || '0', 10);
+                // Prevent reloads more than once every 10 seconds
+                var now = Date.now();
+                if (lastReloadTime && (now - lastReloadTime) < 10000) return;
+
+                function safeReload() {
+                  if (reloadCount < 3) {
+                    sessionStorage.setItem('_chunkReload', String(reloadCount + 1));
+                    sessionStorage.setItem('_chunkReloadTime', String(Date.now()));
+                    window.location.reload();
+                  } else {
+                    console.error('[ChunkLoadError] Max reload attempts reached (3). Giving up.');
+                    sessionStorage.removeItem('_chunkReload');
+                    sessionStorage.removeItem('_chunkReloadTime');
+                  }
                 }
-              }, true);
-              // Also handle unhandled promise rejections from dynamic imports
-              window.addEventListener('unhandledrejection', function(e) {
-                if (e.reason && e.reason.message && e.reason.message.includes('Loading chunk')) {
-                  e.preventDefault();
-                  console.warn('[ChunkLoadError] Auto-recovering by reloading...');
-                  window.location.reload();
-                }
-              });
+                // Only catch SCRIPT tag errors — these are actual chunk loading failures.
+                // Do NOT catch generic "Failed to fetch" from XHR/socket.io/network errors.
+                window.addEventListener('error', function(e) {
+                  if (e.target && e.target.tagName === 'SCRIPT' && e.message && (
+                    e.message.includes('Loading chunk') ||
+                    e.message.includes('ChunkLoadError')
+                  )) {
+                    e.preventDefault();
+                    console.warn('[ChunkLoadError] Auto-recovering (attempt ' + (reloadCount + 1) + '/3)...');
+                    safeReload();
+                  }
+                }, true);
+                // Only catch unhandled rejections that are ACTUALLY webpack chunk errors.
+                // Exclude socket.io, fetch, and generic network errors.
+                window.addEventListener('unhandledrejection', function(e) {
+                  var msg = e.reason && (e.reason.message || String(e.reason));
+                  if (msg && (
+                    msg.includes('Loading chunk') ||
+                    msg.includes('ChunkLoadError')
+                  ) && !msg.includes('socket.io')) {
+                    e.preventDefault();
+                    console.warn('[ChunkLoadError] Auto-recovering (attempt ' + (reloadCount + 1) + '/3)...');
+                    safeReload();
+                  }
+                });
+                // Reset counter on successful load
+                window.addEventListener('load', function() {
+                  sessionStorage.removeItem('_chunkReload');
+                });
+              })();
             `,
           }}
         />

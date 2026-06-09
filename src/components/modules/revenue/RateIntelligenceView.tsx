@@ -53,7 +53,7 @@ export function RateIntelligenceView() {
       </div>
 
       {/* Competitor Rate Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <div className="p-4 pb-0 flex items-center gap-2">
             <Globe className="h-5 w-5 text-muted-foreground" />

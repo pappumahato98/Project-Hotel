@@ -209,7 +209,7 @@ export function LostFoundView() {
       </div>
 
       {/* Items Table */}
-      <Card>
+      <Card className="py-0">
         <ScrollArea className="max-h-[480px]">
           <Table>
             <TableHeader>

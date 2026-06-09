@@ -814,7 +814,7 @@ export function ReservationsView() {
       </Card>
 
       {/* Reservations Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <div className="rounded-md">
             <Table>

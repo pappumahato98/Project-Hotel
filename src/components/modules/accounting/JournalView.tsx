@@ -94,7 +94,7 @@ export function JournalView() {
       </div>
 
       {/* Journal Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[600px]">
             <Table>

@@ -79,6 +79,7 @@ import {
   CalendarRange,
   ShieldCheck,
   TrendingUp,
+  ArrowRight,
   ArrowRightLeft,
   X,
   GripVertical,
@@ -167,8 +168,8 @@ interface NewReservationForm {
 // Default/fallback constants (used when container size is unknown)
 const DEFAULT_NUM_DAYS = 14
 const DEFAULT_DAY_WIDTH = 100
-const ROW_HEIGHT = 40
-const HEADER_HEIGHT = 56
+const ROW_HEIGHT = 48
+const HEADER_HEIGHT = 64
 const DEFAULT_ROOM_COL_WIDTH = 140
 
 const SOURCE_OPTIONS = [
@@ -181,30 +182,30 @@ const SOURCE_OPTIONS = [
   { value: 'corporate', label: 'Corporate' },
 ]
 
-// Reservation block color coding (as per spec)
+// Reservation block color coding — Google Calendar-inspired soft tones
 const BLOCK_COLORS: Record<string, string> = {
-  confirmed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border-l-blue-500',
-  arrival_today: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-l-emerald-500',
-  checked_in: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-l-amber-500',
-  departure_today: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300 border-l-rose-500',
-  tentative: 'bg-slate-100 text-slate-700 dark:bg-slate-800/40 dark:text-slate-300 border-l-slate-400',
+  confirmed: 'bg-blue-50 border-l-blue-400 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300 dark:border-l-blue-500',
+  arrival_today: 'bg-emerald-50 border-l-emerald-400 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-l-emerald-500',
+  checked_in: 'bg-amber-50 border-l-amber-400 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300 dark:border-l-amber-500',
+  departure_today: 'bg-rose-50 border-l-rose-400 text-rose-700 dark:bg-rose-950/30 dark:text-rose-300 dark:border-l-rose-500',
+  tentative: 'bg-gray-100 border-l-gray-300 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400 dark:border-l-gray-500',
 }
 
 const BLOCK_HOVER: Record<string, string> = {
-  confirmed: 'hover:bg-blue-200 dark:hover:bg-blue-900/60',
-  arrival_today: 'hover:bg-emerald-200 dark:hover:bg-emerald-900/60',
-  checked_in: 'hover:bg-amber-200 dark:hover:bg-amber-900/60',
-  departure_today: 'hover:bg-rose-200 dark:hover:bg-rose-900/60',
-  tentative: 'hover:bg-slate-200 dark:hover:bg-slate-800/60',
+  confirmed: 'hover:bg-blue-100 dark:hover:bg-blue-950/50',
+  arrival_today: 'hover:bg-emerald-100 dark:hover:bg-emerald-950/50',
+  checked_in: 'hover:bg-amber-100 dark:hover:bg-amber-950/50',
+  departure_today: 'hover:bg-rose-100 dark:hover:bg-rose-950/50',
+  tentative: 'hover:bg-gray-200 dark:hover:bg-gray-800/50',
 }
 
-// Compact legend items for header row (small dots + labels)
+// Legend items — clean pill-style dots
 const LEGEND_ITEMS = [
   { key: 'confirmed', label: 'Confirmed', dotClass: 'bg-blue-400 dark:bg-blue-500' },
   { key: 'arrival_today', label: 'Arrival', dotClass: 'bg-emerald-400 dark:bg-emerald-500' },
   { key: 'checked_in', label: 'Checked-In', dotClass: 'bg-amber-400 dark:bg-amber-500' },
   { key: 'departure_today', label: 'Departure', dotClass: 'bg-rose-400 dark:bg-rose-500' },
-  { key: 'tentative', label: 'Tentative', dotClass: 'bg-slate-400 dark:bg-slate-500' },
+  { key: 'tentative', label: 'Tentative', dotClass: 'bg-gray-400 dark:bg-gray-500' },
 ]
 
 // Move reason options
@@ -245,9 +246,9 @@ const DAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAY_ABBR_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const DAY_ABBR_THREE = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Saffron color for holiday highlighting
-const HOLIDAY_HEADER_BG = 'bg-orange-900/30'
-const HOLIDAY_CELL_BG = 'bg-orange-50/50 dark:bg-orange-950/20'
+// Light holiday highlighting
+const HOLIDAY_HEADER_BG = 'bg-orange-50/60 dark:bg-orange-950/20'
+const HOLIDAY_CELL_BG = 'bg-orange-50/30 dark:bg-orange-950/10'
 
 // ─── Date Helpers ────────────────────────────────────────────────────────
 
@@ -1221,40 +1222,85 @@ export function CalendarView() {
     }
   }, [dayHeaders, today, dayWidth])
 
+  // ─── Track month boundaries for month labels ─────────────────────────
+  const monthBoundaries = useMemo(() => {
+    const boundaries: number[] = []
+    for (let i = 0; i < dayHeaders.length; i++) {
+      if (dayHeaders[i].getDate() <= 7 && (i === 0 || dayHeaders[i].getMonth() !== dayHeaders[i - 1].getMonth())) {
+        boundaries.push(i)
+      }
+    }
+    return boundaries
+  }, [dayHeaders])
+
   // ─── Render ───────────────────────────────────────────────────────────
 
   return (
     <TooltipProvider delayDuration={300}>
       <div ref={containerRef} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* ─── Header Toolbar ────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between gap-2 shrink-0 flex-wrap">
-          {/* Left side: Title + Search + Room Board */}
-          <div className="flex items-center gap-2 shrink-0 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
-                <CalendarDays className="size-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div className="hidden sm:block">
-                <h2 className="text-sm font-bold tracking-tight leading-none">Reservation Calendar</h2>
-                <p className="text-[10px] text-muted-foreground">Drag &amp; drop to move reservations</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-xs text-muted-foreground shrink-0"
-              onClick={() => navigateTo('rooms', 'room-board')}
-            >
-              <BedDouble className="size-3.5" />
-              <span className="hidden sm:inline">Room Board</span>
-            </Button>
+        {/* ─── Header Toolbar (Google Calendar-style) ────────────────── */}
+        <div className="flex items-center justify-between gap-3 px-2 py-2 shrink-0 flex-wrap bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+          {/* Left side: Title */}
+          <div className="flex items-center gap-3 shrink-0 min-w-0">
+            <h2 className="text-base font-semibold text-gray-700 dark:text-gray-200">Reservation Calendar</h2>
           </div>
 
-          {/* Right side: Controls */}
+          {/* Center: Navigation pills + View toggle */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Floor filter dropdown */}
+            {/* < Today > pill navigation */}
+            <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-0.5">
+              <button
+                onClick={goToPrevWeek}
+                className="flex items-center justify-center size-7 rounded-full text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <button
+                onClick={goToToday}
+                className="px-3 py-1 rounded-full text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={goToNextWeek}
+                className="flex items-center justify-center size-7 rounded-full text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+
+            {/* Segmented view toggle: 2W | 4W */}
+            <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-0.5">
+              <button
+                onClick={() => setViewMode('week')}
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  viewMode === 'week'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+                )}
+              >
+                {isSmallScreen ? '1W' : '2W'}
+              </button>
+              <button
+                onClick={() => setViewMode('twoWeeks')}
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  viewMode === 'twoWeeks'
+                    ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+                )}
+              >
+                {isSmallScreen ? '2W' : '4W'}
+              </button>
+            </div>
+          </div>
+
+          {/* Right side: Floor filter, BS/AD, New Booking */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Floor filter */}
             <Select value={floorFilter} onValueChange={setFloorFilter}>
-              <SelectTrigger className="w-[110px] h-8 text-xs">
+              <SelectTrigger className="w-[100px] h-8 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-full">
                 <SelectValue placeholder="All Floors" />
               </SelectTrigger>
               <SelectContent>
@@ -1266,61 +1312,53 @@ export function CalendarView() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className={cn('h-8 gap-1 text-xs', viewMode === 'week' ? 'bg-secondary' : '')} onClick={() => setViewMode('week')}>
-              <CalendarDays className="size-3.5" />
-              <span className="hidden md:inline">Week</span>
-            </Button>
-            <Button variant="outline" size="sm" className={cn('h-8 gap-1 text-xs', viewMode === 'twoWeeks' ? 'bg-secondary' : '')} onClick={() => setViewMode('twoWeeks')}>
-              <CalendarRange className="size-3.5" />
-              <span className="hidden md:inline">2W</span>
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={goToPrevWeek}>
-              <ChevronLeft className="size-3.5" />
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs font-medium" onClick={goToToday}>
-              Today
-            </Button>
-            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs" onClick={goToNextWeek}>
-              <ChevronRight className="size-3.5" />
-            </Button>
+
+            {/* BS/AD toggle — subtle ghost */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant={showBSDates ? 'default' : 'outline'}
+                  variant="ghost"
                   size="sm"
-                  className={cn('h-8 gap-1 text-xs font-medium', showBSDates && 'bg-amber-600 hover:bg-amber-700 text-white')}
+                  className={cn(
+                    'h-8 px-2.5 text-xs font-medium rounded-full',
+                    showBSDates
+                      ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
+                  )}
                   onClick={() => {
                     const updated = { ...preferences.nepaliStandards, dualCalendar: !showBSDates }
                     usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
                   }}
                 >
-                  <span className="hidden sm:inline">{showBSDates ? 'बि.सं BS' : 'AD'}</span>
-                  <span className="sm:hidden">{showBSDates ? 'बि' : 'AD'}</span>
+                  {showBSDates ? 'बि.सं' : 'AD'}
                 </Button>
               </TooltipTrigger>
               <TooltipContent className="text-xs">{showBSDates ? 'Switch to AD dates' : 'Switch to BS dates'}</TooltipContent>
             </Tooltip>
+
+            {/* New Booking — Google-blue primary */}
             <Button
               size="sm"
-              className="h-8 gap-1.5 text-xs"
+              className="h-8 gap-1.5 text-xs font-medium rounded-full px-4 bg-blue-500 hover:bg-blue-600 text-white"
               onClick={() => {
                 setNewForm(getDefaultNewForm(filteredRooms[0]?.id || '', startDateStr))
                 setShowNewDialog(true)
               }}
             >
               <Plus className="size-3.5" />
-              <span className="hidden sm:inline">New </span>Booking
+              <span className="hidden sm:inline">New Booking</span>
+              <span className="sm:hidden">New</span>
             </Button>
           </div>
         </div>
 
         {/* ─── Active Filter Chips ─────────────────────────────────────── */}
         {(floorFilter !== 'all' || showBSDates) && (
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 px-3 py-1.5 shrink-0 flex-wrap bg-white dark:bg-gray-950">
             {floorFilter !== 'all' && (
               <button
                 onClick={clearFloorFilter}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-medium hover:bg-primary/20 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 text-[11px] font-medium hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
               >
                 <X className="size-3 shrink-0" />
                 <span>Floor {floorFilter}</span>
@@ -1332,7 +1370,7 @@ export function CalendarView() {
                   const updated = { ...preferences.nepaliStandards, dualCalendar: false }
                   usePreferencesStore.getState().updatePreferences({ nepaliStandards: updated })
                 }}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 text-[11px] font-medium hover:bg-amber-200 dark:hover:bg-amber-950/60 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 text-[11px] font-medium hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
               >
                 <X className="size-3 shrink-0" />
                 <span>BS Calendar</span>
@@ -1343,15 +1381,44 @@ export function CalendarView() {
 
         {/* ─── Calendar Grid ────────────────────────────────────────────── */}
         {isLoading ? (
-          <Card>
-            <CardContent className="p-6 space-y-3">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </CardContent>
-          </Card>
+          <div className="flex-1 min-h-0 bg-white dark:bg-gray-950">
+            <div className="flex">
+              {/* Skeleton room labels */}
+              <div className="shrink-0 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800" style={{ width: roomColWidth }}>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-2 px-3" style={{ height: ROW_HEIGHT }}>
+                    <Skeleton className="size-2.5 rounded-full" />
+                    <div className="space-y-1.5 flex-1">
+                      <Skeleton className="h-3 w-10 rounded" />
+                      <Skeleton className="h-2 w-16 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Skeleton day columns */}
+              <div className="flex-1 flex">
+                {Array.from({ length: numDays }).map((_, i) => (
+                  <div key={i} className="flex-1">
+                    <div className="flex flex-col items-center justify-center border-r border-gray-100 last:border-r-0" style={{ height: HEADER_HEIGHT }}>
+                      <Skeleton className="h-3 w-5 rounded mb-1" />
+                      <Skeleton className="h-5 w-5 rounded-full" />
+                    </div>
+                    {Array.from({ length: 8 }).map((_, j) => (
+                      <div
+                        key={j}
+                        className="border-r border-gray-100 last:border-r-0"
+                        style={{ height: ROW_HEIGHT }}
+                      >
+                        <Skeleton className="mx-1 mt-2 h-5 w-[90%] rounded" />
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ) : filteredRooms.length === 0 ? (
-          <Card>
+          <Card className="flex-1 min-h-0">
             <CardContent className="py-16">
               <EmptyState
                 illustration={<NoScheduleIllustration className="w-32 h-auto" />}
@@ -1361,20 +1428,20 @@ export function CalendarView() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="overflow-hidden rounded-lg flex-1 min-h-0 flex flex-col gap-0 py-0">
+          <div className="flex-1 min-h-0 overflow-hidden bg-white dark:bg-gray-950">
             <div
               ref={scrollRef}
-              className="overflow-auto flex-1 min-h-0"
+              className="overflow-auto h-full"
             >
               <div style={{ minWidth: actualGridWidth, width: '100%' }}>
-                {/* ─── Day Column Headers (dark sticky) ──────────────────── */}
-                <div className="flex sticky top-0 z-20 bg-slate-800 dark:bg-slate-950 border-b border-slate-700 dark:border-slate-800">
-                  {/* Corner cell (Room header + day header intersection) */}
+                {/* ─── Day Column Headers (white, clean) ──────────────────── */}
+                <div className="flex sticky top-0 z-20 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+                  {/* Corner cell */}
                   <div
-                    className="sticky left-0 z-30 bg-slate-900 dark:bg-black border-r border-slate-700 dark:border-slate-800 shrink-0 flex items-center px-2 sm:px-3"
+                    className="sticky left-0 z-30 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 shrink-0 flex items-center justify-center"
                     style={{ width: roomColWidth, height: HEADER_HEIGHT }}
                   >
-                    <span className="text-[10px] sm:text-xs font-semibold text-slate-300">Room</span>
+                    <span className="text-[10px] sm:text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Room</span>
                   </div>
                   {/* Date column headers */}
                   <div className="flex">
@@ -1384,52 +1451,59 @@ export function CalendarView() {
                       const holidayInfo = showHolidayAlerts ? isNepaliHoliday(date) : { isHoliday: false }
                       const bs = showBSDates ? adToBS(date) : null
                       const isHoliday = holidayInfo.isHoliday
+                      const isFirstOfMonth = monthBoundaries.includes(i)
+                      const monthLabel = isFirstOfMonth
+                        ? date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                        : null
                       return (
                         <Tooltip key={i}>
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
                                 'relative flex flex-col items-center justify-center border-r last:border-r-0 select-none',
-                                isTodayCol && 'bg-emerald-900/50',
-                                !isTodayCol && weekend && 'bg-rose-900/20',
+                                'bg-white dark:bg-gray-950',
+                                !isTodayCol && weekend && 'bg-gray-50/80 dark:bg-gray-900/40',
                                 !isTodayCol && isHoliday && HOLIDAY_HEADER_BG,
-                                !isTodayCol && !weekend && !isHoliday && 'bg-slate-800 dark:bg-slate-950',
                               )}
                               style={{ width: dayWidth, height: HEADER_HEIGHT }}
                             >
-                              {/* Day + Date: "Sat 06" format */}
+                              {/* Day abbreviation */}
                               <span
                                 className={cn(
-                                  'text-xs sm:text-sm font-bold leading-none tracking-tight',
-                                  isTodayCol ? 'text-emerald-300' : isHoliday ? 'text-orange-300' : weekend ? 'text-rose-400/90' : 'text-white',
+                                  'text-[10px] sm:text-xs font-medium leading-none',
+                                  isTodayCol ? 'text-blue-500 dark:text-blue-400' : weekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400',
                                 )}
                               >
-                                {isCompact ? DAY_ABBR_SHORT[date.getDay()] : DAY_ABBR_THREE[date.getDay()]}{' '}
-                                {showBSDates && bs
-                                  ? String(bs.day).padStart(2, '0')
-                                  : String(date.getDate()).padStart(2, '0')}
+                                {isCompact ? DAY_ABBR_SHORT[date.getDay()] : DAY_ABBR_THREE[date.getDay()]}
                               </span>
-                              {/* Sub-label: "today" or month */}
-                              <span
-                                className={cn(
-                                  'text-[8px] sm:text-[9px] font-medium leading-tight mt-1',
-                                  isTodayCol
-                                    ? 'text-emerald-400 font-bold uppercase'
-                                    : isHoliday
-                                      ? 'text-orange-400/70'
-                                      : weekend
-                                        ? 'text-rose-400/60'
-                                        : 'text-slate-500',
-                                )}
-                              >
-                                {isTodayCol
-                                  ? 'today'
-                                  : showBSDates && bs
-                                    ? `${getNepaliMonthShortEnglish(bs.month)} ${bs.year}`
-                                    : date.toLocaleDateString('en-US', { month: 'short' })}
-                              </span>
+                              {/* Date number — in circle for today */}
+                              {isTodayCol ? (
+                                <span className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs sm:text-sm font-semibold mt-1">
+                                  {showBSDates && bs ? bs.day : date.getDate()}
+                                </span>
+                              ) : (
+                                <span
+                                  className={cn(
+                                    'text-xs sm:text-sm font-medium mt-1',
+                                    isHoliday ? 'text-orange-600 dark:text-orange-400' : weekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300',
+                                  )}
+                                >
+                                  {showBSDates && bs ? bs.day : date.getDate()}
+                                </span>
+                              )}
+                              {/* BS date or month label shown below */}
+                              {showBSDates && bs && !isTodayCol ? (
+                                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 leading-none">
+                                  {date.getDate()}
+                                </span>
+                              ) : !showBSDates && monthLabel && !isTodayCol ? (
+                                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 font-medium leading-none">
+                                  {monthLabel}
+                                </span>
+                              ) : null}
+                              {/* Holiday dot indicator */}
                               {isHoliday && (
-                                <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-orange-500" />
+                                <span className="absolute top-1 right-1.5 size-1.5 rounded-full bg-orange-400" />
                               )}
                             </div>
                           </TooltipTrigger>
@@ -1459,16 +1533,16 @@ export function CalendarView() {
                       <div
                         key={room.id}
                         className={cn(
-                          'flex border-b last:border-b-0',
-                          roomIdx % 2 === 0 ? 'bg-background' : 'bg-muted/15',
+                          'flex border-b border-gray-100 dark:border-gray-800 last:border-b-0',
+                          roomIdx % 2 === 0 ? 'bg-white dark:bg-gray-950' : 'bg-gray-50/50 dark:bg-gray-900/20',
                         )}
                         style={{ height: ROW_HEIGHT }}
                       >
-                        {/* ─── Room Label (dark sticky left) ──────────────── */}
+                        {/* ─── Room Label (light sticky left) ──────────────── */}
                         <div
                           className={cn(
-                            'sticky left-0 z-20 border-r border-slate-200 dark:border-slate-700 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3',
-                            'bg-slate-800 dark:bg-slate-950',
+                            'sticky left-0 z-20 border-r border-gray-200 dark:border-gray-800 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3',
+                            'bg-white dark:bg-gray-950',
                           )}
                           style={{ width: roomColWidth }}
                         >
@@ -1486,8 +1560,8 @@ export function CalendarView() {
                             </TooltipContent>
                           </Tooltip>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[10px] sm:text-xs font-bold truncate leading-tight text-white">#{room.number}</p>
-                            <p className="text-[8px] sm:text-[9px] text-slate-500 leading-tight truncate">
+                            <p className="text-[10px] sm:text-xs font-bold truncate leading-tight text-gray-800 dark:text-gray-200">#{room.number}</p>
+                            <p className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 leading-tight truncate">
                               {room.type.code}{room.wing ? ` · ${room.wing}` : ''} · F{room.floor}
                             </p>
                           </div>
@@ -1497,7 +1571,7 @@ export function CalendarView() {
                         <div
                           className={cn(
                             'relative flex',
-                            dragReservation && dragOverRoomId === room.id && 'ring-2 ring-primary/50 ring-inset rounded-sm',
+                            dragReservation && dragOverRoomId === room.id && 'ring-2 ring-blue-300/60 dark:ring-blue-600/40 ring-inset',
                           )}
                           onDragOver={(e) => {
                             e.preventDefault()
@@ -1543,23 +1617,23 @@ export function CalendarView() {
                               <div
                                 key={dayIdx}
                                 className={cn(
-                                  'relative border-r last:border-r-0 cursor-pointer group',
-                                  isTodayCell && 'bg-emerald-50/50 dark:bg-emerald-950/20',
-                                  !isTodayCell && weekend && 'bg-rose-50/30 dark:bg-rose-950/10',
+                                  'relative border-r border-gray-100 dark:border-gray-800 last:border-r-0 cursor-pointer group',
+                                  isTodayCell && 'bg-blue-50/40 dark:bg-blue-950/20',
+                                  !isTodayCell && weekend && 'bg-gray-100/30 dark:bg-gray-900/30',
                                   cellHoliday.isHoliday && !isTodayCell && !weekend && HOLIDAY_CELL_BG,
-                                  !isTodayCell && !weekend && !cellHoliday.isHoliday && roomIdx % 2 !== 0 && 'bg-muted/10',
-                                  dragReservation && dragOverRoomId === room.id && 'bg-primary/5',
+                                  !isTodayCell && !weekend && !cellHoliday.isHoliday && roomIdx % 2 !== 0 && 'bg-gray-50/30 dark:bg-gray-900/15',
+                                  dragReservation && dragOverRoomId === room.id && 'bg-blue-50/30 dark:bg-blue-950/10',
                                 )}
                                 style={{ width: dayWidth, height: ROW_HEIGHT }}
                                 onDoubleClick={() => handleCellDoubleClick(room.id, date)}
                               >
                                 {/* Today vertical indicator */}
                                 {isTodayCell && (
-                                  <div className="absolute inset-y-0 left-0 w-0.5 bg-emerald-500/40 z-10" />
+                                  <div className="absolute inset-y-0 left-0 w-0.5 bg-blue-400/50 z-10" />
                                 )}
-                                {/* Empty cell hover indicator */}
+                                {/* Empty cell hover "+" indicator */}
                                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                  <Plus className="size-3 text-muted-foreground/30" />
+                                  <Plus className="size-3 text-gray-300 dark:text-gray-600" />
                                 </div>
                               </div>
                             )
@@ -1587,9 +1661,9 @@ export function CalendarView() {
                                     onDragStart={(e) => handleDragStart(e, res)}
                                     onDragEnd={handleDragEnd}
                                     className={cn(
-                                      'absolute top-[3px] rounded-md border-l-[3px] px-1.5 py-0.5 cursor-grab active:cursor-grabbing transition-all z-10',
+                                      'absolute top-[3px] rounded-lg border-l-[3px] px-2 py-1 cursor-grab active:cursor-grabbing transition-all z-10',
                                       dragReservation && dragReservation.id !== res.id && 'pointer-events-none',
-                                      'text-[10px] sm:text-[11px] font-medium leading-tight overflow-hidden',
+                                      'text-xs font-medium leading-tight overflow-hidden',
                                       'shadow-sm hover:shadow-md hover:z-20 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                                       colorClass,
                                       hoverClass,
@@ -1602,9 +1676,9 @@ export function CalendarView() {
                                     }}
                                     onClick={() => handleReservationClick(res)}
                                   >
-                                    <div className="flex items-center gap-0.5 truncate">
+                                    <div className="flex items-center gap-0.5 truncate group">
                                       {pos.width >= dayWidth * 1.5 && (
-                                        <GripVertical className="size-2.5 shrink-0 opacity-40" />
+                                        <GripVertical className="size-2.5 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" />
                                       )}
                                       {isVip && (
                                         <Sparkles className="size-3 shrink-0 text-amber-500" />
@@ -1668,22 +1742,22 @@ export function CalendarView() {
                 {/* Ensure grid takes full width for proper scrolling */}
                 <div style={{ width: actualGridWidth, minWidth: '100%', height: 1 }} />
 
-                {/* ─── Bottom Status Legend Bar (sticky at bottom of scroll) ── */}
-                <div className="flex items-center gap-3 px-3 py-1 bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-[10px] shrink-0 sticky bottom-0 z-10">
-              <div className="flex items-center gap-2">
-                {LEGEND_ITEMS.map((item) => (
-                  <div key={item.key} className="flex items-center gap-1">
-                    <div className={cn('size-2 rounded-sm shrink-0', item.dotClass)} />
-                    <span className="text-muted-foreground whitespace-nowrap">{item.label}</span>
+                {/* ─── Bottom Legend Bar (clean, light) ────────────────── */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 text-[10px] shrink-0 sticky bottom-0 z-10">
+                  <div className="flex items-center gap-2">
+                    {LEGEND_ITEMS.map((item) => (
+                      <div key={item.key} className="flex items-center gap-1">
+                        <div className={cn('size-2 rounded-full shrink-0', item.dotClass)} />
+                        <span className="text-gray-500 dark:text-gray-400 whitespace-nowrap">{item.label}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <Separator orientation="vertical" className="h-3" />
-              <span className="text-muted-foreground font-medium">{filteredRooms.length} rooms · {summary.totalReservations} bookings · {summary.arrivals} arr · {summary.departures} dep</span>
-            </div>
+                  <Separator orientation="vertical" className="h-3" />
+                  <span className="text-gray-400 dark:text-gray-500 font-medium">{filteredRooms.length} rooms · {summary.totalReservations} bookings · {summary.arrivals} arr · {summary.departures} dep</span>
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
         )}
 
         {/* ─── Reservation Detail Dialog ─────────────────────────────────── */}
@@ -1899,8 +1973,8 @@ export function CalendarView() {
         {/* ─── New Reservation Dialog ────────────────────────────────────── */}
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
           <DialogContent className="sm:max-w-xl max-h-[85vh] p-0 gap-0 overflow-hidden flex flex-col rounded-xl">
-            {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 pt-5 pb-4 shrink-0">
+            {/* Header with clean style */}
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-5 pt-5 pb-4 shrink-0">
               <DialogHeader className="gap-1">
                 <DialogTitle className="flex items-center gap-2.5 text-lg text-white">
                   <div className="flex size-9 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
@@ -1910,7 +1984,10 @@ export function CalendarView() {
                 </DialogTitle>
                 <DialogDescription className="text-xs ml-[46px] text-white/70">
                   {newForm.roomId
-                    ? `Room #${filteredRooms.find((r) => r.id === newForm.roomId)?.number || ''} · ${newForm.checkIn} → ${newForm.checkOut}`
+                    ? (() => {
+                        const rm = filteredRooms.find((r) => r.id === newForm.roomId)
+                        return rm ? `Room #${rm.number} · ${rm.type.name} (F${rm.floor}) · ${newForm.checkIn} → ${newForm.checkOut}` : 'Fill in details to create a new reservation'
+                      })()
                     : 'Fill in details to create a new reservation'}
                 </DialogDescription>
               </DialogHeader>
@@ -1922,7 +1999,7 @@ export function CalendarView() {
                 {/* Guest Section */}
                 <div className="space-y-2.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <div className="flex size-5 items-center justify-center rounded bg-slate-100 dark:bg-slate-800">
+                    <div className="flex size-5 items-center justify-center rounded bg-gray-100 dark:bg-gray-800">
                       <User className="size-3" />
                     </div>
                     Guest Information
@@ -1981,7 +2058,7 @@ export function CalendarView() {
                 {/* Stay Details */}
                 <div className="space-y-2.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <div className="flex size-5 items-center justify-center rounded bg-slate-100 dark:bg-slate-800">
+                    <div className="flex size-5 items-center justify-center rounded bg-gray-100 dark:bg-gray-800">
                       <BedDouble className="size-3" />
                     </div>
                     Stay Details
@@ -2002,6 +2079,19 @@ export function CalendarView() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {newForm.roomId && (() => {
+                      const rm = filteredRooms.find((r) => r.id === newForm.roomId)
+                      if (!rm) return null
+                      return (
+                        <div className="col-span-2 rounded-lg bg-muted/50 border p-2.5 flex items-center gap-3">
+                          <div className={cn('size-2 rounded-full shrink-0', ROOM_STATUS_DOT[rm.status] || 'bg-gray-400')} />
+                          <div className="text-xs space-y-0.5">
+                            <p className="font-medium">#{rm.number} — {rm.type.name} <span className="text-muted-foreground">({rm.type.code})</span></p>
+                            <p className="text-muted-foreground">Floor {rm.floor}{rm.wing ? ` · Wing ${rm.wing}` : ''} · {ROOM_STATUS_LABELS[rm.status] || rm.status}</p>
+                          </div>
+                        </div>
+                      )
+                    })()}
                     <div className="space-y-1">
                       <Label className="text-[11px]">Source</Label>
                       <Select value={newForm.source} onValueChange={(v) => setNewForm((p) => ({ ...p, source: v }))}>
@@ -2026,12 +2116,18 @@ export function CalendarView() {
                       <Input type="date" className="h-9 text-sm" value={newForm.checkOut} onChange={(e) => setNewForm((p) => ({ ...p, checkOut: e.target.value }))} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px]">Adults</Label>
-                      <Input type="number" min={1} className="h-9 text-sm" value={newForm.adults} onChange={(e) => setNewForm((p) => ({ ...p, adults: parseInt(e.target.value) || 1 }))} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px]">Children</Label>
-                      <Input type="number" min={0} className="h-9 text-sm" value={newForm.children} onChange={(e) => setNewForm((p) => ({ ...p, children: parseInt(e.target.value) || 0 }))} />
+                      <Label className="text-[11px]">Guests</Label>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2 rounded-md border bg-background px-3 h-9">
+                          <Users className="size-3.5 text-muted-foreground shrink-0" />
+                          <Input type="number" min={1} className="h-auto p-0 border-0 text-sm" value={newForm.adults} onChange={(e) => setNewForm((p) => ({ ...p, adults: parseInt(e.target.value) || 1 }))} />
+                          <span className="text-[11px] text-muted-foreground shrink-0">Adults</span>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2 rounded-md border bg-background px-3 h-9">
+                          <span className="text-[11px] text-muted-foreground shrink-0">Ch:</span>
+                          <Input type="number" min={0} className="h-auto p-0 border-0 text-sm" value={newForm.children} onChange={(e) => setNewForm((p) => ({ ...p, children: parseInt(e.target.value) || 0 }))} />
+                        </div>
+                      </div>
                     </div>
                     <div className="col-span-2 space-y-1">
                       <Label className="text-[11px]">Rate (NPR/night)</Label>
@@ -2039,9 +2135,9 @@ export function CalendarView() {
                     </div>
                   </div>
                   {newFormNights > 0 && newForm.roomRate > 0 && (
-                    <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2.5 flex items-center justify-between text-sm">
+                    <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2.5 flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{newFormNights} night{newFormNights > 1 ? 's' : ''} × {formatCurrency(newForm.roomRate)}/night</span>
-                      <span className="font-bold text-emerald-700 dark:text-emerald-300">= {formatCurrency(newFormTotal)}</span>
+                      <span className="font-bold text-blue-700 dark:text-blue-300">= {formatCurrency(newFormTotal)}</span>
                     </div>
                   )}
                 </div>
@@ -2051,7 +2147,7 @@ export function CalendarView() {
                 {/* Extra Details */}
                 <div className="space-y-2.5">
                   <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <div className="flex size-5 items-center justify-center rounded bg-slate-100 dark:bg-slate-800">
+                    <div className="flex size-5 items-center justify-center rounded bg-gray-100 dark:bg-gray-800">
                       <StickyNote className="size-3" />
                     </div>
                     Additional
@@ -2067,11 +2163,23 @@ export function CalendarView() {
 
             {/* Footer */}
             <div className="px-5 py-3 border-t shrink-0 bg-muted/30">
+              <div className="flex items-center justify-between mb-2">
+                {newFormNights > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    {newFormNights} night{newFormNights > 1 ? 's' : ''}
+                    {newForm.roomRate > 0 && <> · {formatCurrency(newFormTotal)} estimated</>}
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {!newForm.guestId && newForm.firstName && newForm.lastName && 'New guest will be created'}
+                </span>
+              </div>
               <DialogFooter className="gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setShowNewDialog(false)}>
                   Cancel
                 </Button>
-                <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={handleCreateSubmit} disabled={createReservationMutation.isPending}>
+                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 gap-1.5 text-white rounded-full px-4" onClick={handleCreateSubmit} disabled={createReservationMutation.isPending}>
+                  <Plus className="size-3.5" />
                   {createReservationMutation.isPending ? 'Creating...' : 'Create Booking'}
                 </Button>
               </DialogFooter>
@@ -2186,22 +2294,23 @@ export function CalendarView() {
                   {/* Change summary */}
                   <div className="space-y-2">
                     {moveData.roomChanged && (
-                      <div className="flex items-center gap-2 text-xs bg-muted/50 rounded-md px-3 py-2">
-                        <BedDouble className="size-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-muted-foreground">Room:</span>
-                        <span className="font-semibold">#{moveData.fromRoomNumber}</span>
-                        <ArrowRightLeft className="size-3 text-muted-foreground" />
-                        <span className="font-semibold text-primary">#{moveData.toRoomNumber}</span>
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground">Room Change</p>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-md bg-muted px-2 py-1 text-xs font-mono">#{moveData.fromRoomNumber}</span>
+                          <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                          <span className="rounded-md bg-primary/10 text-primary px-2 py-1 text-xs font-mono">#{moveData.toRoomNumber}</span>
+                        </div>
                       </div>
                     )}
                     {moveData.datesChanged && (
-                      <div className="flex items-center gap-2 text-xs bg-muted/50 rounded-md px-3 py-2">
-                        <CalendarDays className="size-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-muted-foreground">Dates:</span>
-                        <span className="font-semibold">{formatDateShort(moveData.fromCheckIn)}</span>
-                        <ArrowRightLeft className="size-3 text-muted-foreground" />
-                        <span className="font-semibold text-primary">{formatDateShort(moveData.toCheckIn)}</span>
-                        <span className="text-muted-foreground">→ {formatDateShort(moveData.toCheckOut)}</span>
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground">Date Change</p>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-md bg-muted px-2 py-1 text-xs font-mono">{moveData.fromCheckIn} → {moveData.fromCheckOut}</span>
+                          <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+                          <span className="rounded-md bg-primary/10 text-primary px-2 py-1 text-xs font-mono">{moveData.toCheckIn} → {moveData.toCheckOut}</span>
+                        </div>
                       </div>
                     )}
                   </div>

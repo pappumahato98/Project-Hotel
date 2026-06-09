@@ -540,7 +540,7 @@ export function ArrivalsView() {
       </div>
 
       {/* Arrivals List */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-4 space-y-3">

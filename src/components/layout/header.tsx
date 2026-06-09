@@ -148,9 +148,20 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
   const handleSave = async () => {
     setSaving(true)
     try {
-      updateUser({ firstName, lastName })
-      toast.success('Profile updated successfully')
-      onOpenChange(false)
+      // Persist to backend first
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName }),
+      })
+      if (res.ok) {
+        updateUser({ firstName, lastName })
+        toast.success('Profile updated successfully')
+        onOpenChange(false)
+      } else {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err.error || 'Failed to update profile')
+      }
     } catch {
       toast.error('Failed to update profile')
     } finally {
@@ -322,7 +333,7 @@ function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Date</span>
-              <span className="font-medium">{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span className="font-medium">{now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
           </div>
         </div>

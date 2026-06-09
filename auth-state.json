@@ -1,0 +1,31 @@
+{
+  "cookies": [
+    {
+      "name": "__next_hmr_refresh_hash__",
+      "value": "4206d38984f6519012f1b5200b2726ec633457081244afec",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1.0,
+      "size": 73,
+      "httpOnly": false,
+      "secure": false,
+      "session": true
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "meridian-auth",
+          "value": "{\"state\":{\"user\":null,\"isAuthenticated\":false,\"token\":null},\"version\":0}"
+        },
+        {
+          "name": "meridian-settings",
+          "value": "{\"state\":{\"settings\":{\"taxRate\":15,\"serviceCharge\":10,\"tourismTax\":0,\"gstEnabled\":false,\"cancellationPolicy\":\"moderate\",\"cancellationHours\":24,\"noShowCharge\":100,\"depositRequired\":false,\"depositPercent\":20,\"earlyCheckInCharge\":500,\"lateCheckoutCharge\":500,\"guaranteeRequired\":true,\"acceptCash\":false,\"acceptCard\":false,\"acceptBankTransfer\":false,\"acceptDigitalWallet\":false,\"acceptCheque\":true,\"cardTypes\":[\"visa\",\"mastercard\"],\"defaultCheckIn\":\"14:00\",\"defaultCheckOut\":\"11:00\",\"nightAuditTime\":\"23:00\",\"hotelName\":\"Meridian Hotel\",\"hotelCode\":\"MH\",\"city\":\"Kathmandu\",\"country\":\"Nepal\",\"phone\":\"+977-1-4567890\",\"email\":\"info@meridianhotel.com\",\"starRating\":5,\"address\":\"Thamel, Kathmandu 44600\",\"website\":\"www.meridianhotel.com\",\"defaultMaxOccupancy\":2,\"defaultFloor\":1,\"autoAssignRoom\":false,\"autoRoomStatusUpdate\":true,\"minNightsDefault\":1,\"maxNightsDefault\":30,\"smtpHost\":\"smtp.meridianhotel.com\",\"smtpPort\":587,\"smtpUser\":\"noreply@meridianhotel.com\",\"smtpEncryption\":\"tls\",\"emailFromName\":\"Meridian Hotel\",\"emailSignature\":\"Best regards,\\nMeridian Hotel Front Desk\",\"sendBookingConfirmation\":true,\"sendCheckoutReminder\":true,\"sendPromoEmails\":false,\"autoPrintReceipt\":false,\"autoPrintFolio\":false,\"printHeader\":\"MERIDIAN HOTEL — Thamel, Kathmandu\",\"printFooter\":\"Thank you for staying with us!\",\"showLogoOnPrint\":true,\"invoiceFormat\":\"detailed\",\"receiptCopies\":1,\"apiKey\":\"mrk_api_xxxxxxxxxxxxxxxxxxxx\",\"apiEnabled\":false,\"channelSyncInterval\":15,\"webhooksEnabled\":false,\"webhookUrl\":\"\",\"posIntegration\":false,\"crmIntegration\":true,\"autoLogout\":\"30min\",\"autoBackup\":true,\"autoBackupInterval\":\"daily\",\"lastBackupDate\":\"2026-06-04T15:55:10.449Z\",\"dataRetentionDays\":365,\"notifCheckInReminders\":true,\"notifCheckOutReminders\":true,\"notifOverbookingAlerts\":true,\"notifLowStockAlerts\":true,\"notifPaymentReceived\":true,\"notifNightAuditAlert\":false,\"notifNewReservations\":true,\"notifMaintenanceAlerts\":true,\"notifShiftHandover\":true,\"notifHkTaskCompleted\":false},\"_loaded\":true,\"_loading\":false},\"version\":0}"
+        }
+      ],
+      "sessionStorage": []
+    }
+  ]
+}

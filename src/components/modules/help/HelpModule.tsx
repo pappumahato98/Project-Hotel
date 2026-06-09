@@ -30,7 +30,7 @@ export function HelpModule() {
   const defaultTab = activeSubModule && SUB_LABELS[activeSubModule] ? activeSubModule : 'getting-started'
 
   return (
-    <div className="flex flex-1 flex-col p-4 md:p-6 space-y-4">
+    <div className="flex flex-1 flex-col p-4 md:p-6 space-y-4 min-h-0 overflow-y-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Help &amp; Support</h1>
         <p className="text-sm text-muted-foreground">Resources, guides, and support for Meridian PMS</p>

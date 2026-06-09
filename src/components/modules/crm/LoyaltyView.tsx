@@ -241,7 +241,7 @@ export function LoyaltyView() {
             <Trophy className="h-5 w-5 text-amber-600" />
             Top Members
           </h2>
-          <Card>
+          <Card className="py-0">
             <ScrollArea className="max-h-[400px]">
               <div className="divide-y">
                 {leaderboard.length === 0 ? (
@@ -291,7 +291,7 @@ export function LoyaltyView() {
             <BarChart3 className="h-5 w-5 text-green-600" />
             Recent Points Activity
           </h2>
-          <Card>
+          <Card className="py-0">
             <ScrollArea className="max-h-[400px]">
               <div className="divide-y">
                 {activity.length === 0 ? (

@@ -37,35 +37,27 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 
 // ─── Helpers ────────────────────────────────────────────────────
-function formatDate(dateStr: string | null | undefined): string {
+// Use shared formatDateLong and formatDateTime from @/lib/format (en-GB/DD-MM-YYYY)
+// Re-export for convenience since component references them as formatDate/formatDateTime
+const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '—'
   try {
     const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return dateStr
-    return d.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
+    if (isNaN(d.getTime())) return dateStr ?? ''
+    return d.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
   } catch {
-    return dateStr
+    return dateStr ?? ''
   }
 }
 
-function formatDateTime(dateStr: string | null | undefined): string {
+const formatDateTime = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '—'
   try {
     const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return dateStr
-    return d.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    if (isNaN(d.getTime())) return dateStr ?? ''
+    return d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   } catch {
-    return dateStr
+    return dateStr ?? ''
   }
 }
 

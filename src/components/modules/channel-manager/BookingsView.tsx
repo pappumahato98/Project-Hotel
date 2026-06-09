@@ -146,7 +146,7 @@ export function BookingsView() {
       </div>
 
       {/* Bookings Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">
             <Table>

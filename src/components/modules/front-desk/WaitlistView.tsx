@@ -455,7 +455,7 @@ export function WaitlistView() {
       </Card>
 
       {/* Waitlist Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0 overflow-auto max-h-[65vh]">
           <Table>
             <TableHeader>

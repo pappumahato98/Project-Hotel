@@ -293,7 +293,7 @@ export function VendorsView() {
       </div>
 
       {/* Vendor Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">
             <Table>

@@ -1,8 +1,6 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useQueryClient } from '@tanstack/react-query'
-import { useRealtime } from '@/hooks/use-realtime'
 import { useNavigationStore } from '@/lib/store'
 import { QuickSearch } from './QuickSearch'
 import { FrontDeskDashboard } from './FrontDeskDashboard'
@@ -54,24 +52,6 @@ const SUB_MODULE_LABELS: Record<string, string> = {
 
 export function FrontDeskModule() {
   const { activeSubModule, setActiveSubModule, navigateTo } = useNavigationStore()
-  const queryClient = useQueryClient()
-
-  const { isConnected } = useRealtime({
-    modules: ['front-desk'],
-    onEvent: (event, _data) => {
-      // Invalidate relevant queries based on event type
-      if (event.startsWith('reservation:') || event.startsWith('room:')) {
-        queryClient.invalidateQueries({ queryKey: ['reservations'] })
-        queryClient.invalidateQueries({ queryKey: ['rooms'] })
-      }
-      if (event.startsWith('folio:')) {
-        queryClient.invalidateQueries({ queryKey: ['folio'] })
-      }
-      if (event === 'dashboard:refresh') {
-        queryClient.invalidateQueries()
-      }
-    },
-  })
 
   const currentSubModule = activeSubModule || 'dashboard'
   const ActiveView = SUB_MODULE_MAP[currentSubModule] || ReservationsView
@@ -98,15 +78,6 @@ export function FrontDeskModule() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {isConnected && (
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
-              </span>
-              <span className="text-xs font-medium text-green-600 dark:text-green-400">Live</span>
-            </div>
-          )}
           <QuickSearch />
           <Button
             variant="ghost"

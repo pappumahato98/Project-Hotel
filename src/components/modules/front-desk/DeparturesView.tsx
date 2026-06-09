@@ -447,7 +447,7 @@ export function DeparturesView() {
       </div>
 
       {/* Departures List */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <div className="max-h-[600px] overflow-y-auto">
             <Table>

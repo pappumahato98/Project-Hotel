@@ -135,7 +135,7 @@ export function AssetRegisterView() {
       </div>
 
       {/* Assets Table */}
-      <Card>
+      <Card className="py-0">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">
             <Table>
