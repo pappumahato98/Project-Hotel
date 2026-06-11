@@ -63,6 +63,17 @@ export async function PUT(req: NextRequest) {
       data: { password: newHashedPassword },
     })
 
+    // Log password change activity
+    await db.activityLog.create({
+      data: {
+        userId: user.id,
+        userName: `${user.firstName} ${user.lastName}`.trim() || user.email,
+        action: 'Change Password',
+        module: 'Security',
+        details: 'User changed their account password',
+      },
+    })
+
     return NextResponse.json({
       message: 'Password changed successfully',
     })

@@ -2191,3 +2191,48 @@ Stage Summary:
 - Items with children when expanded: CollapsibleTrigger + Collapsible for accordion (unchanged)
 - Verified with agent-browser: Front Desk, Dashboard, Room Management all navigate correctly when collapsed
 - No console errors after fix
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix user profile functions (name, password, profile picture, user data changes) not working
+
+Work Log:
+- Investigated ProfileModule.tsx (1489 lines) and all related API routes
+- Identified 5 bugs via code audit:
+
+BUG 1 (CRITICAL): Avatar upload corrupts user state
+  - `profileMutation.mutate({ avatarUrl: dataUrl })` sent ONLY avatarUrl
+  - `onSuccess` handler hardcoded all 12 fields as `variables.firstName as string` → undefined
+  - `updateUser(updates)` then set firstName/lastName/etc to undefined in Zustand store
+  - Fix: Changed onSuccess to dynamically build updates object, only including fields present in variables
+  - Before: `const updates = { firstName: variables.firstName as string, ... }` (always sets all fields)
+  - After: `for (const field of fields) { if (variables[field] !== undefined) updates[field] = variables[field] }`
+
+BUG 2 (MEDIUM): Form data stale after save
+  - After successful save, `setFormData` wasn't called, so form showed old values on re-visit
+  - Fix: Added `setFormData` sync in `onSuccess` when `variables.firstName` is present (full form save, not avatar-only)
+
+BUG 3 (LOW): `activeProperty.name` crash when property store not loaded
+  - `activeProperty.name` accessed without optional chaining
+  - Fix: Changed to `activeProperty?.name ?? '—'` (and same for code, city)
+
+BUG 4 (MEDIUM): Role charAt crash when user.role is undefined
+  - `user?.role?.charAt(0).toUpperCase()` throws if role is undefined (charAt returns undefined, toUpperCase throws)
+  - Fix: Changed to `(user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '') || 'Staff'`
+  - Applied in 2 locations: header badge and Employment Details InfoRow
+
+BUG 5 (MEDIUM): "Clear Other Sessions" button was fake
+  - Only created an activity log entry, never actually cleared sessions
+  - Fix: Now calls `logout()` after logging activity, label changed to "Sign Out All Devices"
+  - Updated description text to explain it will sign out from all devices
+
+BUG 6 (MEDIUM): Password change didn't log activity
+  - `/api/auth/password` PUT endpoint had no activity log creation
+  - Fix: Added `db.activityLog.create()` call after successful password update
+
+Stage Summary:
+- All 6 bugs fixed across 3 files: ProfileModule.tsx, password/route.ts, header.tsx (from prior charAt fix)
+- Verified end-to-end in browser: name edit → save → DB updated → header reflects change ✓
+- Password change tested: change → 200 response → activity log created → revert → 200 ✓
+- Employment Details tab: no crash, property info displays correctly ✓
+- No console errors throughout testing

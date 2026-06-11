@@ -100,7 +100,7 @@ export function ProfileModule() {
             </p>
           </div>
           <Badge variant="outline" className="w-fit border-violet-200 bg-violet-50 text-violet-700">
-            {user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) ?? 'Staff'}
+            {(user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '') || 'Staff'}
           </Badge>
         </div>
       </div>
@@ -215,27 +215,34 @@ function PersonalInfoTab() {
       return res.json()
     },
     onSuccess: (_data, variables) => {
-      const updates: Record<string, unknown> = {
-        firstName: variables.firstName as string,
-        lastName: variables.lastName as string,
-        email: variables.email as string,
-        phone: variables.phone as string,
-        dateOfBirth: (variables.dateOfBirth as string) || null,
-        gender: variables.gender as string,
-        address: variables.address as string,
-        city: variables.city as string,
-        country: variables.country as string,
-        nationality: variables.nationality as string,
-        idType: variables.idType as string,
-        idNumber: variables.idNumber as string,
-      }
-      if (variables.avatarUrl) {
-        updates.avatarUrl = variables.avatarUrl as string
-      }
-      if (variables.twoFactorEnabled !== undefined) {
-        updates.twoFactorEnabled = variables.twoFactorEnabled as boolean
+      // Only update fields that are actually present in variables (avoid setting undefined values)
+      const updates: Record<string, unknown> = {}
+      const fields = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address', 'city', 'country', 'nationality', 'idType', 'idNumber', 'avatarUrl', 'twoFactorEnabled']
+      for (const field of fields) {
+        if (variables[field] !== undefined) {
+          updates[field] = variables[field]
+        }
       }
       updateUser(updates)
+
+      // Sync form data if profile fields were saved (not just avatar upload)
+      if (variables.firstName !== undefined) {
+        setFormData({
+          firstName: variables.firstName as string,
+          lastName: (variables.lastName as string) ?? formData.lastName,
+          email: (variables.email as string) ?? formData.email,
+          phone: (variables.phone as string) ?? formData.phone,
+          dateOfBirth: (variables.dateOfBirth as string) ?? formData.dateOfBirth,
+          gender: (variables.gender as string) ?? formData.gender,
+          address: (variables.address as string) ?? formData.address,
+          city: (variables.city as string) ?? formData.city,
+          country: (variables.country as string) ?? formData.country,
+          nationality: (variables.nationality as string) ?? formData.nationality,
+          idType: (variables.idType as string) ?? formData.idType,
+          idNumber: (variables.idNumber as string) ?? formData.idNumber,
+        })
+      }
+
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
       toast.success('Profile updated successfully')
     },
@@ -540,7 +547,7 @@ function EmploymentDetailsTab() {
           <div className="divide-y">
             <InfoRow icon={Building2} label="Department" value={user?.department ?? 'Management'} color="text-amber-600" />
             <InfoRow icon={User} label="Position" value={user?.position ?? 'Staff'} color="text-amber-600" />
-            <InfoRow icon={Shield} label="Role / Access Level" value={user?.role?.charAt(0).toUpperCase() + user?.role?.slice(1) ?? 'Staff'} color="text-amber-600" />
+            <InfoRow icon={Shield} label="Role / Access Level" value={(user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '') || 'Staff'} color="text-amber-600" />
             <InfoRow
               icon={Calendar}
               label="Hire Date"
@@ -578,9 +585,9 @@ function EmploymentDetailsTab() {
         </CardHeader>
         <CardContent>
           <div className="divide-y">
-            <InfoRow icon={Building2} label="Property Name" value={activeProperty.name} color="text-teal-600" />
-            <InfoRow icon={CreditCard} label="Property Code" value={activeProperty.code} color="text-teal-600" />
-            <InfoRow icon={MapPin} label="Location" value={activeProperty.city} color="text-teal-600" />
+            <InfoRow icon={Building2} label="Property Name" value={activeProperty?.name ?? '—'} color="text-teal-600" />
+            <InfoRow icon={CreditCard} label="Property Code" value={activeProperty?.code ?? '—'} color="text-teal-600" />
+            <InfoRow icon={MapPin} label="Location" value={activeProperty?.city ?? '—'} color="text-teal-600" />
             <InfoRow icon={Globe} label="Country" value={settings.country ?? 'Nepal'} color="text-teal-600" />
           </div>
         </CardContent>
@@ -653,7 +660,7 @@ function AccessBadge({ label, active }: { label: string; active: boolean }) {
 
 // ─── Tab 3: Security ───────────────────────────────────────────
 function SecurityTab() {
-  const { user, updateUser } = useAuthStore()
+  const { user, updateUser, logout } = useAuthStore()
   const queryClient = useQueryClient()
 
   const [passwords, setPasswords] = React.useState({
@@ -745,19 +752,21 @@ function SecurityTab() {
 
   const handleClearSessions = async () => {
     try {
+      // Log activity
       await fetch('/api/auth/activity-log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user?.id,
-          userName: `${user?.firstName} ${user?.lastName}`,
+          userName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User',
           action: 'Clear Sessions',
           module: 'Security',
-          details: 'User manually cleared other active sessions',
+          details: 'User cleared all sessions and logged out',
         }),
       })
-      queryClient.invalidateQueries({ queryKey: ['activity-log', user?.id] })
-      toast.success('Other sessions have been cleared')
+      // Actually clear the session by logging out
+      logout()
+      toast.success('All sessions cleared. Please sign in again.')
     } catch {
       toast.error('Failed to clear sessions')
     }
@@ -962,7 +971,7 @@ function SecurityTab() {
                 Other Sessions
               </p>
               <p className="text-xs text-muted-foreground">
-                Remove any other devices that may be signed in to your account
+                This will sign you out from all devices. You will need to sign in again.
               </p>
             </div>
             <Button
@@ -971,7 +980,7 @@ function SecurityTab() {
               onClick={handleClearSessions}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Clear Other Sessions
+              Sign Out All Devices
             </Button>
           </div>
         </CardContent>
