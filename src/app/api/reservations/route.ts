@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      where.OR = [
+      const orConditions: Prisma.ReservationWhereInput[] = [
         { confirmationNo: { contains: search } },
         { guest: { firstName: { contains: search } } },
         { guest: { lastName: { contains: search } } },
@@ -39,6 +39,13 @@ export async function GET(request: Request) {
         { source: { contains: search } },
         { company: { contains: search } },
       ]
+      // Allow numeric search on totalAmount
+      const numSearch = parseFloat(search)
+      if (!isNaN(numSearch)) {
+        orConditions.push({ totalAmount: { equals: numSearch } })
+        orConditions.push({ roomRate: { equals: numSearch } })
+      }
+      where.OR = orConditions
     }
 
     if (date) {

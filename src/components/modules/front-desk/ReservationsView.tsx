@@ -307,8 +307,8 @@ export function ReservationsView() {
       const params = new URLSearchParams()
       if (statusFilter !== 'all') params.set('status', statusFilter)
       if (debouncedSearch) params.set('search', debouncedSearch)
-      if (dateFrom) params.set('checkInDate', dateFrom)
-      if (dateTo) params.set('checkOutDate', dateTo)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
       const res = await fetch(`/api/reservations?${params.toString()}`)
       if (!res.ok) throw new Error('Failed to fetch reservations')
       return res.json()
@@ -818,48 +818,41 @@ export function ReservationsView() {
       <div className="sticky top-0 z-20 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 border-b shadow-sm">
         <div className="py-1.5 px-1">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
-            {/* Room Board button */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-[11px] gap-1 shrink-0"
-              onClick={() => navigateTo('rooms', 'room-board')}
-            >
-              <LayoutGrid className="size-3.5" />
-              <span className="hidden sm:inline">Room Board</span>
-            </Button>
-            {/* Search — compact with X clear */}
-            <div className="relative sm:w-[200px]">
+            {/* Search — wide with bold circle X clear */}
+            <div className="relative flex-1 sm:max-w-[360px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Search guest, conf #..."
+                placeholder="Search guest, conf #, room, source, amount..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
                   "h-7 pl-8 text-xs",
-                  searchQuery ? "pr-7" : "pr-3",
+                  searchQuery ? "pr-8" : "pr-3",
                   isSearching && "ring-1 ring-primary/30"
                 )}
               />
               {searchQuery && !isSearching && (
                 <button
                   type="button"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-4 inline-flex items-center justify-center rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-muted/80 hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setSearchQuery('')}
                 >
-                  <X className="size-3" />
+                  <X className="size-3" strokeWidth={2.5} />
                 </button>
               )}
               {isSearching && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
                   <div className="size-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                 </div>
               )}
             </div>
-            {/* Status filter with X clear */}
-            <div className="flex items-center gap-1">
+            {/* Status filter with inline bold circle X clear */}
+            <div className="relative">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[130px] data-[size=default]:h-7 h-7 text-xs">
+                <SelectTrigger className={cn(
+                  "w-full sm:w-[140px] data-[size=default]:h-7 h-7 text-xs",
+                  statusFilter !== 'all' && "pr-8"
+                )}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -871,11 +864,10 @@ export function ReservationsView() {
               {statusFilter !== 'all' && (
                 <button
                   type="button"
-                  className="inline-flex items-center justify-center size-7 rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  onClick={() => setStatusFilter('all')}
-                  title="Clear status filter"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-muted/80 hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground transition-colors z-10"
+                  onClick={(e) => { e.stopPropagation(); setStatusFilter('all') }}
                 >
-                  <X className="size-3" />
+                  <X className="size-3" strokeWidth={2.5} />
                 </button>
               )}
             </div>
@@ -956,15 +948,27 @@ export function ReservationsView() {
                 </div>
               </PopoverContent>
             </Popover>
-            {/* New Reservation button — after date range */}
+            {/* Spacer to push right-side buttons */}
+            <div className="hidden sm:block flex-1" />
+            {/* New Reservation button */}
             <Button
               size="sm"
-              className="h-7 text-[11px] gap-1 shrink-0 ml-auto sm:ml-0"
+              className="h-7 text-[11px] gap-1 shrink-0"
               onClick={() => setNewResOpen(true)}
             >
               <Plus className="size-3.5" />
               <span className="hidden sm:inline">New Reservation</span>
               <span className="sm:hidden">New</span>
+            </Button>
+            {/* Room Board button — far right */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] gap-1 shrink-0"
+              onClick={() => navigateTo('rooms', 'room-board')}
+            >
+              <LayoutGrid className="size-3.5" />
+              <span className="hidden sm:inline">Room Board</span>
             </Button>
           </div>
         </div>

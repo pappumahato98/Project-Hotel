@@ -2057,3 +2057,29 @@ Stage Summary:
 - Status X appears next to dropdown when status != 'all'
 - Search API fixed: source field added, SQLite incompatible mode removed
 - All verified via agent-browser + curl API testing
+---
+Task ID: 8
+Agent: Main Agent
+Task: Reservations filter bar enhancements — Room Board position, search X button, search width, search fix
+
+Work Log:
+- Moved Room Board button from far left to far right of filter bar (after New Reservation)
+- Added hidden sm:block flex-1 spacer to push right-side buttons to the right
+- Made search box wider: changed from sm:w-[200px] to flex-1 sm:max-w-[360px]
+- Updated search placeholder to "Search guest, conf #, room, source, amount..."
+- Made search X clear button bold circular: size-5, rounded-full, bg-muted/80, strokeWidth={2.5}
+- Moved status X clear button inside Select (overlaid absolutely positioned): size-5, rounded-full, bg-muted/80, strokeWidth={2.5}, z-10
+- Added pr-8 padding to SelectTrigger when status filter is active to accommodate X button
+- Fixed search backend API: added numeric search on totalAmount and roomRate fields
+- Fixed date range filtering: changed frontend params from checkInDate/checkOutDate to dateFrom/dateTo (proper overlap range filtering)
+- Verified via agent-browser: search by guest name (Sarah), room # (120), source (expedia), confirmation # (TKH-2025009) all work
+- Verified via VLM screenshot: Room Board on far right, bold circular X in search box, bold circular X on status dropdown
+- Verified status X clears filter back to "All Statuses"
+- Lint passes clean with 0 errors
+
+Stage Summary:
+- Updated: src/components/modules/front-desk/ReservationsView.tsx (filter bar restructured)
+- Updated: src/app/api/reservations/route.ts (added amount/roomRate to search, fixed date range params)
+- Filter bar layout: [Search(wide)] [Status+X] [Date Range] [spacer] [New Reservation] [Room Board]
+- Search now filters by: Confirmation #, Guest name, Room #, Source, Company, Amount, Room Rate
+
