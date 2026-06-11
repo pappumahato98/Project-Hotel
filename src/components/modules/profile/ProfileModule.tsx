@@ -173,7 +173,7 @@ function InfoRow({ icon: Icon, label, value, color }: {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>
-        <p className="text-sm font-medium truncate">{value ?? '—'}</p>
+        <span className="text-sm font-medium truncate block">{value ?? '—'}</span>
       </div>
     </div>
   )
@@ -1343,9 +1343,9 @@ function ActivityLogTab() {
                 <History className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-lg font-bold">
+                <span className="text-lg font-bold">
                   {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.total}
-                </p>
+                </span>
                 <p className="text-xs text-muted-foreground">Total Activities</p>
               </div>
             </div>
@@ -1358,9 +1358,9 @@ function ActivityLogTab() {
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-lg font-bold">
+                <span className="text-lg font-bold">
                   {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.logins}
-                </p>
+                </span>
                 <p className="text-xs text-muted-foreground">Logins</p>
               </div>
             </div>
@@ -1373,9 +1373,9 @@ function ActivityLogTab() {
                 <Clock className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-lg font-bold">
+                <span className="text-lg font-bold">
                   {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.today}
-                </p>
+                </span>
                 <p className="text-xs text-muted-foreground">Today</p>
               </div>
             </div>
@@ -1388,13 +1388,13 @@ function ActivityLogTab() {
                 <MapPin className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-lg font-bold">
+                <span className="text-lg font-bold">
                   {isLoading ? (
                     <Skeleton className="h-8 w-8 inline-block" />
                   ) : (
                     new Set(logs.map((l: { ipAddress?: string }) => l.ipAddress).filter(Boolean)).size
                   )}
-                </p>
+                </span>
                 <p className="text-xs text-muted-foreground">Unique IPs</p>
               </div>
             </div>

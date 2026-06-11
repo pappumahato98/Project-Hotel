@@ -2236,3 +2236,20 @@ Stage Summary:
 - Password change tested: change → 200 response → activity log created → revert → 200 ✓
 - Employment Details tab: no crash, property info displays correctly ✓
 - No console errors throughout testing
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix profile picture not updating in header/sidebar + console hydration errors
+
+Work Log:
+- Found root cause of avatar not updating: header.tsx (2 locations) and sidebar-nav.tsx (1 location) all used hardcoded `src="/avatar-3d.png"` instead of `user?.avatarUrl`
+- Fixed all 3 instances to use `user?.avatarUrl || "/avatar-3d.png"` (fallback to default avatar)
+- Found root cause of `<p> cannot contain a nested <div>` hydration error: 5 instances of `<p>` wrapping `<Skeleton>` (which renders as `<div>`) in ProfileModule.tsx
+- Fixed InfoRow value container: `<p>` → `<span className="... block">` (line 176)
+- Fixed 4 ActivityLogTab stat containers: `<p>` → `<span>` (lines 1346, 1361, 1376, 1391)
+- Verified zero console errors across Dashboard, Profile (all 5 tabs) after fixes
+
+Stage Summary:
+- Profile picture now updates in header and sidebar when uploaded (3 locations fixed)
+- Hydration error eliminated by changing `<p>` to `<span>` for containers that hold block-level elements
+- All fixes verified with agent-browser — zero console errors

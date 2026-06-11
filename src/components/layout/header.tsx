@@ -192,7 +192,7 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           {/* Avatar & Role */}
           <div className="flex items-center gap-4">
             <Avatar className="size-16">
-              <AvatarImage src="/avatar-3d.png" alt="User" />
+              <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
               <AvatarFallback className="bg-amber-100 text-amber-700 text-lg font-semibold">
                 {initials}
               </AvatarFallback>
@@ -445,7 +445,7 @@ function UserMenu() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="relative h-8 gap-2 rounded-full pl-2 pr-3">
             <Avatar className="size-7">
-              <AvatarImage src="/avatar-3d.png" alt="User" />
+              <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
               <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
                 {initials}
               </AvatarFallback>
