@@ -2253,3 +2253,32 @@ Stage Summary:
 - Profile picture now updates in header and sidebar when uploaded (3 locations fixed)
 - Hydration error eliminated by changing `<p>` to `<span>` for containers that hold block-level elements
 - All fixes verified with agent-browser — zero console errors
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix reservation page guest avatar positioning, header/sidebar sync after profile update, and hydration errors
+
+Work Log:
+- Analyzed user screenshot of reservation page with VLM to identify the "attached picture" positioning issue
+- Added Avatar components with guest initials to the reservation table Guest column in ReservationsView.tsx
+- Avatar uses VIP-level color coding (purple=platinum, amber=gold, gray=silver, muted=regular)
+- Added Avatar import and used size-7 shrink-0 for proper alignment in table rows
+- Widened Guest column header to min-w-[180px] to accommodate avatar + name + VIP badge
+- Added guest avatar to reservation detail dialog with size-12 and horizontal layout (avatar left, info right)
+- Fixed header/sidebar not updating after profile change: added reactive `key` prop based on user data (firstName + lastName + avatarUrl) to force re-mount when profile updates
+- Added `useAuthStore` subscription to AppHeader component for the key prop
+- Added `useAuthStore` subscription to AppSidebar component for the UserProfileFooter key prop
+- Searched entire codebase for `<p>` containing `<div>` hydration violations using Python regex scanner
+- Fixed LoyaltyView.tsx line 268: changed `<p>` containing `<Badge>` to `<div>` for semantic correctness
+- Verified: Badge component renders as `<span>` (valid in `<p>`), but the LoyaltyView fix is still good practice
+- Verified: Kbd component renders as `<kbd>` (phrasing content, valid in `<p>`)
+- Ran browser verification: no hydration errors in console, all avatars properly positioned
+- Ran lint — 0 errors
+
+Stage Summary:
+- Modified: src/components/modules/front-desk/ReservationsView.tsx (added Avatar to table rows + detail dialog)
+- Modified: src/components/layout/header.tsx (added useAuthStore + key prop on UserMenu)
+- Modified: src/components/layout/sidebar-nav.tsx (added useAuthStore + key prop on UserProfileFooter)
+- Modified: src/components/modules/crm/LoyaltyView.tsx (changed <p> to <div> for Badge container)
+- Guest avatars now display in reservation table with VIP color coding, properly left-aligned with guest names
+- Header and sidebar now force re-render on profile data changes via React key prop

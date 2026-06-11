@@ -260,6 +260,7 @@ function UserProfileFooter() {
 // ─── AppSidebar ──────────────────────────────────────────────────────
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { activeProperty } = usePropertyStore()
+  const { user } = useAuthStore()
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -310,7 +311,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {/* Footer — User Profile */}
       <SidebarFooter className="border-t border-sidebar-border mt-auto p-0">
         <div className="px-2 pb-2 pt-2">
-          <UserProfileFooter />
+          <UserProfileFooter key={user?.firstName + '|' + user?.lastName + '|' + (user?.avatarUrl || '').slice(0, 30)} />
         </div>
         <SidebarRail />
       </SidebarFooter>

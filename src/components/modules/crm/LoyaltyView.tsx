@@ -265,13 +265,13 @@ export function LoyaltyView() {
                         <p className="text-sm font-medium truncate">
                           {guest.firstName} {guest.lastName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <div className="text-xs text-muted-foreground">
                           {guest.loyaltyTier !== 'none' ? (
                             <Badge variant="outline" className={cn('text-xs', vipColor(guest.loyaltyTier))}>
                               {guest.loyaltyTier.charAt(0).toUpperCase() + guest.loyaltyTier.slice(1)}
                             </Badge>
-                          ) : 'Regular'}
-                        </p>
+                          ) : <span>Regular</span>}
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-bold">{guest.loyaltyPoints.toLocaleString()}</p>

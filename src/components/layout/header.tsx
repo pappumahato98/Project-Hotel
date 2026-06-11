@@ -572,6 +572,7 @@ export function AppHeader() {
   const { setSearchOpen, activeModule, activeSubModule } = useNavigationStore()
   const { activeProperty } = usePropertyStore()
   const { preferences } = usePreferencesStore()
+  const { user } = useAuthStore()
   const showDualCalendar = preferences.nepaliStandards?.dualCalendar !== false
   // Hide search button on calendar page to maximize space
   const isCalendarPage = activeModule === 'front-desk' && activeSubModule === 'calendar'
@@ -699,7 +700,7 @@ export function AppHeader() {
         </DropdownMenu>
 
         {/* User menu */}
-        <UserMenu />
+        <UserMenu key={user?.firstName + '|' + user?.lastName + '|' + (user?.avatarUrl || '').slice(0, 30)} />
       </header>
 
       {/* Quick search dialog */}

@@ -36,6 +36,7 @@ import {
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -984,7 +985,7 @@ export function ReservationsView() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[120px]">Confirmation #</TableHead>
-                  <TableHead>Guest</TableHead>
+                  <TableHead className="min-w-[180px]">Guest</TableHead>
                   <TableHead className="w-[80px]">Room</TableHead>
                   <TableHead className="w-[100px]">Check-in</TableHead>
                   <TableHead className="w-[100px]">Check-out</TableHead>
@@ -1031,9 +1032,20 @@ export function ReservationsView() {
                         <div className="flex items-center gap-2">
                           {res.guest ? (
                             <>
-                              <span className="font-medium">{res.guest.firstName} {res.guest.lastName}</span>
+                              <Avatar className="size-7 shrink-0">
+                                <AvatarFallback className={cn(
+                                  'text-[10px] font-semibold',
+                                  res.guest.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+                                  res.guest.vipLevel === 'gold' && 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+                                  res.guest.vipLevel === 'silver' && 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                                  (!res.guest.vipLevel || res.guest.vipLevel === 'none') && 'bg-muted text-muted-foreground'
+                                )}>
+                                  {(res.guest.firstName || '').charAt(0)}{(res.guest.lastName || '').charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium truncate">{res.guest.firstName} {res.guest.lastName}</span>
                               {res.guest.vipLevel !== 'none' && (
-                                <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 shrink-0">
                                   VIP
                                 </Badge>
                               )}
@@ -1143,26 +1155,39 @@ export function ReservationsView() {
                 <div className="grid gap-3">
                   <h4 className="text-sm font-semibold">Guest Information</h4>
                   {selectedReservation.guest ? (
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Name: </span>
-                        <span className="font-medium">{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Email: </span>
-                        <span>{selectedReservation.guest.email || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Phone: </span>
-                        <span>{selectedReservation.guest.phone || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">VIP: </span>
-                        <span>{selectedReservation.guest.vipLevel !== 'none' ? selectedReservation.guest.vipLevel.toUpperCase() : '—'}</span>
+                    <div className="flex items-start gap-3">
+                      <Avatar className="size-12 shrink-0">
+                        <AvatarFallback className={cn(
+                          'text-sm font-bold',
+                          selectedReservation.guest.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+                          selectedReservation.guest.vipLevel === 'gold' && 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+                          selectedReservation.guest.vipLevel === 'silver' && 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                          (!selectedReservation.guest.vipLevel || selectedReservation.guest.vipLevel === 'none') && 'bg-muted text-muted-foreground'
+                        )}>
+                          {(selectedReservation.guest.firstName || '').charAt(0)}{(selectedReservation.guest.lastName || '').charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid grid-cols-1 gap-1.5 text-sm flex-1 min-w-0">
+                        <div>
+                          <span className="font-medium">{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>
+                          {selectedReservation.guest.vipLevel !== 'none' && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 ml-2">
+                              {selectedReservation.guest.vipLevel.toUpperCase()}
+                            </Badge>
+                          )}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Email: </span>
+                          <span>{selectedReservation.guest.email || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Phone: </span>
+                          <span>{selectedReservation.guest.phone || '—'}</span>
+                        </div>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No guest assigned</p>
+                    <span className="text-sm text-muted-foreground">No guest assigned</span>
                   )}
                 </div>
 
