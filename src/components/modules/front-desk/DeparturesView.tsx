@@ -375,12 +375,12 @@ export function DeparturesView() {
   // ─── Render ────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Today&apos;s Departures</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Today&apos;s Departures</h2>
+          <p className="text-xs text-muted-foreground">
             Guest check-outs scheduled for {formatDate(today)}
           </p>
         </div>

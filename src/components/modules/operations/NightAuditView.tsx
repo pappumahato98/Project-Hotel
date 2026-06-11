@@ -101,9 +101,9 @@ function statusLabel(status: string) {
 // ─── Skeleton Loader ───────────────────────────────────────────
 function NightAuditSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       <Skeleton className="h-16 w-full rounded-lg" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-24 w-full rounded-lg" />
         ))}
@@ -183,7 +183,7 @@ export function NightAuditView() {
   const { revenue, occupancy, previousAudits } = data
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* ── Audit Status Banner ──────────────────────────────── */}
       <Alert
         className={
@@ -214,7 +214,7 @@ export function NightAuditView() {
       {/* ── Pre-Audit Checklist ────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-sm">
             <CheckCircle2 className="h-5 w-5 text-amber-600" />
             Pre-Audit Checklist
           </CardTitle>
@@ -222,7 +222,7 @@ export function NightAuditView() {
             All items must be verified before running the night audit
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2">
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
@@ -237,11 +237,11 @@ export function NightAuditView() {
           <Separator />
 
           {/* Checklist Items */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             {checklist.map((item) => (
               <label
                 key={item.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50"
               >
                 <Checkbox
                   checked={item.checked}
@@ -300,7 +300,7 @@ export function NightAuditView() {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Revenue Summary
         </h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <RevenueCard
             icon={BedDouble}
             label="Room Revenue"
@@ -352,12 +352,12 @@ export function NightAuditView() {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Occupancy Statistics
         </h3>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-3">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Occupancy Rate</p>
+                  <p className="text-xs text-muted-foreground">Occupancy Rate</p>
                   <p className="mt-1 text-3xl font-bold">{formatPercent(occupancy.percent)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {occupancy.occupiedRooms} of {occupancy.totalRooms} rooms
@@ -370,10 +370,10 @@ export function NightAuditView() {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">ADR</p>
+                  <p className="text-xs text-muted-foreground">ADR</p>
                   <p className="mt-1 text-3xl font-bold">{formatNPR(occupancy.adr)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Average Daily Rate</p>
                 </div>
@@ -384,10 +384,10 @@ export function NightAuditView() {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">RevPAR</p>
+                  <p className="text-xs text-muted-foreground">RevPAR</p>
                   <p className="mt-1 text-3xl font-bold">{formatNPR(occupancy.revpar)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Revenue Per Available Room</p>
                 </div>
@@ -403,7 +403,7 @@ export function NightAuditView() {
       {/* ── Previous Audits Table ──────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Previous Night Audits</CardTitle>
+          <CardTitle className="text-sm">Previous Night Audits</CardTitle>
           <CardDescription>Last 7 audit records</CardDescription>
         </CardHeader>
         <CardContent>
@@ -474,10 +474,10 @@ function RevenueCard({
 }) {
   return (
     <Card className={highlight ? 'border-primary/30 shadow-sm' : ''}>
-      <CardContent className="p-4">
+      <CardContent className="p-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="text-xs text-muted-foreground">{label}</p>
             <p className={`mt-1 text-lg font-bold truncate ${highlight ? color : ''}`}>
               {value}
             </p>

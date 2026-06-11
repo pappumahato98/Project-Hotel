@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import {
   Plus, Search, MoreHorizontal, Eye, LogIn, XCircle, UserX, CalendarRange,
   Edit, Copy, FileText, Printer, Trash2, StickyNote, BedDouble,
   Users, ArrowDownToLine, ArrowUpFromLine, DollarSign, Hotel,
+  CalendarIcon, X, LayoutGrid,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -32,6 +33,8 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -169,6 +172,68 @@ const INITIAL_FORM: NewReservationForm = {
   notes: '',
 }
 
+// ─── Debounce hook ────────────────────────────────────────────────────
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+// ─── Date range presets ──────────────────────────────────────────────
+function getDatePreset(preset: string): { from: Date; to: Date } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  switch (preset) {
+    case 'today':
+      return { from: today, to: today }
+    case 'this-week': {
+      const from = new Date(today)
+      from.setDate(today.getDate() - today.getDay() + 1) // Monday
+      const to = new Date(from)
+      to.setDate(from.getDate() + 6) // Sunday
+      return { from, to }
+    }
+    case 'this-month': {
+      const from = new Date(today.getFullYear(), today.getMonth(), 1)
+      const to = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+      return { from, to }
+    }
+    case 'next-7': {
+      const to = new Date(today)
+      to.setDate(today.getDate() + 6)
+      return { from: today, to }
+    }
+    case 'next-14': {
+      const to = new Date(today)
+      to.setDate(today.getDate() + 13)
+      return { from: today, to }
+    }
+    case 'next-30': {
+      const to = new Date(today)
+      to.setDate(today.getDate() + 29)
+      return { from: today, to }
+    }
+    default:
+      return { from: today, to: today }
+  }
+}
+
+function toDateString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function formatShortDate(dateStr: string): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 // ─── Component ──────────────────────────────────────────────────────────
 
 export function ReservationsView() {
@@ -179,9 +244,14 @@ export function ReservationsView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [datePopoverOpen, setDatePopoverOpen] = useState(false)
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
   const [newResOpen, setNewResOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
+
+  // Debounced search for realtime filtering
+  const debouncedSearch = useDebounce(searchQuery, 300)
 
   // Edit dialog state
   const [editOpen, setEditOpen] = useState(false)
@@ -232,11 +302,11 @@ export function ReservationsView() {
 
   // ─── Fetch reservations ──────────────────────────────────────────────
   const { data, isLoading } = useQuery({
-    queryKey: ['reservations', statusFilter, searchQuery, dateFrom, dateTo],
+    queryKey: ['reservations', statusFilter, debouncedSearch, dateFrom, dateTo],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (searchQuery) params.set('search', searchQuery)
+      if (debouncedSearch) params.set('search', debouncedSearch)
       if (dateFrom) params.set('checkInDate', dateFrom)
       if (dateTo) params.set('checkOutDate', dateTo)
       const res = await fetch(`/api/reservations?${params.toString()}`)
@@ -409,6 +479,40 @@ export function ReservationsView() {
     },
   })
 
+  // ─── Date range handler ────────────────────────────────────────────
+  const handleDateSelect = useCallback((day: Date | undefined) => {
+    if (!day) return
+    const dayStr = toDateString(day)
+    if (!dateFrom || (dateFrom && dateTo)) {
+      // Start new range
+      setDateFrom(dayStr)
+      setDateTo('')
+    } else {
+      // Complete the range
+      if (day >= new Date(dateFrom + 'T00:00:00')) {
+        setDateTo(dayStr)
+      } else {
+        setDateFrom(dayStr)
+        setDateTo('')
+      }
+    }
+  }, [dateFrom, dateTo])
+
+  const handlePreset = useCallback((preset: string) => {
+    const { from, to } = getDatePreset(preset)
+    setDateFrom(toDateString(from))
+    setDateTo(toDateString(to))
+    setCalendarMonth(from)
+    setDatePopoverOpen(false)
+  }, [])
+
+  const clearDateRange = useCallback(() => {
+    setDateFrom('')
+    setDateTo('')
+  }, [])
+
+  const isSearching = searchQuery !== debouncedSearch
+
   // ─── Handlers ────────────────────────────────────────────────────────
 
   const handleCheckIn = (reservation: Reservation) => {
@@ -525,22 +629,9 @@ export function ReservationsView() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Reservations</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage all guest reservations and bookings
-          </p>
-        </div>
-        <Dialog open={newResOpen} onOpenChange={setNewResOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="size-4 mr-1.5" />
-              New Reservation
-            </Button>
-          </DialogTrigger>
+    <div className="flex flex-col gap-2">
+      {/* New Reservation Dialog */}
+      <Dialog open={newResOpen} onOpenChange={setNewResOpen}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Reservation</DialogTitle>
@@ -722,48 +813,162 @@ export function ReservationsView() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+      {/* Filters — sticky */}
+      <div className="sticky top-0 z-20 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 border-b shadow-sm">
+        <div className="py-1.5 px-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+            {/* Room Board button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] gap-1 shrink-0"
+              onClick={() => navigateTo('rooms', 'room-board')}
+            >
+              <LayoutGrid className="size-3.5" />
+              <span className="hidden sm:inline">Room Board</span>
+            </Button>
+            {/* Search — compact with X clear */}
+            <div className="relative sm:w-[200px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
               <Input
-                placeholder="Search by guest name, confirmation #..."
+                placeholder="Search guest, conf #..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className={cn(
+                  "h-7 pl-8 text-xs",
+                  searchQuery ? "pr-7" : "pr-3",
+                  isSearching && "ring-1 ring-primary/30"
+                )}
               />
+              {searchQuery && !isSearching && (
+                <button
+                  type="button"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-4 inline-flex items-center justify-center rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+              {isSearching && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="size-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              )}
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="w-full sm:w-[150px]"
-              placeholder="Check-in from"
-            />
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="w-full sm:w-[150px]"
-              placeholder="Check-in to"
-            />
+            {/* Status filter with X clear */}
+            <div className="flex items-center gap-1">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[130px] data-[size=default]:h-7 h-7 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {statusFilter !== 'all' && (
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center size-7 rounded-md border border-input bg-background hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  onClick={() => setStatusFilter('all')}
+                  title="Clear status filter"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </div>
+            {/* Calendar Date Range Picker */}
+            <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "inline-flex items-center h-7 text-xs gap-1.5 w-full sm:w-auto sm:min-w-[170px] font-normal px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors",
+                    !dateFrom && !dateTo && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="size-3.5 shrink-0" />
+                  {dateFrom && dateTo ? (
+                    <span>{formatShortDate(dateFrom)} — {formatShortDate(dateTo)}</span>
+                  ) : dateFrom ? (
+                    <span>{formatShortDate(dateFrom)} — ...</span>
+                  ) : (
+                    <span>Check-in date range</span>
+                  )}
+                  {(dateFrom || dateTo) && (
+                    <X
+                      className="size-3 ml-auto shrink-0 opacity-50 hover:opacity-100 cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); clearDateRange() }}
+                    />
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex">
+                  {/* Quick presets */}
+                  <div className="flex flex-col gap-0.5 p-2 border-r bg-muted/30 min-w-[100px]">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1.5 pb-1">Quick</p>
+                    {[
+                      { key: 'today', label: 'Today' },
+                      { key: 'this-week', label: 'This Week' },
+                      { key: 'this-month', label: 'This Month' },
+                      { key: 'next-7', label: 'Next 7 Days' },
+                      { key: 'next-14', label: 'Next 14 Days' },
+                      { key: 'next-30', label: 'Next 30 Days' },
+                    ].map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        className="text-[11px] text-left px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => handlePreset(p.key)}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                    {(dateFrom || dateTo) && (
+                      <>
+                        <div className="my-1 border-t" />
+                        <button
+                          type="button"
+                          className="text-[11px] text-left px-2 py-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                          onClick={() => { clearDateRange(); setDatePopoverOpen(false) }}
+                        >
+                          Clear
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {/* Calendar */}
+                  <div className="p-2">
+                    <Calendar
+                      mode="single"
+                      defaultMonth={calendarMonth}
+                      onMonthChange={setCalendarMonth}
+                      onSelect={handleDateSelect}
+                    />
+                    <div className="mt-2 px-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <div className="size-2 rounded-sm bg-primary/20 border border-primary/40" />
+                      <span>{dateFrom && dateTo ? `${formatShortDate(dateFrom)} — ${formatShortDate(dateTo)}` : 'Click to select start, then end date'}</span>
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            {/* New Reservation button — after date range */}
+            <Button
+              size="sm"
+              className="h-7 text-[11px] gap-1 shrink-0 ml-auto sm:ml-0"
+              onClick={() => setNewResOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              <span className="hidden sm:inline">New Reservation</span>
+              <span className="sm:hidden">New</span>
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Reservations Table */}
       <Card className="py-0">

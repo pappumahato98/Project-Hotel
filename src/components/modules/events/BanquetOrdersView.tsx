@@ -53,38 +53,38 @@ export function BanquetOrdersView() {
   })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">BEO / Banquet Orders</h1>
-          <p className="text-sm text-muted-foreground">Banquet Event Orders with linked services</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">BEO / Banquet Orders</h1>
+          <p className="text-xs text-muted-foreground">Banquet Event Orders with linked services</p>
         </div>
-        <Badge variant="outline" className="text-sm">
+        <Badge variant="outline" className="text-[11px]">
           {data?.total ?? 0} orders
         </Badge>
       </div>
 
       {/* Summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-4">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Card className="p-2.5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Confirmed</p>
+            <p className="text-xs text-muted-foreground">Confirmed</p>
             <Badge variant="outline" className="border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
               {data?.summary?.confirmed ?? 0}
             </Badge>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-2.5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">In Progress</p>
+            <p className="text-xs text-muted-foreground">In Progress</p>
             <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
               {data?.summary?.inProgress ?? 0}
             </Badge>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-2.5">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">Draft</p>
+            <p className="text-xs text-muted-foreground">Draft</p>
             <Badge variant="outline" className="border-gray-300 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400">
               {data?.summary?.draft ?? 0}
             </Badge>
@@ -93,7 +93,7 @@ export function BanquetOrdersView() {
       </div>
 
       {/* BEO List */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
@@ -111,10 +111,10 @@ export function BanquetOrdersView() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3">
-                  <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <CardTitle className="text-base">{order.eventName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
+                    <CardTitle className="text-sm">{order.eventName}</CardTitle>
+                    <p className="text-xs text-muted-foreground">
                       BEO #{order.id.split('-')[1]} · Order Date: {order.orderDate}
                     </p>
                   </div>
@@ -146,7 +146,7 @@ export function BanquetOrdersView() {
                             <span className="font-medium">{item.service}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{item.description}</TableCell>
+                        <TableCell className="text-xs">{item.description}</TableCell>
                         <TableCell className="text-center">{item.quantity}</TableCell>
                         <TableCell className="text-right">{formatNPR(item.unitPrice)}</TableCell>
                         <TableCell className="text-right font-medium">{formatNPR(item.total)}</TableCell>
@@ -155,9 +155,9 @@ export function BanquetOrdersView() {
                   </TableBody>
                 </Table>
               </ScrollArea>
-              <Separator className="my-3" />
+              <Separator className="my-2" />
               <div className="flex justify-end">
-                <span className="text-sm text-muted-foreground mr-2">Total:</span>
+                <span className="text-xs text-muted-foreground mr-2">Total:</span>
                 <span className="font-bold">{formatNPR(order.totalAmount)}</span>
               </div>
             </CardContent>

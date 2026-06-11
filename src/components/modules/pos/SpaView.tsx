@@ -78,7 +78,7 @@ function AppointmentCalendar({
               const hour = parseInt(slot.split(':')[0])
               const hourAppts = appointments.filter((a) => getHour(a.startTime) === hour)
               return (
-                <div key={slot} className="flex gap-3 min-h-[56px]">
+                <div key={slot} className="flex gap-2 min-h-[56px]">
                   <div className="w-14 flex-shrink-0 pt-1">
                     <span className="text-[11px] font-medium text-muted-foreground">{slot}</span>
                   </div>
@@ -148,9 +148,9 @@ function ServiceCatalog({ services }: { services: SpaService[] }) {
           Services
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2">
         <Tabs value={category} onValueChange={setCategory}>
-          <TabsList className="w-full h-8">
+          <TabsList className="w-full h-7">
             {categories.map((cat) => (
               <TabsTrigger key={cat.id} value={cat.id} className="text-xs flex-1">
                 {cat.label}
@@ -163,7 +163,7 @@ function ServiceCatalog({ services }: { services: SpaService[] }) {
             {filtered.map((service) => (
               <div
                 key={service.id}
-                className="flex items-center justify-between rounded-lg border p-3 transition-all hover:shadow-sm"
+                className="flex items-center justify-between rounded-lg border p-2 transition-all hover:shadow-sm"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{service.name}</p>
@@ -209,7 +209,7 @@ function TherapistSchedule({ therapists }: { therapists: Therapist[] }) {
             return (
               <div
                 key={therapist.id}
-                className="flex items-center justify-between rounded-lg border p-3"
+                className="flex items-center justify-between rounded-lg border p-2"
               >
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-rose-400 to-rose-600 text-white text-xs font-bold">
@@ -374,11 +374,11 @@ export default function SpaView() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         <Skeleton className="h-20 rounded-lg" />
-        <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="grid gap-2 lg:grid-cols-[1fr_320px]">
           <Skeleton className="h-[500px] rounded-lg" />
-          <div className="space-y-4">
+          <div className="space-y-2">
             <Skeleton className="h-[300px] rounded-lg" />
             <Skeleton className="h-[200px] rounded-lg" />
           </div>
@@ -388,9 +388,9 @@ export default function SpaView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         <Card className="py-3">
           <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-rose-600"><CalendarDays className="h-4 w-4" /></div>
@@ -430,7 +430,7 @@ export default function SpaView() {
       </div>
 
       {/* Main Layout */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-2 lg:grid-cols-[1fr_320px]">
         {/* Left: Calendar */}
         <AppointmentCalendar
           appointments={appointments}
@@ -438,7 +438,7 @@ export default function SpaView() {
           onSelectAppt={setSelectedAppt}
         />
         {/* Right: Services + Therapists */}
-        <div className="space-y-4">
+        <div className="space-y-2">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setBookingOpen(true)} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" /> New Booking

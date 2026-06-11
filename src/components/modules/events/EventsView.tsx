@@ -81,80 +81,80 @@ export function EventsView() {
   ]
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Events & Banquet</h1>
-          <p className="text-sm text-muted-foreground">Manage hotel events, conferences, and celebrations</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Events & Banquet</h1>
+          <p className="text-xs text-muted-foreground">Manage hotel events, conferences, and celebrations</p>
         </div>
-        <Badge variant="outline" className="text-sm">
+        <Badge variant="outline" className="text-[11px]">
           {data?.total ?? 0} events
         </Badge>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
-              <DollarSign className="h-5 w-5 text-green-600" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
+              <DollarSign className="h-3.5 w-3.5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalRevenue) : '—'}</p>
+              <p className="text-xs text-muted-foreground">Total Revenue</p>
+              <p className="text-sm font-bold">{data?.summary ? formatNPR(data.summary.totalRevenue) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
-              <DollarSign className="h-5 w-5 text-blue-600" />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
+              <DollarSign className="h-3.5 w-3.5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Deposits Paid</p>
-              <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalDepositsPaid) : '—'}</p>
+              <p className="text-xs text-muted-foreground">Deposits Paid</p>
+              <p className="text-sm font-bold">{data?.summary ? formatNPR(data.summary.totalDepositsPaid) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <DollarSign className="h-5 w-5 text-amber-600" />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
+              <DollarSign className="h-3.5 w-3.5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending Deposits</p>
-              <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalDepositsPending) : '—'}</p>
+              <p className="text-xs text-muted-foreground">Pending Deposits</p>
+              <p className="text-sm font-bold">{data?.summary ? formatNPR(data.summary.totalDepositsPending) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
-              <Users className="h-5 w-5 text-purple-600" />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
+              <Users className="h-3.5 w-3.5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Upcoming Events</p>
-              <p className="text-2xl font-bold">{data?.events?.filter((e: EventItem) => e.status === 'confirmed').length ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Upcoming Events</p>
+              <p className="text-lg font-bold">{data?.events?.filter((e: EventItem) => e.status === 'confirmed').length ?? '—'}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search events..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-8 h-7 text-xs"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-2.5 text-[11px]"
         >
           <option value="">All Status</option>
           <option value="tentative">Tentative</option>
@@ -166,7 +166,7 @@ export function EventsView() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-2.5 text-[11px]"
         >
           <option value="">All Types</option>
           <option value="corporate">Corporate</option>
@@ -219,15 +219,15 @@ export function EventsView() {
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => setSelectedEvent(event)}
                     >
-                      <TableCell className="font-medium">{event.name}</TableCell>
+                      <TableCell className="font-medium text-xs">{event.name}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={eventTypeColors[event.eventType] ?? ''}>
                           <span className="capitalize">{event.eventType}</span>
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm">{event.organizerName}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{event.venue ?? '—'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">
+                      <TableCell className="hidden md:table-cell text-xs">{event.organizerName}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">{event.venue ?? '—'}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-xs">
                         {new Date(event.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                       </TableCell>
                       <TableCell className="text-center">{event.expectedPax}</TableCell>
@@ -256,7 +256,7 @@ export function EventsView() {
             <DialogTitle>{selectedEvent?.name}</DialogTitle>
           </DialogHeader>
           {selectedEvent && (
-            <div className="space-y-4">
+            <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className={eventTypeColors[selectedEvent.eventType] ?? ''}>
                   <span className="capitalize">{selectedEvent.eventType}</span>

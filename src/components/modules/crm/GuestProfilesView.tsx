@@ -132,14 +132,14 @@ function GuestProfileSheet({
           <SheetDescription>Guest Profile Details</SheetDescription>
         </SheetHeader>
 
-        <div className="mt-6 space-y-6">
+        <div className="mt-2 space-y-2">
           {/* Personal Info */}
-          <section className="space-y-3">
+          <section className="space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <User className="h-4 w-4" />
               Personal Information
             </h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { icon: Mail, label: 'Email', value: guest.email },
                 { icon: Phone, label: 'Phone', value: guest.phone },
@@ -160,21 +160,21 @@ function GuestProfileSheet({
           <Separator />
 
           {/* Quick Stats */}
-          <section className="space-y-3">
+          <section className="space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Lifetime Value
             </h3>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg border p-3 text-center">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-lg border p-2.5 text-center">
                 <p className="text-xs text-muted-foreground">Total Stays</p>
                 <p className="text-xl font-bold">{guest.totalStays}</p>
               </div>
-              <div className="rounded-lg border p-3 text-center">
+              <div className="rounded-lg border p-2.5 text-center">
                 <p className="text-xs text-muted-foreground">Revenue</p>
                 <p className="text-xl font-bold">{formatNPR(guest.totalRevenue)}</p>
               </div>
-              <div className="rounded-lg border p-3 text-center">
+              <div className="rounded-lg border p-2.5 text-center">
                 <p className="text-xs text-muted-foreground">Points</p>
                 <p className="text-xl font-bold">{guest.loyaltyPoints.toLocaleString()}</p>
               </div>
@@ -185,12 +185,12 @@ function GuestProfileSheet({
 
           {/* Loyalty */}
           {guest.loyaltyTier !== 'none' && (
-            <section className="space-y-3">
+            <section className="space-y-2">
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Heart className="h-4 w-4" />
                 Loyalty Program
               </h3>
-              <div className="rounded-lg border p-4 space-y-3">
+              <div className="rounded-lg border p-2 space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <VipBadge level={guest.loyaltyTier} />
@@ -211,7 +211,7 @@ function GuestProfileSheet({
           {prefs.length > 0 && (
             <>
               <Separator />
-              <section className="space-y-3">
+              <section className="space-y-2">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
                   <Heart className="h-4 w-4" />
                   Preferences
@@ -230,7 +230,7 @@ function GuestProfileSheet({
           <Separator />
 
           {/* Stay History */}
-          <section className="space-y-3">
+          <section className="space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <BedDouble className="h-4 w-4" />
               Stay History
@@ -302,8 +302,8 @@ export function GuestProfilesView() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />
           ))}
@@ -314,42 +314,42 @@ export function GuestProfilesView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: 'Total Guests', value: total, icon: Users, color: 'text-foreground' },
           { label: 'VIP Guests', value: vipCount, icon: Crown, color: 'text-amber-600' },
           { label: 'Avg. Spend', value: formatNPR(Math.round(avgSpend)), icon: DollarSign, color: 'text-green-600' },
           { label: 'New This Month', value: newThisMonth, icon: TrendingUp, color: 'text-teal-600' },
         ].map((stat) => (
-          <Card key={stat.label} className="p-4">
+          <Card key={stat.label} className="p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
               </div>
-              <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
+              <stat.icon className={cn('h-3.5 w-3.5 opacity-20', stat.color)} />
             </div>
           </Card>
         ))}
       </div>
 
       {/* Search & Filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name, email, phone..."
-              className="pl-9"
+              className="pl-8 h-7 text-xs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Select value={vipFilter} onValueChange={setVipFilter}>
-            <SelectTrigger className="sm:w-[140px]">
-              <Filter className="h-4 w-4 mr-2" />
+            <SelectTrigger className="sm:w-[130px] data-[size=default]:h-7 text-xs">
+              <Filter className="h-3.5 w-3.5 mr-1.5" />
               <SelectValue placeholder="VIP Level" />
             </SelectTrigger>
             <SelectContent>
@@ -361,7 +361,7 @@ export function GuestProfilesView() {
             </SelectContent>
           </Select>
         </div>
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant="secondary" className="text-[11px]">
           {guests.length} guest{guests.length !== 1 ? 's' : ''}
         </Badge>
       </div>

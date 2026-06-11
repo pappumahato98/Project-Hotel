@@ -300,18 +300,18 @@ function SummaryCards({ summary }: { summary: RoomsApiResponse['summary'] }) {
   ]
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
       {cards.map((card) => {
         const Icon = card.icon
         return (
-          <div key={card.label} className="rounded-lg border bg-card p-3">
+          <div key={card.label} className="rounded-lg border bg-card p-2.5">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-medium text-muted-foreground truncate">{card.label}</span>
               <div className={cn('size-6 rounded-md flex items-center justify-center shrink-0', card.bg)}>
                 <Icon className={cn('size-3.5', card.color)} />
               </div>
             </div>
-            <p className={cn('text-xl font-bold tracking-tight', card.color)}>{card.value}</p>
+            <p className={cn('text-lg font-bold tracking-tight', card.color)}>{card.value}</p>
           </div>
         )
       })}
@@ -339,13 +339,13 @@ function FilterBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-        <Filter className="size-3.5" />
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <Filter className="size-3" />
         Filters:
       </div>
 
       <Select value={filters.floor} onValueChange={(v) => onFilterChange('floor', v)}>
-        <SelectTrigger size="sm" className="w-[120px]">
+        <SelectTrigger size="sm" className="w-[110px] h-7 text-xs">
           <SelectValue placeholder="Floor" />
         </SelectTrigger>
         <SelectContent>
@@ -357,7 +357,7 @@ function FilterBar({
       </Select>
 
       <Select value={filters.wing} onValueChange={(v) => onFilterChange('wing', v)}>
-        <SelectTrigger size="sm" className="w-[120px]">
+        <SelectTrigger size="sm" className="w-[110px] h-7 text-xs">
           <SelectValue placeholder="Wing" />
         </SelectTrigger>
         <SelectContent>
@@ -369,7 +369,7 @@ function FilterBar({
       </Select>
 
       <Select value={filters.roomType} onValueChange={(v) => onFilterChange('roomType', v)}>
-        <SelectTrigger size="sm" className="w-[140px]">
+        <SelectTrigger size="sm" className="w-[120px] h-7 text-xs">
           <SelectValue placeholder="Room Type" />
         </SelectTrigger>
         <SelectContent>
@@ -381,7 +381,7 @@ function FilterBar({
       </Select>
 
       <Select value={filters.status} onValueChange={(v) => onFilterChange('status', v)}>
-        <SelectTrigger size="sm" className="w-[140px]">
+        <SelectTrigger size="sm" className="w-[120px] h-7 text-xs">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -401,7 +401,7 @@ function FilterBar({
       </Select>
 
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={onReset} className="h-8 gap-1 text-xs">
+        <Button variant="ghost" size="sm" onClick={onReset} className="h-7 gap-1 text-[11px]">
           <X className="size-3" />
           Clear
         </Button>
@@ -496,9 +496,9 @@ function FloorSection({
 // ─── Loading Skeleton ──────────────────────────────────────────
 function RoomBoardSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">
       <Skeleton className="h-16 w-full rounded-lg" />
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-20 rounded-lg" />
         ))}
@@ -609,12 +609,12 @@ export function RoomBoard() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <ScrollArea className="flex-1">
-        <div className="p-4 sm:p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-2">
           {/* Summary Stats */}
           <SummaryCards summary={data.summary} />
 
           {/* Legend Bar */}
-          <div className="rounded-lg border bg-card p-3">
+          <div className="rounded-lg border bg-card p-2.5">
             <LegendBar statusBreakdown={data.statusBreakdown} />
           </div>
 
@@ -631,7 +631,7 @@ export function RoomBoard() {
           <Separator />
 
           {/* Floor Sections */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             {data.floors.map((floor) => {
               const floorRooms = roomsByFloor.get(floor)
               if (!floorRooms || floorRooms.length === 0) return null

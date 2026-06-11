@@ -46,18 +46,18 @@ export function PricingView() {
   })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Pricing Rules</h1>
-        <p className="text-sm text-muted-foreground">Rate plans and pricing configuration</p>
+        <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Pricing Rules</h1>
+        <p className="text-xs text-muted-foreground">Rate plans and pricing configuration</p>
       </div>
 
       {/* Rate Plans */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Tag className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-base">Active Rate Plans</CardTitle>
+            <Tag className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm">Active Rate Plans</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -116,21 +116,21 @@ export function PricingView() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-base">Pricing Rules</CardTitle>
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm">Pricing Rules</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-lg border p-4">
+                <div key={i} className="rounded-lg border p-2.5">
                   <Skeleton className="h-5 w-[200px]" />
                   <Skeleton className="h-4 w-[300px] mt-2" />
                 </div>
               ))
             ) : data?.pricingRules?.map((rule: PricingRule) => (
-              <div key={rule.id} className="rounded-lg border p-4 flex items-center justify-between flex-wrap gap-2">
+              <div key={rule.id} className="rounded-lg border p-2.5 flex items-center justify-between flex-wrap gap-2">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium">{rule.name}</p>
@@ -142,7 +142,7 @@ export function PricingView() {
                       {rule.active ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                     <span>Type: <span className="capitalize font-medium text-foreground">{rule.type}</span></span>
                     <span>Applies: <span className="font-medium text-foreground">{rule.appliesTo}</span></span>
                     <span>When: <span className="font-medium text-foreground">{rule.dates}</span></span>

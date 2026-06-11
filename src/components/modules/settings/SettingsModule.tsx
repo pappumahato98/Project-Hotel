@@ -85,9 +85,9 @@ function SectionHeader({
   icon: React.ElementType; title: string; description: string
 }) {
   return (
-    <div className="flex items-start gap-3 mb-4">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
-        <Icon className="size-4 text-slate-600 dark:text-slate-400" />
+    <div className="flex items-start gap-3 mb-2">
+      <div className="flex size-7 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 shrink-0 mt-0.5">
+        <Icon className="size-3.5 text-slate-600 dark:text-slate-400" />
       </div>
       <div>
         <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{title}</h3>
@@ -191,7 +191,7 @@ function GeneralTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Property Information */}
       <Card>
         <CardHeader className="pb-3">
@@ -201,41 +201,41 @@ function GeneralTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Hotel Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={async () => { await handleSaveField('hotelName', name) }} className="h-9" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={async () => { await handleSaveField('hotelName', name) }} className="h-7" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Hotel Code</Label>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} onBlur={async () => { await handleSaveField('hotelCode', code) }} className="h-9" />
+              <Input value={code} onChange={(e) => setCode(e.target.value)} onBlur={async () => { await handleSaveField('hotelCode', code) }} className="h-7" />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
               <Label className="text-xs">Address</Label>
-              <Input value={address} onChange={(e) => setAddress(e.target.value)} onBlur={async () => { await handleSaveField('address', address) }} className="h-9" />
+              <Input value={address} onChange={(e) => setAddress(e.target.value)} onBlur={async () => { await handleSaveField('address', address) }} className="h-7" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">City</Label>
-              <Input value={city} onChange={(e) => setCity(e.target.value)} onBlur={async () => { await handleSaveField('city', city) }} className="h-9" />
+              <Input value={city} onChange={(e) => setCity(e.target.value)} onBlur={async () => { await handleSaveField('city', city) }} className="h-7" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Country</Label>
-              <Input value={country} onChange={(e) => setCountry(e.target.value)} onBlur={async () => { await handleSaveField('country', country) }} className="h-9" />
+              <Input value={country} onChange={(e) => setCountry(e.target.value)} onBlur={async () => { await handleSaveField('country', country) }} className="h-7" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Phone</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={async () => { await handleSaveField('phone', phone) }} className="h-9" />
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={async () => { await handleSaveField('phone', phone) }} className="h-7" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={async () => { await handleSaveField('email', email) }} className="h-9" />
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={async () => { await handleSaveField('email', email) }} className="h-7" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Website</Label>
-              <Input value={website} onChange={(e) => setWebsite(e.target.value)} onBlur={async () => { await handleSaveField('website', website) }} className="h-9" />
+              <Input value={website} onChange={(e) => setWebsite(e.target.value)} onBlur={async () => { await handleSaveField('website', website) }} className="h-7" />
             </div>
           </div>
           <div className="flex items-center justify-between">
             <Label className="text-xs">Star Rating</Label>
             <Select value={starRating} onValueChange={async (v) => { setStarRating(v); await handleSaveField('starRating', parseInt(v)) }}>
-              <SelectTrigger className="w-28 h-8 text-xs">
+              <SelectTrigger className="w-24 h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -262,7 +262,7 @@ function GeneralTab() {
         <CardContent className="space-y-3">
           <SettingRow icon={LogIn} label="Default Check-In" description="Standard guest arrival time">
             <Select value={checkIn} onValueChange={async (v) => { setCheckIn(v); await handleSaveField('defaultCheckIn', v) }}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-48">
                 {TIME_OPTIONS.map((t) => (
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -273,7 +273,7 @@ function GeneralTab() {
           <Separator />
           <SettingRow icon={LogOut} label="Default Check-Out" description="Standard guest departure time">
             <Select value={checkOut} onValueChange={async (v) => { setCheckOut(v); await handleSaveField('defaultCheckOut', v) }}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-48">
                 {TIME_OPTIONS.map((t) => (
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -284,7 +284,7 @@ function GeneralTab() {
           <Separator />
           <SettingRow icon={MoonStar} label="Night Audit Time" description="When the daily night audit runs">
             <Select value={nightAudit} onValueChange={async (v) => { setNightAudit(v); await handleSaveField('nightAuditTime', v) }}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent className="max-h-48">
                 {TIME_OPTIONS.map((t) => (
                   <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -303,7 +303,7 @@ function GeneralTab() {
         <CardContent className="space-y-3">
           <SettingRow icon={Languages} label="Language" description="Interface display language">
             <Select value={preferences.language} onValueChange={(v) => { updatePreferences({ language: v }); toast.success('Language updated') }}>
-              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="en">English</SelectItem>
                 <SelectItem value="ne">&#x0928;&#x0947;&#x092A;&#x093E;&#x0932;&#x0940;</SelectItem>
@@ -315,7 +315,7 @@ function GeneralTab() {
           <Separator />
           <SettingRow icon={Globe} label="Timezone" description="Business operating timezone">
             <Select value={preferences.timezone} onValueChange={(v) => { updatePreferences({ timezone: v }); toast.success('Timezone updated') }}>
-              <SelectTrigger className="w-44 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-40 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Asia/Katmandu">Asia/Kathmandu (NPT +5:45)</SelectItem>
                 <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST +5:30)</SelectItem>
@@ -341,7 +341,7 @@ function DisplayTab() {
   React.useEffect(() => setMounted(true), [])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Theme */}
       <Card>
         <CardHeader className="pb-3">
@@ -395,7 +395,7 @@ function DisplayTab() {
         <CardContent className="space-y-3">
           <SettingRow icon={Calendar} label="Date Format" description="How dates are displayed throughout the system">
             <Select value={preferences.dateFormat} onValueChange={(v) => { updatePreferences({ dateFormat: v }); toast.success('Date format updated') }}>
-              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
                 <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
@@ -406,7 +406,7 @@ function DisplayTab() {
           <Separator />
           <SettingRow icon={Coins} label="Currency" description="Default currency for all amounts">
             <Select value={preferences.currency} onValueChange={(v) => { updatePreferences({ currency: v }); toast.success('Currency updated') }}>
-              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(CURRENCY_MAP).map(([code, { symbol, name }]) => (
                   <SelectItem key={code} value={code}>
@@ -476,7 +476,7 @@ function TaxFeesTab() {
   }, [settings.taxRate, settings.serviceCharge, settings.tourismTax])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Tax Configuration */}
       <Card>
         <CardHeader className="pb-3">
@@ -490,7 +490,7 @@ function TaxFeesTab() {
                 value={taxRate}
                 onChange={(e) => setTaxRate(e.target.value)}
                 onBlur={async () => { await saveToBackend({ taxRate: parseFloat(taxRate) || 0 }) }}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" max="100" step="0.5"
               />
               <span className="text-xs text-muted-foreground">%</span>
@@ -504,7 +504,7 @@ function TaxFeesTab() {
                 value={serviceCharge}
                 onChange={(e) => setServiceCharge(e.target.value)}
                 onBlur={async () => { await saveToBackend({ serviceCharge: parseFloat(serviceCharge) || 0 }) }}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" max="100" step="0.5"
               />
               <span className="text-xs text-muted-foreground">%</span>
@@ -518,7 +518,7 @@ function TaxFeesTab() {
                 value={tourismTax}
                 onChange={(e) => setTourismTax(e.target.value)}
                 onBlur={async () => { await saveToBackend({ tourismTax: parseFloat(tourismTax) || 0 }) }}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" step="10"
               />
               <span className="text-xs text-muted-foreground">NPR</span>
@@ -598,7 +598,7 @@ function BookingPoliciesTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Cancellation Policy */}
       <Card>
         <CardHeader className="pb-3">
@@ -644,7 +644,7 @@ function BookingPoliciesTab() {
                 value={cancelHours}
                 onChange={(e) => setCancelHours(e.target.value)}
                 onBlur={() => handleSave('cancellationHours', parseInt(cancelHours) || 24)}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" max="720"
               />
               <span className="text-xs text-muted-foreground">hours</span>
@@ -688,7 +688,7 @@ function BookingPoliciesTab() {
                     value={depositPercent}
                     onChange={(e) => setDepositPercent(e.target.value)}
                     onBlur={() => handleSave('depositPercent', parseInt(depositPercent) || 20)}
-                    className="w-20 h-8 text-xs text-right"
+                    className="w-20 h-7 text-xs text-right"
                     min="5" max="100" step="5"
                   />
                   <span className="text-xs text-muted-foreground">%</span>
@@ -708,7 +708,7 @@ function BookingPoliciesTab() {
                 value={noShowCharge}
                 onChange={(e) => setNoShowCharge(e.target.value)}
                 onBlur={() => handleSave('noShowCharge', parseInt(noShowCharge) || 100)}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" max="100" step="10"
               />
               <span className="text-xs text-muted-foreground">% of stay</span>
@@ -735,7 +735,7 @@ function BookingPoliciesTab() {
                 value={earlyCheckInCharge}
                 onChange={(e) => setEarlyCheckInCharge(e.target.value)}
                 onBlur={() => handleSave('earlyCheckInCharge', parseInt(earlyCheckInCharge) || 0)}
-                className="w-24 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" step="100"
               />
             </div>
@@ -753,7 +753,7 @@ function BookingPoliciesTab() {
                 value={lateCheckoutCharge}
                 onChange={(e) => setLateCheckoutCharge(e.target.value)}
                 onBlur={() => handleSave('lateCheckoutCharge', parseInt(lateCheckoutCharge) || 0)}
-                className="w-24 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="0" step="100"
               />
             </div>
@@ -781,7 +781,7 @@ function PaymentMethodsTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Accepted Methods */}
       <Card>
         <CardHeader className="pb-3">
@@ -901,7 +901,7 @@ function RoomDefaultsTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Occupancy & Floor */}
       <Card>
         <CardHeader className="pb-3">
@@ -915,7 +915,7 @@ function RoomDefaultsTab() {
                 value={maxOccupancy}
                 onChange={(e) => setMaxOccupancy(e.target.value)}
                 onBlur={() => handleSave('defaultMaxOccupancy', parseInt(maxOccupancy) || 2)}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="1" max="10"
               />
               <span className="text-xs text-muted-foreground">guests</span>
@@ -929,7 +929,7 @@ function RoomDefaultsTab() {
                 value={defaultFloor}
                 onChange={(e) => setDefaultFloor(e.target.value)}
                 onBlur={() => handleSave('defaultFloor', parseInt(defaultFloor) || 1)}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="1" max="50"
               />
               <span className="text-xs text-muted-foreground">floor</span>
@@ -965,7 +965,7 @@ function RoomDefaultsTab() {
                 value={minNights}
                 onChange={(e) => setMinNights(e.target.value)}
                 onBlur={() => handleSave('minNightsDefault', parseInt(minNights) || 1)}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="1" max="30"
               />
               <span className="text-xs text-muted-foreground">nights</span>
@@ -979,7 +979,7 @@ function RoomDefaultsTab() {
                 value={maxNights}
                 onChange={(e) => setMaxNights(e.target.value)}
                 onBlur={() => handleSave('maxNightsDefault', parseInt(maxNights) || 30)}
-                className="w-20 h-8 text-xs text-right"
+                className="w-20 h-7 text-xs text-right"
                 min="1" max="365"
               />
               <span className="text-xs text-muted-foreground">nights</span>
@@ -1017,7 +1017,7 @@ function EmailTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* SMTP Configuration */}
       <Card>
         <CardHeader className="pb-3">
@@ -1031,7 +1031,7 @@ function EmailTab() {
                 value={smtpHost}
                 onChange={(e) => setSmtpHost(e.target.value)}
                 onBlur={() => handleSave('smtpHost', smtpHost)}
-                className="h-9"
+                className="h-7"
                 placeholder="smtp.example.com"
               />
             </div>
@@ -1042,7 +1042,7 @@ function EmailTab() {
                 value={smtpPort}
                 onChange={(e) => setSmtpPort(e.target.value)}
                 onBlur={() => handleSave('smtpPort', parseInt(smtpPort) || 587)}
-                className="h-9"
+                className="h-7"
                 min="1" max="65535"
               />
             </div>
@@ -1052,7 +1052,7 @@ function EmailTab() {
                 value={smtpUser}
                 onChange={(e) => setSmtpUser(e.target.value)}
                 onBlur={() => handleSave('smtpUser', smtpUser)}
-                className="h-9"
+                className="h-7"
                 placeholder="noreply@example.com"
               />
             </div>
@@ -1083,7 +1083,7 @@ function EmailTab() {
               value={emailFromName}
               onChange={(e) => setEmailFromName(e.target.value)}
               onBlur={() => handleSave('emailFromName', emailFromName)}
-              className="h-9"
+              className="h-7"
             />
           </div>
           <div className="space-y-1.5">
@@ -1153,7 +1153,7 @@ function PrintingTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Auto-Print */}
       <Card>
         <CardHeader className="pb-3">
@@ -1188,7 +1188,7 @@ function PrintingTab() {
               value={printHeader}
               onChange={(e) => setPrintHeader(e.target.value)}
               onBlur={() => handleSave('printHeader', printHeader)}
-              className="h-9"
+              className="h-7"
             />
           </div>
           <div className="space-y-1.5">
@@ -1197,7 +1197,7 @@ function PrintingTab() {
               value={printFooter}
               onChange={(e) => setPrintFooter(e.target.value)}
               onBlur={() => handleSave('printFooter', printFooter)}
-              className="h-9"
+              className="h-7"
             />
           </div>
           <SettingRow icon={Star} label="Show Hotel Logo on Print" description="Display property logo on printed receipts and invoices">
@@ -1209,7 +1209,7 @@ function PrintingTab() {
           <Separator />
           <SettingRow icon={FileText} label="Invoice Format" description="Level of detail on printed invoices">
             <Select value={invoiceFormat} onValueChange={(v) => { setInvoiceFormat(v); handleSave('invoiceFormat', v) }}>
-              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="detailed">Detailed</SelectItem>
                 <SelectItem value="summary">Summary</SelectItem>
@@ -1220,7 +1220,7 @@ function PrintingTab() {
           <Separator />
           <SettingRow icon={Printer} label="Number of Receipt Copies" description="How many copies to print per receipt">
             <Select value={receiptCopies} onValueChange={(v) => { setReceiptCopies(v); handleSave('receiptCopies', parseInt(v)) }}>
-              <SelectTrigger className="w-20 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-20 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">1</SelectItem>
                 <SelectItem value="2">2</SelectItem>
@@ -1311,7 +1311,7 @@ function NotificationsTab() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Master Toggle */}
       <Card>
         <CardContent className="pt-4 space-y-3">
@@ -1395,7 +1395,7 @@ function IntegrationsTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* API Configuration */}
       <Card>
         <CardHeader className="pb-3">
@@ -1415,7 +1415,7 @@ function IntegrationsTab() {
                 type={showApiKey ? 'text' : 'password'}
                 value={settings.apiKey}
                 readOnly
-                className="w-48 h-8 text-xs font-mono"
+                className="w-48 h-7 text-xs font-mono"
               />
               <Button
                 variant="ghost"
@@ -1446,7 +1446,7 @@ function IntegrationsTab() {
           <Separator />
           <SettingRow icon={Timer} label="Channel Sync Interval" description="How often to sync with connected channels">
             <Select value={channelSync} onValueChange={async (v) => { setChannelSync(v); await saveToBackend({ channelSyncInterval: parseInt(v) }) }}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="5">5 min</SelectItem>
                 <SelectItem value="10">10 min</SelectItem>
@@ -1479,7 +1479,7 @@ function IntegrationsTab() {
                   value={webhookUrl}
                   onChange={(e) => setWebhookUrl(e.target.value)}
                   onBlur={async () => { await saveToBackend({ webhookUrl: webhookUrl }) }}
-                  className="w-52 h-8 text-xs"
+                  className="w-52 h-7 text-xs"
                   placeholder="https://your-server.com/webhook"
                 />
               </SettingRow>
@@ -1624,7 +1624,7 @@ function SecurityTab() {
   const roleBadge = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* User Info */}
       <Card>
         <CardHeader className="pb-3">
@@ -1719,7 +1719,7 @@ function SecurityTab() {
               </button>
             </div>
           </div>
-          <Button size="sm" onClick={handleChangePassword} className="h-8 text-xs">
+          <Button size="sm" onClick={handleChangePassword} className="h-7 text-xs">
             <Key className="size-3.5 mr-1.5" />
             Update Password
           </Button>
@@ -1738,7 +1738,7 @@ function SecurityTab() {
           <Separator />
           <SettingRow icon={Timer} label="Auto Logout" description="Automatically sign out after inactivity">
             <Select value={settings.autoLogout} onValueChange={(v) => { saveToBackend({ autoLogout: v }); toast.success('Auto-logout updated') }}>
-              <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-24 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="15min">15 min</SelectItem>
                 <SelectItem value="30min">30 min</SelectItem>
@@ -1826,7 +1826,7 @@ function BackupTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Auto Backup */}
       <Card>
         <CardHeader className="pb-3">
@@ -1844,7 +1844,7 @@ function BackupTab() {
               <Separator />
               <SettingRow icon={Timer} label="Backup Frequency" description="How often automatic backups are created">
                 <Select value={backupInterval} onValueChange={async (v) => { setBackupInterval(v); await saveToBackend({ autoBackupInterval: v }) }}>
-                  <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="hourly">Hourly</SelectItem>
                     <SelectItem value="daily">Daily</SelectItem>
@@ -1868,7 +1868,7 @@ function BackupTab() {
         <CardContent className="space-y-3">
           <SettingRow icon={Timer} label="Data Retention Period" description="Automatically archive data older than this period">
             <Select value={dataRetention} onValueChange={async (v) => { setDataRetention(v); await saveToBackend({ dataRetentionDays: parseInt(v) }) }}>
-              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-32 h-7 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="30">30 days</SelectItem>
                 <SelectItem value="90">90 days</SelectItem>
@@ -1943,7 +1943,7 @@ function BackupTab() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  className="h-8 text-xs"
+                  className="h-7 text-xs"
                   onClick={handleResetAllSettings}
                 >
                   <Trash2 className="size-3.5 mr-1.5" />
@@ -1952,7 +1952,7 @@ function BackupTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs"
+                  className="h-7 text-xs"
                   onClick={() => setShowConfirmReset(false)}
                 >
                   Cancel
@@ -1986,7 +1986,7 @@ function AboutTab() {
   const storagePercent = Math.min(Math.round((storageUsed / storageTotal) * 100), 100)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* System Info */}
       <Card>
         <CardHeader className="pb-3">
@@ -2090,7 +2090,7 @@ function NepalStandardsTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Dual Calendar */}
       <Card>
         <CardHeader className="pb-3">
@@ -2176,7 +2176,7 @@ function NepalStandardsTab() {
                   type="number"
                   value={String(ns.tourismFee)}
                   onChange={(e) => updateNS({ tourismFee: parseInt(e.target.value) || 0 })}
-                  className="w-20 h-8 text-xs text-right"
+                  className="w-20 h-7 text-xs text-right"
                   min="0" step="100"
                 />
               </div>
@@ -2187,7 +2187,7 @@ function NepalStandardsTab() {
                   type="number"
                   value={String(ns.localBodyTaxRate)}
                   onChange={(e) => updateNS({ localBodyTaxRate: parseFloat(e.target.value) || 0 })}
-                  className="w-20 h-8 text-xs text-right"
+                  className="w-20 h-7 text-xs text-right"
                   min="0" max="100" step="0.5"
                 />
                 <span className="text-xs text-muted-foreground">%</span>

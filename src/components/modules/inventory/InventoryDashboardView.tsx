@@ -153,14 +153,14 @@ export function InventoryDashboardView() {
   // ── Loading state ──────────────────────────────────────────
   if (invLoading || vendorsLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
             <Skeleton className="h-8 w-48" />
             <Skeleton className="h-4 w-64 mt-2" />
           </div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -171,122 +171,122 @@ export function InventoryDashboardView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Inventory Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Central overview of inventory, stock levels and activity</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Inventory Dashboard</h1>
+          <p className="text-xs text-muted-foreground">Central overview of inventory, stock levels and activity</p>
         </div>
       </div>
 
       {/* ── KPI Cards ─────────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <Package className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Items</p>
-              <p className="text-2xl font-bold">{kpis.totalItems}</p>
+              <p className="text-xs text-muted-foreground">Total Items</p>
+              <p className="text-lg font-bold">{kpis.totalItems}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Value</p>
+              <p className="text-xs text-muted-foreground">Total Value</p>
               <p className="text-lg font-bold">{formatNPR(kpis.totalValue)}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Low Stock Alerts</p>
-              <p className="text-2xl font-bold text-red-600">{kpis.lowStockAlerts}</p>
+              <p className="text-xs text-muted-foreground">Low Stock Alerts</p>
+              <p className="text-lg font-bold text-red-600">{kpis.lowStockAlerts}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <ClipboardList className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending Requisitions</p>
-              <p className="text-2xl font-bold text-amber-600">{kpis.pendingRequisitions}</p>
+              <p className="text-xs text-muted-foreground">Pending Requisitions</p>
+              <p className="text-lg font-bold text-amber-600">{kpis.pendingRequisitions}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
               <FileText className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Open POs</p>
-              <p className="text-2xl font-bold text-purple-600">{kpis.openPOs}</p>
+              <p className="text-xs text-muted-foreground">Open POs</p>
+              <p className="text-lg font-bold text-purple-600">{kpis.openPOs}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-950">
               <Truck className="h-5 w-5 text-cyan-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending Deliveries</p>
-              <p className="text-2xl font-bold text-cyan-600">{kpis.pendingDeliveries}</p>
+              <p className="text-xs text-muted-foreground">Pending Deliveries</p>
+              <p className="text-lg font-bold text-cyan-600">{kpis.pendingDeliveries}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* ── Quick Actions ───────────────────────────────────── */}
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Quick Actions:</span>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setNavigateToTab('stock')}>
+      <Card className="p-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Quick Actions:</span>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setNavigateToTab('stock')}>
             <Plus className="h-3.5 w-3.5" /> Add Item
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setNavigateToTab('requisitions')}>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setNavigateToTab('requisitions')}>
             <ClipboardList className="h-3.5 w-3.5" /> New Requisition
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setNavigateToTab('purchase-orders')}>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setNavigateToTab('purchase-orders')}>
             <FileText className="h-3.5 w-3.5" /> New PO
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setNavigateToTab('adjustments')}>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setNavigateToTab('adjustments')}>
             <ArrowUpDown className="h-3.5 w-3.5" /> Stock Adjustment
           </Button>
         </div>
       </Card>
 
       {/* ── Middle Row: Category Distribution + Low Stock Alerts ── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {/* Category Distribution */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Category Distribution</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="space-y-3">
+          <CardContent className="p-2 pt-0">
+            <div className="space-y-2">
               {categoryDistribution.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No items in inventory yet.</p>
+                <p className="text-xs text-muted-foreground text-center py-6">No items in inventory yet.</p>
               ) : (
                 categoryDistribution.map((cat) => {
                   const meta = CATEGORY_META[cat.name] || DEFAULT_CATEGORY_META
                   const Icon = meta.icon
                   const percentage = kpis.totalItems > 0 ? Math.round((cat.count / kpis.totalItems) * 100) : 0
                   return (
-                    <div key={cat.name} className="flex items-center gap-3">
+                    <div key={cat.name} className="flex items-center gap-2">
                       <div className={cn('flex h-8 w-8 items-center justify-center rounded-md', meta.bg)}>
                         <Icon className={cn('h-4 w-4', meta.color)} />
                       </div>
@@ -315,10 +315,10 @@ export function InventoryDashboardView() {
               Low Stock Alerts
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-2 pt-0">
             <ScrollArea className="max-h-[260px]">
               {lowStockItems.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">All items are above reorder level.</p>
+                <p className="text-xs text-muted-foreground text-center py-6">All items are above reorder level.</p>
               ) : (
                 <div className="space-y-2">
                   {lowStockItems.map((item) => {
@@ -326,7 +326,7 @@ export function InventoryDashboardView() {
                     const isCritical = item.currentStock <= item.minStock
                     return (
                       <div key={item.id} className={cn(
-                        'flex items-center gap-3 p-2 rounded-lg border',
+                        'flex items-center gap-2 p-2 rounded-lg border',
                         isCritical
                           ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30'
                           : 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30'
@@ -353,19 +353,19 @@ export function InventoryDashboardView() {
       </div>
 
       {/* ── Bottom Row: Recent Activity + Top Vendors + Expiring Soon ── */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-2 lg:grid-cols-3">
         {/* Recent Activity Feed */}
         <Card className="lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-2 pt-0">
             <ScrollArea className="max-h-[300px]">
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {RECENT_ACTIVITY.map((activity) => {
                   const Icon = activity.icon
                   return (
-                    <div key={activity.id} className="flex items-start gap-3">
+                    <div key={activity.id} className="flex items-start gap-2">
                       <div className={cn('flex h-8 w-8 items-center justify-center rounded-full shrink-0', activity.color)}>
                         <Icon className="h-3.5 w-3.5" />
                       </div>
@@ -391,7 +391,7 @@ export function InventoryDashboardView() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Top Vendors</CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-2 pt-0">
             <ScrollArea className="max-h-[300px]">
               <Table>
                 <TableHeader>
@@ -405,21 +405,21 @@ export function InventoryDashboardView() {
                 <TableBody>
                   {topVendors.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-16 text-center text-sm text-muted-foreground">
+                      <TableCell colSpan={4} className="h-16 text-center text-xs text-muted-foreground">
                         No active vendors yet.
                       </TableCell>
                     </TableRow>
                   ) : (
                     topVendors.map((vendor) => (
                       <TableRow key={vendor.id}>
-                        <TableCell className="text-sm font-medium truncate max-w-[100px]">{vendor.name}</TableCell>
+                        <TableCell className="text-xs font-medium truncate max-w-[100px]">{vendor.name}</TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
                             <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                             <span className="text-xs font-medium">{vendor.rating.toFixed(1)}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-center text-sm font-medium">{vendor.totalOrders}</TableCell>
+                        <TableCell className="text-center text-xs font-medium">{vendor.totalOrders}</TableCell>
                         <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
                           {vendor.lastOrderDate
                             ? new Date(vendor.lastOrderDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
@@ -442,14 +442,14 @@ export function InventoryDashboardView() {
               Expiring Soon
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 pt-0">
+          <CardContent className="p-2 pt-0">
             <ScrollArea className="max-h-[300px]">
               <div className="space-y-2">
                 {EXPIRING_ITEMS.map((expItem) => {
                   const isUrgent = expItem.daysLeft <= 3
                   return (
                     <div key={expItem.name} className={cn(
-                      'flex items-center gap-3 p-2 rounded-lg border',
+                      'flex items-center gap-2 p-2 rounded-lg border',
                       isUrgent
                         ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30'
                         : 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30'

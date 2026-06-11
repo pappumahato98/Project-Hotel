@@ -45,57 +45,57 @@ export function AttendanceView() {
   })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Today&apos;s Attendance</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Today&apos;s Attendance</h1>
+        <p className="text-xs text-muted-foreground">
           Real-time attendance tracking for {data?.date ?? '...'}
         </p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Present</p>
-              <p className="text-2xl font-bold">{data?.summary?.present ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Present</p>
+              <p className="text-lg font-bold">{data?.summary?.present ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
               <UserX className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Absent</p>
-              <p className="text-2xl font-bold">{data?.summary?.absent ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Absent</p>
+              <p className="text-lg font-bold">{data?.summary?.absent ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Late Arrivals</p>
-              <p className="text-2xl font-bold">{data?.summary?.late ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Late Arrivals</p>
+              <p className="text-lg font-bold">{data?.summary?.late ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <Clock className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">On Leave</p>
-              <p className="text-2xl font-bold">{data?.summary?.onLeave ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">On Leave</p>
+              <p className="text-lg font-bold">{data?.summary?.onLeave ?? '—'}</p>
             </div>
           </div>
         </Card>
@@ -104,7 +104,7 @@ export function AttendanceView() {
       {/* Department-wise Summary */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Department Summary</CardTitle>
+          <CardTitle className="text-sm">Department Summary</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="max-h-[200px]">
@@ -153,7 +153,7 @@ export function AttendanceView() {
       {/* Detailed Attendance Grid */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Attendance Details</CardTitle>
+          <CardTitle className="text-sm">Attendance Details</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="max-h-[400px]">
@@ -191,8 +191,8 @@ export function AttendanceView() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{record.department}</TableCell>
-                        <TableCell className="text-sm">{record.position}</TableCell>
+                        <TableCell className="text-xs">{record.department}</TableCell>
+                        <TableCell className="text-xs">{record.position}</TableCell>
                         <TableCell className="text-center">
                           {record.checkIn ? (
                             <span className={cn(record.late && 'text-amber-600 font-medium')}>

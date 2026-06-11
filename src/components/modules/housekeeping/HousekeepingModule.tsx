@@ -21,11 +21,11 @@ export function HousekeepingModule() {
     : 'tasks'
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Housekeeping</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Housekeeping</h1>
+          <p className="text-xs text-muted-foreground">
             Manage room cleaning tasks, inspections, and lost &amp; found items
           </p>
         </div>
@@ -45,13 +45,13 @@ export function HousekeepingModule() {
           ))}
         </TabsList>
 
-        <TabsContent value="tasks" className="mt-6">
+        <TabsContent value="tasks" className="mt-2">
           <TaskBoardView />
         </TabsContent>
-        <TabsContent value="inspection" className="mt-6">
+        <TabsContent value="inspection" className="mt-2">
           <InspectionView />
         </TabsContent>
-        <TabsContent value="lost-found" className="mt-6">
+        <TabsContent value="lost-found" className="mt-2">
           <LostFoundView />
         </TabsContent>
       </Tabs>

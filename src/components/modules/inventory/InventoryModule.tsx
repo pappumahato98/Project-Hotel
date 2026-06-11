@@ -25,15 +25,15 @@ export default function InventoryModule() {
   const currentTab = activeSubModule ?? 'dashboard'
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-4 md:p-6 overflow-y-auto">
       {/* Module Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
           <div className="flex size-9 items-center justify-center rounded-lg bg-cyan-100 dark:bg-cyan-950">
             <Package className="size-5 text-cyan-700 dark:text-cyan-400" />
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight">Inventory Management</h1>
+            <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Inventory Management</h1>
             <p className="text-xs text-muted-foreground">Track stock levels, vendors, requisitions &amp; adjustments</p>
           </div>
         </div>
@@ -43,7 +43,7 @@ export default function InventoryModule() {
       <Tabs value={currentTab} onValueChange={(v) => navigateTo('inventory', v)} className="w-full">
         <TabsList className="w-full justify-start overflow-x-auto">
           {SUB_TABS.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5 text-xs sm:text-sm">
+            <TabsTrigger key={tab.id} value={tab.id} className="gap-1 text-xs sm:text-xs">
               <tab.icon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{tab.label}</span>
             </TabsTrigger>
@@ -51,7 +51,7 @@ export default function InventoryModule() {
         </TabsList>
 
         {/* Views */}
-        <div className="mt-4">
+        <div className="mt-2">
           {currentTab === 'dashboard' && <InventoryDashboardView />}
           {currentTab === 'stock' && <StockView />}
           {currentTab === 'vendors' && <VendorsView />}

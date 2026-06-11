@@ -217,11 +217,11 @@ function ReportSkeleton({ rows = 5 }: { rows?: number }) {
 
 function StatsCardSkeleton() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
         <Card key={i}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
+          <CardContent className="p-2.5">
+            <div className="flex items-center gap-2">
               <Skeleton className="size-10 rounded-lg" />
               <div className="space-y-2">
                 <Skeleton className="h-7 w-16" />
@@ -291,12 +291,12 @@ interface StatCardProps {
 function StatCard({ label, value, icon: Icon, iconBg, iconColor, subtext }: StatCardProps) {
   return (
     <Card>
-      <CardContent className="p-4 flex items-center gap-3">
+      <CardContent className="p-2.5 flex items-center gap-2">
         <div className={cn('flex size-10 items-center justify-center rounded-lg', iconBg)}>
           <Icon className={cn('size-5', iconColor)} />
         </div>
         <div>
-          <p className="text-2xl font-bold">{value}</p>
+          <p className="text-lg font-bold">{value}</p>
           <p className="text-xs text-muted-foreground">{label}</p>
           {subtext && (
             <p className="text-[10px] text-muted-foreground mt-0.5">{subtext}</p>
@@ -361,9 +361,9 @@ function SummaryReport({ date }: { date?: string }) {
   const summary = data as SummaryData
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Stats Grid */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Total Rooms"
           value={summary.totalRooms}
@@ -411,7 +411,7 @@ function SummaryReport({ date }: { date?: string }) {
       <Separator />
 
       {/* Financial Summary */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Revenue"
           value={formatCurrency(summary.totalRevenue)}
@@ -502,7 +502,7 @@ function ArrivalsReport({ date }: { date?: string }) {
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{guestName}</span>
+                      <span className="font-medium text-xs">{guestName}</span>
                       {isVip && (
                         <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
                           VIP
@@ -520,7 +520,7 @@ function ArrivalsReport({ date }: { date?: string }) {
                   </TableCell>
                   <TableCell>
                     {res.room ? (
-                      <span className="text-sm">{res.room.number} <span className="text-muted-foreground text-xs">({res.room.type.code})</span></span>
+                      <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
                     ) : (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
                         Unassigned
@@ -561,7 +561,7 @@ function ArrivalsReport({ date }: { date?: string }) {
               <TableCell colSpan={6} className="text-xs text-muted-foreground">
                 Total Arrivals
               </TableCell>
-              <TableCell className="font-bold text-sm">{arrivalsData.total}</TableCell>
+              <TableCell className="font-bold text-xs">{arrivalsData.total}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
@@ -617,13 +617,13 @@ function DeparturesReport({ date }: { date?: string }) {
                 >
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{guestName}</span>
+                      <span className="font-medium text-xs">{guestName}</span>
                     </div>
                     <span className="font-mono text-[10px] text-muted-foreground">{res.confirmationNo}</span>
                   </TableCell>
                   <TableCell>
                     {res.room ? (
-                      <span className="text-sm">{res.room.number} <span className="text-muted-foreground text-xs">({res.room.type.code})</span></span>
+                      <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -638,7 +638,7 @@ function DeparturesReport({ date }: { date?: string }) {
                   </TableCell>
                   <TableCell>
                     <span className={cn(
-                      'text-sm font-medium',
+                      'text-xs font-medium',
                       folioBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400',
                     )}>
                       {formatCurrency(folioBalance)}
@@ -666,7 +666,7 @@ function DeparturesReport({ date }: { date?: string }) {
               <TableCell colSpan={5} className="text-xs text-muted-foreground">
                 Total Departures
               </TableCell>
-              <TableCell className="font-bold text-sm">{departuresData.total}</TableCell>
+              <TableCell className="font-bold text-xs">{departuresData.total}</TableCell>
             </TableRow>
           </TableFooter>
         </Table>
@@ -723,7 +723,7 @@ function InHouseReport() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{guestName}</span>
+                        <span className="font-medium text-xs">{guestName}</span>
                         {isVip && (
                           <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
                             VIP
@@ -734,7 +734,7 @@ function InHouseReport() {
                     </TableCell>
                     <TableCell>
                       {res.room ? (
-                        <span className="text-sm">{res.room.number} <span className="text-muted-foreground text-xs">({res.room.type.code})</span></span>
+                        <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
@@ -765,7 +765,7 @@ function InHouseReport() {
                 <TableCell colSpan={5} className="text-xs text-muted-foreground">
                   Total In-House
                 </TableCell>
-                <TableCell className="font-bold text-sm">{inHouseData.total}</TableCell>
+                <TableCell className="font-bold text-xs">{inHouseData.total}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -815,7 +815,7 @@ function RoomMovesReport() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <span className="text-sm font-medium">{move.confirmationNo}</span>
+                      <span className="text-xs font-medium">{move.confirmationNo}</span>
                       <span className="block font-mono text-[10px] text-muted-foreground">{move.confirmationNo}</span>
                     </div>
                   </TableCell>
@@ -849,7 +849,7 @@ function RoomMovesReport() {
                 <TableCell colSpan={5} className="text-xs text-muted-foreground">
                   Total Moves
                 </TableCell>
-                <TableCell className="font-bold text-sm">{movesData.total}</TableCell>
+                <TableCell className="font-bold text-xs">{movesData.total}</TableCell>
               </TableRow>
             </TableFooter>
           </Table>
@@ -874,9 +874,9 @@ function OccupancyReport() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Header Stats */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Total Rooms"
           value={occupancyData.totalRooms}
@@ -941,7 +941,7 @@ function OccupancyReport() {
                   >
                     <TableCell>
                       <span className={cn(
-                        'text-sm font-medium',
+                        'text-xs font-medium',
                         isToday && 'text-emerald-700 dark:text-emerald-400',
                       )}>
                         {formatDate(day.date)}
@@ -953,10 +953,10 @@ function OccupancyReport() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{day.total}</span>
+                      <span className="text-xs">{day.total}</span>
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm font-medium">{day.occupied}</span>
+                      <span className="text-xs font-medium">{day.occupied}</span>
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       <span className="text-xs flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
@@ -1027,9 +1027,9 @@ function RevenueReport() {
     : 0
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Primary Stats */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Total Revenue"
           value={formatCurrency(revenue.totalRevenue)}
@@ -1058,7 +1058,7 @@ function RevenueReport() {
       <Separator />
 
       {/* Secondary Stats */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           label="Average Rate"
           value={formatCurrency(revenue.averageRate)}
@@ -1084,11 +1084,11 @@ function RevenueReport() {
 
       {/* Collection Rate Visual */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-2.5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Collection Rate</span>
+            <span className="text-xs font-medium">Collection Rate</span>
             <span className={cn(
-              'text-sm font-bold',
+              'text-xs font-bold',
               collectionRate >= 80
                 ? 'text-emerald-600 dark:text-emerald-400'
                 : collectionRate >= 50
@@ -1162,22 +1162,22 @@ export function ReportsView() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <FileText className="size-6 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+            <FileText className="size-3.5 text-muted-foreground" />
             Front Desk Reports
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Operational insights and daily performance metrics
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 text-xs"
+          className="gap-1 text-[11px]"
           onClick={handleExportCSV}
         >
           <Download className="size-3.5" />
@@ -1206,13 +1206,13 @@ export function ReportsView() {
 
         {/* Tab Content */}
         {REPORT_TABS.map((tab) => (
-          <TabsContent key={tab.value} value={tab.value} className="mt-4">
+          <TabsContent key={tab.value} value={tab.value} className="mt-2">
             {/* Report Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
               <div className="flex items-center gap-2">
-                <ActiveIcon className="size-5 text-muted-foreground" />
+                <ActiveIcon className="size-3.5 text-muted-foreground" />
                 <div>
-                  <h3 className="text-base font-semibold">{tab.label}</h3>
+                  <h3 className="text-sm font-semibold">{tab.label}</h3>
                   <p className="text-xs text-muted-foreground">{reportDescriptions[tab.value]}</p>
                 </div>
               </div>

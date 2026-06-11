@@ -149,10 +149,10 @@ function SummaryCards({ orders }: { orders: RoomServiceOrder[] }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
       {cards.map((card) => (
         <Card key={card.label} className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className={`rounded-lg p-2 ${card.bg} ${card.color}`}>
               <card.icon className="h-4 w-4" />
             </div>
@@ -207,7 +207,7 @@ function OrderCard({
         </div>
         <p className="text-xs text-muted-foreground">{order.guestName} · {order.phone}</p>
       </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-3">
+      <CardContent className="px-4 pb-3 space-y-2">
         {/* Items */}
         <div className="space-y-1.5">
           {order.items.map((item, idx) => (
@@ -241,7 +241,7 @@ function OrderCard({
             {nextStatus && (
               <Button
                 size="sm"
-                className="flex-1 gap-1.5 text-xs h-8"
+                className="flex-1 gap-1 text-[11px] h-7"
                 onClick={() => onStatusChange(order.id, nextStatus as RoomServiceOrder['status'])}
               >
                 {nextStatus === 'preparing' && <ChefHat className="h-3.5 w-3.5" />}
@@ -252,7 +252,7 @@ function OrderCard({
             <Button
               size="sm"
               variant="destructive"
-              className="gap-1.5 text-xs h-8"
+              className="gap-1 text-[11px] h-7"
               onClick={() => onStatusChange(order.id, 'cancelled')}
             >
               <XCircle className="h-3.5 w-3.5" />
@@ -492,17 +492,17 @@ export default function RoomServiceView() {
 
   if (isLoading && !data) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
           <Skeleton className="h-10 w-40 rounded-md" />
           <Skeleton className="h-10 w-40 rounded-md" />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           <Skeleton className="h-60 rounded-lg" />
           <Skeleton className="h-60 rounded-lg" />
         </div>
@@ -511,16 +511,16 @@ export default function RoomServiceView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Summary Cards */}
       <SummaryCards orders={orders} />
 
       {/* Filters & Actions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-36 data-[size=default]:h-7 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -533,9 +533,9 @@ export default function RoomServiceView() {
           </Select>
         </div>
         <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted-foreground" />
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
           <Select value={floorFilter} onValueChange={setFloorFilter}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-36 data-[size=default]:h-7 text-xs">
               <SelectValue placeholder="Floor" />
             </SelectTrigger>
             <SelectContent>
@@ -546,7 +546,7 @@ export default function RoomServiceView() {
             </SelectContent>
           </Select>
         </div>
-        <Button className="ml-auto gap-1.5 text-xs" onClick={() => setNewOrderOpen(true)}>
+        <Button className="ml-auto gap-1 text-[11px]" onClick={() => setNewOrderOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
           New Room Service Order
         </Button>
@@ -565,9 +565,9 @@ export default function RoomServiceView() {
             const floorOrders = filteredOrders.filter((o) => o.floor === floor)
             if (floorOrders.length === 0) return null
             return (
-              <div key={floor} className="space-y-3">
+              <div key={floor} className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                   <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     Floor {floor}
                   </h2>
@@ -575,7 +575,7 @@ export default function RoomServiceView() {
                     {floorOrders.length} {floorOrders.length === 1 ? 'order' : 'orders'}
                   </Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                   {floorOrders.map((order) => (
                     <OrderCard
                       key={order.id}

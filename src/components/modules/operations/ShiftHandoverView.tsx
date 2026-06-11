@@ -62,7 +62,7 @@ function formatNPR(amount: number): string {
 // ─── Skeleton Loader ──────────────────────────────────────────
 function HandoverSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       <Skeleton className="h-20 w-full rounded-lg" />
       <Skeleton className="h-64 w-full rounded-lg" />
       <Skeleton className="h-48 w-full rounded-lg" />
@@ -126,13 +126,13 @@ export function ShiftHandoverView() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* ── Header Banner ─────────────────────────────────────── */}
       <Card className="border-amber-200 dark:border-amber-800">
         <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-base">
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <ArrowRightLeft className="h-5 w-5 text-amber-600" />
                 Shift Handover Report
               </CardTitle>
@@ -153,7 +153,7 @@ export function ShiftHandoverView() {
       </Card>
 
       {/* ── Report Sections ───────────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {/* Guest Stats */}
         <Card>
           <CardHeader className="pb-3">
@@ -162,14 +162,14 @@ export function ShiftHandoverView() {
               Guest Statistics
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">In-House Guests</span>
+              <span className="text-xs text-muted-foreground">In-House Guests</span>
               <span className="text-lg font-bold">{sections.inHouseGuests}</span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Arrivals (checked in / pending)</span>
+              <span className="text-xs text-muted-foreground">Arrivals (checked in / pending)</span>
               <span className="font-mono font-medium">
                 <span className="text-green-600">{sections.arrivals.checkedIn}</span>
                 {' / '}
@@ -177,7 +177,7 @@ export function ShiftHandoverView() {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Departures (done / pending)</span>
+              <span className="text-xs text-muted-foreground">Departures (done / pending)</span>
               <span className="font-mono font-medium">
                 <span className="text-green-600">{sections.departures.done}</span>
                 {' / '}
@@ -195,7 +195,7 @@ export function ShiftHandoverView() {
               Operations Status
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">HK Task Completion</span>
@@ -205,7 +205,7 @@ export function ShiftHandoverView() {
             </div>
             <Separator />
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Wrench className="h-4 w-4" />
                 Open Work Orders
               </span>
@@ -218,7 +218,7 @@ export function ShiftHandoverView() {
               </Badge>
             </div>
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
                 <UtensilsCrossed className="h-4 w-4" />
                 Open POS Tables
               </span>
@@ -241,16 +241,16 @@ export function ShiftHandoverView() {
               Financial Summary
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Cashier Balance</span>
+              <span className="text-xs text-muted-foreground">Cashier Balance</span>
               <span className="font-mono text-lg font-bold text-emerald-600">
                 {formatNPR(sections.cashierBalance)}
               </span>
             </div>
             <Separator />
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Pending Folios Above Credit Limit</span>
+              <span className="text-xs text-muted-foreground">Pending Folios Above Credit Limit</span>
               <Badge variant="outline" className={
                 sections.pendingFoliosAboveCredit > 0
                   ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400'
@@ -271,7 +271,7 @@ export function ShiftHandoverView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <MiniStat label="In-House" value={sections.inHouseGuests} />
               <MiniStat label="Pending Arrivals" value={sections.arrivals.pending} />
               <MiniStat label="Pending Deps" value={sections.departures.pending} />
@@ -294,14 +294,14 @@ export function ShiftHandoverView() {
         </CardHeader>
         <CardContent>
           {sections.vipInHouse.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No VIP guests in-house</p>
+            <p className="text-xs text-muted-foreground">No VIP guests in-house</p>
           ) : (
             <ScrollArea className="max-h-48">
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {sections.vipInHouse.map((vip, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/20"
+                    className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-950/20"
                   >
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
                       <Star className="h-4 w-4 text-amber-600" />
@@ -334,7 +334,7 @@ export function ShiftHandoverView() {
         </CardHeader>
         <CardContent>
           {sections.specialNotes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No special notes for this shift</p>
+            <p className="text-xs text-muted-foreground">No special notes for this shift</p>
           ) : (
             <ScrollArea className="max-h-64">
               <ul className="space-y-2">
@@ -358,7 +358,7 @@ export function ShiftHandoverView() {
       {/* ── Detailed Accordion ────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Detailed Report</CardTitle>
+          <CardTitle className="text-sm">Detailed Report</CardTitle>
           <CardDescription>Expand sections for detailed handover information</CardDescription>
         </CardHeader>
         <CardContent>
@@ -368,7 +368,7 @@ export function ShiftHandoverView() {
                 Guest Statistics — Detailed
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <DetailRow label="Total In-House Guests" value={sections.inHouseGuests.toString()} />
                   <DetailRow label="Arrivals Checked In" value={sections.arrivals.checkedIn.toString()} />
                   <DetailRow label="Arrivals Pending" value={sections.arrivals.pending.toString()} />
@@ -384,7 +384,7 @@ export function ShiftHandoverView() {
                 Operations — Detailed
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <DetailRow label="HK Task Completion" value={`${sections.hkTaskCompletion}%`} />
                   <DetailRow label="Open Work Orders" value={sections.openWorkOrders.toString()} />
                   <DetailRow label="Open POS Tables" value={sections.openPosTables.toString()} />
@@ -397,7 +397,7 @@ export function ShiftHandoverView() {
                 Financial — Detailed
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <DetailRow label="Cashier Balance" value={formatNPR(sections.cashierBalance)} highlight />
                   <DetailRow label="Folios Above Credit Limit" value={sections.pendingFoliosAboveCredit.toString()} />
                 </div>
@@ -409,8 +409,8 @@ export function ShiftHandoverView() {
 
       {/* ── Actions Bar ────────────────────────────────────────── */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardContent className="p-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               {data.acknowledged ? (
                 <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" variant="outline">
@@ -476,7 +476,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 function DetailRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div className="flex items-center justify-between rounded-lg border p-3">
-      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground">{label}</span>
       <span className={`font-mono font-medium text-sm ${highlight ? 'text-emerald-600' : ''}`}>
         {value}
       </span>

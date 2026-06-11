@@ -50,12 +50,12 @@ function StatsBar({ stats }: { stats: { openTables: number; totalCovers: number;
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-2">
       {items.map((item) => (
         <Card key={item.label} className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className={`rounded-lg p-1.5 bg-muted ${item.color}`}>
-              <item.icon className="h-4 w-4" />
+              <item.icon className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground truncate">{item.label}</p>
@@ -147,9 +147,9 @@ function OrderPanel({
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">
+          <CardTitle className="text-sm">
             Table {order?.tableId} — {order?.guestName}
           </CardTitle>
           {order?.rush && (
@@ -163,7 +163,7 @@ function OrderPanel({
 
       {order && (
         <>
-          <CardContent className="flex-1 px-4 pb-0">
+          <CardContent className="flex-1 px-3 pb-0">
             <ScrollArea className="h-[240px]">
               <div className="space-y-2 pr-2">
                 {order.items.map((item) => (
@@ -214,8 +214,8 @@ function OrderPanel({
             </ScrollArea>
           </CardContent>
 
-          <div className="px-4 pt-3">
-            <Separator className="mb-3" />
+          <div className="px-3 pt-2">
+            <Separator className="mb-2" />
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
@@ -232,26 +232,26 @@ function OrderPanel({
                 <span>{formatNPR(tax)}</span>
               </div>
               <Separator />
-              <div className="flex justify-between font-bold text-base">
+              <div className="flex justify-between font-bold text-sm">
                 <span>Total</span>
                 <span>{formatNPR(total)}</span>
               </div>
             </div>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button onClick={onOpenMenu} variant="outline" className="flex-1 gap-1.5 text-xs">
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <Button onClick={onOpenMenu} variant="outline" className="flex-1 gap-1 text-[11px] h-7">
                 <Plus className="h-3.5 w-3.5" /> Add Item
               </Button>
-              <Button onClick={onPostToRoom} variant="outline" className="flex-1 gap-1.5 text-xs">
+              <Button onClick={onPostToRoom} variant="outline" className="flex-1 gap-1 text-[11px] h-7">
                 <BedDouble className="h-3.5 w-3.5" /> Post to Room
               </Button>
-              <Button onClick={onOpenDiscount} variant="outline" className="flex-1 gap-1.5 text-xs">
+              <Button onClick={onOpenDiscount} variant="outline" className="flex-1 gap-1 text-[11px] h-7">
                 <Percent className="h-3.5 w-3.5" /> Discount
               </Button>
-              <Button onClick={onOpenSplitBill} variant="outline" className="flex-1 gap-1.5 text-xs">
+              <Button onClick={onOpenSplitBill} variant="outline" className="flex-1 gap-1 text-[11px] h-7">
                 <Scissors className="h-3.5 w-3.5" /> Split
               </Button>
-              <Button onClick={onPay} className="flex-1 gap-1.5 text-xs">
+              <Button onClick={onPay} className="flex-1 gap-1 text-[11px] h-7">
                 <CreditCard className="h-3.5 w-3.5" /> Pay
               </Button>
             </div>
@@ -320,14 +320,14 @@ function MenuBrowserSheet({
           </div>
 
           <Tabs value={category} onValueChange={setCategory}>
-            <TabsList className="w-full h-8">
+            <TabsList className="w-full h-7">
               {categories.map((cat) => (
                 <TabsTrigger key={cat.id} value={cat.id} className="text-xs flex-1">
                   {cat.label}
                 </TabsTrigger>
               ))}
             </TabsList>
-            <TabsContent value={category} className="mt-3">
+            <TabsContent value={category} className="mt-2">
               <ScrollArea className="h-[calc(100vh-320px)]">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pr-2">
                   {filtered.map((item) => (
@@ -846,8 +846,8 @@ export default function RestaurantView() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
@@ -858,14 +858,14 @@ export default function RestaurantView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Stats Bar */}
       {stats && <StatsBar stats={stats} />}
 
       {/* Main Layout */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-2 lg:grid-cols-[1fr_380px]">
         {/* Left: Table Grid */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Floor Plan</h2>
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
@@ -882,7 +882,7 @@ export default function RestaurantView() {
           />
 
           {/* Status summary */}
-          <div className="flex gap-4 text-xs text-muted-foreground">
+          <div className="flex gap-2 text-xs text-muted-foreground">
             <span>{tables.filter((t) => t.status === 'available').length} Available</span>
             <span>{tables.filter((t) => t.status === 'occupied').length} Occupied</span>
             <span>{tables.filter((t) => t.status === 'reserved').length} Reserved</span>

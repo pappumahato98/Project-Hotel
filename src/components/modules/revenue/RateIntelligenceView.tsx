@@ -24,24 +24,24 @@ const marketInsights = [
 
 export function RateIntelligenceView() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Rate Intelligence</h1>
-          <p className="text-sm text-muted-foreground">Competitor rate comparison and market positioning</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Rate Intelligence</h1>
+          <p className="text-xs text-muted-foreground">Competitor rate comparison and market positioning</p>
         </div>
-        <Badge variant="outline" className="text-sm">
+        <Badge variant="outline" className="text-[11px]">
           <BarChart3 className="h-3 w-3 mr-1" />
           Live Data
         </Badge>
       </div>
 
       {/* Market Insights */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {marketInsights.map((insight) => (
-          <Card key={insight.metric} className="p-4">
-            <p className="text-sm text-muted-foreground">{insight.metric}</p>
-            <p className="text-lg font-bold mt-1">{insight.value}</p>
+          <Card key={insight.metric} className="p-2.5">
+            <p className="text-xs text-muted-foreground">{insight.metric}</p>
+            <p className="text-sm font-bold mt-0.5">{insight.value}</p>
             <div className="flex items-center gap-1 mt-1">
               <TrendingUp className={`h-3 w-3 ${insight.trend === 'up' ? 'text-green-600' : insight.trend === 'down' ? 'text-red-600' : 'text-gray-400'}`} />
               <span className={`text-xs ${insight.trend === 'up' ? 'text-green-600' : insight.trend === 'down' ? 'text-red-600' : 'text-gray-400'}`}>
@@ -55,18 +55,18 @@ export function RateIntelligenceView() {
       {/* Competitor Rate Table */}
       <Card className="py-0">
         <CardContent className="p-0">
-          <div className="p-4 pb-0 flex items-center gap-2">
-            <Globe className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-base font-semibold">Competitor Rate Comparison</h2>
+          <div className="p-2.5 pb-0 flex items-center gap-2">
+            <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Competitor Rate Comparison</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left text-sm font-medium text-muted-foreground p-4">Hotel</th>
-                  <th className="text-right text-sm font-medium text-muted-foreground p-4">Standard</th>
-                  <th className="text-right text-sm font-medium text-muted-foreground p-4">Deluxe (BAR)</th>
-                  <th className="text-right text-sm font-medium text-muted-foreground p-4">Suite</th>
+                  <th className="text-left text-xs font-medium text-muted-foreground p-2.5">Hotel</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-2.5">Standard</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-2.5">Deluxe (BAR)</th>
+                  <th className="text-right text-xs font-medium text-muted-foreground p-2.5">Suite</th>
                 </tr>
               </thead>
               <tbody>
@@ -77,9 +77,9 @@ export function RateIntelligenceView() {
                       key={comp.hotel}
                       className={`border-b last:border-0 ${isOurs ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
                     >
-                      <td className="p-4">
+                      <td className="p-2.5">
                         <div className="flex items-center gap-2">
-                          <Building2 className={`h-4 w-4 ${isOurs ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <Building2 className={`h-3.5 w-3.5 ${isOurs ? 'text-primary' : 'text-muted-foreground'}`} />
                           <span className={`font-medium text-sm ${isOurs ? 'text-primary' : ''}`}>
                             {comp.hotel}
                           </span>
@@ -90,13 +90,13 @@ export function RateIntelligenceView() {
                           )}
                         </div>
                       </td>
-                      <td className="text-right p-4 text-sm font-mono">
+                      <td className="text-right p-2.5 text-xs font-mono">
                         NPR {comp.standardRate.toLocaleString()}
                       </td>
-                      <td className="text-right p-4 text-sm font-mono font-medium">
+                      <td className="text-right p-2.5 text-xs font-mono font-medium">
                         NPR {comp.barRate.toLocaleString()}
                       </td>
-                      <td className="text-right p-4 text-sm font-mono">
+                      <td className="text-right p-2.5 text-xs font-mono">
                         NPR {comp.suiteRate.toLocaleString()}
                       </td>
                     </tr>
@@ -110,8 +110,8 @@ export function RateIntelligenceView() {
 
       {/* Positioning Note */}
       <Card className="border-dashed">
-        <CardContent className="p-4 flex items-start gap-3">
-          <BarChart3 className="h-5 w-5 text-muted-foreground mt-0.5" />
+        <CardContent className="p-2.5 flex items-start gap-2">
+          <BarChart3 className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
           <div className="text-sm text-muted-foreground">
             <p className="font-medium text-foreground">Rate Positioning Analysis</p>
             <p className="mt-1">

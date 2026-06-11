@@ -126,7 +126,7 @@ function RoomTypeCard({ roomType }: { roomType: RoomTypeData }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base">{roomType.name}</CardTitle>
+              <CardTitle className="text-sm">{roomType.name}</CardTitle>
               {tier && (
                 <Badge variant="outline" className={cn('text-[10px] gap-0.5 px-1.5 py-0', tier.color)}>
                   <tier.icon className="size-2.5" />
@@ -235,8 +235,8 @@ function RoomTypeCard({ roomType }: { roomType: RoomTypeData }) {
 // ─── Loading Skeleton ───────────────────────────────────────────
 function RoomTypesSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="rounded-xl border p-6 space-y-4">
             <Skeleton className="h-5 w-3/4" />
@@ -285,19 +285,19 @@ export function RoomTypesView() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <ScrollArea className="flex-1">
-        <div className="p-4 sm:p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-2">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">Room Types</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-sm font-semibold tracking-tight text-gray-700 dark:text-gray-200">Room Types</h2>
+              <p className="text-xs text-muted-foreground">
                 {data.roomTypes.length} room types · {totalRooms} total rooms
               </p>
             </div>
           </div>
 
           {/* Room Type Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {data.roomTypes.map((roomType) => (
               <RoomTypeCard key={roomType.id} roomType={roomType} />
             ))}

@@ -338,31 +338,31 @@ export function GuestDirectoryView() {
 
   // ─── Render ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Guest Directory</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Guest Directory</h2>
+        <p className="text-xs text-muted-foreground">
           Current in-house guests — searchable directory and quick actions
         </p>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <Card className="py-0">
+        <CardContent className="p-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
               <Input
                 placeholder="Search name, room, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm"
+                className="pl-8 h-7 text-xs"
               />
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Select value={vipFilter} onValueChange={setVipFilter}>
-                <SelectTrigger className="w-[120px] h-8 text-sm">
+                <SelectTrigger className="w-[100px] h-7 data-[size=default]:h-7 text-xs">
                   <SelectValue placeholder="VIP Level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -374,7 +374,7 @@ export function GuestDirectoryView() {
                 </SelectContent>
               </Select>
               <Select value={floorFilter} onValueChange={setFloorFilter}>
-                <SelectTrigger className="w-[110px] h-8 text-sm">
+                <SelectTrigger className="w-[90px] h-7 data-[size=default]:h-7 text-xs">
                   <SelectValue placeholder="Floor" />
                 </SelectTrigger>
                 <SelectContent>
@@ -387,7 +387,7 @@ export function GuestDirectoryView() {
                 </SelectContent>
               </Select>
               <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-sm">
+                <SelectTrigger className="w-[110px] h-7 data-[size=default]:h-7 text-xs">
                   <SelectValue placeholder="Room Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -400,7 +400,7 @@ export function GuestDirectoryView() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Showing {filteredGuests.length} of {totalGuests}
             </p>
           </div>
@@ -416,7 +416,7 @@ export function GuestDirectoryView() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {filteredGuests.map((guest) => {
             const isVip = guest.vipLevel !== 'none'
             const isGoldOrPlatinum = guest.vipLevel === 'gold' || guest.vipLevel === 'platinum'
@@ -429,7 +429,7 @@ export function GuestDirectoryView() {
                   isGoldOrPlatinum && 'border-amber-300 dark:border-amber-700 shadow-amber-100/50 dark:shadow-amber-950/30',
                 )}
               >
-                <CardContent className="p-4 flex flex-col gap-3">
+                <CardContent className="p-2.5 flex flex-col gap-2">
                   {/* Guest Header */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2.5">
@@ -445,7 +445,7 @@ export function GuestDirectoryView() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">
+                          <span className="font-semibold text-xs">
                             {guest.firstName} {guest.lastName}
                           </span>
                           <VipBadge level={guest.vipLevel} />
@@ -494,11 +494,11 @@ export function GuestDirectoryView() {
                   )}
 
                   {/* Quick Actions */}
-                  <div className="flex items-center gap-1.5 pt-2 border-t">
+                  <div className="flex items-center gap-1 pt-1 border-t">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-[10px] h-7 gap-1 px-2"
+                      className="text-[11px] h-7 gap-1 px-2"
                       onClick={() => handleCallGuest(guest)}
                       title={`Call ${guest.phone}`}
                     >
@@ -508,7 +508,7 @@ export function GuestDirectoryView() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-[10px] h-7 gap-1 px-2"
+                      className="text-[11px] h-7 gap-1 px-2"
                       onClick={() => handleMessageGuest(guest)}
                       title="Send message"
                     >
@@ -518,7 +518,7 @@ export function GuestDirectoryView() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-[10px] h-7 gap-1 px-2"
+                      className="text-[11px] h-7 gap-1 px-2"
                       onClick={() => handleViewFolio(guest)}
                       title="View folio"
                     >
@@ -528,7 +528,7 @@ export function GuestDirectoryView() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="text-[10px] h-7 gap-1 px-2"
+                      className="text-[11px] h-7 gap-1 px-2"
                       onClick={() => handleWakeUpCall(guest)}
                       title="Schedule wake-up call"
                     >

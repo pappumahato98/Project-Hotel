@@ -473,14 +473,14 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   // ─── Render: Step Indicator ────────────────────────────────────
 
   const renderStepIndicator = () => (
-    <div className="mb-6">
+    <div className="mb-4">
       <div className="flex items-center justify-between overflow-x-auto pb-2">
         {STEP_LABELS.map((label, idx) => (
           <React.Fragment key={idx}>
-            <div className="flex flex-col items-center gap-1.5 min-w-0">
+            <div className="flex flex-col items-center gap-1 min-w-0">
               <div
                 className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors',
+                  'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-colors',
                   idx < currentStep && 'border-green-500 bg-green-500 text-white',
                   idx === currentStep && 'border-primary bg-primary text-primary-foreground',
                   idx > currentStep && 'border-muted-foreground/30 bg-background text-muted-foreground'
@@ -641,17 +641,17 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
     const guest = activeReservation.guest
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Guest Card */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <User className="size-4" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <User className="size-3.5" />
               Guest Information
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
               {/* Photo Placeholder */}
               <div className="flex flex-col items-center gap-2 shrink-0">
                 <Avatar className="size-20">
@@ -677,7 +677,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
               </div>
 
               {/* Guest Details */}
-              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                 <div>
                   <p className="text-xs text-muted-foreground mb-0.5">Full Name</p>
                   <p className="font-semibold">
@@ -744,14 +744,14 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
         {/* Reservation Summary */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <FileText className="size-4" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <FileText className="size-3.5" />
               Reservation Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">
               <div>
                 <p className="text-xs text-muted-foreground mb-0.5">Confirmation #</p>
                 <p className="font-mono font-semibold">{activeReservation.confirmationNo}</p>
@@ -1083,7 +1083,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
         {/* ID Verification Row */}
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2">
             <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
               <Shield className="size-3" />
               ID Verification
@@ -1144,9 +1144,9 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
         {/* Stay Preferences */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Sparkles className="size-4" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Sparkles className="size-3.5" />
               Stay Preferences
             </CardTitle>
             <CardDescription className="text-xs">
@@ -1154,9 +1154,9 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Early Check-in */}
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2">
                 <Checkbox
                   id="early-checkin"
                   checked={earlyCheckIn}
@@ -1176,7 +1176,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
               <Separator />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Check-out Time */}
                 <div className="grid gap-1.5">
                   <Label className="text-xs flex items-center gap-1">
@@ -1264,11 +1264,11 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
   const renderBillingSetup = () => {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Wallet className="size-4" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Wallet className="size-3.5" />
               Billing Setup
             </CardTitle>
             <CardDescription className="text-xs">
@@ -1276,9 +1276,9 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Amount summary */}
-              <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+              <div className="rounded-lg bg-muted/50 p-2 space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Room Rate</span>
                   <span className="font-medium">{formatCurrency(activeReservation?.roomRate || 0)}/night</span>
@@ -1355,9 +1355,9 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
 
         {/* Confirmation summary */}
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-4">
-            <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
-              <Hotel className="size-4 text-primary" />
+          <CardContent className="p-2.5">
+            <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5">
+              <Hotel className="size-3.5 text-primary" />
               Check-In Summary
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -1478,12 +1478,12 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   // ─── Main Render ───────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Guest Check-In</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Guest Check-In</h2>
+          <p className="text-xs text-muted-foreground">
             {reservationId
               ? 'Process a check-in for the selected reservation'
               : `Step-by-step check-in for arrivals on ${formatDate(today)}`}
@@ -1491,12 +1491,11 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
         </div>
       </div>
 
-      {/* Step Indicator */}
       {renderStepIndicator()}
 
       {/* Step Content */}
       <Card>
-        <CardContent className="p-4 md:p-6">
+        <CardContent className="p-2 md:p-4">
           {renderStepContent()}
         </CardContent>
       </Card>

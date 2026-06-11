@@ -43,20 +43,20 @@ export function DemandCalendarView() {
   const today = new Date().toISOString().split('T')[0]
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Demand Calendar</h1>
-          <p className="text-sm text-muted-foreground">30-day demand forecast and occupancy projections</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Demand Calendar</h1>
+          <p className="text-xs text-muted-foreground">30-day demand forecast and occupancy projections</p>
         </div>
         <div className="flex items-center gap-2">
-          <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">30-Day View</span>
+          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[11px] text-muted-foreground">30-Day View</span>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2">
           <div className="h-3 w-3 rounded-sm bg-red-500/30 border border-red-300" />
           <span className="text-xs text-muted-foreground">High Demand (85%+)</span>
@@ -72,37 +72,37 @@ export function DemandCalendarView() {
       </div>
 
       {/* Summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
-              <TrendingUp className="h-5 w-5 text-red-600" />
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
+              <TrendingUp className="h-3.5 w-3.5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">High Demand Days</p>
-              <p className="text-2xl font-bold text-red-600">{data?.summary?.highDays ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">High Demand Days</p>
+              <p className="text-lg font-bold text-red-600">{data?.summary?.highDays ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
-              <TrendingUp className="h-5 w-5 text-amber-600" />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
+              <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Medium Days</p>
-              <p className="text-2xl font-bold text-amber-600">{data?.summary?.mediumDays ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Medium Days</p>
+              <p className="text-lg font-bold text-amber-600">{data?.summary?.mediumDays ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
-              <TrendingUp className="h-5 w-5 text-green-600" />
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
+              <TrendingUp className="h-3.5 w-3.5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Low Demand Days</p>
-              <p className="text-2xl font-bold text-green-600">{data?.summary?.lowDays ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Low Demand Days</p>
+              <p className="text-lg font-bold text-green-600">{data?.summary?.lowDays ?? '—'}</p>
             </div>
           </div>
         </Card>
@@ -111,7 +111,7 @@ export function DemandCalendarView() {
       {/* Calendar Grid */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">30-Day Demand Forecast</CardTitle>
+          <CardTitle className="text-sm">30-Day Demand Forecast</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (

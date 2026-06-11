@@ -115,10 +115,10 @@ function SummaryCards({ data }: { data: DailyReportData }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
       {cards.map((card) => (
         <Card key={card.label} className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-3 py-0">
             <div className={`rounded-lg p-2 ${card.bg} ${card.color}`}>
               <card.icon className="h-4 w-4" />
             </div>
@@ -139,10 +139,10 @@ function SalesByOutlet({ outlets, totalRevenue }: { outlets: DailyReportData['by
 
   return (
     <Card className="rounded-lg border">
-      <CardHeader className="pb-3 px-4 pt-4">
+      <CardHeader className="pb-3 px-3 pt-3">
         <CardTitle className="text-sm">Sales by Outlet</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-3">
+      <CardContent className="px-3 pb-3 space-y-2">
         {outlets.map((outlet) => {
           const Icon = OUTLET_ICONS[outlet.icon] ?? UtensilsCrossed
           const pct = Math.round((outlet.revenue / totalRevenue) * 100)
@@ -181,10 +181,10 @@ function SalesByOutlet({ outlets, totalRevenue }: { outlets: DailyReportData['by
 function SalesByCategory({ categories }: { categories: DailyReportData['byCategory'] }) {
   return (
     <Card className="rounded-lg border">
-      <CardHeader className="pb-3 px-4 pt-4">
+      <CardHeader className="pb-3 px-3 pt-3">
         <CardTitle className="text-sm">Sales by Category</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4">
+      <CardContent className="px-3 pb-3">
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-xs">
             <thead>
@@ -221,10 +221,10 @@ function PaymentBreakdown({ payments }: { payments: DailyReportData['byPayment']
 
   return (
     <Card className="rounded-lg border">
-      <CardHeader className="pb-3 px-4 pt-4">
+      <CardHeader className="pb-3 px-3 pt-3">
         <CardTitle className="text-sm">Payment Method Breakdown</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-3">
+      <CardContent className="px-3 pb-3 space-y-2">
         {/* Visual bar */}
         <div className="flex h-3 rounded-full overflow-hidden">
           {payments.map((p, idx) => (
@@ -264,10 +264,10 @@ function PaymentBreakdown({ payments }: { payments: DailyReportData['byPayment']
 function TopSellingItems({ items }: { items: DailyReportData['topItems'] }) {
   return (
     <Card className="rounded-lg border">
-      <CardHeader className="pb-3 px-4 pt-4">
+      <CardHeader className="pb-3 px-3 pt-3">
         <CardTitle className="text-sm">Top 5 Selling Items</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4">
+      <CardContent className="px-3 pb-3">
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-xs">
             <thead>
@@ -305,10 +305,10 @@ function HourlySalesTrend({ hourly }: { hourly: DailyReportData['hourlySales'] }
 
   return (
     <Card className="rounded-lg border">
-      <CardHeader className="pb-3 px-4 pt-4">
+      <CardHeader className="pb-3 px-3 pt-3">
         <CardTitle className="text-sm">Hourly Sales Trend</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 pb-4">
+      <CardContent className="px-3 pb-3">
         <ScrollArea className="max-h-72">
           <div className="space-y-2 pr-2">
             {hourly.map((h) => {
@@ -369,19 +369,19 @@ export default function DailySalesReportView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header with date picker and actions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
           <Input
             type="date"
             value={reportDate}
             onChange={(e) => setReportDate(e.target.value)}
-            className="w-44"
+            className="w-44 h-7 text-xs"
           />
           <Select value={outletFilter} onValueChange={setOutletFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40 data-[size=default]:h-7 text-xs">
               <SelectValue placeholder="All Outlets" />
             </SelectTrigger>
             <SelectContent>
@@ -395,11 +395,11 @@ export default function DailySalesReportView() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-1.5 text-xs" onClick={handlePrint}>
+          <Button variant="outline" className="gap-1 text-[11px]" onClick={handlePrint}>
             <Printer className="h-3.5 w-3.5" />
             Print
           </Button>
-          <Button variant="outline" className="gap-1.5 text-xs" onClick={handleExport}>
+          <Button variant="outline" className="gap-1 text-[11px]" onClick={handleExport}>
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
@@ -431,17 +431,17 @@ export default function DailySalesReportView() {
         </TabsList>
 
         {/* All tab contents rendered (tabs are purely for visual navigation) */}
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
           <SalesByOutlet outlets={filteredOutlet} totalRevenue={report.totalRevenue} />
           <SalesByCategory categories={report.byCategory} />
         </div>
 
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
           <PaymentBreakdown payments={report.byPayment} />
           <TopSellingItems items={report.topItems} />
         </div>
 
-        <div className="mt-4">
+        <div className="mt-2">
           <HourlySalesTrend hourly={report.hourlySales} />
         </div>
       </Tabs>

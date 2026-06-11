@@ -134,7 +134,7 @@ export function LostFoundView() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />
           ))}
@@ -147,17 +147,17 @@ export function LostFoundView() {
   return (
     <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[
           { label: 'Total Items', value: totalItems, icon: PackageOpen, color: 'text-foreground' },
           { label: 'Unclaimed', value: unclaimedItems, icon: Package, color: 'text-yellow-600' },
           { label: 'Claimed This Month', value: claimedThisMonth, icon: Hand, color: 'text-green-600' },
         ].map((stat) => (
-          <Card key={stat.label} className="p-4">
+          <Card key={stat.label} className="p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
               </div>
               <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
             </div>
@@ -166,7 +166,7 @@ export function LostFoundView() {
       </div>
 
       {/* Filters + Add Button */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1 sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -178,7 +178,7 @@ export function LostFoundView() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="sm:w-[140px]">
+            <SelectTrigger className="sm:w-[120px] h-7 text-xs">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -191,7 +191,7 @@ export function LostFoundView() {
             </SelectContent>
           </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="sm:w-[140px]">
+            <SelectTrigger className="sm:w-[120px] h-7 text-xs">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
@@ -244,7 +244,7 @@ export function LostFoundView() {
                         <div className="flex items-center gap-2">
                           <StatusIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                           <div>
-                            <p className="font-medium text-sm">{item.itemName}</p>
+                            <p className="font-medium text-xs">{item.itemName}</p>
                             {item.description && (
                               <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                                 {item.description}

@@ -186,18 +186,18 @@ export function StockView() {
 
   // ── Render ───────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Stock Levels</h1>
-          <p className="text-sm text-muted-foreground">Current inventory status and stock levels</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Stock Levels</h1>
+          <p className="text-xs text-muted-foreground">Current inventory status and stock levels</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-sm">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[11px]">
             {data?.total ?? 0} items
           </Badge>
-          <Button className="gap-1.5" onClick={openCreate}>
+          <Button className="gap-1" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add Item
           </Button>
@@ -205,48 +205,48 @@ export function StockView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <Package className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Items</p>
-              <p className="text-2xl font-bold">{data?.total ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Total Items</p>
+              <p className="text-lg font-bold">{data?.total ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
               <AlertTriangle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Low Stock</p>
-              <p className="text-2xl font-bold text-red-600">{data?.lowStockItems?.length ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Low Stock</p>
+              <p className="text-lg font-bold text-red-600">{data?.lowStockItems?.length ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Value</p>
+              <p className="text-xs text-muted-foreground">Total Value</p>
               <p className="text-lg font-bold">{data ? formatNPR(data.totalValue) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
               <Package className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Categories</p>
-              <p className="text-2xl font-bold">{data?.categories?.length ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Categories</p>
+              <p className="text-lg font-bold">{data?.categories?.length ?? '—'}</p>
             </div>
           </div>
         </Card>
@@ -255,7 +255,7 @@ export function StockView() {
       {/* Low Stock Alert */}
       {data?.lowStockItems?.length > 0 && (
         <Card className="border-red-200 dark:border-red-900">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm font-medium">
@@ -277,20 +277,20 @@ export function StockView() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search items..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="h-7 text-xs pl-9"
           />
         </div>
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-3 text-xs"
         >
           <option value="">All Categories</option>
           {data?.categories?.map((cat: string) => (
@@ -344,14 +344,14 @@ export function StockView() {
                           {item.name}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{item.category}</TableCell>
+                      <TableCell className="text-xs">{item.category}</TableCell>
                       <TableCell className="text-center font-medium">
                         <span className={cn(item.currentStock <= item.reorderPoint && 'text-red-600')}>
                           {item.currentStock}
                         </span>
                         <span className="text-muted-foreground ml-1 text-xs">{item.unit}</span>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm text-center">
+                      <TableCell className="hidden md:table-cell text-xs text-center">
                         {item.reorderPoint} {item.unit}
                       </TableCell>
                       <TableCell className="text-right hidden lg:table-cell">{formatNPR(item.unitCost)}</TableCell>

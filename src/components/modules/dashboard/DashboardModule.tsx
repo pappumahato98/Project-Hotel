@@ -181,7 +181,7 @@ function WelcomeBannerSkeleton() {
 function KpiCardSkeleton() {
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-2.5">
         <div className="flex items-center justify-between">
           <Skeleton className="size-8 rounded-md" />
           <Skeleton className="h-4 w-16" />
@@ -196,8 +196,8 @@ function KpiCardSkeleton() {
 function StatsRowSkeleton() {
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <CardContent className="p-2.5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3">
               <Skeleton className="size-8 rounded-md" />
@@ -229,8 +229,8 @@ function WelcomeBanner({ data }: { data: DashboardData }) {
   return (
     <Card className="overflow-hidden border-0 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-rose-500/10">
       <CardContent className="p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
             <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-md">
               <Building2 className="size-6" />
             </div>
@@ -238,7 +238,7 @@ function WelcomeBanner({ data }: { data: DashboardData }) {
               <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
                 {getGreeting()}, {user?.firstName || 'Guest'}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {formatDate(currentTime)} — {settings.hotelName}
               </p>
             </div>
@@ -310,13 +310,13 @@ function KpiCards({ data }: { data: DashboardData }) {
   ]
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
       {kpiItems.map((kpi) => {
         const Icon = kpi.icon
         const isPositive = kpi.trend >= 0
         return (
           <Card key={kpi.label} className="transition-shadow hover:shadow-md">
-            <CardContent className="p-4">
+            <CardContent className="p-2.5">
               <div className="flex items-center justify-between">
                 <div className={cn('flex size-8 items-center justify-center rounded-md', kpi.iconBg)}>
                   <Icon className="size-4" />
@@ -336,7 +336,7 @@ function KpiCards({ data }: { data: DashboardData }) {
                 </div>
               </div>
               <div className="mt-3">
-                <p className="text-2xl font-bold tracking-tight">{kpi.value}</p>
+                <p className="text-lg font-bold tracking-tight">{kpi.value}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{kpi.label}</p>
               </div>
               {kpi.showProgress && (
@@ -367,8 +367,8 @@ function QuickStatsRow({ data }: { data: DashboardData }) {
 
   return (
     <Card>
-      <CardContent className="p-4">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <CardContent className="p-2.5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {stats.map((stat) => {
             const Icon = stat.icon
             return (
@@ -490,7 +490,7 @@ function RevenueChart({ data }: { data: DashboardData }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Revenue Trend (Last 7 Days)</CardTitle>
+          <CardTitle className="text-sm">Revenue Trend (Last 7 Days)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
@@ -506,10 +506,10 @@ function RevenueChart({ data }: { data: DashboardData }) {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">Revenue Trend</CardTitle>
+            <CardTitle className="text-sm">Revenue Trend</CardTitle>
             <CardDescription>Last 7 days — Room & F&B revenue</CardDescription>
           </div>
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-2 text-xs">
             <div className="flex items-center gap-1.5">
               <div className="size-2.5 rounded-full bg-blue-500" />
               <span className="text-muted-foreground">Room Revenue</span>
@@ -589,7 +589,7 @@ function RoomStatusOverview({ data }: { data: DashboardData }) {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Room Status Overview</CardTitle>
+          <CardTitle className="text-sm">Room Status Overview</CardTitle>
           <span className="text-sm text-muted-foreground">{kpis.totalRooms} Total Rooms</span>
         </div>
       </CardHeader>
@@ -658,7 +658,7 @@ function RecentActivityFeed({ data }: { data: DashboardData }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Recent Activity</CardTitle>
+        <CardTitle className="text-sm">Recent Activity</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-0">
@@ -751,7 +751,7 @@ function QuickActions() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Quick Actions</CardTitle>
+        <CardTitle className="text-sm">Quick Actions</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -788,16 +788,16 @@ function QuickActions() {
 // ─── Loading State ──────────────────────────────────────────────────────
 function DashboardLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <WelcomeBannerSkeleton />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCardSkeleton />
         <KpiCardSkeleton />
         <KpiCardSkeleton />
         <KpiCardSkeleton />
       </div>
       <StatsRowSkeleton />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-2 lg:grid-cols-3">
         <Card>
           <CardContent className="p-6">
             <Skeleton className="h-4 w-32" />
@@ -828,7 +828,7 @@ function DashboardLoading() {
 // ─── Error State ────────────────────────────────────────────────────────
 function DashboardError({ error }: { error: Error }) {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <Alert variant="destructive">
         <AlertCircle className="size-4" />
         <AlertTitle>Failed to load dashboard</AlertTitle>
@@ -869,7 +869,7 @@ export function DashboardModule() {
   if (isError || !data) return <DashboardError error={error ?? new Error('Unknown error')} />
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">
       {/* 1. Welcome Banner */}
       <div className="flex items-center gap-2">
         <WelcomeBanner data={safeData} />
@@ -882,7 +882,7 @@ export function DashboardModule() {
       <QuickStatsRow data={safeData} />
 
       {/* Two-column layout: Alerts + Room Status | Chart */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-2 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-1">
           {/* 4. Operational Alerts */}
           <OperationalAlerts data={safeData} />
@@ -898,7 +898,7 @@ export function DashboardModule() {
       </div>
 
       {/* Two-column layout: Recent Activity | Quick Actions */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-2 lg:grid-cols-3">
         {/* 7. Recent Activity Feed */}
         <div className="lg:col-span-2">
           <RecentActivityFeed data={safeData} />

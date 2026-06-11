@@ -73,26 +73,26 @@ export function GettingStartedView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Progress Header */}
       <Card className="border-dashed">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-3">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               {allComplete ? (
                 <Sparkles className="h-5 w-5 text-amber-500" />
               ) : (
-                <span className="text-sm font-medium text-muted-foreground">
+                <span className="text-xs font-medium text-muted-foreground">
                   Progress
                 </span>
               )}
-              <span className="text-sm font-semibold">
+              <span className="text-xs font-semibold">
                 {allComplete
                   ? 'Congratulations! You\'ve completed the getting started guide!'
                   : `Step ${completedCount} of ${totalSteps} complete`}
               </span>
             </div>
-            <span className="text-sm text-muted-foreground font-medium">
+            <span className="text-xs text-muted-foreground font-medium">
               {Math.round(progressPercent)}%
             </span>
           </div>
@@ -110,7 +110,7 @@ export function GettingStartedView() {
       </Card>
 
       {/* Steps */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {STEPS.map((step, index) => {
           const isCompleted = completedSteps.has(step.id)
           return (
@@ -121,8 +121,8 @@ export function GettingStartedView() {
                 isCompleted && 'bg-emerald-50/50 border-emerald-200/60 dark:bg-emerald-950/20 dark:border-emerald-800/40'
               )}
             >
-              <CardContent className="p-5">
-                <div className="flex gap-4">
+              <CardContent className="p-3">
+                <div className="flex gap-3">
                   {/* Step number / connector */}
                   <div className="flex flex-col items-center">
                     <button
@@ -152,17 +152,17 @@ export function GettingStartedView() {
 
                   {/* Content */}
                   <div className="flex-1 pt-0.5">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="space-y-1.5">
                         <h3
                           className={cn(
-                            'font-semibold text-base transition-colors',
+                            'font-semibold text-sm transition-colors',
                             isCompleted && 'text-emerald-700 dark:text-emerald-400'
                           )}
                         >
                           {step.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
                           {step.description}
                         </p>
                       </div>

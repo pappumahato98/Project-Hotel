@@ -31,12 +31,12 @@ export default function PosModule() {
   const currentTab = activeSubModule ?? 'restaurant'
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-4 md:p-6 overflow-y-auto">
       {/* Module Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Point of Sale</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Point of Sale</h1>
+          <p className="text-xs text-muted-foreground">
             Manage restaurant, bar, spa, and business center transactions
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function PosModule() {
         </TabsList>
 
         {/* Views */}
-        <div className="mt-4">
+        <div className="mt-2">
           {currentTab === 'restaurant' && <RestaurantView />}
           {currentTab === 'bar' && <BarView />}
           {currentTab === 'spa' && <SpaView />}

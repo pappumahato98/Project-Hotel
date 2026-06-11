@@ -266,7 +266,7 @@ function AddRestrictionDialog({
 // ─── Loading Skeleton ──────────────────────────────────────────
 function RestrictionsSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-8 w-32" />
@@ -328,15 +328,15 @@ export function RestrictionsView() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <ScrollArea className="flex-1">
-        <div className="p-4 sm:p-6 space-y-4">
+        <div className="p-4 sm:p-6 space-y-2">
           {/* Header */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-                <ShieldAlert className="size-5 text-muted-foreground" />
+              <h2 className="text-sm font-semibold tracking-tight text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <ShieldAlert className="size-4 text-muted-foreground" />
                 Room Restrictions
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Manage availability restrictions by room type and date
               </p>
             </div>
@@ -346,7 +346,7 @@ export function RestrictionsView() {
           </div>
 
           {/* Legend */}
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5">
             <span className="text-xs font-medium text-muted-foreground">Legend:</span>
             {Object.entries(RESTRICTION_TYPES).map(([key, config]) => {
               const Icon = config.icon
@@ -360,18 +360,18 @@ export function RestrictionsView() {
           </div>
 
           {/* Date navigation */}
-          <div className="flex items-center justify-between rounded-lg border bg-card px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border bg-card px-2 py-1.5">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setDateOffset(prev => Math.max(0, prev - viewDays))}
               disabled={dateOffset === 0}
-              className="h-8 w-8 p-0"
+              className="h-7 w-7 p-0"
             >
               <ChevronLeft className="size-4" />
             </Button>
             <div className="text-center">
-              <p className="text-sm font-semibold">{weekStart} — {weekEnd}</p>
+              <p className="text-xs font-semibold">{weekStart} — {weekEnd}</p>
               <p className="text-[10px] text-muted-foreground">
                 {viewDays} days · {data.restrictions.length} active restrictions
               </p>
@@ -380,7 +380,7 @@ export function RestrictionsView() {
               variant="ghost"
               size="sm"
               onClick={() => setDateOffset(prev => prev + viewDays)}
-              className="h-8 w-8 p-0"
+              className="h-7 w-7 p-0"
             >
               <ChevronRight className="size-4" />
             </Button>

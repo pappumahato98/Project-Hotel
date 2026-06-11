@@ -70,11 +70,11 @@ export function LedgerView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Chart of Accounts</h1>
-          <p className="text-sm text-muted-foreground">General ledger account structure</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Chart of Accounts</h1>
+          <p className="text-xs text-muted-foreground">General ledger account structure</p>
         </div>
         <Badge variant="outline" className="text-sm">
           {data?.accounts?.length ?? 0} accounts
@@ -82,7 +82,7 @@ export function LedgerView() {
       </div>
 
       {/* Type Summary */}
-      <div className="grid gap-4 sm:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-5">
         {Object.entries(data?.accountTypeBreakdown ?? {}).map(([type, count]: [string, unknown]) => (
           <Card key={type} className="p-3">
             <Badge variant="outline" className={typeColors[type] ?? ''}>
@@ -94,7 +94,7 @@ export function LedgerView() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -107,7 +107,7 @@ export function LedgerView() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-3 text-xs"
         >
           <option value="">All Types</option>
           <option value="asset">Asset</option>
@@ -159,7 +159,7 @@ export function LedgerView() {
                               isExpanded && 'rotate-90'
                             )}>▶</span>
                           </TableCell>
-                          <TableCell className="font-mono text-sm">{account.code}</TableCell>
+                          <TableCell className="font-mono text-xs">{account.code}</TableCell>
                           <TableCell className="font-medium">{account.name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className={typeColors[account.type] ?? ''}>
@@ -177,12 +177,12 @@ export function LedgerView() {
                         </TableRow>
                         {isExpanded && (
                           <TableRow className="bg-muted/30">
-                            <TableCell colSpan={5} className="px-8 py-3">
-                              <div className="text-sm space-y-1">
+                            <TableCell colSpan={5} className="px-4 py-2.5">
+                              <div className="text-xs space-y-1">
                                 {account.description && (
                                   <p className="text-muted-foreground">{account.description}</p>
                                 )}
-                                <div className="flex gap-6 mt-2">
+                                <div className="flex gap-4 mt-1">
                                   <div>
                                     <span className="text-muted-foreground">Total Debit: </span>
                                     <span className="font-medium">{formatNPR(account.journalLines.reduce((s, l) => s + l.debit, 0))}</span>

@@ -371,18 +371,18 @@ export function PurchaseOrdersView() {
 
   // ── Render ─────────────────────────────────────────────────
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Purchase Orders</h1>
-          <p className="text-sm text-muted-foreground">Manage purchase orders and track deliveries</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Purchase Orders</h1>
+          <p className="text-xs text-muted-foreground">Manage purchase orders and track deliveries</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-sm">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[11px]">
             {summaryStats.totalPOs} orders
           </Badge>
-          <Button className="gap-1.5" onClick={openCreate}>
+          <Button className="gap-1" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Create New PO
           </Button>
@@ -390,47 +390,47 @@ export function PurchaseOrdersView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <FileText className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total POs</p>
-              <p className="text-2xl font-bold">{summaryStats.totalPOs}</p>
+              <p className="text-xs text-muted-foreground">Total POs</p>
+              <p className="text-lg font-bold">{summaryStats.totalPOs}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <Clock className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending Approval</p>
-              <p className="text-2xl font-bold text-amber-600">{summaryStats.pendingApproval}</p>
+              <p className="text-xs text-muted-foreground">Pending Approval</p>
+              <p className="text-lg font-bold text-amber-600">{summaryStats.pendingApproval}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
               <Truck className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">In Transit</p>
-              <p className="text-2xl font-bold text-purple-600">{summaryStats.inTransit}</p>
+              <p className="text-xs text-muted-foreground">In Transit</p>
+              <p className="text-lg font-bold text-purple-600">{summaryStats.inTransit}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total PO Value</p>
+              <p className="text-xs text-muted-foreground">Total PO Value</p>
               <p className="text-lg font-bold">{formatNPR(summaryStats.totalValue)}</p>
             </div>
           </div>
@@ -438,18 +438,18 @@ export function PurchaseOrdersView() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by PO # or vendor..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="h-7 text-xs pl-9"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[130px] h-7 text-xs">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -464,7 +464,7 @@ export function PurchaseOrdersView() {
           </SelectContent>
         </Select>
         <Select value={vendorFilter} onValueChange={setVendorFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[160px] h-7 text-xs">
             <SelectValue placeholder="Vendor" />
           </SelectTrigger>
           <SelectContent>
@@ -505,8 +505,8 @@ export function PurchaseOrdersView() {
                   filteredPOs.map((po) => (
                     <TableRow key={po.id}>
                       <TableCell className="font-mono text-xs font-medium">{po.poNumber}</TableCell>
-                      <TableCell className="text-sm font-medium">{po.vendor}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">
+                      <TableCell className="text-xs font-medium">{po.vendor}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">
                         {new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </TableCell>
                       <TableCell className="text-center">
@@ -515,7 +515,7 @@ export function PurchaseOrdersView() {
                           <span className="text-sm font-medium">{po.items.length}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-medium text-sm">{formatNPR(po.totalAmount)}</TableCell>
+                      <TableCell className="text-right font-medium text-xs">{formatNPR(po.totalAmount)}</TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <Badge variant="outline" className={PRIORITY_COLORS[po.priority] ?? ''}>
                           <span className="capitalize">{po.priority}</span>
@@ -526,7 +526,7 @@ export function PurchaseOrdersView() {
                           <span className="capitalize">{po.status}</span>
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">
+                      <TableCell className="hidden lg:table-cell text-xs">
                         {po.expectedDelivery
                           ? new Date(po.expectedDelivery).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}

@@ -96,14 +96,14 @@ function varianceIcon(variance: number) {
 // ─── Skeleton Loader ───────────────────────────────────────────
 function CashierSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      <Skeleton className="h-48 w-full rounded-lg" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-32 w-full rounded-lg" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-lg" />
+          <Skeleton key={i} className="h-16 w-full rounded-lg" />
         ))}
       </div>
-      <Skeleton className="h-64 w-full rounded-lg" />
+      <Skeleton className="h-48 w-full rounded-lg" />
     </div>
   )
 }
@@ -168,13 +168,13 @@ export function CashierView() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* ── Active Shift Card ─────────────────────────────────── */}
-      <Card className="border-amber-200 dark:border-amber-800">
-        <CardHeader>
+      <Card className="border-amber-200 dark:border-amber-800 py-0">
+        <CardHeader className="p-4 pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Banknote className="h-5 w-5 text-amber-600" />
+            <CardTitle className="flex items-center gap-1.5 text-sm">
+              <Banknote className="h-4 w-4 text-amber-600" />
               Active Shift
             </CardTitle>
             <Badge
@@ -188,77 +188,78 @@ export function CashierView() {
               {activeShift.status === 'open' ? '● Active' : 'Closed'}
             </Badge>
           </div>
-          <CardDescription>Current cashier shift information</CardDescription>
+          <CardDescription className="text-xs">Current cashier shift information</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Cashier</p>
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium">{activeShift.cashierName}</p>
+        <CardContent className="p-4 pt-2">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-0.5">
+              <p className="text-[11px] text-muted-foreground">Cashier</p>
+              <div className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="text-xs font-medium">{activeShift.cashierName}</p>
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Shift Type</p>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium capitalize">{shiftTypeLabel(activeShift.shiftType)}</p>
+            <div className="space-y-0.5">
+              <p className="text-[11px] text-muted-foreground">Shift Type</p>
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="text-xs font-medium capitalize">{shiftTypeLabel(activeShift.shiftType)}</p>
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Start Time</p>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <p className="font-medium">{formatTime(activeShift.startDate)}</p>
+            <div className="space-y-0.5">
+              <p className="text-[11px] text-muted-foreground">Start Time</p>
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="text-xs font-medium">{formatTime(activeShift.startDate)}</p>
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Opening Float</p>
-              <p className="font-mono font-medium">{formatNPR(activeShift.openingFloat)}</p>
+            <div className="space-y-0.5">
+              <p className="text-[11px] text-muted-foreground">Opening Float</p>
+              <p className="font-mono text-xs font-medium">{formatNPR(activeShift.openingFloat)}</p>
             </div>
           </div>
 
-          <Separator className="my-4" />
+          <Separator className="my-2" />
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg bg-green-50 p-3 dark:bg-green-950/30">
-              <p className="text-xs text-green-700 dark:text-green-400">Total Payments</p>
-              <p className="mt-1 font-mono text-lg font-bold text-green-700 dark:text-green-400">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-md bg-green-50 p-2 dark:bg-green-950/30">
+              <p className="text-[11px] text-green-700 dark:text-green-400">Total Payments</p>
+              <p className="mt-0.5 font-mono text-sm font-semibold text-green-700 dark:text-green-400">
                 {formatNPR(activeShift.totalPayments)}
               </p>
             </div>
-            <div className="rounded-lg bg-red-50 p-3 dark:bg-red-950/30">
-              <p className="text-xs text-red-700 dark:text-red-400">Total Refunds</p>
-              <p className="mt-1 font-mono text-lg font-bold text-red-700 dark:text-red-400">
+            <div className="rounded-md bg-red-50 p-2 dark:bg-red-950/30">
+              <p className="text-[11px] text-red-700 dark:text-red-400">Total Refunds</p>
+              <p className="mt-0.5 font-mono text-sm font-semibold text-red-700 dark:text-red-400">
                 {formatNPR(activeShift.totalRefunds)}
               </p>
             </div>
-            <div className="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30">
-              <p className="text-xs text-amber-700 dark:text-amber-400">Expected Closing</p>
-              <p className="mt-1 font-mono text-lg font-bold text-amber-700 dark:text-amber-400">
+            <div className="rounded-md bg-amber-50 p-2 dark:bg-amber-950/30">
+              <p className="text-[11px] text-amber-700 dark:text-amber-400">Expected Closing</p>
+              <p className="mt-0.5 font-mono text-sm font-semibold text-amber-700 dark:text-amber-400">
                 {formatNPR(expectedClosing)}
               </p>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => openReport('X')}>
-              <FileText className="mr-2 h-4 w-4" />
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => openReport('X')}>
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
               X Report
             </Button>
-            <Button variant="outline" size="sm" onClick={() => openReport('Z')}>
-              <FileText className="mr-2 h-4 w-4" />
+            <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => openReport('Z')}>
+              <FileText className="mr-1.5 h-3.5 w-3.5" />
               Z Report
             </Button>
             <Button
               variant="destructive"
               size="sm"
+              className="h-7 text-[11px]"
               onClick={() => setCloseDialogOpen(true)}
               disabled={activeShift.status !== 'open'}
             >
-              <XCircle className="mr-2 h-4 w-4" />
+              <XCircle className="mr-1.5 h-3.5 w-3.5" />
               Close Shift
             </Button>
           </div>
@@ -267,10 +268,10 @@ export function CashierView() {
 
       {/* ── Cashier Summary ──────────────────────────────────── */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Payment Summary
         </h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <PaymentCard
             icon={Banknote}
             label="Cash"
@@ -307,59 +308,59 @@ export function CashierView() {
       </div>
 
       {/* ── Shift History Table ───────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Shift History</CardTitle>
-          <CardDescription>All cashier shifts with status and variance details</CardDescription>
+      <Card className="py-0">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm">Shift History</CardTitle>
+          <CardDescription className="text-xs">All cashier shifts with status and variance details</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-2">
           {shiftHistory.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Banknote className="mb-2 h-10 w-10 opacity-30" />
-              <p className="text-sm">No shift records found</p>
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Banknote className="mb-1.5 h-8 w-8 opacity-30" />
+              <p className="text-xs">No shift records found</p>
             </div>
           ) : (
             <ScrollArea className="max-h-96">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Cashier</TableHead>
-                    <TableHead>Shift</TableHead>
-                    <TableHead className="hidden md:table-cell">Start</TableHead>
-                    <TableHead className="hidden md:table-cell">End</TableHead>
-                    <TableHead className="text-right">Payments</TableHead>
-                    <TableHead className="hidden sm:table-cell text-right">Float In</TableHead>
-                    <TableHead className="hidden sm:table-cell text-right">Float Out</TableHead>
-                    <TableHead className="text-right">Variance</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-xs">Cashier</TableHead>
+                    <TableHead className="text-xs">Shift</TableHead>
+                    <TableHead className="hidden md:table-cell text-xs">Start</TableHead>
+                    <TableHead className="hidden md:table-cell text-xs">End</TableHead>
+                    <TableHead className="text-right text-xs">Payments</TableHead>
+                    <TableHead className="hidden sm:table-cell text-right text-xs">Float In</TableHead>
+                    <TableHead className="hidden sm:table-cell text-right text-xs">Float Out</TableHead>
+                    <TableHead className="text-right text-xs">Variance</TableHead>
+                    <TableHead className="text-xs">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {shiftHistory.map((shift) => (
                     <TableRow key={shift.id}>
-                      <TableCell className="font-medium">{shift.cashierName}</TableCell>
+                      <TableCell className="text-xs font-medium">{shift.cashierName}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize text-xs">
                           {shiftTypeLabel(shift.shiftType)}
                         </Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                      <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                         {shift.startDate ? format(new Date(shift.startDate), 'MMM dd, hh:mm a') : '—'}
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                      <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                         {shift.endDate ? format(new Date(shift.endDate), 'MMM dd, hh:mm a') : '—'}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="text-right text-xs font-mono">
                         {formatNPR(shift.totalPayments)}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-right font-mono">
+                      <TableCell className="hidden sm:table-cell text-right text-xs font-mono">
                         {formatNPR(shift.openingFloat)}
                       </TableCell>
-                      <TableCell className="hidden sm:table-cell text-right font-mono">
+                      <TableCell className="hidden sm:table-cell text-right text-xs font-mono">
                         {shift.closingFloat != null ? formatNPR(shift.closingFloat) : '—'}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <span className={`inline-flex items-center gap-1 font-mono ${varianceClass(shift.variance)}`}>
+                      <TableCell className="text-right text-xs">
+                        <span className={`inline-flex items-center gap-0.5 text-xs font-mono ${varianceClass(shift.variance)}`}>
                           {varianceIcon(shift.variance)}
                           {formatNPR(Math.abs(shift.variance))}
                         </span>
@@ -394,7 +395,7 @@ export function CashierView() {
               Confirm closing the current {shiftTypeLabel(activeShift.shiftType)} shift
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 text-sm">
+          <div className="space-y-2 text-xs">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Opening Float</span>
               <span className="font-mono font-medium">{formatNPR(activeShift.openingFloat)}</span>
@@ -439,8 +440,8 @@ export function CashierView() {
       <Dialog open={reportDialogOpen} onOpenChange={setReportDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+            <DialogTitle className="flex items-center gap-1.5 text-sm">
+              <FileText className="h-4 w-4" />
               {reportType} Report — {activeShift.cashierName}
             </DialogTitle>
             <DialogDescription>
@@ -454,48 +455,48 @@ export function CashierView() {
               <TabsTrigger value="payments" className="flex-1">Payments</TabsTrigger>
               <TabsTrigger value="summary" className="flex-1">Summary</TabsTrigger>
             </TabsList>
-            <TabsContent value="payments" className="mt-4 space-y-2">
-              <div className="flex justify-between text-sm">
+            <TabsContent value="payments" className="mt-2 space-y-1.5">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Cash Payments</span>
                 <span className="font-mono">{formatNPR(summary.cash.amount)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Card Payments</span>
                 <span className="font-mono">{formatNPR(summary.card.amount)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Bank Transfers</span>
                 <span className="font-mono">{formatNPR(summary.bankTransfer.amount)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Other</span>
                 <span className="font-mono">{formatNPR(summary.other.amount)}</span>
               </div>
               <Separator />
-              <div className="flex justify-between text-sm font-bold">
+              <div className="flex justify-between text-xs font-bold">
                 <span>Total</span>
                 <span className="font-mono">{formatNPR(activeShift.totalPayments)}</span>
               </div>
             </TabsContent>
-            <TabsContent value="summary" className="mt-4 space-y-2">
-              <div className="flex justify-between text-sm">
+            <TabsContent value="summary" className="mt-2 space-y-1.5">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Total Transactions</span>
                 <span className="font-mono">{summary.cash.count + summary.card.count + summary.bankTransfer.count + summary.other.count}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Opening Float</span>
                 <span className="font-mono">{formatNPR(activeShift.openingFloat)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Total Payments</span>
                 <span className="font-mono text-green-600">{formatNPR(activeShift.totalPayments)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Total Refunds</span>
                 <span className="font-mono text-red-600">{formatNPR(activeShift.totalRefunds)}</span>
               </div>
               <Separator />
-              <div className="flex justify-between text-sm font-bold">
+              <div className="flex justify-between text-xs font-bold">
                 <span>Expected Cash Position</span>
                 <span className="font-mono">{formatNPR(expectedClosing)}</span>
               </div>
@@ -529,16 +530,16 @@ function PaymentCard({
   bg: string
 }) {
   return (
-    <Card>
-      <CardContent className="p-4">
+    <Card className="py-0">
+      <CardContent className="p-2">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="mt-1 text-lg font-bold font-mono truncate">{formatNPR(amount)}</p>
-            <p className="text-xs text-muted-foreground">{count} transactions</p>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className="mt-0.5 text-sm font-semibold font-mono truncate">{formatNPR(amount)}</p>
+            <p className="text-[11px] text-muted-foreground">{count} transactions</p>
           </div>
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${bg}`}>
-            <Icon className={`h-5 w-5 ${color}`} />
+          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${bg}`}>
+            <Icon className={`h-4 w-4 ${color}`} />
           </div>
         </div>
       </CardContent>

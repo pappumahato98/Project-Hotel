@@ -117,15 +117,15 @@ export function FinancialReportsView() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
         <Skeleton className="h-8 w-64" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
         </div>
         <Skeleton className="h-64 rounded-lg" />
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <Skeleton className="h-[300px] rounded-lg" />
           <Skeleton className="h-[300px] rounded-lg" />
         </div>
@@ -136,7 +136,7 @@ export function FinancialReportsView() {
   if (isError) {
     toast.error('Failed to load financial reports')
     return (
-      <div className="flex flex-1 flex-col gap-4 p-6 overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
         <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-6 text-center">
           <p className="text-red-600 font-medium">Failed to load financial reports</p>
           <p className="text-sm text-red-500/70 mt-1">{error?.message || 'Unknown error'}</p>
@@ -146,15 +146,15 @@ export function FinancialReportsView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Financial Reports</h1>
-        <p className="text-sm text-muted-foreground">P&L Summary, Balance Sheet, and Revenue Analytics</p>
+        <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Financial Reports</h1>
+        <p className="text-xs text-muted-foreground">P&L Summary, Balance Sheet, and Revenue Analytics</p>
       </div>
 
       {/* Quick KPIs */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <TrendingUp className="h-5 w-5 text-green-600" />
@@ -165,7 +165,7 @@ export function FinancialReportsView() {
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <DollarSign className="h-5 w-5 text-blue-600" />
@@ -176,7 +176,7 @@ export function FinancialReportsView() {
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <TrendingDown className="h-5 w-5 text-amber-600" />
@@ -187,14 +187,14 @@ export function FinancialReportsView() {
             </div>
           </div>
         </Card>
-        <Card className="p-4">
+        <Card className="p-2.5">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
               <Scale className="h-5 w-5 text-purple-600" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Profit Margin</p>
-              <p className="text-2xl font-bold">{profitMargin}%</p>
+              <p className="text-lg font-bold">{profitMargin}%</p>
             </div>
           </div>
         </Card>
@@ -203,7 +203,7 @@ export function FinancialReportsView() {
       {/* P&L Summary */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Profit & Loss Summary</CardTitle>
+          <CardTitle className="text-sm">Profit & Loss Summary</CardTitle>
         </CardHeader>
         <CardContent>
           {Object.keys(plData.revenue).length === 0 && Object.keys(plData.expenses).length === 0 ? (
@@ -253,11 +253,11 @@ export function FinancialReportsView() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {/* Revenue by Department Chart */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Revenue by Department</CardTitle>
+            <CardTitle className="text-sm">Revenue by Department</CardTitle>
           </CardHeader>
           <CardContent>
             {revenueByDept.length === 0 ? (
@@ -287,7 +287,7 @@ export function FinancialReportsView() {
         {/* Balance Sheet */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Balance Sheet Summary</CardTitle>
+            <CardTitle className="text-sm">Balance Sheet Summary</CardTitle>
           </CardHeader>
           <CardContent>
             {Object.keys(balanceSheetData.assets).length === 0 && Object.keys(balanceSheetData.liabilities).length === 0 ? (

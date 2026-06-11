@@ -32,11 +32,12 @@ export async function GET(request: Request) {
 
     if (search) {
       where.OR = [
-        { confirmationNo: { contains: search, mode: 'insensitive' } },
-        { guest: { firstName: { contains: search, mode: 'insensitive' } } },
-        { guest: { lastName: { contains: search, mode: 'insensitive' } } },
+        { confirmationNo: { contains: search } },
+        { guest: { firstName: { contains: search } } },
+        { guest: { lastName: { contains: search } } },
         { room: { number: { contains: search } } },
-        { company: { contains: search, mode: 'insensitive' } },
+        { source: { contains: search } },
+        { company: { contains: search } },
       ]
     }
 

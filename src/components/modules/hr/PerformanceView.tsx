@@ -112,9 +112,9 @@ function computeDeptPerformance(employees: EmployeePerformance[]): DeptPerforman
 
 function BarChart({ data, maxValue }: { data: { label: string; value: number; color: string }[]; maxValue: number }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {data.map((item) => (
-        <div key={item.label} className="flex items-center gap-3">
+        <div key={item.label} className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-28 truncate text-right">{item.label}</span>
           <div className="flex-1 h-6 bg-muted rounded-md overflow-hidden">
             <div
@@ -159,18 +159,18 @@ export function PerformanceView() {
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Staff Performance</h1>
-          <p className="text-sm text-muted-foreground">Employee performance metrics and rankings</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Staff Performance</h1>
+          <p className="text-xs text-muted-foreground">Employee performance metrics and rankings</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <select
             value={filterDept}
             onChange={(e) => setFilterDept(e.target.value)}
-            className="h-9 rounded-md border bg-background px-3 text-sm"
+            className="h-7 rounded-md border bg-background px-3 text-xs"
           >
             {DEPARTMENTS.map((d) => (
               <option key={d} value={d}>{d}</option>
@@ -179,7 +179,7 @@ export function PerformanceView() {
           <select
             value={timePeriod}
             onChange={(e) => setTimePeriod(e.target.value)}
-            className="h-9 rounded-md border bg-background px-3 text-sm"
+            className="h-7 rounded-md border bg-background px-3 text-xs"
           >
             {TIME_PERIODS.map((p) => (
               <option key={p} value={p}>{p}</option>
@@ -189,48 +189,48 @@ export function PerformanceView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Avg Performance</p>
-              <p className="text-2xl font-bold">{avgOverall}%</p>
+              <p className="text-xs text-muted-foreground">Avg Performance</p>
+              <p className="text-lg font-bold">{avgOverall}%</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-950">
               <UserCheck className="h-5 w-5 text-teal-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Avg Attendance</p>
-              <p className="text-2xl font-bold">{avgAttendance}%</p>
+              <p className="text-xs text-muted-foreground">Avg Attendance</p>
+              <p className="text-lg font-bold">{avgAttendance}%</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <Star className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Guest Satisfaction</p>
-              <p className="text-2xl font-bold">{avgSatisfaction}/5</p>
+              <p className="text-xs text-muted-foreground">Guest Satisfaction</p>
+              <p className="text-lg font-bold">{avgSatisfaction}/5</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <Target className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Staff Tracked</p>
-              <p className="text-2xl font-bold">{filteredData.length}</p>
+              <p className="text-xs text-muted-foreground">Staff Tracked</p>
+              <p className="text-lg font-bold">{filteredData.length}</p>
             </div>
           </div>
         </Card>
@@ -240,15 +240,15 @@ export function PerformanceView() {
       {topPerformers.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2">
               <Award className="h-4 w-4 text-amber-500" />
               Top Performers
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-3">
               {topPerformers.map((emp) => (
-                <div key={emp.employeeId} className="flex items-center gap-3 rounded-lg border p-4">
+                <div key={emp.employeeId} className="flex items-center gap-2 rounded-lg border p-4">
                   <div className={cn(
                     'flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold',
                     emp.rank === 1 && 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
@@ -274,11 +274,11 @@ export function PerformanceView() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {/* Performance by Department Bar Chart */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2">
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               Attendance by Department
             </CardTitle>
@@ -291,7 +291,7 @@ export function PerformanceView() {
         {/* Department Performance Table */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Department Summary</CardTitle>
+            <CardTitle className="text-sm">Department Summary</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="max-h-[280px]">
@@ -331,7 +331,7 @@ export function PerformanceView() {
       {/* Employee Ranking Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="text-sm flex items-center gap-2">
             <Award className="h-4 w-4 text-emerald-600" />
             Employee Rankings
           </CardTitle>
@@ -378,12 +378,12 @@ export function PerformanceView() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{emp.department}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">{emp.department}</TableCell>
                       <TableCell className="text-center">
                         <span className={cn('text-sm font-medium', getScoreColor(emp.attendanceRate))}>{emp.attendanceRate}%</span>
                       </TableCell>
-                      <TableCell className="text-center hidden md:table-cell text-sm">{emp.tasksCompleted}</TableCell>
-                      <TableCell className="text-center hidden lg:table-cell text-sm">
+                      <TableCell className="text-center hidden md:table-cell text-xs">{emp.tasksCompleted}</TableCell>
+                      <TableCell className="text-center hidden lg:table-cell text-xs">
                         <span className="font-medium">{emp.guestSatisfaction}</span>
                         <Star className="inline h-3 w-3 text-amber-400 ml-0.5" />
                       </TableCell>

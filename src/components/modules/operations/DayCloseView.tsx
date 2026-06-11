@@ -66,10 +66,10 @@ function formatNPR(amount: number): string {
 // ─── Skeleton Loader ───────────────────────────────────────────
 function DayCloseSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       <Skeleton className="h-20 w-full rounded-lg" />
       <Skeleton className="h-64 w-full rounded-lg" />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <Skeleton key={i} className="h-24 w-full rounded-lg" />
         ))}
@@ -147,7 +147,7 @@ export function DayCloseView() {
   const { kpis, revenueBreakdown } = data
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* ── Business Date Display ────────────────────────────── */}
       <Alert className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30">
         <CalendarClock className="h-4 w-4" />
@@ -162,7 +162,7 @@ export function DayCloseView() {
       {/* ── Day Close Checklist ────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
+          <CardTitle className="flex items-center gap-2 text-sm">
             <CheckCircle2 className="h-5 w-5 text-amber-600" />
             Day Close Checklist
           </CardTitle>
@@ -170,7 +170,7 @@ export function DayCloseView() {
             Verify all items before closing the business day
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Completion</span>
@@ -183,11 +183,11 @@ export function DayCloseView() {
 
           <Separator />
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {checklist.map((item) => (
               <label
                 key={item.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                className="flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors hover:bg-muted/50"
               >
                 <Checkbox
                   checked={item.checked}
@@ -246,7 +246,7 @@ export function DayCloseView() {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           Today&apos;s Statistics (Will Be Locked)
         </h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard icon={BedDouble} label="Rooms Sold" value={kpis.roomsSold.toString()} color="text-teal-600" bg="bg-teal-50 dark:bg-teal-950/30" />
           <StatCard icon={Users} label="Arrivals" value={kpis.arrivals.toString()} color="text-blue-600" bg="bg-blue-50 dark:bg-blue-950/30" />
           <StatCard icon={ArrowRightLeft} label="Departures" value={kpis.departures.toString()} color="text-orange-600" bg="bg-orange-50 dark:bg-orange-950/30" />
@@ -258,17 +258,17 @@ export function DayCloseView() {
         </div>
 
         {/* Revenue / Payments Highlight */}
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
           <Card className="border-emerald-200 dark:border-emerald-800">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="mt-1 text-2xl font-bold text-emerald-600">{formatNPR(kpis.totalRevenue)}</p>
+            <CardContent className="p-2">
+              <p className="text-xs text-muted-foreground">Total Revenue</p>
+              <p className="mt-1 text-lg font-bold text-emerald-600">{formatNPR(kpis.totalRevenue)}</p>
             </CardContent>
           </Card>
           <Card className="border-blue-200 dark:border-blue-800">
-            <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Total Payments</p>
-              <p className="mt-1 text-2xl font-bold text-blue-600">{formatNPR(kpis.totalPayments)}</p>
+            <CardContent className="p-2">
+              <p className="text-xs text-muted-foreground">Total Payments</p>
+              <p className="mt-1 text-lg font-bold text-blue-600">{formatNPR(kpis.totalPayments)}</p>
             </CardContent>
           </Card>
         </div>
@@ -277,16 +277,16 @@ export function DayCloseView() {
       {/* ── Revenue Breakdown ─────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Revenue Breakdown by Department</CardTitle>
+          <CardTitle className="text-sm">Revenue Breakdown by Department</CardTitle>
           <CardDescription>Department-wise revenue distribution</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-2">
             {revenueBreakdown.map((item) => (
               <div key={item.department} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
                   <span className="font-medium">{item.department}</span>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">{item.percentage}%</span>
                     <span className="font-mono font-medium">{formatNPR(item.amount)}</span>
                   </div>

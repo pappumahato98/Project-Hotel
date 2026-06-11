@@ -548,11 +548,11 @@ export function FolioView() {
   // ─── Render ───────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* ─── 1. Module Header ───────────────────────────────────── */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Guest Folio</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Guest Folio</h2>
+        <p className="text-xs text-muted-foreground">
           Search and manage guest folios, charges, and payments
         </p>
       </div>
@@ -565,7 +565,7 @@ export function FolioView() {
             placeholder="Search by guest name, room number, or confirmation #..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-11"
+            className="pl-9 h-8"
             onFocus={() => { setDropdownForceClose(false) }}
           />
           {searchLoading && (
@@ -611,10 +611,10 @@ export function FolioView() {
           onSelect={handleSelectFolio}
         />
       ) : (
-        <div className="space-y-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+        <div className="space-y-2">
+          <div className="flex flex-col lg:flex-row gap-2">
             {/* Folio Detail Panel */}
-            <div className="flex-1 min-w-0 space-y-4">
+            <div className="flex-1 min-w-0 space-y-2">
               <FolioDetailPanel
                 folio={activeFolio}
                 loading={detailLoading}
@@ -888,7 +888,7 @@ function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }
   if (loading) {
     return (
       <Card>
-        <CardContent className="p-4 space-y-3">
+        <CardContent className="p-2 space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-12 w-full" />
           ))}
@@ -963,17 +963,17 @@ function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{f.reservation.room?.number || '—'}</TableCell>
-                  <TableCell className="text-sm font-mono">{f.reservation.confirmationNo}</TableCell>
+                  <TableCell className="text-xs">{f.reservation.room?.number || '—'}</TableCell>
+                  <TableCell className="text-xs font-mono">{f.reservation.confirmationNo}</TableCell>
                   <TableCell>
                     <Badge variant="secondary" className="text-[10px]">
                       {FOLIO_TYPE_LABELS[f.folioType] || f.folioType}
                     </Badge>
                   </TableCell>
                   <TableCell><StatusBadge status={f.status} /></TableCell>
-                  <TableCell className="text-right text-sm">{formatCurrency(charges)}</TableCell>
-                  <TableCell className="text-right text-sm text-emerald-600">{formatCurrency(payments)}</TableCell>
-                  <TableCell className={cn('text-right text-sm font-semibold', balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                  <TableCell className="text-right text-xs">{formatCurrency(charges)}</TableCell>
+                  <TableCell className="text-right text-xs text-emerald-600">{formatCurrency(payments)}</TableCell>
+                  <TableCell className={cn('text-right text-xs font-semibold', balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
                     {formatCurrency(balance)}
                   </TableCell>
                 </TableRow>
@@ -999,7 +999,7 @@ function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm truncate">{guestFullName(f.guest)}</span>
+                      <span className="font-semibold text-xs truncate">{guestFullName(f.guest)}</span>
                       {f.guest.vipLevel !== 'none' && (
                         <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">VIP</Badge>
                       )}
@@ -1015,7 +1015,7 @@ function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }
                     <span>Charges: {formatCurrency(charges)}</span>
                     <span>Paid: {formatCurrency(payments)}</span>
                   </div>
-                  <span className={cn('text-sm font-bold', balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                  <span className={cn('text-xs font-bold', balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
                     {formatCurrency(balance)}
                   </span>
                 </div>
@@ -1057,26 +1057,26 @@ function FolioDetailPanel({
   const ratePerNight = folio.reservation.roomRate
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Guest & Stay Info */}
       <Card>
-        <CardContent className="p-4 md:p-6">
+        <CardContent className="p-2.5 md:p-4">
           {/* Back Button */}
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
           >
             <ArrowLeft className="size-4" />
             <span>Back</span>
           </button>
 
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
             <div className="space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 {loading ? (
                   <Skeleton className="h-6 w-40" />
                 ) : (
-                  <h3 className="text-lg font-bold">
+                  <h3 className="text-base font-bold">
                     {guestFullName(folio.guest)}
                   </h3>
                 )}

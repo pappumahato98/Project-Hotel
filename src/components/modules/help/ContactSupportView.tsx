@@ -291,17 +291,17 @@ export function ContactSupportView() {
     })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* ── New Ticket Form ──────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Send className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Send className="size-3.5" />
             Submit a Support Ticket
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="ticket-subject">Subject *</Label>
               <Input
@@ -311,7 +311,7 @@ export function ContactSupportView() {
                 onChange={(e) => setSubject(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Category *</Label>
                 <Select value={category} onValueChange={setCategory}>
@@ -370,14 +370,14 @@ export function ContactSupportView() {
       {/* ── My Tickets ────────────────────────────────────── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <MessageSquare className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <MessageSquare className="size-3.5" />
             My Tickets
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           {/* Filter bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -472,7 +472,7 @@ export function ContactSupportView() {
                             <TableCell className="font-mono text-xs">
                               {ticket.ticketNo}
                             </TableCell>
-                            <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                            <TableCell className="font-medium text-xs max-w-[200px] truncate">
                               {ticket.subject}
                             </TableCell>
                             <TableCell className="hidden md:table-cell">

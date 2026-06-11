@@ -179,9 +179,9 @@ export function FaqView() {
   const totalItems = filteredCategories.reduce((acc, cat) => acc + cat.items.length, 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search & Category filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -194,7 +194,7 @@ export function FaqView() {
             className="pl-9"
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <button
             onClick={() => setActiveCategory(null)}
             className={cn(
@@ -233,18 +233,18 @@ export function FaqView() {
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground">
         {totalItems} question{totalItems !== 1 ? 's' : ''} found
       </p>
 
       {/* FAQ Items */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredCategories.map((category) => {
           const CatIcon = category.icon
           return (
             <div key={category.id} className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                <CatIcon className="h-4 w-4" />
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                <CatIcon className="size-3.5" />
                 {category.label}
               </div>
               {category.items.map((item, i) => {
@@ -254,19 +254,19 @@ export function FaqView() {
                   <Card key={key} className="overflow-hidden">
                     <button
                       onClick={() => toggleItem(key)}
-                      className="flex items-center justify-between w-full p-4 text-left cursor-pointer hover:bg-accent/30 transition-colors"
+                      className="flex items-center justify-between w-full p-2.5 text-left cursor-pointer hover:bg-accent/30 transition-colors"
                     >
-                      <span className="text-sm font-medium pr-4">{item.question}</span>
+                      <span className="text-xs font-medium pr-4">{item.question}</span>
                       {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <ChevronUp className="size-3.5 shrink-0 text-muted-foreground" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
                       )}
                     </button>
                     {isExpanded && (
-                      <div className="px-4 pb-4">
-                        <div className="border-t pt-3">
-                          <p className="text-sm text-muted-foreground leading-relaxed">
+                      <div className="px-2.5 pb-2.5">
+                        <div className="border-t pt-2">
+                          <p className="text-xs text-muted-foreground leading-relaxed">
                             {item.answer}
                           </p>
                         </div>

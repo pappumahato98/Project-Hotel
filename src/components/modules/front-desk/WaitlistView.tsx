@@ -343,41 +343,41 @@ export function WaitlistView() {
 
   // ─── Render ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Waitlist Management</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Waitlist Management</h2>
+          <p className="text-xs text-muted-foreground">
             Manage guests waiting for room availability
           </p>
         </div>
         <Button onClick={() => { resetAddForm(); setAddDialogOpen(true) }} className="gap-2 shrink-0">
-          <UserPlus className="size-4" />
+          <UserPlus className="size-3.5" />
           Add to Waitlist
         </Button>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Filter className="size-4" />
+      <Card className="py-0">
+        <CardContent className="p-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Filter className="size-3.5" />
               Filters
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1">
               <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
                 <Input
                   placeholder="Search by guest name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-8 text-sm"
+                  className="pl-8 h-7 text-xs"
                 />
               </div>
               <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-sm">
+                <SelectTrigger className="w-[110px] h-7 data-[size=default]:h-7 text-xs">
                   <SelectValue placeholder="Priority" />
                 </SelectTrigger>
                 <SelectContent>
@@ -388,7 +388,7 @@ export function WaitlistView() {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[130px] h-8 text-sm">
+                <SelectTrigger className="w-[110px] h-7 data-[size=default]:h-7 text-xs">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -399,7 +399,7 @@ export function WaitlistView() {
                 </SelectContent>
               </Select>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Showing {filteredWaitlist.length} of {waitlist.length}
             </p>
           </div>
@@ -445,7 +445,7 @@ export function WaitlistView() {
                       {entry.position}
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium text-sm">{entry.guestName}</span>
+                      <span className="font-medium text-xs">{entry.guestName}</span>
                       {entry.notes && (
                         <p className="text-[10px] text-muted-foreground truncate max-w-[200px] mt-0.5">
                           {entry.notes}

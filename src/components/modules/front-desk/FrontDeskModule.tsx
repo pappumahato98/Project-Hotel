@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
+
 import { useNavigationStore } from '@/lib/store'
 import { FrontDeskDashboard } from './FrontDeskDashboard'
 import { ReservationsView } from './ReservationsView'
@@ -14,8 +16,6 @@ import { WaitlistView } from './WaitlistView'
 import { WakeUpCallsView } from './WakeUpCallsView'
 import { GuestDirectoryView } from './GuestDirectoryView'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BedDouble } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const SUB_MODULE_MAP: Record<string, React.ComponentType> = {
@@ -49,17 +49,23 @@ const SUB_MODULE_LABELS: Record<string, string> = {
 }
 
 export function FrontDeskModule() {
-  const { activeSubModule, setActiveSubModule, navigateTo } = useNavigationStore()
+  const { activeSubModule, setActiveSubModule } = useNavigationStore()
 
   const currentSubModule = activeSubModule || 'dashboard'
   const ActiveView = SUB_MODULE_MAP[currentSubModule] || ReservationsView
   const isCalendar = currentSubModule === 'calendar'
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  // Reset scroll to top whenever the sub-module tab changes
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 })
+  }, [currentSubModule])
 
   return (
     <div className="flex flex-1 flex-col min-h-0">
-      {/* Sub-module Tabs + Room Board — always pinned below app header */}
+      {/* Tabs bar — always fixed at top, never scrolled */}
       <div className={cn(
-        'sticky top-0 z-20 flex items-center justify-between gap-3 shrink-0 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 border-b shadow-sm',
+        'z-20 flex items-center shrink-0 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 border-b shadow-sm',
         isCalendar ? 'px-4 pt-3 pb-2' : 'px-4 md:px-6 pt-3 pb-3',
       )}>
         <Tabs
@@ -75,24 +81,18 @@ export function FrontDeskModule() {
             ))}
           </TabsList>
         </Tabs>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5 text-xs text-muted-foreground shrink-0"
-          onClick={() => navigateTo('rooms', 'room-board')}
-        >
-          <BedDouble className="size-3.5" />
-          <span className="hidden sm:inline">Room Board</span>
-        </Button>
       </div>
 
-      {/* Active View — scrollable content area */}
-      <div className={cn(
-        'flex-1',
-        isCalendar ? '' : 'p-4 md:p-6',
-      )}>
-        <ActiveView />
-      </div>
+      {/* Content area — Calendar manages its own scroll; others use parent scroll */}
+      {isCalendar ? (
+        <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+          <ActiveView />
+        </div>
+      ) : (
+        <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+          <ActiveView />
+        </div>
+      )}
     </div>
   )
 }

@@ -87,10 +87,10 @@ function SummaryCards({ stats }: { stats: HistoryStats | undefined }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
       {cards.map((card) => (
         <Card key={card.label} className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-3 py-0">
             <div className={`rounded-lg p-2 ${card.bg} ${card.color}`}>
               <card.icon className="h-4 w-4" />
             </div>
@@ -190,13 +190,13 @@ function OrderDetailDialog({
 // ─── Loading Skeleton ───────────────────────────────────────────────
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {[1, 2, 3, 4].map((i) => (
           <Skeleton key={i} className="h-20 rounded-lg" />
         ))}
       </div>
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <Skeleton className="h-10 w-48 rounded-md" />
         <Skeleton className="h-10 w-40 rounded-md" />
       </div>
@@ -245,25 +245,25 @@ export default function OrderHistoryView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Summary Cards */}
       <SummaryCards stats={stats} />
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
           <Input
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="w-48"
+            className="w-48 h-7 text-xs"
           />
         </div>
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className="w-40 data-[size=default]:h-7 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -274,7 +274,7 @@ export default function OrderHistoryView() {
             </SelectContent>
           </Select>
         </div>
-        <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>{orders.length} orders</span>
           <span className="text-[10px]">(Auto-refresh: 15s)</span>
         </div>

@@ -569,28 +569,28 @@ export function InHouseView() {
 
   // ── Render ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">In-House Guests</h2>
-        <p className="text-sm text-muted-foreground">
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">In-House Guests</h2>
+        <p className="text-xs text-muted-foreground">
           Currently checked-in guests and their folio status
         </p>
       </div>
 
       {/* Filter Row */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Filter className="size-4" />
+      <Card className="py-0">
+        <CardContent className="p-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Filter className="size-3.5" />
               Filters
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-1">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="floor-filter" className="text-sm whitespace-nowrap">Floor:</Label>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="floor-filter" className="text-xs whitespace-nowrap">Floor:</Label>
                 <Select value={floorFilter} onValueChange={setFloorFilter}>
-                  <SelectTrigger className="w-[120px] h-8 text-sm">
+                  <SelectTrigger className="w-[100px] h-7 text-xs data-[size=default]:h-7">
                     <SelectValue placeholder="All Floors" />
                   </SelectTrigger>
                   <SelectContent>
@@ -603,8 +603,8 @@ export function InHouseView() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="vip-filter" className="text-sm whitespace-nowrap">VIP Only:</Label>
+              <div className="flex items-center gap-1.5">
+                <Label htmlFor="vip-filter" className="text-xs whitespace-nowrap">VIP Only:</Label>
                 <Switch
                   id="vip-filter"
                   checked={vipOnlyFilter}
@@ -612,7 +612,7 @@ export function InHouseView() {
                 />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               Showing {filteredReservations.length} of {reservations.length} guests
             </p>
           </div>
@@ -621,7 +621,7 @@ export function InHouseView() {
 
       {/* In-House Table */}
       <Card className="py-0">
-        <CardContent className="p-0 overflow-auto max-h-[65vh]">
+        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-220px)]">
           <Table>
               <TableHeader>
                 <TableRow>
@@ -738,16 +738,16 @@ export function InHouseView() {
                         {isExpanded && (
                           <TableRow className="bg-muted/20 hover:bg-muted/20">
                             <TableCell colSpan={8} className="p-0">
-                              <div className="px-6 py-4 space-y-4">
+                              <div className="px-4 py-3 space-y-3">
                                 {/* Guest summary bar */}
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
-                                      <BedDouble className="size-4 text-primary" />
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex size-7 items-center justify-center rounded-md bg-primary/10">
+                                      <BedDouble className="size-3.5 text-primary" />
                                     </div>
                                     <div>
-                                      <p className="text-sm font-semibold">{res.guest.firstName} {res.guest.lastName}</p>
-                                      <p className="text-[11px] text-muted-foreground">
+                                      <p className="text-xs font-semibold">{res.guest.firstName} {res.guest.lastName}</p>
+                                      <p className="text-[10px] text-muted-foreground">
                                         {res.confirmationNo} · {res.room.type.name} · Floor {res.room.floor}{res.room.wing ? ` · ${res.room.wing}` : ''}
                                       </p>
                                     </div>
@@ -755,7 +755,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5 self-start"
+                                    className="text-[11px] h-7 gap-1 self-start"
                                     onClick={(e) => { e.stopPropagation(); handleViewFullDetails(res) }}
                                   >
                                     <Maximize2 className="size-3" />
@@ -764,28 +764,28 @@ export function InHouseView() {
                                 </div>
 
                                 {/* Details grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                  <div className="rounded-md bg-background border p-2.5">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                  <div className="rounded-md bg-background border p-2">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-in</p>
                                     <p className="text-xs font-medium mt-0.5">{formatDate(res.checkIn)}</p>
                                   </div>
-                                  <div className="rounded-md bg-background border p-2.5">
+                                  <div className="rounded-md bg-background border p-2">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-out</p>
                                     <p className="text-xs font-medium mt-0.5">{formatDate(res.checkOut)}</p>
                                   </div>
-                                  <div className="rounded-md bg-background border p-2.5">
+                                  <div className="rounded-md bg-background border p-2">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Rate / Night</p>
                                     <p className="text-xs font-medium mt-0.5">{formatCurrency(res.roomRate)}</p>
                                   </div>
-                                  <div className="rounded-md bg-background border p-2.5">
+                                  <div className="rounded-md bg-background border p-2">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Amount</p>
                                     <p className="text-xs font-medium mt-0.5">{formatCurrency(res.totalAmount)}</p>
                                   </div>
                                 </div>
 
                                 {/* Folio & Credit bar */}
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                  <div className="flex-1 rounded-md border p-3">
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                  <div className="flex-1 rounded-md border p-2.5">
                                     <div className="flex items-center justify-between mb-1">
                                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Folio Balance</p>
                                       <StatusBadge status={res.folios[0]?.status || 'open'} />
@@ -818,7 +818,7 @@ export function InHouseView() {
                                     )}
                                   </div>
                                   {/* Notes preview */}
-                                  <div className="flex-1 rounded-md border p-3">
+                                  <div className="flex-1 rounded-md border p-2.5">
                                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Notes</p>
                                     {res.notes ? (
                                       <p className="text-xs text-muted-foreground italic whitespace-pre-wrap line-clamp-3">
@@ -831,11 +831,11 @@ export function InHouseView() {
                                 </div>
 
                                 {/* Action buttons */}
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-1.5">
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handlePostCharge(res) }}
                                   >
                                     <Plus className="size-3" /> Post Charge
@@ -843,7 +843,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleTransferRoom(res) }}
                                   >
                                     <ArrowRightLeft className="size-3" /> Transfer
@@ -851,7 +851,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleExtendStay(res) }}
                                   >
                                     <CalendarPlus className="size-3" /> Extend Stay
@@ -859,7 +859,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleEarlyCheckout(res) }}
                                   >
                                     <LogOut className="size-3" /> Early Checkout
@@ -867,7 +867,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleAddNote(res) }}
                                   >
                                     <StickyNote className="size-3" /> Add Note
@@ -875,7 +875,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleWakeUpCall(res) }}
                                   >
                                     <Bell className="size-3" /> Wake-Up Call
@@ -883,7 +883,7 @@ export function InHouseView() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-xs h-8 gap-1.5"
+                                    className="text-[11px] h-7 gap-1"
                                     onClick={(e) => { e.stopPropagation(); handleViewFolio(res) }}
                                   >
                                     <Receipt className="size-3" /> View Folio

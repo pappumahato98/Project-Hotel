@@ -476,12 +476,12 @@ export function ArrivalsView() {
   // ─── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Today&apos;s Arrivals</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Today&apos;s Arrivals</h2>
+          <p className="text-xs text-muted-foreground">
             Guest check-ins scheduled for {formatDate(today)}
           </p>
         </div>
@@ -495,7 +495,7 @@ export function ArrivalsView() {
       <Card className="py-0">
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="p-4 space-y-3">
+            <div className="p-2 space-y-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-20 w-full rounded-lg" />
               ))}
@@ -514,13 +514,13 @@ export function ArrivalsView() {
                   <div
                     key={arrival.id}
                     className={cn(
-                      'p-4 transition-colors hover:bg-muted/50',
+                      'p-2.5 transition-colors hover:bg-muted/50',
                       isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20',
                       isVip && !isUnassigned && 'border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10',
                       isVip && isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/30',
                     )}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                       {/* Guest Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -568,7 +568,7 @@ export function ArrivalsView() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <Button
                           size="sm"
                           variant="outline"
@@ -586,7 +586,7 @@ export function ArrivalsView() {
                           <UserCheck className="size-3.5 mr-1" />
                           Check In
                         </Button>
-                        <Button size="sm" variant="ghost" className="size-8 p-0">
+                        <Button size="sm" variant="ghost" className="size-7 p-0">
                           <Bell className="size-3.5" />
                         </Button>
                       </div>

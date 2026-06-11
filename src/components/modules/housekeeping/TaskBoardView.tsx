@@ -242,7 +242,7 @@ function AttendantView({ tasks }: { tasks: HkTask[] }) {
   })
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from(attendants.entries()).map(([name, attTasks]) => (
         <Card key={name}>
           <CardHeader className="pb-3">
@@ -304,7 +304,7 @@ export function TaskBoardView() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />
           ))}
@@ -317,18 +317,18 @@ export function TaskBoardView() {
   return (
     <div className="space-y-4">
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: 'Total Tasks', value: summary?.total ?? 0, icon: ClipboardCheck, color: 'text-foreground' },
           { label: 'In Progress', value: summary?.inProgress ?? 0, icon: Clock, color: 'text-amber-600' },
           { label: 'Cleaned', value: summary?.cleaned ?? 0, icon: BedDouble, color: 'text-green-600' },
           { label: 'VIP Priority', value: tasks.filter((t) => t.priority === 'vip').length, icon: Star, color: 'text-amber-600' },
         ].map((stat) => (
-          <Card key={stat.label} className="p-4">
+          <Card key={stat.label} className="p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
               </div>
               <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
             </div>
@@ -360,7 +360,7 @@ export function TaskBoardView() {
 
       {/* Board View */}
       {viewMode === 'board' && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {COLUMNS.map((column) => {
             const columnTasks = tasks.filter((t) => t.status === column.id)
             const isExpanded = expandedColumns.has(column.id)

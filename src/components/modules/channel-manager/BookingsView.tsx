@@ -63,80 +63,80 @@ export function BookingsView() {
   })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Channel-Sourced Bookings</h1>
-          <p className="text-sm text-muted-foreground">Bookings from OTAs and distribution channels</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Channel-Sourced Bookings</h1>
+          <p className="text-xs text-muted-foreground">Bookings from OTAs and distribution channels</p>
         </div>
-        <Badge variant="outline" className="text-sm">
+        <Badge variant="outline" className="text-[11px]">
           {data?.total ?? 0} bookings
         </Badge>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Net Revenue</p>
+              <p className="text-xs text-muted-foreground">Net Revenue</p>
               <p className="text-lg font-bold">{data ? formatNPR(data.totalRevenue) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
               <Receipt className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Commissions</p>
+              <p className="text-xs text-muted-foreground">Commissions</p>
               <p className="text-lg font-bold text-red-600">{data ? formatNPR(data.totalCommission) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <Globe className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Confirmed</p>
-              <p className="text-2xl font-bold">{data?.confirmed ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Confirmed</p>
+              <p className="text-lg font-bold">{data?.confirmed ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <TrendingUp className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Checked In</p>
-              <p className="text-2xl font-bold">{data?.checkedIn ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Checked In</p>
+              <p className="text-lg font-bold">{data?.checkedIn ?? '—'}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search bookings..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="h-7 text-xs pl-9"
           />
         </div>
         <select
           value={filterChannel}
           onChange={(e) => setFilterChannel(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-3 text-xs"
         >
           <option value="">All Channels</option>
           {channelNames.map((ch: string) => (
@@ -186,19 +186,19 @@ export function BookingsView() {
                   filteredBookings?.map((booking: ChannelBooking) => (
                     <TableRow key={booking.id}>
                       <TableCell className="font-mono text-xs">{booking.confirmationNo}</TableCell>
-                      <TableCell className="font-medium text-sm">{booking.guestName}</TableCell>
+                      <TableCell className="font-medium text-xs">{booking.guestName}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">{booking.channel}</Badge>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{booking.roomType}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">{booking.checkIn}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">{booking.checkOut}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">{booking.roomType}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-xs">{booking.checkIn}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-xs">{booking.checkOut}</TableCell>
                       <TableCell className="text-center">{booking.nights}</TableCell>
-                      <TableCell className="text-right text-sm">{formatNPR(booking.totalAmount)}</TableCell>
-                      <TableCell className="text-right hidden md:table-cell text-sm text-red-600">
+                      <TableCell className="text-right text-xs">{formatNPR(booking.totalAmount)}</TableCell>
+                      <TableCell className="text-right hidden md:table-cell text-xs text-red-600">
                         {booking.commission > 0 ? formatNPR(booking.commission) : '—'}
                       </TableCell>
-                      <TableCell className="text-right font-medium text-sm">{formatNPR(booking.netAmount)}</TableCell>
+                      <TableCell className="text-right font-medium text-xs">{formatNPR(booking.netAmount)}</TableCell>
                       <TableCell>
                         <StatusBadge status={booking.status} />
                       </TableCell>

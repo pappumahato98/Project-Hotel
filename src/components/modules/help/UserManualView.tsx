@@ -277,7 +277,7 @@ export function UserManualView() {
   const activeDoc = filteredDocs.find((m) => m.id === selectedDoc.id) || filteredDocs[0]
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Search */}
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -290,7 +290,7 @@ export function UserManualView() {
       </div>
 
       {/* Layout: sidebar + content */}
-      <div className="flex flex-col md:flex-row gap-4 min-h-[500px]">
+      <div className="flex flex-col md:flex-row gap-3 min-h-[500px]">
         {/* Module list sidebar */}
         <ScrollArea className="md:w-64 shrink-0">
           <div className="flex md:flex-col gap-1 md:gap-1 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
@@ -326,11 +326,11 @@ export function UserManualView() {
 
         {/* Content area */}
         <Card className="flex-1 min-w-0">
-          <CardContent className="p-6 space-y-5">
+          <CardContent className="p-4 space-y-4">
             {activeDoc ? (
               <>
                 {/* Module header */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <div
                     className={cn(
                       'flex size-10 items-center justify-center rounded-lg',
@@ -343,21 +343,21 @@ export function UserManualView() {
                     })()}
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold">{activeDoc.name}</h2>
-                    <p className="text-sm text-muted-foreground">{activeDoc.overview}</p>
+                    <h2 className="text-sm font-semibold">{activeDoc.name}</h2>
+                    <p className="text-xs text-muted-foreground">{activeDoc.overview}</p>
                   </div>
                 </div>
 
                 {/* Key Features */}
                 <div>
-                  <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+                    <BookOpen className="size-3.5 text-muted-foreground" />
                     Key Features
                   </h3>
-                  <ul className="space-y-2">
+                  <ul className="space-y-1.5">
                     {activeDoc.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
+                      <li key={i} className="flex items-start gap-2 text-xs">
+                        <CheckCircle2 className="size-3.5 text-emerald-500 mt-0.5 shrink-0" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -365,10 +365,10 @@ export function UserManualView() {
                 </div>
 
                 {/* Tip */}
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-800 dark:bg-amber-950/40">
                   <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <Info className="size-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                    <p className="text-xs text-amber-800 dark:text-amber-200">
                       <span className="font-medium">Tip: </span>
                       {activeDoc.tip}
                     </p>

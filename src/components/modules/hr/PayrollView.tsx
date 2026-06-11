@@ -47,11 +47,11 @@ export function PayrollView() {
   })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Monthly Payroll</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Monthly Payroll</h1>
+          <p className="text-xs text-muted-foreground">
             Payroll summary for {data?.month ?? '...'}
           </p>
         </div>
@@ -62,47 +62,47 @@ export function PayrollView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <Users className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Employees</p>
-              <p className="text-2xl font-bold">{data?.summary?.employeeCount ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Employees</p>
+              <p className="text-lg font-bold">{data?.summary?.employeeCount ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Base Salaries</p>
+              <p className="text-xs text-muted-foreground">Base Salaries</p>
               <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalBaseSalary) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <TrendingUp className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Variable Pay</p>
+              <p className="text-xs text-muted-foreground">Variable Pay</p>
               <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalVariablePay) : '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
               <Banknote className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Net Pay</p>
+              <p className="text-xs text-muted-foreground">Total Net Pay</p>
               <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalNetPay) : '—'}</p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export function PayrollView() {
       {/* Department Totals */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Department Totals</CardTitle>
+          <CardTitle className="text-sm">Department Totals</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="max-h-[250px]">
@@ -157,7 +157,7 @@ export function PayrollView() {
       {/* Individual Payroll */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Individual Payroll Details</CardTitle>
+          <CardTitle className="text-sm">Individual Payroll Details</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">
@@ -187,7 +187,7 @@ export function PayrollView() {
                   : data?.employees?.map((emp: PayrollEmployee) => (
                       <TableRow key={emp.employeeId}>
                         <TableCell className="font-medium">{emp.name}</TableCell>
-                        <TableCell className="hidden md:table-cell text-sm">{emp.position}</TableCell>
+                        <TableCell className="hidden md:table-cell text-xs">{emp.position}</TableCell>
                         <TableCell className="text-right">{formatNPR(emp.baseSalary)}</TableCell>
                         <TableCell className="text-right hidden md:table-cell text-green-600">{formatNPR(emp.variablePay)}</TableCell>
                         <TableCell className="text-right hidden lg:table-cell">{formatNPR(emp.overtime)}</TableCell>

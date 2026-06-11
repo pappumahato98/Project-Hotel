@@ -80,7 +80,7 @@ function TabOrderPanel({
       <Card className="flex h-full flex-col">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2">
               <span className="rounded-md bg-purple-100 dark:bg-purple-900/40 p-1">
                 <Wine className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
               </span>
@@ -97,7 +97,7 @@ function TabOrderPanel({
 
         {tab && (
           <>
-            <CardContent className="flex-1 px-4 pb-0">
+            <CardContent className="flex-1 px-3 pb-0">
               <ScrollArea className="h-[220px]">
                 <div className="space-y-2 pr-2">
                   {tab.items.map((item) => (
@@ -113,9 +113,9 @@ function TabOrderPanel({
               </ScrollArea>
             </CardContent>
 
-            <div className="px-4 pt-3">
-              <Separator className="mb-3" />
-              <div className="flex justify-between font-bold text-base mb-3">
+            <div className="px-3 pt-2">
+              <Separator className="mb-2" />
+              <div className="flex justify-between font-bold text-sm mb-2">
                 <span>Tab Total</span>
                 <span>{formatNPR(total)}</span>
               </div>
@@ -264,8 +264,8 @@ export default function BarView() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
@@ -276,11 +276,11 @@ export default function BarView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Card className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-purple-600">
               <Wine className="h-4 w-4" />
             </div>
@@ -291,7 +291,7 @@ export default function BarView() {
           </CardContent>
         </Card>
         <Card className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-amber-600">
               <Users className="h-4 w-4" />
             </div>
@@ -302,7 +302,7 @@ export default function BarView() {
           </CardContent>
         </Card>
         <Card className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-emerald-600">
               <CreditCard className="h-4 w-4" />
             </div>
@@ -315,13 +315,12 @@ export default function BarView() {
       </div>
 
       {/* Main Layout */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
+      <div className="grid gap-2 lg:grid-cols-[1fr_360px]">
         {/* Left */}
-        <div className="space-y-4">
-          {/* Bar Stools */}
+        <div className="space-y-2">
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Bar Counter</h2>
-            <div className="rounded-xl border bg-gradient-to-r from-purple-50 to-amber-50 dark:from-purple-950/20 dark:to-amber-950/20 p-4">
+            <div className="rounded-xl border bg-gradient-to-r from-purple-50 to-amber-50 dark:from-purple-950/20 dark:to-amber-950/20 p-2.5">
               <StoolGrid stools={stools} selectedStool={selectedStool} onSelect={setSelectedStool} />
             </div>
           </div>
@@ -331,7 +330,7 @@ export default function BarView() {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">Quick Menu Access</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-2">
               <QuickMenuBar items={barMenuItems} category="beer" />
               <QuickMenuBar items={barMenuItems} category="cocktail" />
               <QuickMenuBar items={barMenuItems} category="wine" />

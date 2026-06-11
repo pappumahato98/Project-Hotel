@@ -20,11 +20,11 @@ export function CrmModule() {
     : 'profiles'
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Guest CRM</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Guest CRM</h1>
+          <p className="text-xs text-muted-foreground">
             Manage guest profiles, loyalty programs, and marketing campaigns
           </p>
         </div>
@@ -44,13 +44,13 @@ export function CrmModule() {
           ))}
         </TabsList>
 
-        <TabsContent value="profiles" className="mt-6">
+        <TabsContent value="profiles" className="mt-2">
           <GuestProfilesView />
         </TabsContent>
-        <TabsContent value="loyalty" className="mt-6">
+        <TabsContent value="loyalty" className="mt-2">
           <LoyaltyView />
         </TabsContent>
-        <TabsContent value="campaigns" className="mt-6">
+        <TabsContent value="campaigns" className="mt-2">
           <CampaignsView />
         </TabsContent>
       </Tabs>

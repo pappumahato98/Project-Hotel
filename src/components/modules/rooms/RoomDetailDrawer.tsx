@@ -241,7 +241,7 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
           </SheetHeader>
 
           <ScrollArea className="flex-1 h-[calc(100vh-120px)]">
-            <div className="p-4 pt-2 space-y-5">
+            <div className="p-4 pt-2 space-y-3">
               {/* ── Room Info ─────────────────────────────── */}
               <section>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -455,7 +455,7 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 text-xs gap-1.5"
+                    className="h-7 text-[11px] gap-1"
                     onClick={() => handleQuickAction('assign')}
                   >
                     <UserPlus className="size-3.5" />
@@ -464,7 +464,7 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 text-xs gap-1.5"
+                    className="h-7 text-[11px] gap-1"
                     onClick={() => handleQuickAction('work-order')}
                   >
                     <Wrench className="size-3.5" />

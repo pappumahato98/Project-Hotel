@@ -38,11 +38,11 @@ export function ChannelsView() {
   })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Connected Channels</h1>
-          <p className="text-sm text-muted-foreground">Distribution channel management and connectivity</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Connected Channels</h1>
+          <p className="text-xs text-muted-foreground">Distribution channel management and connectivity</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950">
@@ -59,36 +59,36 @@ export function ChannelsView() {
       </div>
 
       {/* Summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <Globe className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Channels</p>
-              <p className="text-2xl font-bold">{data?.channels?.length ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Total Channels</p>
+              <p className="text-lg font-bold">{data?.channels?.length ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Bookings</p>
-              <p className="text-2xl font-bold">{data?.totalBookings ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Total Bookings</p>
+              <p className="text-lg font-bold">{data?.totalBookings ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <DollarSign className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Monthly Commission</p>
+              <p className="text-xs text-muted-foreground">Monthly Commission</p>
               <p className="text-lg font-bold">{data ? formatNPR(data.totalCommission) : '—'}</p>
             </div>
           </div>
@@ -96,7 +96,7 @@ export function ChannelsView() {
       </div>
 
       {/* Channel Cards (Visual Overview) */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {isLoading
           ? Array.from({ length: 10 }).map((_, i) => (
               <Card key={i} className="p-4">
@@ -111,7 +111,7 @@ export function ChannelsView() {
                 channel.status === 'disconnected' && 'border-red-200 dark:border-red-900 opacity-70',
               )}>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className={cn(
                       'flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold',
                       channel.type === 'OTA' ? 'bg-blue-100 dark:bg-blue-950 text-blue-600'
@@ -154,7 +154,7 @@ export function ChannelsView() {
       {/* Detailed Table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Channel Details</CardTitle>
+          <CardTitle className="text-sm">Channel Details</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <ScrollArea className="max-h-[300px]">

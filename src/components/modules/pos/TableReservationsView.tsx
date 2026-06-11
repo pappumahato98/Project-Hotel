@@ -87,10 +87,10 @@ function SummaryCards({ reservations }: { reservations: Reservation[] }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
       {cards.map((card) => (
         <Card key={card.label} className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-3 py-0">
             <div className={`rounded-lg p-2 ${card.bg} ${card.color}`}>
               <card.icon className="h-4 w-4" />
             </div>
@@ -135,7 +135,7 @@ function ReservationCard({
         <CardTitle className="text-sm mt-1">{reservation.guestName}</CardTitle>
       </CardHeader>
       <CardContent className="px-3 pb-3 space-y-2">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             {reservation.timeSlot} – {reservation.endTimeSlot}
@@ -272,7 +272,7 @@ function NewReservationDialog({
             <Label className="text-sm font-medium">Phone Number *</Label>
             <Input placeholder="+977-98XXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1.5" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-sm font-medium">Time Slot *</Label>
               <Select value={timeSlot} onValueChange={setTimeSlot}>
@@ -350,7 +350,7 @@ function TimelineView({
   }, [reservations, activeHour])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Hour tabs */}
       <div className="overflow-x-auto">
         <Tabs value={activeHour} onValueChange={setActiveHour}>
@@ -374,7 +374,7 @@ function TimelineView({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
           {filtered.map((res) => (
             <ReservationCard
               key={res.id}
@@ -386,7 +386,7 @@ function TimelineView({
       )}
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground pt-2">
+      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pt-2">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-blue-500" /> Confirmed
         </span>
@@ -429,7 +429,7 @@ export default function TableReservationsView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Summary Cards */}
       <SummaryCards reservations={reservations} />
 
@@ -443,7 +443,7 @@ export default function TableReservationsView() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
-        <Button className="gap-1.5 text-xs" onClick={() => setNewResOpen(true)}>
+        <Button className="gap-1 text-[11px] h-7" onClick={() => setNewResOpen(true)}>
           <Plus className="h-3.5 w-3.5" />
           New Reservation
         </Button>

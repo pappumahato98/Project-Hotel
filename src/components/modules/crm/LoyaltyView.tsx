@@ -132,10 +132,10 @@ function TierCard({ tier }: { tier: typeof TIERS[number] }) {
               'flex h-10 w-10 items-center justify-center rounded-lg',
               tier.bg
             )}>
-              <tier.icon className={cn('h-5 w-5', tier.color)} />
+              <tier.icon className={cn('h-3.5 w-3.5', tier.color)} />
             </div>
             <div>
-              <CardTitle className="text-base">{tier.label}</CardTitle>
+              <CardTitle className="text-sm">{tier.label}</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {tier.min.toLocaleString()} – {tier.max.toLocaleString()} pts
               </p>
@@ -185,13 +185,13 @@ export function LoyaltyView() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-2 lg:grid-cols-2">
           <Skeleton className="h-[400px] rounded-lg" />
           <Skeleton className="h-[400px] rounded-lg" />
         </div>
@@ -200,45 +200,45 @@ export function LoyaltyView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: 'Total Members', value: members.length, icon: Users, color: 'text-foreground' },
           { label: 'Total Points', value: totalPoints.toLocaleString(), icon: Trophy, color: 'text-amber-600' },
           { label: 'Silver', value: silverCount, icon: Award, color: 'text-gray-600' },
           { label: 'Gold / Platinum', value: `${goldCount} / ${platinumCount}`, icon: Crown, color: 'text-amber-600' },
         ].map((stat) => (
-          <Card key={stat.label} className="p-4">
+          <Card key={stat.label} className="p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
               </div>
-              <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
+              <stat.icon className={cn('h-3.5 w-3.5 opacity-20', stat.color)} />
             </div>
           </Card>
         ))}
       </div>
 
       {/* Tier Structure */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-amber-600" />
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-amber-600" />
           Tier Structure
         </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-3">
           {TIERS.map((tier) => (
             <TierCard key={tier.id} tier={tier} />
           ))}
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-2 lg:grid-cols-2">
         {/* Leaderboard */}
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-600" />
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <Trophy className="h-3.5 w-3.5 text-amber-600" />
             Top Members
           </h2>
           <Card className="py-0">
@@ -246,12 +246,12 @@ export function LoyaltyView() {
               <div className="divide-y">
                 {leaderboard.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
-                    <Trophy className="h-8 w-8 mx-auto opacity-20" />
+                    <Trophy className="h-6 w-6 mx-auto opacity-20" />
                     <p className="mt-2 text-sm">No members with points yet</p>
                   </div>
                 ) : (
                   leaderboard.map((guest, idx) => (
-                    <div key={guest.id} className="flex items-center gap-3 px-4 py-3">
+                    <div key={guest.id} className="flex items-center gap-2 px-3 py-2">
                       <div className={cn(
                         'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold',
                         idx === 0 && 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
@@ -286,9 +286,9 @@ export function LoyaltyView() {
         </section>
 
         {/* Points Activity */}
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-green-600" />
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold flex items-center gap-2">
+            <BarChart3 className="h-3.5 w-3.5 text-green-600" />
             Recent Points Activity
           </h2>
           <Card className="py-0">
@@ -296,22 +296,22 @@ export function LoyaltyView() {
               <div className="divide-y">
                 {activity.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
-                    <History className="h-8 w-8 mx-auto opacity-20" />
+                    <History className="h-6 w-6 mx-auto opacity-20" />
                     <p className="mt-2 text-sm">No points activity yet</p>
                   </div>
                 ) : (
                   activity.map((act) => (
-                    <div key={act.id} className="flex items-center gap-3 px-4 py-3">
+                    <div key={act.id} className="flex items-center gap-2 px-3 py-2">
                       <div className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-full',
+                        'flex h-6 w-6 items-center justify-center rounded-full',
                         act.type === 'earned'
                           ? 'bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400'
                           : 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400',
                       )}>
                         {act.type === 'earned' ? (
-                          <ArrowUpRight className="h-4 w-4" />
+                          <ArrowUpRight className="h-3.5 w-3.5" />
                         ) : (
-                          <Gift className="h-4 w-4" />
+                          <Gift className="h-3.5 w-3.5" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -334,17 +334,17 @@ export function LoyaltyView() {
       </div>
 
       {/* Redemption Catalog */}
-      <section className="space-y-3">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Gift className="h-5 w-5 text-purple-600" />
+      <section className="space-y-2">
+        <h2 className="text-sm font-semibold flex items-center gap-2">
+          <Gift className="h-3.5 w-3.5 text-purple-600" />
           Redemption Catalog
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {REDEMPTIONS.map((item) => (
             <Card key={item.name} className="transition-all hover:shadow-md hover:border-primary/20">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/40">
-                  <item.icon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+              <CardContent className="p-2.5 space-y-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950/40">
+                  <item.icon className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">{item.name}</p>

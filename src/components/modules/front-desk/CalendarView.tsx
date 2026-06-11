@@ -1285,37 +1285,37 @@ export function CalendarView() {
     <TooltipProvider delayDuration={300}>
       <div ref={containerRef} className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* ─── Header Toolbar (Google Calendar-style) ────────────────── */}
-        <div className="flex items-center justify-between gap-3 px-2 py-2 shrink-0 flex-wrap bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between gap-2 px-2 py-1 shrink-0 flex-wrap bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
           {/* Left side: Title */}
-          <div className="flex items-center gap-3 shrink-0 min-w-0">
-            <h2 className="text-base font-semibold text-gray-700 dark:text-gray-200">Reservation Calendar</h2>
+          <div className="flex items-center gap-2 shrink-0 min-w-0">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Reservation Calendar</h2>
           </div>
 
           {/* Center: Navigation pills + View toggle */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* < Today > pill navigation */}
             <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-0.5">
               <button
                 onClick={goToPrevWeek}
-                className="flex items-center justify-center size-7 rounded-full text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                className="flex items-center justify-center size-6 rounded-full text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
               >
-                <ChevronLeft className="size-4" />
+                <ChevronLeft className="size-3.5" />
               </button>
               <button
                 onClick={goToToday}
-                className="px-3 py-1 rounded-full text-xs font-medium text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                className="px-2 py-0.5 rounded-full text-[11px] font-medium text-gray-700 dark:text-gray-200 hover:bg-white dark:hover:bg-gray-800 transition-colors"
               >
                 Today
               </button>
               <button
                 onClick={goToNextWeek}
-                className="flex items-center justify-center size-7 rounded-full text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                className="flex items-center justify-center size-6 rounded-full text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-800 transition-colors"
               >
-                <ChevronRight className="size-4" />
+                <ChevronRight className="size-3.5" />
               </button>
             </div>
 
-            {/* Segmented view toggle: 7 Days | 15 Days */}
+            {/* Segmented view toggle: 7 Days | 10 Days */}
             <div className="flex items-center bg-gray-100 dark:bg-gray-900 rounded-full p-0.5">
               <button
                 onClick={() => {
@@ -1323,7 +1323,7 @@ export function CalendarView() {
                   hasAutoScrolledRef.current = false
                 }}
                 className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  'px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors',
                   viewMode === '7days'
                     ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
@@ -1337,7 +1337,7 @@ export function CalendarView() {
                   hasAutoScrolledRef.current = false
                 }}
                 className={cn(
-                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  'px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors',
                   viewMode === '10days'
                     ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
@@ -1349,14 +1349,14 @@ export function CalendarView() {
           </div>
 
           {/* Right side: Floor filter, BS/AD, New Booking */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Floor filter — with clear button */}
             {floorFilter !== 'all' ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     onClick={clearFloorFilter}
-                    className="inline-flex items-center gap-1 h-8 pl-2.5 pr-1.5 text-xs font-medium rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+                    className="inline-flex items-center gap-1 h-7 pl-2 pr-1.5 text-[11px] font-medium rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
                   >
                     <span>Floor {floorFilter}</span>
                     <span className="flex size-4.5 items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors">
@@ -1368,7 +1368,7 @@ export function CalendarView() {
               </Tooltip>
             ) : (
               <Select value={floorFilter} onValueChange={setFloorFilter}>
-                <SelectTrigger className="w-[100px] h-8 text-xs border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-full">
+                <SelectTrigger className="w-[90px] h-7 text-[11px] border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-full">
                   <SelectValue placeholder="All Floors" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1389,7 +1389,7 @@ export function CalendarView() {
                   variant="ghost"
                   size="sm"
                   className={cn(
-                    'h-8 text-xs font-medium rounded-full gap-1',
+                    'h-7 text-[11px] font-medium rounded-full gap-1',
                     showBSDates
                       ? 'pl-2.5 pr-1.5 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50 border border-amber-200 dark:border-amber-800'
                       : 'px-2.5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800',
@@ -1413,13 +1413,13 @@ export function CalendarView() {
             {/* New Booking — Google-blue primary */}
             <Button
               size="sm"
-              className="h-8 gap-1.5 text-xs font-medium rounded-full px-4 bg-blue-500 hover:bg-blue-600 text-white"
+              className="h-7 gap-1 text-[11px] font-medium rounded-full px-3 bg-blue-500 hover:bg-blue-600 text-white"
               onClick={() => {
                 setNewForm(getDefaultNewForm(filteredRooms[0]?.id || '', startDateStr))
                 setShowNewDialog(true)
               }}
             >
-              <Plus className="size-3.5" />
+              <Plus className="size-3" />
               <span className="hidden sm:inline">New Booking</span>
               <span className="sm:hidden">New</span>
             </Button>

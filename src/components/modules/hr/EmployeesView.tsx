@@ -255,15 +255,15 @@ export function EmployeesView() {
   const isSubmitting = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Staff Directory</h1>
-          <p className="text-sm text-muted-foreground">Manage and view all hotel staff members</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Staff Directory</h1>
+          <p className="text-xs text-muted-foreground">Manage and view all hotel staff members</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-sm">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[11px]">
             {data?.total ?? 0} employees
           </Badge>
           <Button onClick={openCreateDialog} className="gap-2">
@@ -274,47 +274,47 @@ export function EmployeesView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950">
               <Users className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Staff</p>
-              <p className="text-2xl font-bold">{data?.total ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Total Staff</p>
+              <p className="text-lg font-bold">{data?.total ?? 0}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <UserCheck className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Active</p>
-              <p className="text-2xl font-bold">{activeCount}</p>
+              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-lg font-bold">{activeCount}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <UserX className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">On Leave</p>
-              <p className="text-2xl font-bold">{onLeaveCount}</p>
+              <p className="text-xs text-muted-foreground">On Leave</p>
+              <p className="text-lg font-bold">{onLeaveCount}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-950">
               <DollarSign className="h-5 w-5 text-teal-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Avg Salary</p>
+              <p className="text-xs text-muted-foreground">Avg Salary</p>
               <p className="text-lg font-bold">{activeCount > 0 ? formatCurrency(Math.round(totalSalary / (data?.employees?.length ?? 1))) : '—'}</p>
             </div>
           </div>
@@ -323,34 +323,34 @@ export function EmployeesView() {
 
       {/* Department Breakdown */}
       {departments.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {departments.map((dept: string) => (
             <Card key={dept} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setFilterDept(filterDept === dept ? '' : dept)}>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground truncate">{dept}</p>
+                <p className="text-xs text-muted-foreground truncate">{dept}</p>
                 <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
               </div>
-              <p className="mt-1 text-2xl font-bold">{data?.departmentBreakdown?.[dept] ?? 0}</p>
+              <p className="mt-1 text-lg font-bold">{data?.departmentBreakdown?.[dept] ?? 0}</p>
             </Card>
           ))}
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search employees..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="h-7 text-xs pl-9"
           />
         </div>
         <select
           value={filterDept}
           onChange={(e) => setFilterDept(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-3 text-xs"
         >
           <option value="">All Departments</option>
           {departments.map((d: string) => (
@@ -360,7 +360,7 @@ export function EmployeesView() {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-3 text-xs"
         >
           <option value="">All Status</option>
           <option value="active">Active</option>
@@ -439,10 +439,10 @@ export function EmployeesView() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(emp)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEditDialog(emp)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(emp)}>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(emp)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>

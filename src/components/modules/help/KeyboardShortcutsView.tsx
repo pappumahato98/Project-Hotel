@@ -84,9 +84,9 @@ export function KeyboardShortcutsView() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -96,29 +96,29 @@ export function KeyboardShortcutsView() {
             className="pl-9"
           />
         </div>
-        <span className="text-sm text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground">
           {totalShortcuts} shortcut{totalShortcuts !== 1 ? 's' : ''} found
         </span>
       </div>
 
       {/* Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {filteredCategories.map((category) => {
           const Icon = category.icon
           return (
             <Card key={category.id}>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Icon className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Icon className="size-3.5 text-muted-foreground" />
                   {category.label}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {category.shortcuts.map((shortcut, i) => (
                     <div
                       key={`${category.id}-${i}`}
-                      className="flex items-center justify-between gap-4"
+                      className="flex items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {shortcut.keys.map((key, j) => (
@@ -130,7 +130,7 @@ export function KeyboardShortcutsView() {
                           </span>
                         ))}
                       </div>
-                      <span className="text-sm text-muted-foreground text-right shrink-0">
+                      <span className="text-xs text-muted-foreground text-right shrink-0">
                         {shortcut.description}
                       </span>
                     </div>

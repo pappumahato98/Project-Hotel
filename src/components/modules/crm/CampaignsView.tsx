@@ -198,41 +198,41 @@ export function CampaignsView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: 'Total Campaigns', value: totalCampaigns, icon: Megaphone, color: 'text-foreground' },
           { label: 'Active Now', value: activeCampaigns, icon: Play, color: 'text-green-600' },
           { label: 'Emails Sent', value: totalSent.toLocaleString(), icon: Mail, color: 'text-amber-600' },
           { label: 'Open Rate', value: `${avgOpenRate}%`, icon: BarChart3, color: 'text-purple-600' },
         ].map((stat) => (
-          <Card key={stat.label} className="p-4">
+          <Card key={stat.label} className="p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
               </div>
-              <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
+              <stat.icon className={cn('h-3.5 w-3.5 opacity-20', stat.color)} />
             </div>
           </Card>
         ))}
       </div>
 
       {/* Actions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search campaigns..."
-              className="pl-9"
+              className="pl-8 h-7 text-xs"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="sm:w-[130px]">
+            <SelectTrigger className="sm:w-[120px] data-[size=default]:h-7 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -244,7 +244,7 @@ export function CampaignsView() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="sm:w-[130px]">
+            <SelectTrigger className="sm:w-[120px] data-[size=default]:h-7 text-xs">
               <SelectValue placeholder="Type" />
             </SelectTrigger>
             <SelectContent>
@@ -257,12 +257,12 @@ export function CampaignsView() {
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button className="gap-2" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
+          <Button className="gap-1 text-[11px] h-7" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
             Create Campaign
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => setSegmentOpen(true)}>
-            <Users className="h-4 w-4" />
+          <Button variant="outline" className="gap-1 text-[11px] h-7" onClick={() => setSegmentOpen(true)}>
+            <Users className="h-3.5 w-3.5" />
             Segment Builder
           </Button>
         </div>
@@ -364,7 +364,7 @@ export function CampaignsView() {
               Set up a new marketing campaign to target specific guest segments.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="space-y-2">
               <Label>Campaign Name *</Label>
               <Input
@@ -373,7 +373,7 @@ export function CampaignsView() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Type</Label>
                 <Select value={createForm.type} onValueChange={(v) => setCreateForm((f) => ({ ...f, type: v }))}>

@@ -158,7 +158,7 @@ function TicketCard({
       <CardContent className="px-3 pb-3">
         <div className="space-y-1.5 mb-2">
           {ticket.items.map((item, idx) => (
-            <div key={idx} className="flex items-center justify-between text-sm">
+            <div key={idx} className="flex items-center justify-between text-xs">
               <span>
                 <span className="font-bold text-primary mr-1">x{item.quantity}</span>
                 {item.name}
@@ -227,14 +227,14 @@ function StationColumn({
 
   return (
     <div className="flex flex-col min-w-0">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-2">
         <StationIcon station={station} />
         <h3 className="text-sm font-semibold">{StationLabel({ station })}</h3>
         <Badge variant="secondary" className="text-[10px]">{stationTickets.length} active</Badge>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="space-y-2.5 pr-2">
+        <div className="space-y-2 pr-2">
           {stationTickets.length > 0 ? (
             stationTickets.map((ticket) => (
               <TicketCard
@@ -253,7 +253,7 @@ function StationColumn({
           )}
 
           {completedTickets.length > 0 && (
-            <div className="mt-4 pt-3 border-t">
+            <div className="mt-2 pt-3 border-t">
               <div className="flex items-center gap-2 mb-2">
                 <Undo2 className="h-3 w-3 text-muted-foreground" />
                 <span className="text-[11px] font-semibold text-muted-foreground uppercase">
@@ -372,9 +372,9 @@ export default function KitchenDisplayView() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         <Skeleton className="h-20 rounded-lg" />
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-[600px] rounded-lg" />
           ))}
@@ -384,16 +384,16 @@ export default function KitchenDisplayView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header Stats */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 rounded-lg bg-orange-100 dark:bg-orange-950/40 px-3 py-2">
             <ChefHat className="h-5 w-5 text-orange-600" />
             <span className="text-sm font-bold">Kitchen Display</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
             <Clock className="h-3 w-3 mr-1" /> {activeTickets.length} Active
           </Badge>
@@ -421,7 +421,7 @@ export default function KitchenDisplayView() {
 
       {/* Station Columns */}
       {station === 'all' ? (
-        <div className="grid gap-4 lg:grid-cols-3 min-h-[500px]">
+        <div className="grid gap-2 lg:grid-cols-3 min-h-[500px]">
           <StationColumn station="hot_kitchen" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />
           <StationColumn station="cold_kitchen" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />
           <StationColumn station="bar" tickets={displayedTickets} onAction={handleAction} onRecall={handleRecall} pendingTicketId={pendingTicketId} />

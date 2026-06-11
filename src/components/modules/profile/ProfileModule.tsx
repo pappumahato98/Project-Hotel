@@ -82,7 +82,7 @@ export function ProfileModule() {
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       {/* Page Header */}
-      <div className="shrink-0 border-b bg-background px-6 py-6">
+      <div className="shrink-0 border-b bg-background px-6 py-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
           <Avatar className="h-14 w-14 border-2 border-violet-200 bg-violet-50">
             <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.firstName} />
@@ -91,11 +91,11 @@ export function ProfileModule() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <UserCircle className="h-6 w-6 text-violet-600" />
+            <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+              <UserCircle className="h-4 w-4 text-violet-600" />
               My Profile
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Manage your personal information, security settings, and preferences
             </p>
           </div>
@@ -108,7 +108,7 @@ export function ProfileModule() {
       {/* Tabs Content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         <Tabs defaultValue="personal" className="w-full">
-          <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 pt-4">
+          <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 pt-2">
             <TabsList className="w-full justify-start overflow-x-auto h-auto gap-1 p-0 bg-transparent">
               <ProfileTabTrigger value="personal" icon={User} label="Personal Information" />
               <ProfileTabTrigger value="employment" icon={Briefcase} label="Employment Details" />
@@ -118,7 +118,7 @@ export function ProfileModule() {
             </TabsList>
           </div>
 
-          <div className="p-6 pb-16">
+          <div className="p-4 pb-16">
             <TabsContent value="personal" className="mt-0">
               <PersonalInfoTab />
             </TabsContent>
@@ -286,15 +286,15 @@ function PersonalInfoTab() {
     : 'U'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Avatar Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Profile Photo</CardTitle>
+          <CardTitle className="text-sm">Profile Photo</CardTitle>
           <CardDescription>Your profile photo is displayed across the system</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20 border-2 border-violet-200 bg-violet-50">
               <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.firstName} />
               <AvatarFallback className="bg-violet-100 text-violet-700 text-xl font-bold">
@@ -329,11 +329,11 @@ function PersonalInfoTab() {
       {/* Basic Info */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Basic Information</CardTitle>
+          <CardTitle className="text-sm">Basic Information</CardTitle>
           <CardDescription>Your personal and contact details</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
               <Input
@@ -354,7 +354,7 @@ function PersonalInfoTab() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <Input
@@ -379,7 +379,7 @@ function PersonalInfoTab() {
 
           <Separator />
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dob">Date of Birth</Label>
               <Input
@@ -418,7 +418,7 @@ function PersonalInfoTab() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="city">City</Label>
               <Input
@@ -450,8 +450,8 @@ function PersonalInfoTab() {
 
           <Separator />
 
-          <CardTitle className="text-base pt-2">Identification</CardTitle>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <CardTitle className="text-sm pt-2">Identification</CardTitle>
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="idType">ID Type</Label>
               <Select
@@ -522,7 +522,7 @@ function EmploymentDetailsTab() {
   const hireDate = profileData?.user?.hireDate
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Employment Info */}
       <Card>
         <CardHeader>
@@ -531,7 +531,7 @@ function EmploymentDetailsTab() {
               <Briefcase className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Employment Information</CardTitle>
+              <CardTitle className="text-sm">Employment Information</CardTitle>
               <CardDescription>Your role and employment details</CardDescription>
             </div>
           </div>
@@ -571,7 +571,7 @@ function EmploymentDetailsTab() {
               <Building2 className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Current Property</CardTitle>
+              <CardTitle className="text-sm">Current Property</CardTitle>
               <CardDescription>Property you are currently assigned to</CardDescription>
             </div>
           </div>
@@ -594,7 +594,7 @@ function EmploymentDetailsTab() {
               <Shield className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Access Summary</CardTitle>
+              <CardTitle className="text-sm">Access Summary</CardTitle>
               <CardDescription>Modules accessible with your current role</CardDescription>
             </div>
           </div>
@@ -764,7 +764,7 @@ function SecurityTab() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Change Password */}
       <Card>
         <CardHeader>
@@ -773,7 +773,7 @@ function SecurityTab() {
               <Lock className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Change Password</CardTitle>
+              <CardTitle className="text-sm">Change Password</CardTitle>
               <CardDescription>Update your account password regularly for security</CardDescription>
             </div>
           </div>
@@ -887,7 +887,7 @@ function SecurityTab() {
               <Shield className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Two-Factor Authentication</CardTitle>
+              <CardTitle className="text-sm">Two-Factor Authentication</CardTitle>
               <CardDescription>Add an extra layer of security to your account</CardDescription>
             </div>
           </div>
@@ -929,14 +929,14 @@ function SecurityTab() {
               <Monitor className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Active Sessions</CardTitle>
+              <CardTitle className="text-sm">Active Sessions</CardTitle>
               <CardDescription>Devices currently signed in to your account</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Current session */}
-          <div className="flex items-center gap-4 rounded-lg border bg-emerald-50/50 p-4">
+          <div className="flex items-center gap-3 rounded-lg border bg-emerald-50/50 p-2.5">
             <Monitor className="h-5 w-5 text-emerald-600" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -955,7 +955,7 @@ function SecurityTab() {
           </div>
 
           {/* Clear other sessions button */}
-          <div className="flex items-center justify-between rounded-lg border border-dashed p-4">
+          <div className="flex items-center justify-between rounded-lg border border-dashed p-2.5">
             <div className="space-y-0.5">
               <p className="text-sm font-medium flex items-center gap-2">
                 <Wifi className="h-4 w-4 text-muted-foreground" />
@@ -985,7 +985,7 @@ function SecurityTab() {
               <Clock className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Login Information</CardTitle>
+              <CardTitle className="text-sm">Login Information</CardTitle>
               <CardDescription>Recent login activity</CardDescription>
             </div>
           </div>
@@ -1036,7 +1036,7 @@ function PreferencesTab() {
   const isDarkMode = mounted ? (resolvedTheme === 'dark') : false
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Language & Region */}
       <Card>
         <CardHeader>
@@ -1045,13 +1045,13 @@ function PreferencesTab() {
               <Globe className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Language &amp; Region</CardTitle>
+              <CardTitle className="text-sm">Language &amp; Region</CardTitle>
               <CardDescription>Customize display language and regional formats</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Language</Label>
               <Select
@@ -1091,7 +1091,7 @@ function PreferencesTab() {
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Currency Display</Label>
               <Select
@@ -1134,7 +1134,7 @@ function PreferencesTab() {
               <Monitor className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Appearance</CardTitle>
+              <CardTitle className="text-sm">Appearance</CardTitle>
               <CardDescription>Customize the look and feel of the interface</CardDescription>
             </div>
           </div>
@@ -1182,7 +1182,7 @@ function PreferencesTab() {
               <Bell className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-base">Notification Preferences</CardTitle>
+              <CardTitle className="text-sm">Notification Preferences</CardTitle>
               <CardDescription>Choose how you want to receive notifications</CardDescription>
             </div>
           </div>
@@ -1324,17 +1324,17 @@ function ActivityLogTab() {
   const modules = data?.modules ?? []
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-4">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
                 <History className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg font-bold">
                   {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.total}
                 </p>
                 <p className="text-xs text-muted-foreground">Total Activities</p>
@@ -1343,13 +1343,13 @@ function ActivityLogTab() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg font-bold">
                   {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.logins}
                 </p>
                 <p className="text-xs text-muted-foreground">Logins</p>
@@ -1358,13 +1358,13 @@ function ActivityLogTab() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
                 <Clock className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg font-bold">
                   {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.today}
                 </p>
                 <p className="text-xs text-muted-foreground">Today</p>
@@ -1373,13 +1373,13 @@ function ActivityLogTab() {
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-2.5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
                 <MapPin className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
+                <p className="text-lg font-bold">
                   {isLoading ? (
                     <Skeleton className="h-8 w-8 inline-block" />
                   ) : (
@@ -1398,7 +1398,7 @@ function ActivityLogTab() {
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-base">Recent Activity</CardTitle>
+              <CardTitle className="text-sm">Recent Activity</CardTitle>
               <CardDescription className="flex items-center gap-2">
                 Last {logs.length} actions performed in the system
                 {isFetching && !isLoading && (

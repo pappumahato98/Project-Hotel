@@ -347,12 +347,12 @@ export function WakeUpCallsView() {
 
   // ─── Render ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Wake-Up Calls</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Wake-Up Calls</h2>
+          <p className="text-xs text-muted-foreground">
             Manage scheduled wake-up calls for today —{' '}
             <span className="font-medium text-foreground">
               Current time: {formatTimeDisplay(
@@ -362,28 +362,28 @@ export function WakeUpCallsView() {
           </p>
         </div>
         <Button onClick={() => { setFormRoom(''); setFormTime(''); setFormNotes(''); setAddDialogOpen(true) }} className="gap-2 shrink-0">
-          <Plus className="size-4" />
+          <Plus className="size-3.5" />
           New Wake-up Call
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
         <Tabs value={filterTab} onValueChange={setFilterTab}>
           <TabsList>
-            <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
-            <TabsTrigger value="pending" className="text-xs sm:text-sm">Pending</TabsTrigger>
-            <TabsTrigger value="completed" className="text-xs sm:text-sm">Completed</TabsTrigger>
-            <TabsTrigger value="missed" className="text-xs sm:text-sm">Missed</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+            <TabsTrigger value="pending" className="text-xs">Pending</TabsTrigger>
+            <TabsTrigger value="completed" className="text-xs">Completed</TabsTrigger>
+            <TabsTrigger value="missed" className="text-xs">Missed</TabsTrigger>
           </TabsList>
         </Tabs>
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
           <Input
             placeholder="Search guest or room..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-8 text-sm"
+            className="pl-8 h-7 text-xs"
           />
         </div>
       </div>
@@ -397,7 +397,7 @@ export function WakeUpCallsView() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCalls.map((call) => {
             const upcoming = call.status === 'Pending' && isUpcoming(call.scheduledTime, nowMinutes, 60)
 
@@ -411,7 +411,7 @@ export function WakeUpCallsView() {
                   call.status === 'Completed' && 'opacity-60',
                 )}
               >
-                <CardContent className="p-4 flex flex-col gap-3">
+                <CardContent className="p-2.5 flex flex-col gap-2">
                   {/* Card Header */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
@@ -433,7 +433,7 @@ export function WakeUpCallsView() {
                         )} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold font-mono">Room {call.roomNumber}</p>
+                        <p className="text-xs font-bold font-mono">Room {call.roomNumber}</p>
                         <p className="text-xs text-muted-foreground">{call.guestName}</p>
                       </div>
                     </div>
@@ -442,7 +442,7 @@ export function WakeUpCallsView() {
 
                   {/* Time Display */}
                   <div className="flex items-center gap-2">
-                    <Clock className="size-3.5 text-muted-foreground" />
+                    <Clock className="size-3 text-muted-foreground" />
                     <span className={cn(
                       'text-lg font-bold',
                       upcoming && 'text-sky-600 dark:text-sky-400',

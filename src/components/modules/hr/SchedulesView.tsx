@@ -79,9 +79,9 @@ function ShiftBadge({ shift }: { shift: ShiftType }) {
 
 function ShiftLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       {(Object.entries(SHIFT_CONFIG) as [ShiftType, typeof SHIFT_CONFIG.morning][]).map(([key, config]) => (
-        <div key={key} className="flex items-center gap-1.5 text-xs">
+        <div key={key} className="flex items-center gap-1 text-xs">
           <div className={cn('h-3 w-3 rounded border', config.color)} />
           <span>{config.label} ({config.time})</span>
         </div>
@@ -141,14 +141,14 @@ export function SchedulesView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Staff Schedules</h1>
-          <p className="text-sm text-muted-foreground">Weekly shift planning and assignments</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Staff Schedules</h1>
+          <p className="text-xs text-muted-foreground">Weekly shift planning and assignments</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="gap-2" onClick={handleExport}>
             <Download className="h-4 w-4" />
             Export
@@ -157,15 +157,15 @@ export function SchedulesView() {
       </div>
 
       {/* Week Navigator */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset((w) => w - 1)}>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((w) => w - 1)}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
           <span className="font-medium">{weekLabel}</span>
         </div>
-        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekOffset((w) => w + 1)}>
+        <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => setWeekOffset((w) => w + 1)}>
           <ChevronRight className="h-4 w-4" />
         </Button>
         {weekOffset !== 0 && (
@@ -174,59 +174,59 @@ export function SchedulesView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className={cn('flex h-10 w-10 items-center justify-center rounded-lg', SHIFT_CONFIG.morning.color.split(' ')[0])}>
               <Sun className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Morning Shifts</p>
-              <p className="text-2xl font-bold">{shiftCounts['morning'] ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Morning Shifts</p>
+              <p className="text-lg font-bold">{shiftCounts['morning'] ?? 0}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-950">
               <Coffee className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Evening Shifts</p>
-              <p className="text-2xl font-bold">{shiftCounts['evening'] ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Evening Shifts</p>
+              <p className="text-lg font-bold">{shiftCounts['evening'] ?? 0}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-200 dark:bg-slate-700">
               <Moon className="h-5 w-5 text-slate-600 dark:text-slate-300" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Night Shifts</p>
-              <p className="text-2xl font-bold">{shiftCounts['night'] ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Night Shifts</p>
+              <p className="text-lg font-bold">{shiftCounts['night'] ?? 0}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
               <Clock className="h-5 w-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Days Off</p>
-              <p className="text-2xl font-bold">{shiftCounts['off'] ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Days Off</p>
+              <p className="text-lg font-bold">{shiftCounts['off'] ?? 0}</p>
             </div>
           </div>
         </Card>
       </div>
 
       {/* Filters + Legend */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <select
           value={filterDept}
           onChange={(e) => setFilterDept(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm max-w-xs"
+          className="h-7 rounded-md border bg-background px-3 text-xs max-w-xs"
         >
           {DEPARTMENTS.map((d) => (
             <option key={d} value={d}>{d}</option>
@@ -242,7 +242,7 @@ export function SchedulesView() {
             <div className="min-w-[900px]">
               {/* Day Headers */}
               <div className="grid grid-cols-[200px_repeat(7,1fr)] border-b bg-muted/50 sticky top-0 z-10">
-                <div className="p-3 text-sm font-medium text-muted-foreground flex items-center">Employee</div>
+                <div className="p-3 text-xs font-medium text-muted-foreground flex items-center">Employee</div>
                 {DAY_SHORT.map((day, i) => (
                   <div key={day} className="p-3 text-center">
                     <p className="text-xs font-medium text-muted-foreground">{day}</p>

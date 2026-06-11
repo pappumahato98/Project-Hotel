@@ -109,12 +109,12 @@ export function DepartmentsView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Departments</h1>
-          <p className="text-sm text-muted-foreground">Overview of all hotel departments and their staff</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Departments</h1>
+          <p className="text-xs text-muted-foreground">Overview of all hotel departments and their staff</p>
         </div>
         <Button onClick={() => setShowAddDialog(true)} className="gap-2">
           <Plus className="h-4 w-4" />
@@ -123,47 +123,47 @@ export function DepartmentsView() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-950">
               <Building2 className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Departments</p>
-              <p className="text-2xl font-bold">{totalDepts}</p>
+              <p className="text-xs text-muted-foreground">Departments</p>
+              <p className="text-lg font-bold">{totalDepts}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-100 dark:bg-teal-950">
               <Users className="h-5 w-5 text-teal-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Staff</p>
-              <p className="text-2xl font-bold">{totalStaff}</p>
+              <p className="text-xs text-muted-foreground">Total Staff</p>
+              <p className="text-lg font-bold">{totalStaff}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
               <DollarSign className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Payroll</p>
+              <p className="text-xs text-muted-foreground">Total Payroll</p>
               <p className="text-lg font-bold">{formatCurrency(totalSalary)}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <DollarSign className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Avg Salary</p>
+              <p className="text-xs text-muted-foreground">Avg Salary</p>
               <p className="text-lg font-bold">{formatCurrency(avgSalary)}</p>
             </div>
           </div>
@@ -172,9 +172,9 @@ export function DepartmentsView() {
 
       {/* Department Cards */}
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="p-6">
+            <Card key={i} className="p-4">
               <Skeleton className="h-5 w-[100px] mb-3" />
               <Skeleton className="h-4 w-[200px]" />
             </Card>
@@ -182,12 +182,12 @@ export function DepartmentsView() {
         </div>
       ) : departments.length === 0 ? (
         <Card className="p-8 text-center">
-          <Building2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <Building2 className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
           <p className="text-lg font-medium">No departments yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Add a department to get started</p>
+          <p className="text-xs text-muted-foreground mt-1">Add a department to get started</p>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map((dept) => (
             <Card key={dept.name} className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedDept(dept)}>
               <div className="flex items-start justify-between mb-3">

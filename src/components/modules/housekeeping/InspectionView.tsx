@@ -76,7 +76,7 @@ function RoomInspectionCard({
     >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 dark:bg-green-950/40">
               <BedDouble className="h-5 w-5 text-green-600" />
             </div>
@@ -247,7 +247,7 @@ export function InspectionView() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />
           ))}
@@ -260,18 +260,18 @@ export function InspectionView() {
   return (
     <div className="space-y-4">
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: 'Awaiting Inspection', value: cleanedTasks.length, icon: ShieldCheck, color: 'text-green-600' },
           { label: 'Inspected Today', value: inspectedTasks.length, icon: Check, color: 'text-purple-600' },
           { label: 'Inspection Rate', value: `${inspectionRate}%`, icon: BadgePercent, color: 'text-amber-600' },
           { label: 'Failed Today', value: summary?.failed ?? 0, icon: X, color: 'text-red-600' },
         ].map((stat) => (
-          <Card key={stat.label} className="p-4">
+          <Card key={stat.label} className="p-2.5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold tracking-tight">{stat.value}</p>
+                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
               </div>
               <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
             </div>
@@ -292,7 +292,7 @@ export function InspectionView() {
             <p className="mt-2 text-sm">No rooms awaiting inspection</p>
           </Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {cleanedTasks.map((task) => (
               <RoomInspectionCard
                 key={task.id}
@@ -312,7 +312,7 @@ export function InspectionView() {
             Recently Inspected
             <Badge variant="secondary" className="text-xs">{inspectedTasks.length}</Badge>
           </h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {inspectedTasks.slice(0, 6).map((task) => (
               <RoomInspectionCard
                 key={task.id}

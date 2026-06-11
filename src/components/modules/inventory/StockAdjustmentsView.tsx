@@ -170,62 +170,62 @@ export function StockAdjustmentsView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Stock Adjustments</h1>
-          <p className="text-sm text-muted-foreground">Track stock movements and adjustments</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Stock Adjustments</h1>
+          <p className="text-xs text-muted-foreground">Track stock movements and adjustments</p>
         </div>
-        <Button className="gap-1.5" onClick={() => setCreateOpen(true)}>
+        <Button className="gap-1" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
           New Adjustment
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
               <ArrowUpDown className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Today&apos;s Adjustments</p>
-              <p className="text-2xl font-bold">{todaysAdjustments}</p>
+              <p className="text-xs text-muted-foreground">Today&apos;s Adjustments</p>
+              <p className="text-lg font-bold">{todaysAdjustments}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100 dark:bg-yellow-950">
               <ArrowRight className="h-5 w-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending Count</p>
-              <p className="text-2xl font-bold">{pendingCount}</p>
+              <p className="text-xs text-muted-foreground">Pending Count</p>
+              <p className="text-lg font-bold">{pendingCount}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
               <Package className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Items Received</p>
-              <p className="text-2xl font-bold">{receivedCount}</p>
+              <p className="text-xs text-muted-foreground">Items Received</p>
+              <p className="text-lg font-bold">{receivedCount}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
               <AlertCircle className="h-5 w-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Items Written Off</p>
-              <p className="text-2xl font-bold">{writtenOffCount}</p>
+              <p className="text-xs text-muted-foreground">Items Written Off</p>
+              <p className="text-lg font-bold">{writtenOffCount}</p>
             </div>
           </div>
         </Card>
@@ -258,10 +258,10 @@ export function StockAdjustmentsView() {
                     const TypeIcon = getTypeIcon(adj.type)
                     return (
                       <TableRow key={adj.id}>
-                        <TableCell className="text-sm">
+                        <TableCell className="text-xs">
                           {new Date(adj.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </TableCell>
-                        <TableCell className="font-medium text-sm">{adj.itemName}</TableCell>
+                        <TableCell className="font-medium text-xs">{adj.itemName}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={cn('gap-1', getTypeBadgeColor(adj.type))}>
                             <TypeIcon className="h-3 w-3" />
@@ -273,8 +273,8 @@ export function StockAdjustmentsView() {
                             {adj.quantity > 0 ? '+' : ''}{adj.quantity}
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm">{adj.adjustedBy}</TableCell>
-                        <TableCell className="hidden md:table-cell text-sm text-muted-foreground truncate max-w-[200px]">
+                        <TableCell className="text-xs">{adj.adjustedBy}</TableCell>
+                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground truncate max-w-[200px]">
                           {adj.reason}
                         </TableCell>
                       </TableRow>

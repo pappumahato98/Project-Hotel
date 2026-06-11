@@ -214,18 +214,18 @@ export function VendorsView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Vendor Directory</h1>
-          <p className="text-sm text-muted-foreground">Suppliers and vendor management</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Vendor Directory</h1>
+          <p className="text-xs text-muted-foreground">Suppliers and vendor management</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-sm">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-[11px]">
             {data?.active ?? 0} active
           </Badge>
-          <Button className="gap-1.5" onClick={openCreate}>
+          <Button className="gap-1" onClick={openCreate}>
             <Plus className="h-4 w-4" />
             Add Vendor
           </Button>
@@ -233,22 +233,22 @@ export function VendorsView() {
       </div>
 
       {/* Summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm text-muted-foreground">Total Vendors</p>
-              <p className="text-2xl font-bold">{data?.total ?? '—'}</p>
+              <p className="text-xs text-muted-foreground">Total Vendors</p>
+              <p className="text-lg font-bold">{data?.total ?? '—'}</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <Star className="h-5 w-5 text-amber-400" />
             <div>
-              <p className="text-sm text-muted-foreground">Avg Rating</p>
-              <p className="text-2xl font-bold">
+              <p className="text-xs text-muted-foreground">Avg Rating</p>
+              <p className="text-lg font-bold">
                 {data?.vendors
                   ? (data.vendors.reduce((s: number, v: Vendor) => s + v.rating, 0) / data.vendors.length).toFixed(1)
                   : '—'}
@@ -256,12 +256,12 @@ export function VendorsView() {
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
+        <Card className="p-2.5">
+          <div className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-green-600" />
             <div>
-              <p className="text-sm text-muted-foreground">Total Orders</p>
-              <p className="text-2xl font-bold">
+              <p className="text-xs text-muted-foreground">Total Orders</p>
+              <p className="text-lg font-bold">
                 {data?.vendors?.reduce((s: number, v: Vendor) => s + v.totalOrders, 0) ?? '—'}
               </p>
             </div>
@@ -270,20 +270,20 @@ export function VendorsView() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search vendors..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="h-7 text-xs pl-9"
           />
         </div>
         <select
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
+          className="h-7 rounded-md border bg-background px-3 text-xs"
         >
           <option value="">All Categories</option>
           {VENDOR_CATEGORIES.map((cat) => (
@@ -335,12 +335,12 @@ export function VendorsView() {
                           <p className="text-xs text-muted-foreground">{vendor.phone || '—'}</p>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{vendor.contact || '—'}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{vendor.category}</TableCell>
+                      <TableCell className="text-xs">{vendor.contact || '—'}</TableCell>
+                      <TableCell className="hidden md:table-cell text-xs">{vendor.category}</TableCell>
                       <TableCell className="hidden md:table-cell">
                         <RatingStars rating={vendor.rating} />
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">
+                      <TableCell className="hidden lg:table-cell text-xs">
                         {vendor.lastOrderDate
                           ? new Date(vendor.lastOrderDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
                           : '—'}

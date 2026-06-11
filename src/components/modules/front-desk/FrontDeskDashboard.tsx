@@ -385,12 +385,12 @@ export function FrontDeskDashboard() {
 
   // ─── Render ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-2">
       {/* ─── Header ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Front Desk Dashboard</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Front Desk Dashboard</h2>
+          <p className="text-xs text-muted-foreground">
             Real-time operational snapshot — {formatDate(new Date())}
           </p>
         </div>
@@ -421,7 +421,7 @@ export function FrontDeskDashboard() {
         </Card>
       ) : (
         <div className={cn(
-          'grid gap-3',
+          'grid gap-2',
           showOverbookingAlert
             ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
             : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
@@ -430,12 +430,12 @@ export function FrontDeskDashboard() {
             <Card key={card.label} className={cn(
               card.label === 'Overbooking Alert' && 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20',
             )}>
-              <CardContent className="p-4 flex items-center gap-3">
+              <CardContent className="p-2.5 flex items-center gap-3">
                 <div className={cn('flex size-10 items-center justify-center rounded-lg shrink-0', card.iconBg)}>
                   <card.icon className={cn('size-5', card.iconColor)} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-2xl font-bold leading-tight">{card.value}</p>
+                  <p className="text-lg font-bold leading-tight">{card.value}</p>
                   <p className="text-xs text-muted-foreground truncate">{card.label}</p>
                   {'subtext' in card && card.subtext && (
                     <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{card.subtext}</p>
@@ -460,7 +460,7 @@ export function FrontDeskDashboard() {
               className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30 active:scale-[0.98]"
               onClick={() => handleQuickAction(action.id)}
             >
-              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+              <CardContent className="p-2.5 flex flex-col items-center text-center gap-2">
                 <div className={cn('flex size-10 items-center justify-center rounded-lg', action.bg)}>
                   <action.icon className={cn('size-5', action.color)} />
                 </div>
@@ -477,7 +477,7 @@ export function FrontDeskDashboard() {
       <Separator />
 
       {/* ─── Bottom Grid: Timeline + Upcoming Arrivals ──────── */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         {/* ─── Today's Activity Timeline ──────────────────── */}
         <div>
           {isLoading ? (

@@ -73,9 +73,9 @@ function ServiceCatalog({
           Service Catalog
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-2">
         <Tabs value={category} onValueChange={setCategory}>
-          <TabsList className="w-full h-8">
+          <TabsList className="w-full h-7">
             {categories.map((cat) => (
               <TabsTrigger key={cat.id} value={cat.id} className="text-[11px] flex-1">
                 {cat.label}
@@ -88,7 +88,7 @@ function ServiceCatalog({
             {filtered.map((service) => (
               <div
                 key={service.id}
-                className="flex items-center justify-between rounded-lg border p-3 transition-all hover:shadow-sm hover:border-primary/20"
+                className="flex items-center justify-between rounded-lg border p-2 transition-all hover:shadow-sm hover:border-primary/20"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className={`rounded-lg p-1.5 flex-shrink-0 ${categoryColors[service.category]}`}>
@@ -137,11 +137,11 @@ function MeetingRoomGrid({ rooms }: { rooms: MeetingRoom[] }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {rooms.map((room) => {
             const config = statusConfig[room.status]
             return (
-              <div key={room.id} className={`rounded-lg border-2 p-4 ${config.bg} ${config.border}`}>
+              <div key={room.id} className={`rounded-lg border-2 p-2.5 ${config.bg} ${config.border}`}>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-bold">{room.name}</p>
                   <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`} />
@@ -194,7 +194,7 @@ function ActiveRentals({ rentals }: { rentals: ActiveRental[] }) {
           ) : (
             <div className="space-y-2">
               {rentals.map((rental) => (
-                <div key={rental.id} className="flex items-center justify-between rounded-lg border p-3">
+                <div key={rental.id} className="flex items-center justify-between rounded-lg border p-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-600">
                       {rental.serviceId.startsWith('ws') ? (
@@ -210,7 +210,7 @@ function ActiveRentals({ rentals }: { rentals: ActiveRental[] }) {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="text-right">
                       <p className="text-sm font-bold">{formatNPR(rental.charges)}</p>
                       <p className="text-[10px] text-muted-foreground">running</p>
@@ -365,8 +365,8 @@ export default function BusinessCenterView() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+      <div className="space-y-2">
+        <div className="grid grid-cols-3 gap-2">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
@@ -378,11 +378,11 @@ export default function BusinessCenterView() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Card className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-blue-600"><Monitor className="h-4 w-4" /></div>
             <div>
               <p className="text-[11px] text-muted-foreground">Active Rentals</p>
@@ -391,7 +391,7 @@ export default function BusinessCenterView() {
           </CardContent>
         </Card>
         <Card className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-purple-600"><DoorOpen className="h-4 w-4" /></div>
             <div>
               <p className="text-[11px] text-muted-foreground">Meeting Rooms</p>
@@ -400,7 +400,7 @@ export default function BusinessCenterView() {
           </CardContent>
         </Card>
         <Card className="py-3">
-          <CardContent className="flex items-center gap-2.5 px-4 py-0">
+          <CardContent className="flex items-center gap-2 px-4 py-0">
             <div className="rounded-lg p-1.5 bg-muted text-emerald-600"><DollarSign className="h-4 w-4" /></div>
             <div>
               <p className="text-[11px] text-muted-foreground">Running Charges</p>
@@ -411,7 +411,7 @@ export default function BusinessCenterView() {
       </div>
 
       {/* Service Catalog + Meeting Rooms */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-2 lg:grid-cols-[1fr_380px]">
         <ServiceCatalog services={services} onStartService={handleStartService} />
         <MeetingRoomGrid rooms={meetingRooms} />
       </div>

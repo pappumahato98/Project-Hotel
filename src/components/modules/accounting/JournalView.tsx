@@ -68,20 +68,20 @@ export function JournalView() {
   const getCreditTotal = (entry: JournalEntry) => entry.lines.reduce((s, l) => s + l.credit, 0)
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Journal Entries</h1>
-          <p className="text-sm text-muted-foreground">Double-entry bookkeeping journal</p>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Journal Entries</h1>
+          <p className="text-xs text-muted-foreground">Double-entry bookkeeping journal</p>
         </div>
-        <Button size="sm" className="gap-2" onClick={() => setShowNewEntry(true)}>
+        <Button size="sm" className="h-7 text-[11px] gap-1">
           <Plus className="h-4 w-4" />
           New Entry
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -142,11 +142,11 @@ export function JournalView() {
                               isExpanded && 'rotate-90'
                             )}>▶</span>
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-xs">
                             {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </TableCell>
                           <TableCell className="font-medium">{entry.description}</TableCell>
-                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
+                          <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                             {entry.reference ?? '—'}
                           </TableCell>
                           <TableCell>
@@ -161,7 +161,7 @@ export function JournalView() {
                         </TableRow>
                         {isExpanded && (
                           <TableRow key={`${entry.id}-lines`} className="bg-muted/30">
-                            <TableCell colSpan={7} className="px-8 py-3">
+                            <TableCell colSpan={7} className="px-4 py-2.5">
                               <div className="space-y-1">
                                 <Table>
                                   <TableHeader>
@@ -175,10 +175,10 @@ export function JournalView() {
                                   <TableBody>
                                     {entry.lines.map((line: JournalLine) => (
                                       <TableRow key={line.id}>
-                                        <TableCell className="font-mono text-sm">
+                                        <TableCell className="font-mono text-xs">
                                           {line.account.code} - {line.account.name}
                                         </TableCell>
-                                        <TableCell className="text-sm text-muted-foreground">
+                                        <TableCell className="text-xs text-muted-foreground">
                                           {line.narration ?? '—'}
                                         </TableCell>
                                         <TableCell className="text-right">
