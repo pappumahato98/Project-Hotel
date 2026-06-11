@@ -834,7 +834,7 @@ export function ReservationsView() {
               {searchQuery && !isSearching && (
                 <button
                   type="button"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-muted/80 hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
                   onClick={() => setSearchQuery('')}
                 >
                   <X className="size-3" strokeWidth={2.5} />
@@ -864,7 +864,7 @@ export function ReservationsView() {
               {statusFilter !== 'all' && (
                 <button
                   type="button"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-muted/80 hover:bg-muted-foreground/20 text-muted-foreground hover:text-foreground transition-colors z-10"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
                   onClick={(e) => { e.stopPropagation(); setStatusFilter('all') }}
                 >
                   <X className="size-3" strokeWidth={2.5} />
@@ -890,10 +890,12 @@ export function ReservationsView() {
                     <span>Check-in date range</span>
                   )}
                   {(dateFrom || dateTo) && (
-                    <X
-                      className="size-3 ml-auto shrink-0 opacity-50 hover:opacity-100 cursor-pointer"
+                    <span
+                      className="flex size-4 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
                       onClick={(e) => { e.stopPropagation(); clearDateRange() }}
-                    />
+                    >
+                      <X className="size-2.5" strokeWidth={2.5} />
+                    </span>
                   )}
                 </button>
               </PopoverTrigger>

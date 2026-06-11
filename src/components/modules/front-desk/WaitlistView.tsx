@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Clock, AlertTriangle, Crown, Phone, Plus, Search, Trash2,
-  BedDouble, UserPlus, Users, CheckCircle2, Filter,
+  BedDouble, UserPlus, Users, CheckCircle2, Filter, X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -373,32 +373,73 @@ export function WaitlistView() {
                   placeholder="Search by guest name..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 h-7 text-xs"
+                  className={cn('pl-8 h-7 text-xs', searchQuery && 'pr-7')}
                 />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    <X className="size-3" strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger className="w-[110px] h-7 data-[size=default]:h-7 text-xs">
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priority</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Normal">Normal</SelectItem>
-                  <SelectItem value="Low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[110px] h-7 data-[size=default]:h-7 text-xs">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Waiting">Waiting</SelectItem>
-                  <SelectItem value="Assigned">Assigned</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className={cn('w-[110px] h-7 data-[size=default]:h-7 text-xs', priorityFilter !== 'all' && 'pr-8')}>
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priority</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+                {priorityFilter !== 'all' && (
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+                    onClick={(e) => { e.stopPropagation(); setPriorityFilter('all') }}
+                  >
+                    <X className="size-3" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className={cn('w-[110px] h-7 data-[size=default]:h-7 text-xs', statusFilter !== 'all' && 'pr-8')}>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Waiting">Waiting</SelectItem>
+                    <SelectItem value="Assigned">Assigned</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                {statusFilter !== 'all' && (
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+                    onClick={(e) => { e.stopPropagation(); setStatusFilter('all') }}
+                  >
+                    <X className="size-3" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
             </div>
+            {(searchQuery || priorityFilter !== 'all' || statusFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setPriorityFilter('all'); setStatusFilter('all') }}
+                className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+                title="Clear all filters"
+              >
+                <X className="size-3.5" strokeWidth={2.5} />
+              </button>
+            )}
             <p className="text-[11px] text-muted-foreground">
               Showing {filteredWaitlist.length} of {waitlist.length}
             </p>

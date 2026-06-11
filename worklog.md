@@ -2083,3 +2083,56 @@ Stage Summary:
 - Filter bar layout: [Search(wide)] [Status+X] [Date Range] [spacer] [New Reservation] [Room Board]
 - Search now filters by: Confirmation #, Guest name, Room #, Source, Company, Amount, Room Rate
 
+---
+Task ID: clear-buttons
+Agent: Main Agent
+Task: Add red circular X clear buttons to search/filter bars across all modules
+
+Work Log:
+- Added `X` import from lucide-react to 13 files (FolioView, WaitlistView, GuestDirectoryView, StockView, VendorsView, RequisitionsView, LedgerView, JournalView, EventsView, BookingsView, WorkOrdersView, AssetRegisterView, QuickSearch)
+- Added `cn` import from @/lib/utils to files that needed it (EventsView, BookingsView, WorkOrdersView, AssetRegisterView, QuickSearch)
+- Fixed pre-existing missing `X` import in EmployeesView.tsx
+- For each search input: added conditional red circle X button (absolute positioned, right side), added `pr-7` class when search state is truthy
+- For each shadcn Select filter: wrapped in `<div className="relative">`, added conditional X button with `e.stopPropagation()` and `z-10`, added `pr-8` to SelectTrigger when filter is active
+- For each native `<select>` filter: wrapped in `<div className="relative">`, added conditional X button with `z-10`, added `appearance-none` and `pr-8` class when filter is active
+- Added standalone "clear all filters" button (size-7 red circle X) to files with multiple filters
+- Ran lint — 0 errors
+
+Stage Summary:
+- Modified: src/components/modules/front-desk/FolioView.tsx (searchQuery X button)
+- Modified: src/components/modules/front-desk/WaitlistView.tsx (searchQuery + priorityFilter + statusFilter X buttons + clear all)
+- Modified: src/components/modules/front-desk/GuestDirectoryView.tsx (searchQuery + vipFilter + floorFilter + roomTypeFilter X buttons + clear all)
+- Modified: src/components/modules/inventory/StockView.tsx (searchQuery + filterCategory X buttons + clear all)
+- Modified: src/components/modules/inventory/VendorsView.tsx (searchQuery + filterCategory X buttons + clear all)
+- Modified: src/components/modules/inventory/RequisitionsView.tsx (searchQuery + statusFilter X buttons + clear all)
+- Modified: src/components/modules/accounting/LedgerView.tsx (searchQuery + filterType X buttons + clear all)
+- Modified: src/components/modules/accounting/JournalView.tsx (searchQuery X button)
+- Modified: src/components/modules/events/EventsView.tsx (searchQuery + filterStatus + filterType X buttons + clear all)
+- Modified: src/components/modules/channel-manager/BookingsView.tsx (searchQuery + filterChannel X buttons + clear all)
+- Modified: src/components/modules/maintenance/WorkOrdersView.tsx (searchQuery + filterStatus + filterPriority + filterCategory X buttons + clear all)
+- Modified: src/components/modules/maintenance/AssetRegisterView.tsx (searchQuery + filterCategory X buttons + clear all)
+- Modified: src/components/modules/front-desk/QuickSearch.tsx (query X button, hidden when loading)
+- Fixed: src/components/modules/hr/EmployeesView.tsx (added missing X import)
+---
+Task ID: 9
+Agent: Main Agent
+Task: Red circular X clear buttons across entire project + sidebar collapsed click fix
+
+Work Log:
+- Fixed sidebar collapsed state navigation: when sidebar is icon-only, clicking nav items with children now navigates to first child instead of trying to toggle collapsible
+- Added useSidebar hook import to sidebar-nav.tsx, added isCollapsed detection
+- Prevented double-toggle bug: handleClick only navigates when collapsed, onOpenChange handles toggle when expanded
+- Updated 5 existing X clear buttons to red circle style: ReservationsView (search+status+date), RestaurantView (search), CalendarView (floor+BS toggle), RoomBoard (clear all), EmployeesView (clear all)
+- Standard red circle X style: bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50, rounded-full, strokeWidth={2.5}
+- Added red circle X clear buttons to 13 files missing them: FolioView, WaitlistView, GuestDirectoryView, StockView, VendorsView, RequisitionsView, LedgerView, JournalView, EventsView, BookingsView, WorkOrdersView, AssetRegisterView, QuickSearch
+- Each file: X button inside search input (absolute positioned), X buttons on filter selects (overlaid), standalone clear-all buttons where multiple filters exist
+- Search inputs get pr-7/pr-8 padding when search is active, filter selects get pr-8 when active, selects wrapped in relative div
+- Verified via agent-browser: red circular X confirmed in search box and status dropdown, sidebar collapsed navigation works (Front Desk → Operations), sidebar expand/collapse toggle works correctly
+- Lint passes clean with 0 errors
+
+Stage Summary:
+- Fixed: src/components/layout/sidebar-nav.tsx (collapsed click → navigate to first child, double-toggle fix)
+- Updated to red X: ReservationsView.tsx, RestaurantView.tsx, CalendarView.tsx, RoomBoard.tsx, EmployeesView.tsx
+- Added red X: FolioView, WaitlistView, GuestDirectoryView, StockView, VendorsView, RequisitionsView, LedgerView, JournalView, EventsView, BookingsView, WorkOrdersView, AssetRegisterView, QuickSearch.tsx
+- Total: 18 files updated with consistent red circular X clear button style
+

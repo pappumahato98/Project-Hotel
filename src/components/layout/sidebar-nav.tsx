@@ -33,6 +33,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -50,8 +51,10 @@ import { toast } from 'sonner'
 function NavGroup({ item }: { item: NavItem }) {
   const { activeModule, activeSubModule, expandedItems, toggleExpanded, navigateTo } =
     useNavigationStore()
+  const { state: sidebarState } = useSidebar()
   const isExpanded = expandedItems.includes(item.id)
   const isActive = activeModule === item.id
+  const isCollapsed = sidebarState === 'collapsed'
 
   // Items without children — simple link
   if (!item.children) {
@@ -69,11 +72,20 @@ function NavGroup({ item }: { item: NavItem }) {
     )
   }
 
+  // When sidebar is collapsed, clicking navigates to the first child instead of toggling collapsible
+  const handleClick = () => {
+    if (isCollapsed) {
+      const firstChild = item.children[0]
+      navigateTo(item.id, firstChild?.id)
+    }
+    // When expanded, CollapsibleTrigger's onOpenChange handles the toggle
+  }
+
   // Items with children — collapsible
   return (
     <Collapsible
       open={isExpanded}
-      onOpenChange={() => toggleExpanded(item.id)}
+      onOpenChange={() => { if (!isCollapsed) toggleExpanded(item.id) }}
       className="group/collapsible"
     >
       <SidebarMenuItem>
@@ -81,6 +93,7 @@ function NavGroup({ item }: { item: NavItem }) {
           <SidebarMenuButton
             tooltip={item.label}
             isActive={isActive}
+            onClick={handleClick}
             className={cn(
               'transition-colors',
               isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'

@@ -401,10 +401,14 @@ function FilterBar({
       </Select>
 
       {hasFilters && (
-        <Button variant="ghost" size="sm" onClick={onReset} className="h-7 gap-1 text-[11px]">
-          <X className="size-3" />
-          Clear
-        </Button>
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+          title="Clear all filters"
+        >
+          <X className="size-3.5" strokeWidth={2.5} />
+        </button>
       )}
     </div>
   )

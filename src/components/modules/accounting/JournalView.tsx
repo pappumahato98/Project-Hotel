@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
-import { Plus, Search, FileText } from 'lucide-react'
+import { Plus, Search, FileText, X } from 'lucide-react'
 import { useState, Fragment } from 'react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatNPR } from '@/lib/utils'
@@ -88,8 +88,17 @@ export function JournalView() {
             placeholder="Search entries..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className={cn('pl-9', searchQuery && 'pr-7')}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
       </div>
 

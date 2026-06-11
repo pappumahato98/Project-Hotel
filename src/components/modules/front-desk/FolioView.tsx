@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
   ArrowLeft, ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
-  StickyNote, XCircle, Activity, CircleAlert, Ban,
+  StickyNote, XCircle, Activity, CircleAlert, Ban, X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -565,9 +565,18 @@ export function FolioView() {
             placeholder="Search by guest name, room number, or confirmation #..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-8"
+            className={cn('pl-9 h-8', searchQuery && !searchLoading && 'pr-7')}
             onFocus={() => { setDropdownForceClose(false) }}
           />
+          {searchQuery && !searchLoading && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
           {searchLoading && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />

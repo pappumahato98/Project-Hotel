@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, BookOpen } from 'lucide-react'
+import { Search, BookOpen, X } from 'lucide-react'
 import { useState, Fragment } from 'react'
 import { formatNPR } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -101,21 +101,51 @@ export function LedgerView() {
             placeholder="Search accounts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className={cn('pl-9', searchQuery && 'pr-7')}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="h-7 rounded-md border bg-background px-3 text-xs"
-        >
-          <option value="">All Types</option>
-          <option value="asset">Asset</option>
-          <option value="liability">Liability</option>
-          <option value="equity">Equity</option>
-          <option value="revenue">Revenue</option>
-          <option value="expense">Expense</option>
-        </select>
+        <div className="relative">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className={cn('h-7 rounded-md border bg-background px-3 text-xs appearance-none', filterType && 'pr-8')}
+          >
+            <option value="">All Types</option>
+            <option value="asset">Asset</option>
+            <option value="liability">Liability</option>
+            <option value="equity">Equity</option>
+            <option value="revenue">Revenue</option>
+            <option value="expense">Expense</option>
+          </select>
+          {filterType && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterType('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {(searchQuery || filterType) && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setFilterType('') }}
+            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+            title="Clear all filters"
+          >
+            <X className="size-3.5" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {/* Accounts Table */}

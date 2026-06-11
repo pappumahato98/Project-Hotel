@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Search, User, BedDouble, CalendarCheck, Loader2 } from 'lucide-react'
+import { Search, User, BedDouble, CalendarCheck, Loader2, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useNavigationStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 interface SearchResult {
   type: string
@@ -98,8 +99,17 @@ export function QuickSearch() {
             setOpen(true)
           }}
           onFocus={() => setOpen(true)}
-          className="pl-9 pr-3 h-9"
+          className={cn('pl-9 pr-3 h-9', query && !loading && 'pr-7')}
         />
+        {query && !loading && (
+          <button
+            type="button"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+            onClick={() => setQuery('')}
+          >
+            <X className="size-3" strokeWidth={2.5} />
+          </button>
+        )}
         {loading && (
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
         )}

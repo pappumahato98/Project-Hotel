@@ -21,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Search, Users, Plus, Pencil, Trash2, Building2, DollarSign, UserCheck, UserX } from 'lucide-react'
+import { Search, Users, Plus, Pencil, Trash2, Building2, DollarSign, UserCheck, UserX, X } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDateShort } from '@/lib/format'
 
@@ -369,9 +369,14 @@ export function EmployeesView() {
           <option value="terminated">Terminated</option>
         </select>
         {(filterDept || filterStatus || searchQuery) && (
-          <Button variant="ghost" size="sm" onClick={() => { setFilterDept(''); setFilterStatus(''); setSearchQuery('') }}>
-            Clear
-          </Button>
+          <button
+            type="button"
+            onClick={() => { setFilterDept(''); setFilterStatus(''); setSearchQuery('') }}
+            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+            title="Clear all filters"
+          >
+            <X className="size-3.5" strokeWidth={2.5} />
+          </button>
         )}
       </div>
 

@@ -10,9 +10,9 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, Wrench, CheckCircle, AlertTriangle, DollarSign } from 'lucide-react'
+import { Search, Wrench, CheckCircle, AlertTriangle, DollarSign, X } from 'lucide-react'
 import { useState } from 'react'
-import { formatNPR } from '@/lib/utils'
+import { formatNPR, cn } from '@/lib/utils'
 
 interface Asset {
   id: string
@@ -119,19 +119,49 @@ export function AssetRegisterView() {
             placeholder="Search assets..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 text-xs pl-9"
+            className={cn('h-7 text-xs pl-9', searchQuery && 'pr-7')}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="h-7 rounded-md border bg-background px-3 text-xs"
-        >
-          <option value="">All Categories</option>
-          {data?.categories?.map((cat: string) => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className={cn('h-7 rounded-md border bg-background px-3 text-xs appearance-none', filterCategory && 'pr-8')}
+          >
+            <option value="">All Categories</option>
+            {data?.categories?.map((cat: string) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          {filterCategory && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterCategory('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {(searchQuery || filterCategory) && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setFilterCategory('') }}
+            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+            title="Clear all filters"
+          >
+            <X className="size-3.5" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {/* Assets Table */}

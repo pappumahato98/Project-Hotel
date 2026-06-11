@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import {
   Search, Phone, MessageSquare, Receipt, Bell, Users, Crown,
   Star, Globe, Mail, CalendarDays, BedDouble, Building,
-  Sparkles, UserCheck,
+  Sparkles, UserCheck, X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -357,49 +357,101 @@ export function GuestDirectoryView() {
                 placeholder="Search name, room, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-7 text-xs"
+                className={cn('pl-8 h-7 text-xs', searchQuery && 'pr-7')}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="size-3" strokeWidth={2.5} />
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Select value={vipFilter} onValueChange={setVipFilter}>
-                <SelectTrigger className="w-[100px] h-7 data-[size=default]:h-7 text-xs">
-                  <SelectValue placeholder="VIP Level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All VIP</SelectItem>
-                  <SelectItem value="platinum">Platinum</SelectItem>
-                  <SelectItem value="gold">Gold</SelectItem>
-                  <SelectItem value="silver">Silver</SelectItem>
-                  <SelectItem value="none">Regular</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={floorFilter} onValueChange={setFloorFilter}>
-                <SelectTrigger className="w-[90px] h-7 data-[size=default]:h-7 text-xs">
-                  <SelectValue placeholder="Floor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Floors</SelectItem>
-                  {floors.map((floor) => (
-                    <SelectItem key={floor} value={String(floor)}>
-                      Floor {floor}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
-                <SelectTrigger className="w-[110px] h-7 data-[size=default]:h-7 text-xs">
-                  <SelectValue placeholder="Room Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {roomTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <Select value={vipFilter} onValueChange={setVipFilter}>
+                  <SelectTrigger className={cn('w-[100px] h-7 data-[size=default]:h-7 text-xs', vipFilter !== 'all' && 'pr-8')}>
+                    <SelectValue placeholder="VIP Level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All VIP</SelectItem>
+                    <SelectItem value="platinum">Platinum</SelectItem>
+                    <SelectItem value="gold">Gold</SelectItem>
+                    <SelectItem value="silver">Silver</SelectItem>
+                    <SelectItem value="none">Regular</SelectItem>
+                  </SelectContent>
+                </Select>
+                {vipFilter !== 'all' && (
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+                    onClick={(e) => { e.stopPropagation(); setVipFilter('all') }}
+                  >
+                    <X className="size-3" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Select value={floorFilter} onValueChange={setFloorFilter}>
+                  <SelectTrigger className={cn('w-[90px] h-7 data-[size=default]:h-7 text-xs', floorFilter !== 'all' && 'pr-8')}>
+                    <SelectValue placeholder="Floor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Floors</SelectItem>
+                    {floors.map((floor) => (
+                      <SelectItem key={floor} value={String(floor)}>
+                        Floor {floor}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {floorFilter !== 'all' && (
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+                    onClick={(e) => { e.stopPropagation(); setFloorFilter('all') }}
+                  >
+                    <X className="size-3" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
+                  <SelectTrigger className={cn('w-[110px] h-7 data-[size=default]:h-7 text-xs', roomTypeFilter !== 'all' && 'pr-8')}>
+                    <SelectValue placeholder="Room Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {roomTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {roomTypeFilter !== 'all' && (
+                  <button
+                    type="button"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+                    onClick={(e) => { e.stopPropagation(); setRoomTypeFilter('all') }}
+                  >
+                    <X className="size-3" strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
             </div>
+            {(searchQuery || vipFilter !== 'all' || floorFilter !== 'all' || roomTypeFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(''); setVipFilter('all'); setFloorFilter('all'); setRoomTypeFilter('all') }}
+                className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+                title="Clear all filters"
+              >
+                <X className="size-3.5" strokeWidth={2.5} />
+              </button>
+            )}
             <p className="text-[11px] text-muted-foreground">
               Showing {filteredGuests.length} of {totalGuests}
             </p>

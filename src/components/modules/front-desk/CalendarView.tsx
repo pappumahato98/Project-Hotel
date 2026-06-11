@@ -1359,8 +1359,8 @@ export function CalendarView() {
                     className="inline-flex items-center gap-1 h-7 pl-2 pr-1.5 text-[11px] font-medium rounded-full bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
                   >
                     <span>Floor {floorFilter}</span>
-                    <span className="flex size-4.5 items-center justify-center rounded-full bg-blue-200 dark:bg-blue-800 hover:bg-blue-300 dark:hover:bg-blue-700 transition-colors">
-                      <X className="size-2.5" />
+                    <span className="flex size-4.5 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                      <X className="size-2.5" strokeWidth={2.5} />
                     </span>
                   </button>
                 </TooltipTrigger>
@@ -1401,8 +1401,8 @@ export function CalendarView() {
                 >
                   <span>{showBSDates ? 'बि.सं' : 'AD'}</span>
                   {showBSDates && (
-                    <span className="flex size-4.5 items-center justify-center rounded-full bg-amber-200 dark:bg-amber-800 hover:bg-amber-300 dark:hover:bg-amber-700 transition-colors">
-                      <X className="size-2.5" />
+                    <span className="flex size-4.5 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">
+                      <X className="size-2.5" strokeWidth={2.5} />
                     </span>
                   )}
                 </Button>

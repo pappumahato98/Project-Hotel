@@ -300,21 +300,51 @@ export function RequisitionsView() {
             placeholder="Search by requestor or department..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 text-xs pl-9"
+            className={cn('h-7 text-xs pl-9', searchQuery && 'pr-7')}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px] h-7 text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="received">Received</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="relative">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className={cn('w-[130px] h-7 text-xs', statusFilter !== 'all' && 'pr-8')}>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="received">Received</SelectItem>
+            </SelectContent>
+          </Select>
+          {statusFilter !== 'all' && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={(e) => { e.stopPropagation(); setStatusFilter('all') }}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {(searchQuery || statusFilter !== 'all') && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setStatusFilter('all') }}
+            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+            title="Clear all filters"
+          >
+            <X className="size-3.5" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {/* Requisitions Table */}

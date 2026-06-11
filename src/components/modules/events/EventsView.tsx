@@ -13,10 +13,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { Search, DollarSign, CalendarDays, Users, MapPin } from 'lucide-react'
+import { Search, DollarSign, CalendarDays, Users, MapPin, X } from 'lucide-react'
 import { useState } from 'react'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatNPR } from '@/lib/utils'
+import { formatNPR, cn } from '@/lib/utils'
 
 interface EventItem {
   id: string
@@ -148,33 +148,74 @@ export function EventsView() {
             placeholder="Search events..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-7 text-xs"
+            className={cn('pl-8 h-7 text-xs', searchQuery && 'pr-7')}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="h-7 rounded-md border bg-background px-2.5 text-[11px]"
-        >
-          <option value="">All Status</option>
-          <option value="tentative">Tentative</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="h-7 rounded-md border bg-background px-2.5 text-[11px]"
-        >
-          <option value="">All Types</option>
-          <option value="corporate">Corporate</option>
-          <option value="wedding">Wedding</option>
-          <option value="birthday">Birthday</option>
-          <option value="conference">Conference</option>
-          <option value="meeting">Meeting</option>
-        </select>
+        <div className="relative">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={cn('h-7 rounded-md border bg-background px-2.5 text-[11px] appearance-none', filterStatus && 'pr-8')}
+          >
+            <option value="">All Status</option>
+            <option value="tentative">Tentative</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          {filterStatus && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterStatus('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className={cn('h-7 rounded-md border bg-background px-2.5 text-[11px] appearance-none', filterType && 'pr-8')}
+          >
+            <option value="">All Types</option>
+            <option value="corporate">Corporate</option>
+            <option value="wedding">Wedding</option>
+            <option value="birthday">Birthday</option>
+            <option value="conference">Conference</option>
+            <option value="meeting">Meeting</option>
+          </select>
+          {filterType && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterType('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {(searchQuery || filterStatus || filterType) && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setFilterStatus(''); setFilterType('') }}
+            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+            title="Clear all filters"
+          >
+            <X className="size-3.5" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {/* Events Table */}

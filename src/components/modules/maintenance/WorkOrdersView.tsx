@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, AlertTriangle, Wrench, Clock, CheckCircle, ArrowRight } from 'lucide-react'
+import { Search, AlertTriangle, Wrench, Clock, CheckCircle, ArrowRight, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { useState } from 'react'
 
 interface WorkOrder {
@@ -113,45 +114,97 @@ export function WorkOrdersView() {
             placeholder="Search work orders..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className={cn('pl-9', searchQuery && 'pr-7')}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">All Status</option>
-          <option value="open">Open</option>
-          <option value="assigned">Assigned</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="closed">Closed</option>
-        </select>
-        <select
-          value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">All Priority</option>
-          <option value="emergency">Emergency</option>
-          <option value="high">High</option>
-          <option value="normal">Normal</option>
-          <option value="low">Low</option>
-        </select>
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
-        >
-          <option value="">All Categories</option>
-          <option value="electrical">Electrical</option>
-          <option value="plumbing">Plumbing</option>
-          <option value="hvac">HVAC</option>
-          <option value="furniture">Furniture</option>
-          <option value="painting">Painting</option>
-          <option value="general">General</option>
-        </select>
+        <div className="relative">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={cn('h-9 rounded-md border bg-background px-3 text-sm appearance-none', filterStatus && 'pr-8')}
+          >
+            <option value="">All Status</option>
+            <option value="open">Open</option>
+            <option value="assigned">Assigned</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="closed">Closed</option>
+          </select>
+          {filterStatus && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterStatus('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <select
+            value={filterPriority}
+            onChange={(e) => setFilterPriority(e.target.value)}
+            className={cn('h-9 rounded-md border bg-background px-3 text-sm appearance-none', filterPriority && 'pr-8')}
+          >
+            <option value="">All Priority</option>
+            <option value="emergency">Emergency</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
+          {filterPriority && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterPriority('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        <div className="relative">
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className={cn('h-9 rounded-md border bg-background px-3 text-sm appearance-none', filterCategory && 'pr-8')}
+          >
+            <option value="">All Categories</option>
+            <option value="electrical">Electrical</option>
+            <option value="plumbing">Plumbing</option>
+            <option value="hvac">HVAC</option>
+            <option value="furniture">Furniture</option>
+            <option value="painting">Painting</option>
+            <option value="general">General</option>
+          </select>
+          {filterCategory && (
+            <button
+              type="button"
+              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+              onClick={() => setFilterCategory('')}
+            >
+              <X className="size-3" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
+        {(searchQuery || filterStatus || filterPriority || filterCategory) && (
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setFilterStatus(''); setFilterPriority(''); setFilterCategory('') }}
+            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+            title="Clear all filters"
+          >
+            <X className="size-3.5" strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {/* Work Orders Table */}
