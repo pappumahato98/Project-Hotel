@@ -225,15 +225,15 @@ function UserProfileFooter() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer gap-2" onClick={() => navigateTo('profile')}>
+        <DropdownMenuItem className="cursor-pointer gap-2" onSelect={() => navigateTo('profile')}>
           <User className="size-4" />
           <span>My Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleSettings}>
+        <DropdownMenuItem className="cursor-pointer gap-2" onSelect={handleSettings}>
           <Settings className="size-4" />
           <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuItem className="cursor-pointer gap-2" onClick={handleToggleTheme}>
+        <DropdownMenuItem className="cursor-pointer gap-2" onSelect={handleToggleTheme}>
           {mounted && resolvedTheme === 'dark' ? (
             <>
               <Sun className="size-4 text-amber-400" />
@@ -247,7 +247,7 @@ function UserProfileFooter() {
           )}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer gap-2 text-red-600 focus:text-red-600" onClick={handleLogout}>
+        <DropdownMenuItem className="cursor-pointer gap-2 text-red-600 focus:text-red-600" onSelect={handleLogout}>
           <LogOut className="size-4" />
           <span>Log Out</span>
         </DropdownMenuItem>

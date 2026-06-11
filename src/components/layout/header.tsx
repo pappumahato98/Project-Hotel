@@ -511,7 +511,7 @@ function UserMenu() {
               <User className="mr-2 size-4" />
               My Profile
             </DropdownMenuItem>
-            <DropdownMenuItem className="cursor-pointer" onClick={() => navigateTo('settings')}>
+            <DropdownMenuItem className="cursor-pointer" onSelect={() => navigateTo('settings')}>
               <Settings className="mr-2 size-4" />
               Settings
             </DropdownMenuItem>
@@ -552,7 +552,7 @@ function UserMenu() {
           <DropdownMenuSeparator />
 
           {/* Sign Out */}
-          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onClick={handleLogout}>
+          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onSelect={handleLogout}>
             <LogOut className="mr-2 size-4" />
             Sign Out
           </DropdownMenuItem>
