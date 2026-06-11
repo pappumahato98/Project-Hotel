@@ -76,7 +76,7 @@ function toDateInputValue(dateStr: string | null | undefined): string {
 export function ProfileModule() {
   const { user } = useAuthStore()
   const initials = user
-    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
     : 'U'
 
   return (
@@ -282,7 +282,7 @@ function PersonalInfoTab() {
   }
 
   const initials = user
-    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
     : 'U'
 
   return (

@@ -72,28 +72,40 @@ function NavGroup({ item }: { item: NavItem }) {
     )
   }
 
-  // When sidebar is collapsed, clicking navigates to the first child instead of toggling collapsible
-  const handleClick = () => {
-    if (isCollapsed) {
-      const firstChild = item.children[0]
-      navigateTo(item.id, firstChild?.id)
-    }
-    // When expanded, CollapsibleTrigger's onOpenChange handles the toggle
+  // When sidebar is collapsed, render a simple button (no CollapsibleTrigger interference)
+  if (isCollapsed) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          tooltip={item.label}
+          isActive={isActive}
+          onClick={() => {
+            const firstChild = item.children[0]
+            navigateTo(item.id, firstChild?.id)
+          }}
+          className={cn(
+            'transition-colors',
+            isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
+          )}
+        >
+          <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />
+          <span>{item.label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
   }
 
-  // Items with children — collapsible
+  // Items with children — collapsible (expanded mode only)
   return (
     <Collapsible
       open={isExpanded}
-      onOpenChange={() => { if (!isCollapsed) toggleExpanded(item.id) }}
+      onOpenChange={() => toggleExpanded(item.id)}
       className="group/collapsible"
     >
       <SidebarMenuItem>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton
-            tooltip={item.label}
             isActive={isActive}
-            onClick={handleClick}
             className={cn(
               'transition-colors',
               isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
@@ -155,10 +167,10 @@ function UserProfileFooter() {
   React.useEffect(() => setMounted(true), [])
 
   const initials = user
-    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
     : '??'
 
-  const displayName = user ? `${user.firstName} ${user.lastName}` : 'Unknown User'
+  const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User'
   const displayRole = user?.position || 'Staff'
 
   const handleLogout = () => {

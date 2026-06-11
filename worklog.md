@@ -2136,3 +2136,58 @@ Stage Summary:
 - Added red X: FolioView, WaitlistView, GuestDirectoryView, StockView, VendorsView, RequisitionsView, LedgerView, JournalView, EventsView, BookingsView, WorkOrdersView, AssetRegisterView, QuickSearch.tsx
 - Total: 18 files updated with consistent red circular X clear button style
 
+---
+Task ID: 3a
+Agent: Main Agent
+Task: Fix Console TypeError: Cannot read properties of undefined (reading 'charAt')
+
+Work Log:
+- Searched all .charAt() usage across the project
+- Identified root cause: user.firstName/lastName could be undefined from stale Zustand persisted state
+- Fixed 6 files: sidebar-nav.tsx (line 158), header.tsx (lines 172, 412), ProfileModule.tsx (lines 79, 285), SettingsModule.tsx (line 1636)
+- Changed pattern from `user.firstName.charAt(0)` to `(user.firstName || '').charAt(0)`
+- Also fixed status-badge.tsx formatStatusLabel to handle null/undefined input
+- Fixed broken string literal in header.tsx line 172 (missing closing quote)
+
+Stage Summary:
+- All charAt calls on user properties now have null safety
+- No more "Cannot read properties of undefined (reading 'charAt')" errors
+- Verified with lint (clean) and agent-browser (no console errors)
+
+---
+Task ID: 3b
+Agent: Main Agent
+Task: Verify X clear buttons already have red circular style across entire project
+
+Work Log:
+- Searched for all X clear button instances across the project
+- Found 47 X clear buttons across 18 files
+- All instances already use red circular style: `bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50`
+- 4 patterns identified: A (inline search), B (inline filter), C (clear-all), D (pill/chip)
+- No changes needed — red circular style was already applied in previous session
+
+Stage Summary:
+- All 47 X clear buttons confirmed to have consistent red circular styling
+- 100% consistent on color tokens, strokeWidth=2.5, rounded-full
+
+---
+Task ID: 3c
+Agent: Main Agent
+Task: Fix sidebar collapsed state - icons not clickable when sidebar is collapsed
+
+Work Log:
+- Analyzed sidebar architecture: shadcn/ui SidebarProvider + Zustand navigationStore
+- Identified root cause: CollapsibleTrigger asChild was intercepting clicks when sidebar collapsed
+- When collapsed, items with children wrapped in CollapsibleTrigger wouldn't properly fire onClick
+- Fixed by conditionally rendering: when collapsed, render simple SidebarMenuButton (no CollapsibleTrigger)
+- When expanded, continue using CollapsibleTrigger for accordion behavior
+- Also fixed SidebarContent overflow: changed from `overflow-hidden` to `overflow-x-hidden overflow-y-auto` when collapsed (prevents nav items from being clipped on short viewports)
+- Removed unused handleClick function
+
+Stage Summary:
+- Sidebar collapse navigation now works correctly for all items
+- Items without children: direct onClick (unchanged, always worked)
+- Items with children when collapsed: simple button with navigateTo(firstChild) — bypasses CollapsibleTrigger
+- Items with children when expanded: CollapsibleTrigger + Collapsible for accordion (unchanged)
+- Verified with agent-browser: Front Desk, Dashboard, Room Management all navigate correctly when collapsed
+- No console errors after fix

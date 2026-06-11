@@ -169,7 +169,7 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
     }
   }
 
-  const initials = user ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` : '??'
+  const initials = user ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}` : '??'
 
   const roleColorMap: Record<string, string> = {
     admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
@@ -409,10 +409,10 @@ function UserMenu() {
   React.useEffect(() => setMounted(true), [])
 
   const initials = user
-    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`
+    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
     : '??'
 
-  const displayName = user ? `${user.firstName} ${user.lastName}` : 'Unknown User'
+  const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User'
   const displayRole = user?.position || 'Staff'
   const displayDept = user?.department || 'Management'
 

@@ -1633,7 +1633,7 @@ function SecurityTab() {
         <CardContent className="space-y-3">
           <div className="flex items-center gap-4 py-2">
             <div className={cn('flex size-12 items-center justify-center rounded-full text-white font-semibold text-sm', 'bg-gradient-to-br from-amber-500 to-amber-700')}>
-              {user?.firstName.charAt(0)}{user?.lastName.charAt(0)}
+              {(user?.firstName || '').charAt(0)}{(user?.lastName || '').charAt(0)}
             </div>
             <div>
               <div className="flex items-center gap-2">

@@ -56,9 +56,10 @@ const STATUS_COLOR_MAP: Record<string, string> = {
 }
 
 function formatStatusLabel(status: string): string {
+  if (!status) return ''
   return status
     .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word) => (word || '').charAt(0).toUpperCase() + (word || '').slice(1).toLowerCase())
     .join(' ')
 }
 
