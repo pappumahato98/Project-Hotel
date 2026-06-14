@@ -167,9 +167,9 @@ export async function POST(request: Request) {
     if (!room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
-    if (!['vacant_clean', 'vacant_dirty'].includes(room.status)) {
+    if (!['vacant_clean', 'vacant_dirty', 'inspected'].includes(room.status)) {
       return NextResponse.json(
-        { error: `Room ${room.number} is not available (status: ${room.status})` },
+        { error: `Room ${room.number} is not available for check-in (current status: ${room.status}). Please select a vacant or inspected room.` },
         { status: 409 },
       )
     }
@@ -206,7 +206,7 @@ export async function POST(request: Request) {
       if (!['tentative', 'confirmed'].includes(existing.status)) {
         return NextResponse.json(
           {
-            error: `Cannot check in: reservation status is "${existing.status}" (expected tentative or confirmed)`,
+            error: `This reservation is already "${existing.status}" and cannot be checked in again. Only tentative or confirmed reservations can be checked in.`,
           },
           { status: 409 },
         )
