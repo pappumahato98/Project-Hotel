@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { apiFetch } from '@/lib/api'
 import {
   UserCircle, Mail, Phone, Calendar, MapPin, Globe, CreditCard,
   Shield, Bell, History, Save, Upload, Eye, EyeOff, Lock,
@@ -203,16 +204,11 @@ function PersonalInfoTab() {
 
   const profileMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch('/api/auth/profile', {
+      return apiFetch('/api/auth/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user?.id, ...data }),
       })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error ?? 'Failed to update profile')
-      }
-      return res.json()
     },
     onSuccess: (_data, variables) => {
       // Only update fields that are actually present in variables (avoid setting undefined values)
@@ -519,9 +515,7 @@ function EmploymentDetailsTab() {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null
-      const res = await fetch(`/api/auth/profile?userId=${user.id}`)
-      if (!res.ok) throw new Error('Failed to fetch profile')
-      return res.json()
+      return apiFetch(`/api/auth/profile?userId=${user.id}`)
     },
     enabled: !!user?.id,
   })
@@ -703,7 +697,7 @@ function SecurityTab() {
 
     setIsChangingPassword(true)
     try {
-      const res = await fetch('/api/auth/password', {
+      await apiFetch('/api/auth/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -712,13 +706,8 @@ function SecurityTab() {
           newPassword: passwords.newPassword,
         }),
       })
-      const data = await res.json()
-      if (res.ok) {
-        toast.success('Password changed successfully')
-        setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      } else {
-        toast.error(data.error ?? 'Failed to change password')
-      }
+      toast.success('Password changed successfully')
+      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' })
     } catch {
       toast.error('Failed to change password')
     } finally {
@@ -729,16 +718,11 @@ function SecurityTab() {
   // Two-Factor mutation
   const twoFactorMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
-      const res = await fetch('/api/auth/profile', {
+      return apiFetch('/api/auth/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user?.id, twoFactorEnabled: enabled }),
       })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error ?? 'Failed to update 2FA setting')
-      }
-      return res.json()
     },
     onSuccess: (_data, enabled) => {
       updateUser({ twoFactorEnabled: enabled })
@@ -1320,9 +1304,7 @@ function ActivityLogTab() {
         limit: '50',
         ...(filter !== 'all' ? { module: filter } : {}),
       })
-      const res = await fetch(`/api/auth/activity-log?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch activity log')
-      return res.json()
+      return apiFetch(`/api/auth/activity-log?${params}`)
     },
     enabled: !!user?.id,
     refetchInterval: 30000,

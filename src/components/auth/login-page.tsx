@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { apiFetch } from '@/lib/api'
 import { Building2, Star, Loader2, Eye, EyeOff, Zap } from 'lucide-react'
 import { useAuthStore, useSettingsStore } from '@/lib/store'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -43,22 +44,14 @@ export function LoginPage() {
     setPassword('password123')
 
     try {
-      // Try real server login first
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
-      const res = await fetch('/api/auth/login', {
+      const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: demoEmail, password: 'password123' }),
-        signal: controller.signal,
       })
-      clearTimeout(timeoutId)
-      const data = await res.json()
-      if (res.ok) {
-        login(data.user, data.token)
-        setLoading(false)
-        return
-      }
+      login(data.user, data.token)
+      setLoading(false)
+      return
     } catch {
       // Server unreachable — use fallback
     }
@@ -75,26 +68,11 @@ export function LoginPage() {
     const trimmedEmail = email.trim().toLowerCase()
 
     try {
-      // Use AbortController with timeout to prevent infinite hang
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
-
-      const res = await fetch('/api/auth/login', {
+      const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: trimmedEmail, password }),
-        signal: controller.signal,
       })
-
-      clearTimeout(timeoutId)
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        setError(data.error || 'Login failed')
-        setLoading(false)
-        return
-      }
 
       login(data.user, data.token)
       setLoading(false)

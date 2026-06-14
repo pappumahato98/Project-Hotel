@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { apiFetch } from '@/lib/api'
 import {
   MoonStar, CheckCircle2, Circle, AlertTriangle, Play, Loader2,
   BedDouble, UtensilsCrossed, Wallet, DollarSign, Receipt,
@@ -123,9 +123,7 @@ export function NightAuditView() {
   const { data, isLoading, isError } = useQuery<NightAuditData>({
     queryKey: ['operations', 'night-audit'],
     queryFn: async () => {
-      const res = await fetch('/api/operations')
-      if (!res.ok) throw new Error('Failed to fetch night audit data')
-      const json = await res.json()
+      const json = await apiFetch<{ nightAudit: NightAuditData }>('/api/operations')
       return json.nightAudit
     },
   })
@@ -138,7 +136,7 @@ export function NightAuditView() {
 
   const auditMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/operations', {
+      return apiFetch('/api/operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -146,8 +144,6 @@ export function NightAuditView() {
           data: { startedBy: 'Ramesh K.' },
         }),
       })
-      if (!res.ok) throw new Error('Failed to start audit')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Night audit started successfully')

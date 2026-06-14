@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -288,7 +289,7 @@ export function RestrictionsView() {
 
   const { data, isLoading, error, refetch } = useQuery<RestrictionsResponse>({
     queryKey: ['rooms', 'restrictions'],
-    queryFn: () => fetch('/api/rooms').then(res => res.json()),
+    queryFn: () => apiFetch('/api/rooms'),
     staleTime: 60_000,
   })
 

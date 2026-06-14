@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -539,7 +540,7 @@ export function RoomBoard() {
   // Fetch rooms data
   const { data, isLoading, error, refetch } = useQuery<RoomsApiResponse>({
     queryKey: ['rooms', 'board'],
-    queryFn: () => fetch('/api/rooms').then(res => res.json()),
+    queryFn: () => apiFetch('/api/rooms'),
     staleTime: 30_000, // 30s stale time for near-real-time
     refetchInterval: 60_000, // Auto refresh every minute
   })

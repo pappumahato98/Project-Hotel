@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { apiFetch } from '@/lib/api'
 import {
   ArrowRightLeft, Users, ClipboardCheck, Wrench,
   UtensilsCrossed, Banknote, CreditCard, Crown, StickyNote,
@@ -78,16 +78,14 @@ export function ShiftHandoverView() {
   const { data, isLoading, isError, refetch } = useQuery<ShiftHandoverData>({
     queryKey: ['operations', 'shift-handover'],
     queryFn: async () => {
-      const res = await fetch('/api/operations')
-      if (!res.ok) throw new Error('Failed to fetch handover data')
-      const json = await res.json()
+      const json = await apiFetch<{ shiftHandover: ShiftHandoverData }>('/api/operations')
       return json.shiftHandover
     },
   })
 
   const acknowledgeMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/operations', {
+      return apiFetch('/api/operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,8 +93,6 @@ export function ShiftHandoverView() {
           data: { name: 'Supervisor' },
         }),
       })
-      if (!res.ok) throw new Error('Failed to acknowledge')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Shift handover acknowledged successfully')

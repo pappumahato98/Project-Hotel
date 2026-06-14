@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,10 +62,8 @@ const EMPTY_VENDOR_FORM = {
 type VendorForm = typeof EMPTY_VENDOR_FORM
 
 // ── API helper ────────────────────────────────────────────────
-async function fetchVendors() {
-  const res = await fetch('/api/vendors')
-  if (!res.ok) throw new Error('Failed to fetch vendors')
-  return res.json()
+function fetchVendors() {
+  return apiFetch('/api/vendors')
 }
 
 // ── Rating Stars ──────────────────────────────────────────────
@@ -129,13 +128,11 @@ export function VendorsView() {
   // ── Mutations ───────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: async (body: VendorForm) => {
-      const res = await fetch('/api/vendors', {
+      return apiFetch('/api/vendors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error('Failed to create vendor')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] })
@@ -149,13 +146,11 @@ export function VendorsView() {
   const updateMutation = useMutation({
     mutationFn: async (body: VendorForm & { id: string }) => {
       const { id, ...data } = body
-      const res = await fetch('/api/vendors', {
+      return apiFetch('/api/vendors', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...data }),
       })
-      if (!res.ok) throw new Error('Failed to update vendor')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] })
@@ -169,13 +164,11 @@ export function VendorsView() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch('/api/vendors', {
+      return apiFetch('/api/vendors', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'inactive' }),
       })
-      if (!res.ok) throw new Error('Failed to deactivate vendor')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] })

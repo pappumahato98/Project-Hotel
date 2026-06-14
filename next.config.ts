@@ -1,14 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Increase static page generation timeout for large components
   staticPageGenerationTimeout: 120,
-  // Webpack optimizations to prevent ChunkLoadError in sandbox
+  // Turbopack config (Next.js 16 default)
+  turbopack: {},
+  // Webpack fallback config
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.optimization = {
@@ -20,7 +20,6 @@ const nextConfig: NextConfig = {
           maxInitialRequests: 4,
           cacheGroups: {
             ...((config.optimization as Record<string, unknown>)?.splitChunks as Record<string, Record<string, unknown>>)?.cacheGroups,
-            // React core into its own chunk (always needed, load first)
             framework: {
               name: 'framework',
               chunks: 'all' as const,
@@ -28,7 +27,6 @@ const nextConfig: NextConfig = {
               priority: 40,
               enforce: true,
             },
-            // Socket.io into separate chunk (heavy, lazy-loaded)
             socketio: {
               name: 'socketio',
               chunks: 'all' as const,
@@ -42,11 +40,11 @@ const nextConfig: NextConfig = {
     }
     return config
   },
-  // Allow preview CDN domain for cross-origin asset loading
   allowedDevOrigins: [
     '*.space-z.ai',
+    '127.0.0.1',
+    'localhost',
   ],
-  // Increase experimental chunk timeout for slow CDN environments
   experimental: {
     cpus: 1,
   },

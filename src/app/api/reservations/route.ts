@@ -98,6 +98,7 @@ export async function GET(request: Request) {
         folios: {
           select: { id: true, balance: true, status: true },
         },
+        bookingContact: true,
       },
       orderBy: { checkIn: 'asc' },
     })
@@ -140,7 +141,9 @@ export async function POST(request: Request) {
       guestId, roomId, roomTypeId, ratePlanId, propertyId,
       adults, children, checkIn, checkOut, roomRate,
       specialRequests, source, guaranteed, company, poNumber,
-      notes, reservationType, status,
+      notes, reservationType, status, creditLimit, bookedBy,
+      // Booking contact fields
+      bookingContact,
     } = body
 
     // Validate required dates
@@ -225,11 +228,31 @@ export async function POST(request: Request) {
         poNumber: poNumber || null,
         notes: notes || null,
         reservationType: reservationType || 'individual',
-        bookedBy: 'System',
+        bookedBy: bookedBy || 'System',
+        creditLimit: creditLimit || 15000,
+        bookingContact: bookingContact ? {
+          create: {
+            contactType: bookingContact.contactType || 'person',
+            salutation: bookingContact.salutation || null,
+            firstName: bookingContact.firstName || null,
+            lastName: bookingContact.lastName || null,
+            email: bookingContact.email || null,
+            phone: bookingContact.phone || null,
+            mobile: bookingContact.mobile || null,
+            companyName: bookingContact.companyName || null,
+            companyAddress: bookingContact.companyAddress || null,
+            city: bookingContact.city || null,
+            country: bookingContact.country || null,
+            taxId: bookingContact.taxId || null,
+            website: bookingContact.website || null,
+            notes: bookingContact.notes || null,
+          }
+        } : undefined,
       },
       include: {
         guest: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, vipLevel: true } },
         room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true } } } },
+        bookingContact: true,
       },
     })
 

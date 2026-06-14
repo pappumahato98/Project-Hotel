@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import {
   UserCheck, BedDouble, AlertTriangle, Crown, KeyRound, CreditCard,
   User, Mail, Phone, Globe, MapPin, Clock, Star, FileText,
@@ -204,11 +205,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   // Fetch specific reservation by ID (if prop provided)
   const { data: specificResData, isLoading: loadingSpecific } = useQuery({
     queryKey: ['reservation', reservationId],
-    queryFn: async () => {
-      const res = await fetch(`/api/reservations/${reservationId}`)
-      if (!res.ok) throw new Error('Failed to fetch reservation')
-      return res.json()
-    },
+    queryFn: () => apiFetch(`/api/reservations/${reservationId}`),
     enabled: !!reservationId,
   })
 
@@ -217,9 +214,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
     queryKey: ['arrivals', today],
     queryFn: async () => {
       const params = new URLSearchParams({ status: 'confirmed', checkInDate: today })
-      const res = await fetch(`/api/reservations?${params.toString()}`)
-      if (!res.ok) throw new Error('Failed to fetch arrivals')
-      return res.json()
+      return apiFetch(`/api/reservations?${params.toString()}`)
     },
     enabled: !reservationId,
   })
@@ -227,11 +222,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
   // Fetch all rooms with types
   const { data: roomsData, isLoading: loadingRooms } = useQuery({
     queryKey: ['rooms', 'all'],
-    queryFn: async () => {
-      const res = await fetch('/api/rooms')
-      if (!res.ok) throw new Error('Failed to fetch rooms')
-      return res.json()
-    },
+    queryFn: () => apiFetch('/api/rooms'),
   })
 
   // ─── Derived data ──────────────────────────────────────────────
@@ -349,7 +340,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
       roomId: string
       specialRequests: string
     }) => {
-      const res = await fetch(`/api/reservations/${resId}`, {
+      return apiFetch(`/api/reservations/${resId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -358,8 +349,6 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
           specialRequests,
         }),
       })
-      if (!res.ok) throw new Error('Failed to check in guest')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['arrivals'] })

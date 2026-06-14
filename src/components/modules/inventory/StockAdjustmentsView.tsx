@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -109,10 +110,7 @@ export function StockAdjustmentsView() {
   // ── Fetch inventory items for dropdown ─────────────────────
   const { data: inventoryData } = useQuery({
     queryKey: ['inventory'],
-    queryFn: () => fetch('/api/inventory').then((r) => {
-      if (!r.ok) throw new Error('Failed to fetch')
-      return r.json()
-    }),
+    queryFn: () => apiFetch('/api/inventory'),
   })
 
   const inventoryItems: InventoryItem[] = inventoryData?.items || []
@@ -127,14 +125,11 @@ export function StockAdjustmentsView() {
       const newStock = item.currentStock + qtyChange
 
       // Update inventory item stock
-      const res = await fetch(`/api/inventory/${body.itemId}`, {
+      return apiFetch(`/api/inventory/${body.itemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentStock: newStock }),
       })
-      if (!res.ok) throw new Error('Failed to update stock')
-
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] })

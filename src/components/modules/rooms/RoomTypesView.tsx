@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -261,7 +262,7 @@ function RoomTypesSkeleton() {
 export function RoomTypesView() {
   const { data, isLoading, error, refetch } = useQuery<RoomTypesResponse>({
     queryKey: ['rooms', 'types'],
-    queryFn: () => fetch('/api/rooms').then(res => res.json()),
+    queryFn: () => apiFetch('/api/rooms'),
     staleTime: 60_000,
   })
 

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { apiFetch } from '@/lib/api'
 
 // ─── Auth State ────────────────────────────────────────────────
 interface AuthUser {
@@ -389,12 +390,9 @@ export const useSettingsStore = create<SettingsState>()(
         if (_loaded && !force) return get().settings
         set({ _loading: true })
         try {
-          const res = await fetch('/api/settings')
-          if (res.ok) {
-            const data = await res.json()
-            set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true, _loading: false })
-            return data
-          }
+          const data = await apiFetch('/api/settings')
+          set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true, _loading: false })
+          return data
         } catch (err) {
           console.error('Failed to sync settings from backend:', err)
         }
@@ -407,16 +405,13 @@ export const useSettingsStore = create<SettingsState>()(
           settings: { ...state.settings, ...updates },
         }))
         try {
-          const res = await fetch('/api/settings', {
+          const data = await apiFetch('/api/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updates),
           })
-          if (res.ok) {
-            const data = await res.json()
-            set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true })
-            return data
-          }
+          set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true })
+          return data
         } catch (err) {
           console.error('Failed to save settings to backend:', err)
         }
@@ -498,4 +493,20 @@ export const useFolioContextStore = create<FolioContextState>((set) => ({
   folioContext: null,
   setFolioContext: (ctx) => set({ folioContext: ctx }),
   clearFolioContext: () => set({ folioContext: null }),
+}))
+
+// ─── Front Desk Context State ──────────────────────
+// Used to pass context for New Reservation / Check-In flows
+interface FrontDeskContextState {
+  prefillReservationId: string | null  // reservation ID to prefill in check-in
+  setPrefillReservationId: (id: string | null) => void
+  showNewReservation: boolean
+  setShowNewReservation: (show: boolean) => void
+}
+
+export const useFrontDeskContextStore = create<FrontDeskContextState>((set) => ({
+  prefillReservationId: null,
+  setPrefillReservationId: (id) => set({ prefillReservationId: id }),
+  showNewReservation: false,
+  setShowNewReservation: (show) => set({ showNewReservation: show }),
 }))

@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import React, { useState, useMemo } from 'react'
+import { apiFetch } from '@/lib/api'
 import {
   UtensilsCrossed, Users, DollarSign, ShoppingBag, Plus, Minus,
   Trash2, Search, X, CreditCard, BedDouble, AlertTriangle, Clock, PartyPopper,
@@ -525,13 +526,11 @@ function DiscountDialog({
 
   const discountMutation = useMutation({
     mutationFn: async (data: { orderId: string; discountType: string; discountValue: number; reason?: string }) => {
-      const res = await fetch('/api/pos', {
+      return apiFetch('/api/pos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'apply_discount', ...data }),
       })
-      if (!res.ok) throw new Error('Failed to apply discount')
-      return res.json()
     },
     onSuccess: () => {
       toast.success(`Discount of ${formatNPR(calculatedDiscount)} applied successfully`)
@@ -662,13 +661,11 @@ function SplitBillDialog({
 
   const splitMutation = useMutation({
     mutationFn: async (data: { orderId: string; assignments: Record<string, number>; splitSubtotals: number[] }) => {
-      const res = await fetch('/api/pos', {
+      return apiFetch('/api/pos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'split_bill', ...data }),
       })
-      if (!res.ok) throw new Error('Failed to split bill')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Bill split successfully recorded')

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api'
 import {
   LogOut, BedDouble, Receipt, CreditCard, AlertTriangle, CheckCircle2, Printer,
   Zap, Eye, Clock, Banknote, Mail, X, ArrowRight, BedSingle,
@@ -125,9 +126,7 @@ export function DeparturesView() {
     queryKey: ['departures', today],
     queryFn: async () => {
       const params = new URLSearchParams({ status: 'checked_in', checkOutDate: today })
-      const res = await fetch(`/api/reservations?${params.toString()}`)
-      if (!res.ok) throw new Error('Failed to fetch departures')
-      return res.json()
+      return apiFetch(`/api/reservations?${params.toString()}`)
     },
     refetchInterval: 30000,
   })
@@ -152,13 +151,11 @@ export function DeparturesView() {
   // Checkout mutation
   const checkoutMutation = useMutation({
     mutationFn: async (reservationId: string) => {
-      const res = await fetch(`/api/reservations/${reservationId}`, {
+      return apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'checked_out' }),
       })
-      if (!res.ok) throw new Error('Failed to checkout')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departures'] })
@@ -170,13 +167,11 @@ export function DeparturesView() {
   // Payment mutation
   const paymentMutation = useMutation({
     mutationFn: async ({ folioId, amount, method, reference }: { folioId: string; amount: number; method: PaymentMethod; reference: string }) => {
-      const res = await fetch(`/api/folio/${folioId}`, {
+      return apiFetch(`/api/folio/${folioId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'payment', amount, method, reference }),
       })
-      if (!res.ok) throw new Error('Failed to record payment')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departures'] })
@@ -194,15 +189,14 @@ export function DeparturesView() {
   // Late checkout mutation
   const lateCheckoutMutation = useMutation({
     mutationFn: async ({ reservationId, newCheckOut, surcharge }: { reservationId: string; newCheckOut: string; surcharge: number }) => {
-      const res = await fetch(`/api/reservations/${reservationId}`, {
+      const result = await apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checkOut: newCheckOut }),
       })
-      if (!res.ok) throw new Error('Failed to update checkout time')
       // Add surcharge to folio
       if (surcharge > 0) {
-        const folioRes = await fetch(`/api/folio`, {
+        await apiFetch(`/api/folio`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -212,9 +206,8 @@ export function DeparturesView() {
             amount: surcharge,
           }),
         })
-        if (!folioRes.ok) throw new Error('Failed to add surcharge')
       }
-      return res.json()
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departures'] })
@@ -233,13 +226,12 @@ export function DeparturesView() {
     mutationFn: async (ids: string[]) => {
       const results = []
       for (let i = 0; i < ids.length; i++) {
-        const res = await fetch(`/api/reservations/${ids[i]}`, {
+        const result = await apiFetch(`/api/reservations/${ids[i]}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'checked_out' }),
         })
-        if (!res.ok) throw new Error(`Failed to checkout room ${i + 1}`)
-        results.push(await res.json())
+        results.push(result)
         toast.success(`Checked out ${i + 1} of ${ids.length} rooms...`)
       }
       return results

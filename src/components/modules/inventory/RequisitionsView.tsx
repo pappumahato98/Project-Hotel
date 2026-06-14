@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -70,10 +71,8 @@ const EMPTY_REQ_FORM = {
 type ReqForm = typeof EMPTY_REQ_FORM
 
 // ── API helpers ──────────────────────────────────────────────
-async function fetchRequisitions() {
-  const res = await fetch('/api/requisitions')
-  if (!res.ok) throw new Error('Failed to fetch requisitions')
-  return res.json()
+function fetchRequisitions() {
+  return apiFetch('/api/requisitions')
 }
 
 // ── Component ────────────────────────────────────────────────
@@ -110,7 +109,7 @@ export function RequisitionsView() {
   // ── Mutations ───────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: async (body: ReqForm) => {
-      const res = await fetch('/api/requisitions', {
+      return apiFetch('/api/requisitions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -122,8 +121,6 @@ export function RequisitionsView() {
           totalItems: body.items.filter((i) => i.name && i.quantity).length,
         }),
       })
-      if (!res.ok) throw new Error('Failed to create requisition')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['requisitions'] })
@@ -136,13 +133,11 @@ export function RequisitionsView() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...body }: { id: string; [key: string]: unknown }) => {
-      const res = await fetch('/api/requisitions', {
+      return apiFetch('/api/requisitions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...body }),
       })
-      if (!res.ok) throw new Error('Failed to update requisition')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['requisitions'] })
@@ -155,13 +150,11 @@ export function RequisitionsView() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch('/api/requisitions', {
+      return apiFetch('/api/requisitions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       })
-      if (!res.ok) throw new Error('Failed to update status')
-      return res.json()
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['requisitions'] })
@@ -173,13 +166,11 @@ export function RequisitionsView() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch('/api/requisitions', {
+      return apiFetch('/api/requisitions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status: 'rejected', notes: 'Deleted by user' }),
       })
-      if (!res.ok) throw new Error('Failed to delete requisition')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['requisitions'] })

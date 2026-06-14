@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -13,10 +14,8 @@ import { toast } from 'sonner'
 
 const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4']
 
-async function fetchAccounting() {
-  const res = await fetch('/api/accounting')
-  if (!res.ok) throw new Error('Failed to fetch accounting data')
-  return res.json()
+function fetchAccounting() {
+  return apiFetch('/api/accounting')
 }
 
 // ── Types ────────────────────────────────────────────────────

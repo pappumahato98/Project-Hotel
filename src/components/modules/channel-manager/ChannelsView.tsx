@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -25,10 +26,8 @@ interface Channel {
   mappingStatus: string
 }
 
-async function fetchChannels() {
-  const res = await fetch('/api/channels')
-  if (!res.ok) throw new Error('Failed to fetch channels')
-  return res.json()
+function fetchChannels() {
+  return apiFetch('/api/channels')
 }
 
 export function ChannelsView() {

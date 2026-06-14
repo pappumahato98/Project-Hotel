@@ -1,5 +1,6 @@
 'use client'
 
+import { apiFetch } from '@/lib/api'
 import React, { useState, useMemo, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -159,9 +160,7 @@ export function InHouseView() {
   const { data, isLoading } = useQuery({
     queryKey: ['in-house'],
     queryFn: async () => {
-      const res = await fetch('/api/reservations?status=checked_in')
-      if (!res.ok) throw new Error('Failed to fetch in-house guests')
-      return res.json()
+      return apiFetch('/api/reservations?status=checked_in')
     },
     refetchInterval: 30000,
   })
@@ -172,10 +171,8 @@ export function InHouseView() {
   const { data: vacantRoomsData } = useQuery({
     queryKey: ['vacant-rooms'],
     queryFn: async () => {
-      const res = await fetch('/api/rooms?status=vacant_clean')
-      if (!res.ok) throw new Error('Failed to fetch available rooms')
-      const json = await res.json()
-      return (json.rooms || []) as VacantRoom[]
+      const json = await apiFetch('/api/rooms?status=vacant_clean') as { rooms?: VacantRoom[] }
+      return (json.rooms || [])
     },
     enabled: transferDialogOpen,
   })
@@ -222,7 +219,7 @@ export function InHouseView() {
       const taxAmount = amount * taxRate
       const totalAmount = amount + taxAmount
 
-      const res = await fetch(`/api/folio/${folioId}`, {
+      return apiFetch(`/api/folio/${folioId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,8 +231,6 @@ export function InHouseView() {
           totalAmount,
         }),
       })
-      if (!res.ok) throw new Error('Failed to post charge')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['in-house'] })
@@ -252,13 +247,11 @@ export function InHouseView() {
   const transferRoomMutation = useMutation({
     mutationFn: async ({ reservationId, newRoomId }: { reservationId: string; newRoomId: string }) => {
       // Step 1: Update reservation with new room
-      const res = await fetch(`/api/reservations/${reservationId}`, {
+      return apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomId: newRoomId }),
       })
-      if (!res.ok) throw new Error('Failed to transfer room')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['in-house'] })
@@ -277,13 +270,11 @@ export function InHouseView() {
     mutationFn: async ({
       reservationId, checkOut, totalAmount,
     }: { reservationId: string; checkOut: string; totalAmount: number }) => {
-      const res = await fetch(`/api/reservations/${reservationId}`, {
+      return apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checkOut: new Date(checkOut).toISOString(), totalAmount }),
       })
-      if (!res.ok) throw new Error('Failed to extend stay')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['in-house'] })
@@ -299,7 +290,7 @@ export function InHouseView() {
   // ── Early checkout mutation ───────────────────────────────
   const earlyCheckoutMutation = useMutation({
     mutationFn: async ({ reservationId, checkOut }: { reservationId: string; checkOut: string }) => {
-      const res = await fetch(`/api/reservations/${reservationId}`, {
+      return apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -307,8 +298,6 @@ export function InHouseView() {
           status: 'checked_out',
         }),
       })
-      if (!res.ok) throw new Error('Failed to process early checkout')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['in-house'] })
@@ -325,13 +314,11 @@ export function InHouseView() {
   // ── Add note mutation ──────────────────────────────────────
   const addNoteMutation = useMutation({
     mutationFn: async ({ reservationId, notes }: { reservationId: string; notes: string }) => {
-      const res = await fetch(`/api/reservations/${reservationId}`, {
+      return apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes }),
       })
-      if (!res.ok) throw new Error('Failed to add note')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['in-house'] })
@@ -370,7 +357,7 @@ export function InHouseView() {
     if (!folioId) {
       // Auto-create folio for this reservation
       try {
-        const res = await fetch('/api/folio', {
+        const data = await apiFetch('/api/folio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -379,7 +366,6 @@ export function InHouseView() {
             folioType: 'guest',
           }),
         })
-        const data = await res.json()
         folioId = data.folio?.id
         if (!folioId) throw new Error('Folio creation failed')
         toast.info('Folio auto-created for this guest')

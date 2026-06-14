@@ -1,5 +1,6 @@
 'use client'
 
+import { apiFetch } from '@/lib/api'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import {
@@ -40,7 +41,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useNavigationStore, useSettingsStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore, useFrontDeskContextStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -241,6 +242,7 @@ export function ReservationsView() {
   const queryClient = useQueryClient()
   const { navigateTo } = useNavigationStore()
   const { settings } = useSettingsStore()
+  const { setPrefillReservationId, setShowNewReservation } = useFrontDeskContextStore()
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFrom, setDateFrom] = useState('')
@@ -517,12 +519,9 @@ export function ReservationsView() {
   // ─── Handlers ────────────────────────────────────────────────────────
 
   const handleCheckIn = (reservation: Reservation) => {
-    if (reservation.roomId) {
-      updateMutation.mutate({ id: reservation.id, status: 'checked_in', roomId: reservation.roomId })
-    } else {
-      updateMutation.mutate({ id: reservation.id, status: 'checked_in' })
-    }
-    toast.success(`Guest checked in — ${reservation.guest?.firstName} ${reservation.guest?.lastName}`)
+    // Navigate to the 4-step Check-In Wizard with prefill
+    setPrefillReservationId(reservation.id)
+    navigateTo('front-desk', 'check-in')
   }
 
   const handleCancel = (reservation: Reservation) => {
@@ -957,7 +956,7 @@ export function ReservationsView() {
             <Button
               size="sm"
               className="h-7 text-[11px] gap-1 shrink-0"
-              onClick={() => setNewResOpen(true)}
+              onClick={() => setShowNewReservation(true)}
             >
               <Plus className="size-3.5" />
               <span className="hidden sm:inline">New Reservation</span>

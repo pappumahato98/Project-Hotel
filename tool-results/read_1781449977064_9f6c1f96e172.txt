@@ -1,0 +1,1666 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+     4→     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→     5→import { apiFetch } from '@/lib/api'
+     6→     6→import {
+     7→     7→  ArrowLeft, CalendarPlus, User, Users, Building2, Plane,
+     8→     8→  BedDouble, CreditCard, FileText, Sparkles, ChevronDown,
+     9→     9→  Search, X, Loader2, CheckCircle2, AlertCircle, Phone,
+    10→    10→  Mail, Globe, MapPin, Clock, Hash, BadgePercent, Crown,
+    11→    11→  Building, Briefcase, Hotel,
+    12→    12→} from 'lucide-react'
+    13→    13→import { Button } from '@/components/ui/button'
+    14→    14→import { Input } from '@/components/ui/input'
+    15→    15→import { Label } from '@/components/ui/label'
+    16→    16→import { Textarea } from '@/components/ui/textarea'
+    17→    17→import { Checkbox } from '@/components/ui/checkbox'
+    18→    18→import { Badge } from '@/components/ui/badge'
+    19→    19→import { Separator } from '@/components/ui/separator'
+    20→    20→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    21→    21→import { Calendar } from '@/components/ui/calendar'
+    22→    22→import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+    23→    23→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    24→    24→import {
+    25→    25→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    26→    26→} from '@/components/ui/select'
+    27→    27→import { Skeleton } from '@/components/ui/skeleton'
+    28→    28→import { formatDate, formatCurrency, nightsBetween, getTodayString } from '@/lib/format'
+    29→    29→import { toast } from 'sonner'
+    30→    30→import { cn } from '@/lib/utils'
+    31→    31→import { useAuthStore } from '@/lib/store'
+    32→    32→
+    33→    33→// ─── Types ────────────────────────────────────────────────────────────────
+    34→    34→
+    35→    35→interface NewReservationPageProps {
+    36→    36→  onBack?: () => void
+    37→    37→  onCreated?: (reservation: any) => void
+    38→    38→}
+    39→    39→
+    40→    40→interface RoomData {
+    41→    41→  id: string
+    42→    42→  number: string
+    43→    43→  floor: number
+    44→    44→  wing: string | null
+    45→    45→  status: string
+    46→    46→  typeId: string
+    47→    47→  type: {
+    48→    48→    id: string
+    49→    49→    name: string
+    50→    50→    code: string
+    51→    51→    baseOccupancy: number
+    52→    52→    maxOccupancy: number
+    53→    53→    bedConfig: string
+    54→    54→    areaSqFt: number | null
+    55→    55→    view: string | null
+    56→    56→    amenities: string | null
+    57→    57→  }
+    58→    58→}
+    59→    59→
+    60→    60→interface RoomTypeData {
+    61→    61→  id: string
+    62→    62→  name: string
+    63→    63→  code: string
+    64→    64→  description: string | null
+    65→    65→  baseOccupancy: number
+    66→    66→  maxOccupancy: number
+    67→    67→  bedConfig: string
+    68→    68→  ratePlans: Array<{
+    69→    69→    id: string
+    70→    70→    name: string
+    71→    71→    code: string
+    72→    72→    baseRate: number
+    73→    73→    channel: string | null
+    74→    74→  }>
+    75→    75→  roomCount: number
+    76→    76→}
+    77→    77→
+    78→    78→interface GuestData {
+    79→    79→  id: string
+    80→    80→  firstName: string
+    81→    81→  lastName: string
+    82→    82→  email: string | null
+    83→    83→  phone: string | null
+    84→    84→  nationality: string | null
+    85→    85→  vipLevel: string
+    86→    86→  gender?: string | null
+    87→    87→  dateOfBirth?: string | null
+    88→    88→  idType?: string | null
+    89→    89→  idNumber?: string | null
+    90→    90→  address?: string | null
+    91→    91→  city?: string | null
+    92→    92→  country?: string | null
+    93→    93→}
+    94→    94→
+    95→    95→// ─── Constants ─────────────────────────────────────────────────────────────
+    96→    96→
+    97→    97→const NATIONALITIES = [
+    98→    98→  'Nepal', 'India', 'China', 'USA', 'UK', 'Japan', 'Australia', 'Germany',
+    99→    99→  'France', 'Canada', 'South Korea', 'Thailand', 'Bangladesh', 'Sri Lanka',
+   100→   100→  'Malaysia', 'Singapore', 'UAE', 'Saudi Arabia', 'Netherlands', 'Italy',
+   101→   101→  'Spain', 'Switzerland', 'Russia', 'Brazil', 'Mexico', 'South Africa',
+   102→   102→  'Other',
+   103→   103→]
+   104→   104→
+   105→   105→const COUNTRIES = [
+   106→   106→  'Nepal', 'India', 'China', 'United States', 'United Kingdom', 'Japan',
+   107→   107→  'Australia', 'Germany', 'France', 'Canada', 'South Korea', 'Thailand',
+   108→   108→  'Bangladesh', 'Sri Lanka', 'Malaysia', 'Singapore', 'UAE', 'Saudi Arabia',
+   109→   109→  'Netherlands', 'Italy', 'Spain', 'Switzerland', 'Russia', 'Brazil', 'Other',
+   110→   110→]
+   111→   111→
+   112→   112→const ID_TYPES = ['Passport', 'National ID', 'Driver\'s License']
+   113→   113→
+   114→   114→const VIP_LEVELS = [
+   115→   115→  { value: 'none', label: 'None', color: 'bg-slate-100 text-slate-700' },
+   116→   116→  { value: 'silver', label: 'Silver', color: 'bg-gray-100 text-gray-700' },
+   117→   117→  { value: 'gold', label: 'Gold', color: 'bg-amber-50 text-amber-700' },
+   118→   118→  { value: 'platinum', label: 'Platinum', color: 'bg-slate-50 text-slate-700 border border-slate-300' },
+   119→   119→]
+   120→   120→
+   121→   121→const RESERVATION_TYPES = [
+   122→   122→  { value: 'individual', label: 'Individual' },
+   123→   123→  { value: 'group', label: 'Group' },
+   124→   124→  { value: 'corporate', label: 'Corporate' },
+   125→   125→  { value: 'day_use', label: 'Day Use' },
+   126→   126→]
+   127→   127→
+   128→   128→const SOURCES = [
+   129→   129→  { value: 'direct', label: 'Direct' },
+   130→   130→  { value: 'booking_com', label: 'Booking.com' },
+   131→   131→  { value: 'expedia', label: 'Expedia' },
+   132→   132→  { value: 'walk_in', label: 'Walk-in' },
+   133→   133→  { value: 'phone', label: 'Phone' },
+   134→   134→  { value: 'email', label: 'Email' },
+   135→   135→  { value: 'corporate', label: 'Corporate' },
+   136→   136→  { value: 'travel_agent', label: 'Travel Agent' },
+   137→   137→]
+   138→   138→
+   139→   139→const VACANT_STATUSES = ['vacant_clean', 'vacant_dirty', 'inspected']
+   140→   140→
+   141→   141→const STATUS_LABELS: Record<string, string> = {
+   142→   142→  vacant_clean: 'Vacant Clean',
+   143→   143→  vacant_dirty: 'Vacant Dirty',
+   144→   144→  inspected: 'Inspected',
+   145→   145→  occupied: 'Occupied',
+   146→   146→  cleaning: 'Cleaning',
+   147→   147→  out_of_order: 'Out of Order',
+   148→   148→  on_change: 'Change Over',
+   149→   149→}
+   150→   150→
+   151→   151→const STATUS_COLORS: Record<string, string> = {
+   152→   152→  vacant_clean: 'bg-emerald-500',
+   153→   153→  vacant_dirty: 'bg-amber-500',
+   154→   154→  inspected: 'bg-teal-500',
+   155→   155→  occupied: 'bg-rose-500',
+   156→   156→  cleaning: 'bg-yellow-500',
+   157→   157→  out_of_order: 'bg-red-500',
+   158→   158→  on_change: 'bg-orange-500',
+   159→   159→}
+   160→   160→
+   161→   161→// ─── Helper ────────────────────────────────────────────────────────────────
+   162→   162→
+   163→   163→function generatePreviewConfirmation(): string {
+   164→   164→  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+   165→   165→  let result = 'MRD-'
+   166→   166→  for (let i = 0; i < 6; i++) {
+   167→   167→    result += chars.charAt(Math.floor(Math.random() * chars.length))
+   168→   168→  }
+   169→   169→  return result
+   170→   170→}
+   171→   171→
+   172→   172→// ─── Component ────────────────────────────────────────────────────────────
+   173→   173→
+   174→   174→export function NewReservationPage({ onBack, onCreated }: NewReservationPageProps) {
+   175→   175→  const user = useAuthStore((s) => s.user)
+   176→   176→  const queryClient = useQueryClient()
+   177→   177→
+   178→   178→  // ── Preview confirmation number ──
+   179→   179→  const [previewConf, setPreviewConf] = useState(generatePreviewConfirmation)
+   180→   180→
+   181→   181→  // ── Booking Contact State ──
+   182→   182→  const [bookingContactType, setBookingContactType] = useState<'person' | 'company' | 'travel_agent'>('person')
+   183→   183→  const [bookingContact, setBookingContact] = useState({
+   184→   184→    salutation: '',
+   185→   185→    firstName: '',
+   186→   186→    lastName: '',
+   187→   187→    email: '',
+   188→   188→    phone: '',
+   189→   189→    mobile: '',
+   190→   190→    companyName: '',
+   191→   191→    companyAddress: '',
+   192→   192→    city: '',
+   193→   193→    country: '',
+   194→   194→    taxId: '',
+   195→   195→    website: '',
+   196→   196→    contactPersonName: '',
+   197→   197→    agentName: '',
+   198→   198→    agencyName: '',
+   199→   199→    iataNumber: '',
+   200→   200→  })
+   201→   201→
+   202→   202→  // ── Guest State ──
+   203→   203→  const [guestSearchQuery, setGuestSearchQuery] = useState('')
+   204→   204→  const [guestSearchOpen, setGuestSearchOpen] = useState(false)
+   205→   205→  const [selectedGuest, setSelectedGuest] = useState<GuestData | null>(null)
+   206→   206→  const [createNewGuest, setCreateNewGuest] = useState(false)
+   207→   207→  const [guestFields, setGuestFields] = useState({
+   208→   208→    title: '',
+   209→   209→    firstName: '',
+   210→   210→    lastName: '',
+   211→   211→    email: '',
+   212→   212→    phone: '',
+   213→   213→    nationality: '',
+   214→   214→    dateOfBirth: '',
+   215→   215→    gender: '',
+   216→   216→    idType: '',
+   217→   217→    idNumber: '',
+   218→   218→    address: '',
+   219→   219→    city: '',
+   220→   220→    country: '',
+   221→   221→    vipLevel: 'none',
+   222→   222→  })
+   223→   223→
+   224→   224→  // ── Stay Details State ──
+   225→   225→  const [reservationType, setReservationType] = useState('individual')
+   226→   226→  const [source, setSource] = useState('direct')
+   227→   227→  const [checkInDate, setCheckInDate] = useState<string>(getTodayString())
+   228→   228→  const [checkOutDate, setCheckOutDate] = useState<string>('')
+   229→   229→  const [adults, setAdults] = useState(1)
+   230→   230→  const [children, setChildren] = useState(0)
+   231→   231→  const [roomSearchInput, setRoomSearchInput] = useState('')
+   232→   232→  const [selectedRoom, setSelectedRoom] = useState<RoomData | null>(null)
+   233→   233→  const [selectedRoomTypeId, setSelectedRoomTypeId] = useState('')
+   234→   234→  const [selectedRatePlanId, setSelectedRatePlanId] = useState('')
+   235→   235→  const [roomRate, setRoomRate] = useState<number>(0)
+   236→   236→  const [roomDropdownOpen, setRoomDropdownOpen] = useState(false)
+   237→   237→
+   238→   238→  // ── Additional Info State ──
+   239→   239→  const [specialRequests, setSpecialRequests] = useState('')
+   240→   240→  const [addCompany, setAddCompany] = useState('')
+   241→   241→  const [poNumber, setPoNumber] = useState('')
+   242→   242→  const [guaranteed, setGuaranteed] = useState(false)
+   243→   243→  const [notes, setNotes] = useState('')
+   244→   244→
+   245→   245→  // ── Validation State ──
+   246→   246→  const [errors, setErrors] = useState<Record<string, string>>({})
+   247→   247→  const [isSubmitting, setIsSubmitting] = useState(false)
+   248→   248→
+   249→   249→  // ── Refs ──
+   250→   250→  const roomDropdownRef = useRef<HTMLDivElement>(null)
+   251→   251→  const guestSearchRef = useRef<HTMLDivElement>(null)
+   252→   252→
+   253→   253→  // ── Data Fetching ──
+   254→   254→  const { data: roomsData, isLoading: roomsLoading } = useQuery({
+   255→   255→    queryKey: ['rooms-for-reservation'],
+   256→   256→    queryFn: () => apiFetch('/api/rooms'),
+   257→   257→  })
+   258→   258→
+   259→   259→  const { data: guestsData, isLoading: guestsLoading } = useQuery({
+   260→   260→    queryKey: ['guests-search', guestSearchQuery],
+   261→   261→    queryFn: async () => {
+   262→   262→      if (!guestSearchQuery.trim() || guestSearchQuery.trim().length < 2) return { guests: [] }
+   263→   263→      return apiFetch(`/api/guests?search=${encodeURIComponent(guestSearchQuery.trim())}`)
+   264→   264→    },
+   265→   265→    enabled: guestSearchQuery.trim().length >= 2,
+   266→   266→  })
+   267→   267→
+   268→   268→  // ── Derived Data ──
+   269→   269→  const rooms: RoomData[] = useMemo(() => roomsData?.rooms || [], [roomsData])
+   270→   270→  const roomTypes: RoomTypeData[] = useMemo(() => roomsData?.roomTypes || [], [roomsData])
+   271→   271→
+   272→   272→  const availableRooms = useMemo(() => {
+   273→   273→    return rooms.filter((r) => VACANT_STATUSES.includes(r.status))
+   274→   274→  }, [rooms])
+   275→   275→
+   276→   276→  const filteredRooms = useMemo(() => {
+   277→   277→    if (!roomSearchInput.trim()) return availableRooms
+   278→   278→    const q = roomSearchInput.trim().toLowerCase()
+   279→   279→    return availableRooms.filter(
+   280→   280→      (r) =>
+   281→   281→        r.number.toLowerCase().includes(q) ||
+   282→   282→        r.type.name.toLowerCase().includes(q) ||
+   283→   283→        r.floor.toString().includes(q)
+   284→   284→    )
+   285→   285→  }, [availableRooms, roomSearchInput])
+   286→   286→
+   287→   287→  const guestSearchResults: GuestData[] = useMemo(() => guestsData?.guests || [], [guestsData])
+   288→   288→
+   289→   289→  // ── Rate Plans for selected room type ──
+   290→   290→  const ratePlansForType = useMemo(() => {
+   291→   291→    if (!selectedRoomTypeId) return []
+   292→   292→    const rt = roomTypes.find((t) => t.id === selectedRoomTypeId)
+   293→   293→    return rt?.ratePlans || []
+   294→   294→  }, [roomTypes, selectedRoomTypeId])
+   295→   295→
+   296→   296→  // ── Calculated Nights ──
+   297→   297→  const nights = useMemo(() => {
+   298→   298→    if (checkInDate && checkOutDate) {
+   299→   299→      return nightsBetween(checkInDate, checkOutDate)
+   300→   300→    }
+   301→   301→    return 0
+   302→   302→  }, [checkInDate, checkOutDate])
+   303→   303→
+   304→   304→  // ── Financial Calculations ──
+   305→   305→  const taxRate = 13
+   306→   306→  const subtotal = nights * roomRate
+   307→   307→  const taxAmount = subtotal * (taxRate / 100)
+   308→   308→  const totalAmount = subtotal + taxAmount
+   309→   309→
+   310→   310→  // ── Set default check-out date when check-in changes ──
+   311→   311→  const handleCheckInChange = useCallback((date: string) => {
+   312→   312→    setCheckInDate(date)
+   313→   313→    if (date) {
+   314→   314→      const tomorrow = new Date(date)
+   315→   315→      tomorrow.setDate(tomorrow.getDate() + 1)
+   316→   316→      setCheckOutDate(tomorrow.toISOString().split('T')[0])
+   317→   317→    }
+   318→   318→  }, [])
+   319→   319→
+   320→   320→  // ── Close dropdowns on outside click ──
+   321→   321→  useEffect(() => {
+   322→   322→    function handleClickOutside(e: MouseEvent) {
+   323→   323→      if (roomDropdownRef.current && !roomDropdownRef.current.contains(e.target as Node)) {
+   324→   324→        setRoomDropdownOpen(false)
+   325→   325→      }
+   326→   326→      if (guestSearchRef.current && !guestSearchRef.current.contains(e.target as Node)) {
+   327→   327→        setGuestSearchOpen(false)
+   328→   328→      }
+   329→   329→    }
+   330→   330→    document.addEventListener('mousedown', handleClickOutside)
+   331→   331→    return () => document.removeEventListener('mousedown', handleClickOutside)
+   332→   332→  }, [])
+   333→   333→
+   334→   334→  // ── When a room is selected, auto-populate room type and rate ──
+   335→   335→  const handleRoomSelect = useCallback((room: RoomData) => {
+   336→   336→    setSelectedRoom(room)
+   337→   337→    setRoomSearchInput(room.number)
+   338→   338→    setRoomDropdownOpen(false)
+   339→   339→    setSelectedRoomTypeId(room.typeId)
+   340→   340→
+   341→   341→    // Find first rate plan for this room type and set rate
+   342→   342→    const rt = roomTypes.find((t) => t.id === room.typeId)
+   343→   343→    if (rt && rt.ratePlans.length > 0) {
+   344→   344→      setSelectedRatePlanId(rt.ratePlans[0].id)
+   345→   345→      setRoomRate(rt.ratePlans[0].baseRate)
+   346→   346→    }
+   347→   347→  }, [roomTypes])
+   348→   348→
+   349→   349→  // ── When rate plan changes, update rate ──
+   350→   350→  const handleRatePlanChange = useCallback((ratePlanId: string) => {
+   351→   351→    setSelectedRatePlanId(ratePlanId)
+   352→   352→    const plan = ratePlansForType.find((p) => p.id === ratePlanId)
+   353→   353→    if (plan) {
+   354→   354→      setRoomRate(plan.baseRate)
+   355→   355→    }
+   356→   356→  }, [ratePlansForType])
+   357→   357→
+   358→   358→  // ── When guest is selected, auto-fill ──
+   359→   359→  const handleGuestSelect = useCallback((guest: GuestData) => {
+   360→   360→    setSelectedGuest(guest)
+   361→   361→    setCreateNewGuest(false)
+   362→   362→    setGuestSearchOpen(false)
+   363→   363→    setGuestSearchQuery(`${guest.firstName} ${guest.lastName}`)
+   364→   364→    setGuestFields({
+   365→   365→      title: '',
+   366→   366→      firstName: guest.firstName,
+   367→   367→      lastName: guest.lastName,
+   368→   368→      email: guest.email || '',
+   369→   369→      phone: guest.phone || '',
+   370→   370→      nationality: guest.nationality || '',
+   371→   371→      dateOfBirth: guest.dateOfBirth ? new Date(guest.dateOfBirth).toISOString().split('T')[0] : '',
+   372→   372→      gender: guest.gender || '',
+   373→   373→      idType: guest.idType || '',
+   374→   374→      idNumber: guest.idNumber || '',
+   375→   375→      address: guest.address || '',
+   376→   376→      city: guest.city || '',
+   377→   377→      country: guest.country || '',
+   378→   378→      vipLevel: guest.vipLevel || 'none',
+   379→   379→    })
+   380→   380→  }, [])
+   381→   381→
+   382→   382→  // ── Reset guest fields when switching to new guest ──
+   383→   383→  const handleCreateNewGuestToggle = useCallback(() => {
+   384→   384→    setCreateNewGuest(true)
+   385→   385→    setSelectedGuest(null)
+   386→   386→    setGuestSearchQuery('')
+   387→   387→    setGuestFields({
+   388→   388→      title: '',
+   389→   389→      firstName: '',
+   390→   390→      lastName: '',
+   391→   391→      email: '',
+   392→   392→      phone: '',
+   393→   393→      nationality: '',
+   394→   394→      dateOfBirth: '',
+   395→   395→      gender: '',
+   396→   396→      idType: '',
+   397→   397→      idNumber: '',
+   398→   398→      address: '',
+   399→   399→      city: '',
+   400→   400→      country: '',
+   401→   401→      vipLevel: 'none',
+   402→   402→    })
+   403→   403→  }, [])
+   404→   404→
+   405→   405→  // ── Clear selected guest ──
+   406→   406→  const handleClearGuest = useCallback(() => {
+   407→   407→    setSelectedGuest(null)
+   408→   408→    setGuestSearchQuery('')
+   409→   409→    setCreateNewGuest(false)
+   410→   410→    setGuestFields({
+   411→   411→      title: '',
+   412→   412→      firstName: '',
+   413→   413→      lastName: '',
+   414→   414→      email: '',
+   415→   415→      phone: '',
+   416→   416→      nationality: '',
+   417→   417→      dateOfBirth: '',
+   418→   418→      gender: '',
+   419→   419→      idType: '',
+   420→   420→      idNumber: '',
+   421→   421→      address: '',
+   422→   422→      city: '',
+   423→   423→      country: '',
+   424→   424→      vipLevel: 'none',
+   425→   425→    })
+   426→   426→  }, [])
+   427→   427→
+   428→   428→  // ── Create Reservation Mutation ──
+   429→   429→  const createReservation = useMutation({
+   430→   430→    mutationFn: async (payload: Record<string, unknown>) => {
+   431→   431→      return apiFetch('/api/reservations', {
+   432→   432→        method: 'POST',
+   433→   433→        headers: { 'Content-Type': 'application/json' },
+   434→   434→        body: JSON.stringify(payload),
+   435→   435→      })
+   436→   436→    },
+   437→   437→    onSuccess: (data) => {
+   438→   438→      toast.success('Reservation Created', {
+   439→   439→        description: `Confirmation #${data.reservation.confirmationNo} has been created successfully.`,
+   440→   440→      })
+   441→   441→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   442→   442→      queryClient.invalidateQueries({ queryKey: ['rooms-for-reservation'] })
+   443→   443→      queryClient.invalidateQueries({ queryKey: ['guests'] })
+   444→   444→      onCreated?.(data.reservation)
+   445→   445→      setPreviewConf(generatePreviewConfirmation())
+   446→   446→    },
+   447→   447→    onError: (err: Error) => {
+   448→   448→      toast.error('Creation Failed', {
+   449→   449→        description: err.message,
+   450→   450→      })
+   451→   451→    },
+   452→   452→    onSettled: () => {
+   453→   453→      setIsSubmitting(false)
+   454→   454→    },
+   455→   455→  })
+   456→   456→
+   457→   457→  // ── Validation ──
+   458→   458→  const validate = useCallback((): boolean => {
+   459→   459→    const errs: Record<string, string> = {}
+   460→   460→
+   461→   461→    if (!guestFields.firstName.trim()) errs.guestFirstName = 'First name is required'
+   462→   462→    if (!guestFields.lastName.trim()) errs.guestLastName = 'Last name is required'
+   463→   463→
+   464→   464→    if (!checkInDate) errs.checkIn = 'Check-in date is required'
+   465→   465→    if (!checkOutDate) errs.checkOut = 'Check-out date is required'
+   466→   466→    if (checkInDate && checkOutDate && checkOutDate <= checkInDate) {
+   467→   467→      errs.checkOut = 'Check-out must be after check-in'
+   468→   468→    }
+   469→   469→
+   470→   470→    if (!selectedRoom && !selectedRoomTypeId) errs.room = 'Room or room type is required'
+   471→   471→
+   472→   472→    setErrors(errs)
+   473→   473→    return Object.keys(errs).length === 0
+   474→   474→  }, [guestFields.firstName, guestFields.lastName, checkInDate, checkOutDate, selectedRoom, selectedRoomTypeId])
+   475→   475→
+   476→   476→  // ── Submit Handler ──
+   477→   477→  const handleSubmit = useCallback(() => {
+   478→   478→    if (!validate()) {
+   479→   479→      toast.error('Validation Error', { description: 'Please fill in all required fields.' })
+   480→   480→      return
+   481→   481→    }
+   482→   482→    setIsSubmitting(true)
+   483→   483→
+   484→   484→    // Build booking contact object
+   485→   485→    const bookingContactPayload: Record<string, unknown> = {
+   486→   486→      contactType: bookingContactType,
+   487→   487→    }
+   488→   488→    if (bookingContactType === 'person') {
+   489→   489→      bookingContactPayload.salutation = bookingContact.salutation || null
+   490→   490→      bookingContactPayload.firstName = bookingContact.firstName || null
+   491→   491→      bookingContactPayload.lastName = bookingContact.lastName || null
+   492→   492→      bookingContactPayload.email = bookingContact.email || null
+   493→   493→      bookingContactPayload.phone = bookingContact.phone || null
+   494→   494→      bookingContactPayload.mobile = bookingContact.mobile || null
+   495→   495→    } else if (bookingContactType === 'company') {
+   496→   496→      bookingContactPayload.companyName = bookingContact.companyName || null
+   497→   497→      bookingContactPayload.companyAddress = bookingContact.companyAddress || null
+   498→   498→      bookingContactPayload.city = bookingContact.city || null
+   499→   499→      bookingContactPayload.country = bookingContact.country || null
+   500→   500→      bookingContactPayload.firstName = bookingContact.contactPersonName || null
+   501→   501→      bookingContactPayload.email = bookingContact.email || null
+   502→   502→      bookingContactPayload.phone = bookingContact.phone || null
+   503→   503→      bookingContactPayload.taxId = bookingContact.taxId || null
+   504→   504→      bookingContactPayload.website = bookingContact.website || null
+   505→   505→    } else if (bookingContactType === 'travel_agent') {
+   506→   506→      bookingContactPayload.firstName = bookingContact.agentName || null
+   507→   507→      bookingContactPayload.companyName = bookingContact.agencyName || null
+   508→   508→      bookingContactPayload.email = bookingContact.email || null
+   509→   509→      bookingContactPayload.phone = bookingContact.phone || null
+   510→   510→      bookingContactPayload.notes = bookingContact.iataNumber || null
+   511→   511→    }
+   512→   512→
+   513→   513→    createReservation.mutate({
+   514→   514→      guestId: selectedGuest?.id || null,
+   515→   515→      roomId: selectedRoom?.id || null,
+   516→   516→      roomTypeId: selectedRoomTypeId || null,
+   517→   517→      ratePlanId: selectedRatePlanId || null,
+   518→   518→      reservationType,
+   519→   519→      source,
+   520→   520→      checkIn: checkInDate,
+   521→   521→      checkOut: checkOutDate,
+   522→   522→      adults,
+   523→   523→      children,
+   524→   524→      roomRate,
+   525→   525→      specialRequests: specialRequests || null,
+   526→   526→      company: addCompany || null,
+   527→   527→      poNumber: poNumber || null,
+   528→   528→      guaranteed,
+   529→   529→      notes: notes || null,
+   530→   530→      bookedBy: user ? `${user.firstName} ${user.lastName}` : 'System',
+   531→   531→      bookingContact: bookingContactPayload,
+   532→   532→    })
+   533→   533→  }, [
+   534→   534→    validate, selectedGuest, selectedRoom, selectedRoomTypeId, selectedRatePlanId,
+   535→   535→    reservationType, source, checkInDate, checkOutDate, adults, children, roomRate,
+   536→   536→    specialRequests, addCompany, poNumber, guaranteed, notes, user,
+   537→   537→    bookingContactType, bookingContact, createReservation,
+   538→   538→  ])
+   539→   539→
+   540→   540→  // ── Update guest field helper ──
+   541→   541→  const updateGuestField = useCallback((field: string, value: string) => {
+   542→   542→    setGuestFields((prev) => ({ ...prev, [field]: value }))
+   543→   543→    // Clear error on change
+   544→   544→    if (errors[`guest${field}`]) {
+   545→   545→      setErrors((prev) => {
+   546→   546→        const next = { ...prev }
+   547→   547→        delete next[`guest${field}`]
+   548→   548→        return next
+   549→   549→      })
+   550→   550→    }
+   551→   551→  }, [errors])
+   552→   552→
+   553→   553→  // ──────────────────────────────────────────────────────────────────────
+   554→   554→  //  RENDER
+   555→   555→  // ──────────────────────────────────────────────────────────────────────
+   556→   556→
+   557→   557→  return (
+   558→   558→    <div className="flex flex-col h-full">
+   559→   559→      {/* ── 1. Page Header ──────────────────────────────────────────── */}
+   560→   560→      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b bg-white shrink-0">
+   561→   561→        <div className="flex items-center gap-3">
+   562→   562→          <Button variant="ghost" size="icon" onClick={onBack} className="h-9 w-9">
+   563→   563→            <ArrowLeft className="h-4 w-4" />
+   564→   564→          </Button>
+   565→   565→          <div>
+   566→   566→            <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
+   567→   567→              <CalendarPlus className="h-5 w-5 text-amber-600" />
+   568→   568→              New Reservation
+   569→   569→            </h1>
+   570→   570→            <p className="text-xs text-muted-foreground mt-0.5">
+   571→   571→              Preview: <span className="font-mono font-medium text-amber-600">{previewConf}</span>
+   572→   572→            </p>
+   573→   573→          </div>
+   574→   574→        </div>
+   575→   575→        <Button
+   576→   576→          onClick={handleSubmit}
+   577→   577→          disabled={isSubmitting}
+   578→   578→          className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+   579→   579→        >
+   580→   580→          {isSubmitting ? (
+   581→   581→            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+   582→   582→          ) : (
+   583→   583→            <CheckCircle2 className="h-4 w-4 mr-2" />
+   584→   584→          )}
+   585→   585→          Create Reservation
+   586→   586→        </Button>
+   587→   587→      </div>
+   588→   588→
+   589→   589→      {/* ── Scrollable Content ──────────────────────────────────────── */}
+   590→   590→      <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6 space-y-4">
+   591→   591→        <div className="max-w-4xl mx-auto space-y-4">
+   592→   592→
+   593→   593→          {/* ── 2. Booking Contact Section ──────────────────────────── */}
+   594→   594→          <Card>
+   595→   595→            <CardHeader className="pb-3">
+   596→   596→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   597→   597→                <Briefcase className="h-4 w-4 text-amber-600" />
+   598→   598→                Reservation Booked By
+   599→   599→              </CardTitle>
+   600→   600→            </CardHeader>
+   601→   601→            <CardContent className="pt-0">
+   602→   602→              <Tabs value={bookingContactType} onValueChange={(v) => setBookingContactType(v as typeof bookingContactType)}>
+   603→   603→                <TabsList className="h-8">
+   604→   604→                  <TabsTrigger value="person" className="text-xs px-3 h-7">
+   605→   605→                    <User className="h-3 w-3 mr-1" /> Person
+   606→   606→                  </TabsTrigger>
+   607→   607→                  <TabsTrigger value="company" className="text-xs px-3 h-7">
+   608→   608→                    <Building2 className="h-3 w-3 mr-1" /> Company
+   609→   609→                  </TabsTrigger>
+   610→   610→                  <TabsTrigger value="travel_agent" className="text-xs px-3 h-7">
+   611→   611→                    <Plane className="h-3 w-3 mr-1" /> Travel Agent
+   612→   612→                  </TabsTrigger>
+   613→   613→                </TabsList>
+   614→   614→
+   615→   615→                {/* Person Tab */}
+   616→   616→                <TabsContent value="person" className="mt-3">
+   617→   617→                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   618→   618→                    <div className="space-y-1">
+   619→   619→                      <Label className="text-xs">Salutation</Label>
+   620→   620→                      <Select
+   621→   621→                        value={bookingContact.salutation}
+   622→   622→                        onValueChange={(v) => setBookingContact((p) => ({ ...p, salutation: v }))}
+   623→   623→                      >
+   624→   624→                        <SelectTrigger className="h-8 text-xs w-full">
+   625→   625→                          <SelectValue placeholder="Select" />
+   626→   626→                        </SelectTrigger>
+   627→   627→                        <SelectContent>
+   628→   628→                          <SelectItem value="Mr">Mr</SelectItem>
+   629→   629→                          <SelectItem value="Ms">Ms</SelectItem>
+   630→   630→                          <SelectItem value="Mrs">Mrs</SelectItem>
+   631→   631→                          <SelectItem value="Dr">Dr</SelectItem>
+   632→   632→                        </SelectContent>
+   633→   633→                      </Select>
+   634→   634→                    </div>
+   635→   635→                    <div className="space-y-1">
+   636→   636→                      <Label className="text-xs">First Name</Label>
+   637→   637→                      <Input
+   638→   638→                        className="h-8 text-xs"
+   639→   639→                        value={bookingContact.firstName}
+   640→   640→                        onChange={(e) => setBookingContact((p) => ({ ...p, firstName: e.target.value }))}
+   641→   641→                        placeholder="John"
+   642→   642→                      />
+   643→   643→                    </div>
+   644→   644→                    <div className="space-y-1">
+   645→   645→                      <Label className="text-xs">Last Name</Label>
+   646→   646→                      <Input
+   647→   647→                        className="h-8 text-xs"
+   648→   648→                        value={bookingContact.lastName}
+   649→   649→                        onChange={(e) => setBookingContact((p) => ({ ...p, lastName: e.target.value }))}
+   650→   650→                        placeholder="Doe"
+   651→   651→                      />
+   652→   652→                    </div>
+   653→   653→                    <div className="space-y-1">
+   654→   654→                      <Label className="text-xs flex items-center gap-1">
+   655→   655→                        <Mail className="h-3 w-3" /> Email
+   656→   656→                      </Label>
+   657→   657→                      <Input
+   658→   658→                        className="h-8 text-xs"
+   659→   659→                        type="email"
+   660→   660→                        value={bookingContact.email}
+   661→   661→                        onChange={(e) => setBookingContact((p) => ({ ...p, email: e.target.value }))}
+   662→   662→                        placeholder="john@company.com"
+   663→   663→                      />
+   664→   664→                    </div>
+   665→   665→                    <div className="space-y-1">
+   666→   666→                      <Label className="text-xs flex items-center gap-1">
+   667→   667→                        <Phone className="h-3 w-3" /> Phone
+   668→   668→                      </Label>
+   669→   669→                      <Input
+   670→   670→                        className="h-8 text-xs"
+   671→   671→                        value={bookingContact.phone}
+   672→   672→                        onChange={(e) => setBookingContact((p) => ({ ...p, phone: e.target.value }))}
+   673→   673→                        placeholder="+977-1-..."
+   674→   674→                      />
+   675→   675→                    </div>
+   676→   676→                    <div className="space-y-1">
+   677→   677→                      <Label className="text-xs flex items-center gap-1">
+   678→   678→                        <Phone className="h-3 w-3" /> Mobile
+   679→   679→                      </Label>
+   680→   680→                      <Input
+   681→   681→                        className="h-8 text-xs"
+   682→   682→                        value={bookingContact.mobile}
+   683→   683→                        onChange={(e) => setBookingContact((p) => ({ ...p, mobile: e.target.value }))}
+   684→   684→                        placeholder="+977-98..."
+   685→   685→                      />
+   686→   686→                    </div>
+   687→   687→                  </div>
+   688→   688→                </TabsContent>
+   689→   689→
+   690→   690→                {/* Company Tab */}
+   691→   691→                <TabsContent value="company" className="mt-3">
+   692→   692→                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   693→   693→                    <div className="space-y-1">
+   694→   694→                      <Label className="text-xs">Company Name *</Label>
+   695→   695→                      <Input
+   696→   696→                        className="h-8 text-xs"
+   697→   697→                        value={bookingContact.companyName}
+   698→   698→                        onChange={(e) => setBookingContact((p) => ({ ...p, companyName: e.target.value }))}
+   699→   699→                        placeholder="Acme Corp"
+   700→   700→                      />
+   701→   701→                    </div>
+   702→   702→                    <div className="space-y-1">
+   703→   703→                      <Label className="text-xs">Company Address</Label>
+   704→   704→                      <Input
+   705→   705→                        className="h-8 text-xs"
+   706→   706→                        value={bookingContact.companyAddress}
+   707→   707→                        onChange={(e) => setBookingContact((p) => ({ ...p, companyAddress: e.target.value }))}
+   708→   708→                        placeholder="123 Business St"
+   709→   709→                      />
+   710→   710→                    </div>
+   711→   711→                    <div className="space-y-1">
+   712→   712→                      <Label className="text-xs">City</Label>
+   713→   713→                      <Input
+   714→   714→                        className="h-8 text-xs"
+   715→   715→                        value={bookingContact.city}
+   716→   716→                        onChange={(e) => setBookingContact((p) => ({ ...p, city: e.target.value }))}
+   717→   717→                        placeholder="Kathmandu"
+   718→   718→                      />
+   719→   719→                    </div>
+   720→   720→                    <div className="space-y-1">
+   721→   721→                      <Label className="text-xs">Country</Label>
+   722→   722→                      <Select
+   723→   723→                        value={bookingContact.country}
+   724→   724→                        onValueChange={(v) => setBookingContact((p) => ({ ...p, country: v }))}
+   725→   725→                      >
+   726→   726→                        <SelectTrigger className="h-8 text-xs w-full">
+   727→   727→                          <SelectValue placeholder="Select" />
+   728→   728→                        </SelectTrigger>
+   729→   729→                        <SelectContent>
+   730→   730→                          {COUNTRIES.map((c) => (
+   731→   731→                            <SelectItem key={c} value={c}>{c}</SelectItem>
+   732→   732→                          ))}
+   733→   733→                        </SelectContent>
+   734→   734→                      </Select>
+   735→   735→                    </div>
+   736→   736→                    <div className="space-y-1">
+   737→   737→                      <Label className="text-xs">Contact Person Name</Label>
+   738→   738→                      <Input
+   739→   739→                        className="h-8 text-xs"
+   740→   740→                        value={bookingContact.contactPersonName}
+   741→   741→                        onChange={(e) => setBookingContact((p) => ({ ...p, contactPersonName: e.target.value }))}
+   742→   742→                        placeholder="Jane Smith"
+   743→   743→                      />
+   744→   744→                    </div>
+   745→   745→                    <div className="space-y-1">
+   746→   746→                      <Label className="text-xs flex items-center gap-1">
+   747→   747→                        <Mail className="h-3 w-3" /> Email
+   748→   748→                      </Label>
+   749→   749→                      <Input
+   750→   750→                        className="h-8 text-xs"
+   751→   751→                        type="email"
+   752→   752→                        value={bookingContact.email}
+   753→   753→                        onChange={(e) => setBookingContact((p) => ({ ...p, email: e.target.value }))}
+   754→   754→                        placeholder="contact@company.com"
+   755→   755→                      />
+   756→   756→                    </div>
+   757→   757→                    <div className="space-y-1">
+   758→   758→                      <Label className="text-xs flex items-center gap-1">
+   759→   759→                        <Phone className="h-3 w-3" /> Phone
+   760→   760→                      </Label>
+   761→   761→                      <Input
+   762→   762→                        className="h-8 text-xs"
+   763→   763→                        value={bookingContact.phone}
+   764→   764→                        onChange={(e) => setBookingContact((p) => ({ ...p, phone: e.target.value }))}
+   765→   765→                        placeholder="+977-1-..."
+   766→   766→                      />
+   767→   767→                    </div>
+   768→   768→                    <div className="space-y-1">
+   769→   769→                      <Label className="text-xs flex items-center gap-1">
+   770→   770→                        <Hash className="h-3 w-3" /> Tax ID (VAT/PAN)
+   771→   771→                      </Label>
+   772→   772→                      <Input
+   773→   773→                        className="h-8 text-xs"
+   774→   774→                        value={bookingContact.taxId}
+   775→   775→                        onChange={(e) => setBookingContact((p) => ({ ...p, taxId: e.target.value }))}
+   776→   776→                        placeholder="123456789"
+   777→   777→                      />
+   778→   778→                    </div>
+   779→   779→                    <div className="space-y-1">
+   780→   780→                      <Label className="text-xs flex items-center gap-1">
+   781→   781→                        <Globe className="h-3 w-3" /> Website
+   782→   782→                      </Label>
+   783→   783→                      <Input
+   784→   784→                        className="h-8 text-xs"
+   785→   785→                        value={bookingContact.website}
+   786→   786→                        onChange={(e) => setBookingContact((p) => ({ ...p, website: e.target.value }))}
+   787→   787→                        placeholder="www.company.com"
+   788→   788→                      />
+   789→   789→                    </div>
+   790→   790→                  </div>
+   791→   791→                </TabsContent>
+   792→   792→
+   793→   793→                {/* Travel Agent Tab */}
+   794→   794→                <TabsContent value="travel_agent" className="mt-3">
+   795→   795→                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   796→   796→                    <div className="space-y-1">
+   797→   797→                      <Label className="text-xs">Agent Name</Label>
+   798→   798→                      <Input
+   799→   799→                        className="h-8 text-xs"
+   800→   800→                        value={bookingContact.agentName}
+   801→   801→                        onChange={(e) => setBookingContact((p) => ({ ...p, agentName: e.target.value }))}
+   802→   802→                        placeholder="Agent full name"
+   803→   803→                      />
+   804→   804→                    </div>
+   805→   805→                    <div className="space-y-1">
+   806→   806→                      <Label className="text-xs">Agency Name</Label>
+   807→   807→                      <Input
+   808→   808→                        className="h-8 text-xs"
+   809→   809→                        value={bookingContact.agencyName}
+   810→   810→                        onChange={(e) => setBookingContact((p) => ({ ...p, agencyName: e.target.value }))}
+   811→   811→                        placeholder="Travel Agency Inc."
+   812→   812→                      />
+   813→   813→                    </div>
+   814→   814→                    <div className="space-y-1">
+   815→   815→                      <Label className="text-xs flex items-center gap-1">
+   816→   816→                        <Mail className="h-3 w-3" /> Email
+   817→   817→                      </Label>
+   818→   818→                      <Input
+   819→   819→                        className="h-8 text-xs"
+   820→   820→                        type="email"
+   821→   821→                        value={bookingContact.email}
+   822→   822→                        onChange={(e) => setBookingContact((p) => ({ ...p, email: e.target.value }))}
+   823→   823→                        placeholder="agent@agency.com"
+   824→   824→                      />
+   825→   825→                    </div>
+   826→   826→                    <div className="space-y-1">
+   827→   827→                      <Label className="text-xs flex items-center gap-1">
+   828→   828→                        <Phone className="h-3 w-3" /> Phone
+   829→   829→                      </Label>
+   830→   830→                      <Input
+   831→   831→                        className="h-8 text-xs"
+   832→   832→                        value={bookingContact.phone}
+   833→   833→                        onChange={(e) => setBookingContact((p) => ({ ...p, phone: e.target.value }))}
+   834→   834→                        placeholder="+977-..."
+   835→   835→                      />
+   836→   836→                    </div>
+   837→   837→                    <div className="space-y-1">
+   838→   838→                      <Label className="text-xs flex items-center gap-1">
+   839→   839→                        <Hash className="h-3 w-3" /> IATA Number
+   840→   840→                      </Label>
+   841→   841→                      <Input
+   842→   842→                        className="h-8 text-xs"
+   843→   843→                        value={bookingContact.iataNumber}
+   844→   844→                        onChange={(e) => setBookingContact((p) => ({ ...p, iataNumber: e.target.value }))}
+   845→   845→                        placeholder="IATA-XXXXX"
+   846→   846→                      />
+   847→   847→                    </div>
+   848→   848→                  </div>
+   849→   849→                </TabsContent>
+   850→   850→              </Tabs>
+   851→   851→            </CardContent>
+   852→   852→          </Card>
+   853→   853→
+   854→   854→          {/* ── 3. Guest Information Section ───────────────────────── */}
+   855→   855→          <Card>
+   856→   856→            <CardHeader className="pb-3">
+   857→   857→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   858→   858→                <Users className="h-4 w-4 text-amber-600" />
+   859→   859→                Guest Information
+   860→   860→              </CardTitle>
+   861→   861→            </CardHeader>
+   862→   862→            <CardContent className="pt-0 space-y-3">
+   863→   863→              {/* Guest Search */}
+   864→   864→              <div className="relative" ref={guestSearchRef}>
+   865→   865→                <div className="flex items-center gap-2">
+   866→   866→                  <div className="relative flex-1">
+   867→   867→                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+   868→   868→                    <Input
+   869→   869→                      className="h-8 text-xs pl-8 pr-8"
+   870→   870→                      placeholder="Search guest by name, email, or phone..."
+   871→   871→                      value={selectedGuest && !createNewGuest ? guestSearchQuery : guestSearchQuery}
+   872→   872→                      onChange={(e) => {
+   873→   873→                        setGuestSearchQuery(e.target.value)
+   874→   874→                        setGuestSearchOpen(true)
+   875→   875→                        if (selectedGuest) setSelectedGuest(null)
+   876→   876→                      }}
+   877→   877→                      onFocus={() => setGuestSearchOpen(true)}
+   878→   878→                      disabled={createNewGuest}
+   879→   879→                    />
+   880→   880→                    {(guestSearchQuery || selectedGuest) && !createNewGuest && (
+   881→   881→                      <button
+   882→   882→                        onClick={handleClearGuest}
+   883→   883→                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+   884→   884→                      >
+   885→   885→                        <X className="h-3.5 w-3.5" />
+   886→   886→                      </button>
+   887→   887→                    )}
+   888→   888→                  </div>
+   889→   889→                  {!createNewGuest && (
+   890→   890→                    <Button variant="outline" size="sm" className="h-8 text-xs whitespace-nowrap" onClick={handleCreateNewGuestToggle}>
+   891→   891→                      <User className="h-3 w-3 mr-1" /> New Guest
+   892→   892→                    </Button>
+   893→   893→                  )}
+   894→   894→                  {createNewGuest && (
+   895→   895→                    <Button variant="outline" size="sm" className="h-8 text-xs whitespace-nowrap" onClick={handleClearGuest}>
+   896→   896→                      <Search className="h-3 w-3 mr-1" /> Search Existing
+   897→   897→                    </Button>
+   898→   898→                  )}
+   899→   899→                </div>
+   900→   900→
+   901→   901→                {/* Guest Search Dropdown */}
+   902→   902→                {guestSearchOpen && !createNewGuest && guestSearchResults.length > 0 && (
+   903→   903→                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-60 overflow-y-auto">
+   904→   904→                    {guestSearchResults.map((guest) => (
+   905→   905→                      <button
+   906→   906→                        key={guest.id}
+   907→   907→                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-accent text-left text-xs border-b last:border-0"
+   908→   908→                        onClick={() => handleGuestSelect(guest)}
+   909→   909→                      >
+   910→   910→                        <div className="flex items-center gap-2 min-w-0">
+   911→   911→                          <span className="font-medium truncate">
+   912→   912→                            {guest.firstName} {guest.lastName}
+   913→   913→                          </span>
+   914→   914→                          {guest.email && (
+   915→   915→                            <span className="text-muted-foreground truncate">{guest.email}</span>
+   916→   916→                          )}
+   917→   917→                        </div>
+   918→   918→                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+   919→   919→                          {guest.phone && <span className="text-muted-foreground">{guest.phone}</span>}
+   920→   920→                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">
+   921→   921→                            {guest.vipLevel}
+   922→   922→                          </Badge>
+   923→   923→                        </div>
+   924→   924→                      </button>
+   925→   925→                    ))}
+   926→   926→                  </div>
+   927→   927→                )}
+   928→   928→                {guestSearchOpen && !createNewGuest && guestSearchQuery.length >= 2 && guestsLoading && (
+   929→   929→                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md p-3 flex items-center justify-center">
+   930→   930→                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
+   931→   931→                    <span className="text-xs text-muted-foreground">Searching...</span>
+   932→   932→                  </div>
+   933→   933→                )}
+   934→   934→                {guestSearchOpen && !createNewGuest && guestSearchQuery.length >= 2 && !guestsLoading && guestSearchResults.length === 0 && (
+   935→   935→                  <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md p-3 text-center">
+   936→   936→                    <p className="text-xs text-muted-foreground">No guests found. Click &quot;New Guest&quot; to create one.</p>
+   937→   937→                  </div>
+   938→   938→                )}
+   939→   939→              </div>
+   940→   940→
+   941→   941→              {/* Selected Guest Indicator */}
+   942→   942→              {selectedGuest && !createNewGuest && (
+   943→   943→                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-md">
+   944→   944→                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+   945→   945→                  <span className="text-xs text-emerald-700">
+   946→   946→                    Guest selected: <strong>{selectedGuest.firstName} {selectedGuest.lastName}</strong>
+   947→   947→                    {selectedGuest.vipLevel !== 'none' && (
+   948→   948→                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-1">
+   949→   949→                        {selectedGuest.vipLevel}
+   950→   950→                      </Badge>
+   951→   951→                    )}
+   952→   952→                  </span>
+   953→   953→                </div>
+   954→   954→              )}
+   955→   955→
+   956→   956→              {createNewGuest && (
+   957→   957→                <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-md">
+   958→   958→                  <span className="text-xs text-amber-700">
+   959→   959→                    <Sparkles className="h-3 w-3 inline mr-1" />
+   960→   960→                    Creating new guest profile
+   961→   961→                  </span>
+   962→   962→                </div>
+   963→   963→              )}
+   964→   964→
+   965→   965→              <Separator />
+   966→   966→
+   967→   967→              {/* Guest Details Fields */}
+   968→   968→              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+   969→   969→                <div className="space-y-1">
+   970→   970→                  <Label className="text-xs">Title</Label>
+   971→   971→                  <Select value={guestFields.title} onValueChange={(v) => updateGuestField('title', v)}>
+   972→   972→                    <SelectTrigger className="h-8 text-xs w-full">
+   973→   973→                      <SelectValue placeholder="Select" />
+   974→   974→                    </SelectTrigger>
+   975→   975→                    <SelectContent>
+   976→   976→                      <SelectItem value="Mr">Mr</SelectItem>
+   977→   977→                      <SelectItem value="Ms">Ms</SelectItem>
+   978→   978→                      <SelectItem value="Mrs">Mrs</SelectItem>
+   979→   979→                      <SelectItem value="Dr">Dr</SelectItem>
+   980→   980→                      <SelectItem value="Prof">Prof</SelectItem>
+   981→   981→                    </SelectContent>
+   982→   982→                  </Select>
+   983→   983→                </div>
+   984→   984→                <div className="space-y-1">
+   985→   985→                  <Label className="text-xs">
+   986→   986→                    First Name <span className="text-red-500">*</span>
+   987→   987→                  </Label>
+   988→   988→                  <Input
+   989→   989→                    className={cn("h-8 text-xs", errors.guestFirstName && "border-red-500")}
+   990→   990→                    value={guestFields.firstName}
+   991→   991→                    onChange={(e) => updateGuestField('firstName', e.target.value)}
+   992→   992→                    placeholder="Rajesh"
+   993→   993→                  />
+   994→   994→                  {errors.guestFirstName && (
+   995→   995→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+   996→   996→                      <AlertCircle className="h-3 w-3" />{errors.guestFirstName}
+   997→   997→                    </p>
+   998→   998→                  )}
+   999→   999→                </div>
+  1000→  1000→                <div className="space-y-1">
+  1001→  1001→                  <Label className="text-xs">
+  1002→  1002→                    Last Name <span className="text-red-500">*</span>
+  1003→  1003→                  </Label>
+  1004→  1004→                  <Input
+  1005→  1005→                    className={cn("h-8 text-xs", errors.guestLastName && "border-red-500")}
+  1006→  1006→                    value={guestFields.lastName}
+  1007→  1007→                    onChange={(e) => updateGuestField('lastName', e.target.value)}
+  1008→  1008→                    placeholder="Sharma"
+  1009→  1009→                  />
+  1010→  1010→                  {errors.guestLastName && (
+  1011→  1011→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1012→  1012→                      <AlertCircle className="h-3 w-3" />{errors.guestLastName}
+  1013→  1013→                    </p>
+  1014→  1014→                  )}
+  1015→  1015→                </div>
+  1016→  1016→                <div className="space-y-1">
+  1017→  1017→                  <Label className="text-xs flex items-center gap-1">
+  1018→  1018→                    <Mail className="h-3 w-3" /> Email
+  1019→  1019→                  </Label>
+  1020→  1020→                  <Input
+  1021→  1021→                    className="h-8 text-xs"
+  1022→  1022→                    type="email"
+  1023→  1023→                    value={guestFields.email}
+  1024→  1024→                    onChange={(e) => updateGuestField('email', e.target.value)}
+  1025→  1025→                    placeholder="guest@email.com"
+  1026→  1026→                  />
+  1027→  1027→                </div>
+  1028→  1028→                <div className="space-y-1">
+  1029→  1029→                  <Label className="text-xs flex items-center gap-1">
+  1030→  1030→                    <Phone className="h-3 w-3" /> Phone
+  1031→  1031→                  </Label>
+  1032→  1032→                  <Input
+  1033→  1033→                    className="h-8 text-xs"
+  1034→  1034→                    value={guestFields.phone}
+  1035→  1035→                    onChange={(e) => updateGuestField('phone', e.target.value)}
+  1036→  1036→                    placeholder="+977-98..."
+  1037→  1037→                  />
+  1038→  1038→                </div>
+  1039→  1039→                <div className="space-y-1">
+  1040→  1040→                  <Label className="text-xs flex items-center gap-1">
+  1041→  1041→                    <Globe className="h-3 w-3" /> Nationality
+  1042→  1042→                  </Label>
+  1043→  1043→                  <Select value={guestFields.nationality} onValueChange={(v) => updateGuestField('nationality', v)}>
+  1044→  1044→                    <SelectTrigger className="h-8 text-xs w-full">
+  1045→  1045→                      <SelectValue placeholder="Select" />
+  1046→  1046→                    </SelectTrigger>
+  1047→  1047→                    <SelectContent className="max-h-60">
+  1048→  1048→                      {NATIONALITIES.map((n) => (
+  1049→  1049→                        <SelectItem key={n} value={n}>{n}</SelectItem>
+  1050→  1050→                      ))}
+  1051→  1051→                    </SelectContent>
+  1052→  1052→                  </Select>
+  1053→  1053→                </div>
+  1054→  1054→                <div className="space-y-1">
+  1055→  1055→                  <Label className="text-xs">Date of Birth</Label>
+  1056→  1056→                  <Input
+  1057→  1057→                    className="h-8 text-xs"
+  1058→  1058→                    type="date"
+  1059→  1059→                    value={guestFields.dateOfBirth}
+  1060→  1060→                    onChange={(e) => updateGuestField('dateOfBirth', e.target.value)}
+  1061→  1061→                  />
+  1062→  1062→                </div>
+  1063→  1063→                <div className="space-y-1">
+  1064→  1064→                  <Label className="text-xs">Gender</Label>
+  1065→  1065→                  <Select value={guestFields.gender} onValueChange={(v) => updateGuestField('gender', v)}>
+  1066→  1066→                    <SelectTrigger className="h-8 text-xs w-full">
+  1067→  1067→                      <SelectValue placeholder="Select" />
+  1068→  1068→                    </SelectTrigger>
+  1069→  1069→                    <SelectContent>
+  1070→  1070→                      <SelectItem value="Male">Male</SelectItem>
+  1071→  1071→                      <SelectItem value="Female">Female</SelectItem>
+  1072→  1072→                      <SelectItem value="Other">Other</SelectItem>
+  1073→  1073→                    </SelectContent>
+  1074→  1074→                  </Select>
+  1075→  1075→                </div>
+  1076→  1076→                <div className="space-y-1">
+  1077→  1077→                  <Label className="text-xs">ID Type</Label>
+  1078→  1078→                  <Select value={guestFields.idType} onValueChange={(v) => updateGuestField('idType', v)}>
+  1079→  1079→                    <SelectTrigger className="h-8 text-xs w-full">
+  1080→  1080→                      <SelectValue placeholder="Select" />
+  1081→  1081→                    </SelectTrigger>
+  1082→  1082→                    <SelectContent>
+  1083→  1083→                      {ID_TYPES.map((t) => (
+  1084→  1084→                        <SelectItem key={t} value={t}>{t}</SelectItem>
+  1085→  1085→                      ))}
+  1086→  1086→                    </SelectContent>
+  1087→  1087→                  </Select>
+  1088→  1088→                </div>
+  1089→  1089→                <div className="space-y-1">
+  1090→  1090→                  <Label className="text-xs">ID Number</Label>
+  1091→  1091→                  <Input
+  1092→  1092→                    className="h-8 text-xs"
+  1093→  1093→                    value={guestFields.idNumber}
+  1094→  1094→                    onChange={(e) => updateGuestField('idNumber', e.target.value)}
+  1095→  1095→                    placeholder="ID number"
+  1096→  1096→                  />
+  1097→  1097→                </div>
+  1098→  1098→                <div className="space-y-1">
+  1099→  1099→                  <Label className="text-xs flex items-center gap-1">
+  1100→  1100→                    <MapPin className="h-3 w-3" /> Address
+  1101→  1101→                  </Label>
+  1102→  1102→                  <Input
+  1103→  1103→                    className="h-8 text-xs"
+  1104→  1104→                    value={guestFields.address}
+  1105→  1105→                    onChange={(e) => updateGuestField('address', e.target.value)}
+  1106→  1106→                    placeholder="Street address"
+  1107→  1107→                  />
+  1108→  1108→                </div>
+  1109→  1109→                <div className="space-y-1">
+  1110→  1110→                  <Label className="text-xs">City</Label>
+  1111→  1111→                  <Input
+  1112→  1112→                    className="h-8 text-xs"
+  1113→  1113→                    value={guestFields.city}
+  1114→  1114→                    onChange={(e) => updateGuestField('city', e.target.value)}
+  1115→  1115→                    placeholder="City"
+  1116→  1116→                  />
+  1117→  1117→                </div>
+  1118→  1118→                <div className="space-y-1">
+  1119→  1119→                  <Label className="text-xs">Country</Label>
+  1120→  1120→                  <Select value={guestFields.country} onValueChange={(v) => updateGuestField('country', v)}>
+  1121→  1121→                    <SelectTrigger className="h-8 text-xs w-full">
+  1122→  1122→                      <SelectValue placeholder="Select" />
+  1123→  1123→                    </SelectTrigger>
+  1124→  1124→                    <SelectContent className="max-h-60">
+  1125→  1125→                      {COUNTRIES.map((c) => (
+  1126→  1126→                        <SelectItem key={c} value={c}>{c}</SelectItem>
+  1127→  1127→                      ))}
+  1128→  1128→                    </SelectContent>
+  1129→  1129→                  </Select>
+  1130→  1130→                </div>
+  1131→  1131→                <div className="space-y-1 md:col-span-2 lg:col-span-1">
+  1132→  1132→                  <Label className="text-xs flex items-center gap-1">
+  1133→  1133→                    <Crown className="h-3 w-3" /> VIP Level
+  1134→  1134→                  </Label>
+  1135→  1135→                  <div className="flex gap-2 flex-wrap">
+  1136→  1136→                    {VIP_LEVELS.map((lvl) => (
+  1137→  1137→                      <button
+  1138→  1138→                        key={lvl.value}
+  1139→  1139→                        type="button"
+  1140→  1140→                        onClick={() => updateGuestField('vipLevel', lvl.value)}
+  1141→  1141→                        className={cn(
+  1142→  1142→                          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border transition-colors",
+  1143→  1143→                          guestFields.vipLevel === lvl.value
+  1144→  1144→                            ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/20"
+  1145→  1145→                            : "border-muted bg-muted/50 text-muted-foreground hover:bg-muted"
+  1146→  1146→                        )}
+  1147→  1147→                      >
+  1148→  1148→                        {lvl.label}
+  1149→  1149→                      </button>
+  1150→  1150→                    ))}
+  1151→  1151→                  </div>
+  1152→  1152→                </div>
+  1153→  1153→              </div>
+  1154→  1154→            </CardContent>
+  1155→  1155→          </Card>
+  1156→  1156→
+  1157→  1157→          {/* ── 4. Stay Details Section ───────────────────────────── */}
+  1158→  1158→          <Card>
+  1159→  1159→            <CardHeader className="pb-3">
+  1160→  1160→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+  1161→  1161→                <BedDouble className="h-4 w-4 text-amber-600" />
+  1162→  1162→                Stay Details
+  1163→  1163→              </CardTitle>
+  1164→  1164→            </CardHeader>
+  1165→  1165→            <CardContent className="pt-0 space-y-4">
+  1166→  1166→              {/* Row 1: Reservation Type & Source */}
+  1167→  1167→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1168→  1168→                <div className="space-y-1">
+  1169→  1169→                  <Label className="text-xs">Reservation Type</Label>
+  1170→  1170→                  <Select value={reservationType} onValueChange={setReservationType}>
+  1171→  1171→                    <SelectTrigger className="h-8 text-xs w-full">
+  1172→  1172→                      <SelectValue />
+  1173→  1173→                    </SelectTrigger>
+  1174→  1174→                    <SelectContent>
+  1175→  1175→                      {RESERVATION_TYPES.map((t) => (
+  1176→  1176→                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+  1177→  1177→                      ))}
+  1178→  1178→                    </SelectContent>
+  1179→  1179→                  </Select>
+  1180→  1180→                </div>
+  1181→  1181→                <div className="space-y-1">
+  1182→  1182→                  <Label className="text-xs">Source</Label>
+  1183→  1183→                  <Select value={source} onValueChange={setSource}>
+  1184→  1184→                    <SelectTrigger className="h-8 text-xs w-full">
+  1185→  1185→                      <SelectValue />
+  1186→  1186→                    </SelectTrigger>
+  1187→  1187→                    <SelectContent>
+  1188→  1188→                      {SOURCES.map((s) => (
+  1189→  1189→                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+  1190→  1190→                      ))}
+  1191→  1191→                    </SelectContent>
+  1192→  1192→                  </Select>
+  1193→  1193→                </div>
+  1194→  1194→              </div>
+  1195→  1195→
+  1196→  1196→              <Separator />
+  1197→  1197→
+  1198→  1198→              {/* Row 2: Dates */}
+  1199→  1199→              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+  1200→  1200→                <div className="space-y-1">
+  1201→  1201→                  <Label className="text-xs flex items-center gap-1">
+  1202→  1202→                    <Clock className="h-3 w-3" /> Check-in Date <span className="text-red-500">*</span>
+  1203→  1203→                  </Label>
+  1204→  1204→                  <Popover>
+  1205→  1205→                    <PopoverTrigger asChild>
+  1206→  1206→                      <Button
+  1207→  1207→                        variant="outline"
+  1208→  1208→                        className={cn(
+  1209→  1209→                          "h-8 w-full justify-start text-xs font-normal",
+  1210→  1210→                          !checkInDate && "text-muted-foreground",
+  1211→  1211→                          errors.checkIn && "border-red-500"
+  1212→  1212→                        )}
+  1213→  1213→                      >
+  1214→  1214→                        {checkInDate ? formatDate(checkInDate) : "Select date"}
+  1215→  1215→                      </Button>
+  1216→  1216→                    </PopoverTrigger>
+  1217→  1217→                    <PopoverContent className="w-auto p-0" align="start">
+  1218→  1218→                      <Calendar
+  1219→  1219→                        mode="single"
+  1220→  1220→                        selected={checkInDate ? new Date(checkInDate) : undefined}
+  1221→  1221→                        onSelect={(date) => date && handleCheckInChange(date.toISOString().split('T')[0])}
+  1222→  1222→                        initialFocus
+  1223→  1223→                      />
+  1224→  1224→                    </PopoverContent>
+  1225→  1225→                  </Popover>
+  1226→  1226→                  {errors.checkIn && (
+  1227→  1227→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1228→  1228→                      <AlertCircle className="h-3 w-3" />{errors.checkIn}
+  1229→  1229→                    </p>
+  1230→  1230→                  )}
+  1231→  1231→                </div>
+  1232→  1232→                <div className="space-y-1">
+  1233→  1233→                  <Label className="text-xs flex items-center gap-1">
+  1234→  1234→                    <Clock className="h-3 w-3" /> Check-out Date <span className="text-red-500">*</span>
+  1235→  1235→                  </Label>
+  1236→  1236→                  <Popover>
+  1237→  1237→                    <PopoverTrigger asChild>
+  1238→  1238→                      <Button
+  1239→  1239→                        variant="outline"
+  1240→  1240→                        className={cn(
+  1241→  1241→                          "h-8 w-full justify-start text-xs font-normal",
+  1242→  1242→                          !checkOutDate && "text-muted-foreground",
+  1243→  1243→                          errors.checkOut && "border-red-500"
+  1244→  1244→                        )}
+  1245→  1245→                      >
+  1246→  1246→                        {checkOutDate ? formatDate(checkOutDate) : "Select date"}
+  1247→  1247→                      </Button>
+  1248→  1248→                    </PopoverTrigger>
+  1249→  1249→                    <PopoverContent className="w-auto p-0" align="start">
+  1250→  1250→                      <Calendar
+  1251→  1251→                        mode="single"
+  1252→  1252→                        selected={checkOutDate ? new Date(checkOutDate) : undefined}
+  1253→  1253→                        onSelect={(date) => date && setCheckOutDate(date.toISOString().split('T')[0])}
+  1254→  1254→                        disabledDate={(date) => checkInDate ? date < new Date(checkInDate) : false}
+  1255→  1255→                        initialFocus
+  1256→  1256→                      />
+  1257→  1257→                    </PopoverContent>
+  1258→  1258→                  </Popover>
+  1259→  1259→                  {errors.checkOut && (
+  1260→  1260→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1261→  1261→                      <AlertCircle className="h-3 w-3" />{errors.checkOut}
+  1262→  1262→                    </p>
+  1263→  1263→                  )}
+  1264→  1264→                </div>
+  1265→  1265→                <div className="space-y-1">
+  1266→  1266→                  <Label className="text-xs">Nights</Label>
+  1267→  1267→                  <div className="h-8 flex items-center px-3 bg-muted rounded-md border">
+  1268→  1268→                    <span className={cn(
+  1269→  1269→                      "text-sm font-semibold",
+  1270→  1270→                      nights > 0 ? "text-amber-600" : "text-muted-foreground"
+  1271→  1271→                    )}>
+  1272→  1272→                      {nights || '—'}
+  1273→  1273→                    </span>
+  1274→  1274→                    <span className="text-xs text-muted-foreground ml-1">
+  1275→  1275→                      {nights === 1 ? 'night' : nights > 1 ? 'nights' : ''}
+  1276→  1276→                    </span>
+  1277→  1277→                  </div>
+  1278→  1278→                </div>
+  1279→  1279→              </div>
+  1280→  1280→
+  1281→  1281→              {/* Row 3: Adults & Children */}
+  1282→  1282→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1283→  1283→                <div className="space-y-1">
+  1284→  1284→                  <Label className="text-xs flex items-center gap-1">
+  1285→  1285→                    <Users className="h-3 w-3" /> Adults
+  1286→  1286→                  </Label>
+  1287→  1287→                  <div className="flex items-center gap-2">
+  1288→  1288→                    <Button
+  1289→  1289→                      type="button"
+  1290→  1290→                      variant="outline"
+  1291→  1291→                      size="icon"
+  1292→  1292→                      className="h-8 w-8"
+  1293→  1293→                      onClick={() => setAdults((a) => Math.max(1, a - 1))}
+  1294→  1294→                    >
+  1295→  1295→                      -
+  1296→  1296→                    </Button>
+  1297→  1297→                    <Input
+  1298→  1298→                      className="h-8 w-16 text-center text-sm"
+  1299→  1299→                      type="number"
+  1300→  1300→                      min={1}
+  1301→  1301→                      value={adults}
+  1302→  1302→                      onChange={(e) => setAdults(Math.max(1, parseInt(e.target.value) || 1))}
+  1303→  1303→                    />
+  1304→  1304→                    <Button
+  1305→  1305→                      type="button"
+  1306→  1306→                      variant="outline"
+  1307→  1307→                      size="icon"
+  1308→  1308→                      className="h-8 w-8"
+  1309→  1309→                      onClick={() => setAdults((a) => a + 1)}
+  1310→  1310→                    >
+  1311→  1311→                      +
+  1312→  1312→                    </Button>
+  1313→  1313→                  </div>
+  1314→  1314→                </div>
+  1315→  1315→                <div className="space-y-1">
+  1316→  1316→                  <Label className="text-xs flex items-center gap-1">
+  1317→  1317→                    <Users className="h-3 w-3" /> Children
+  1318→  1318→                  </Label>
+  1319→  1319→                  <div className="flex items-center gap-2">
+  1320→  1320→                    <Button
+  1321→  1321→                      type="button"
+  1322→  1322→                      variant="outline"
+  1323→  1323→                      size="icon"
+  1324→  1324→                      className="h-8 w-8"
+  1325→  1325→                      onClick={() => setChildren((c) => Math.max(0, c - 1))}
+  1326→  1326→                    >
+  1327→  1327→                      -
+  1328→  1328→                    </Button>
+  1329→  1329→                    <Input
+  1330→  1330→                      className="h-8 w-16 text-center text-sm"
+  1331→  1331→                      type="number"
+  1332→  1332→                      min={0}
+  1333→  1333→                      value={children}
+  1334→  1334→                      onChange={(e) => setChildren(Math.max(0, parseInt(e.target.value) || 0))}
+  1335→  1335→                    />
+  1336→  1336→                    <Button
+  1337→  1337→                      type="button"
+  1338→  1338→                      variant="outline"
+  1339→  1339→                      size="icon"
+  1340→  1340→                      className="h-8 w-8"
+  1341→  1341→                      onClick={() => setChildren((c) => c + 1)}
+  1342→  1342→                    >
+  1343→  1343→                      +
+  1344→  1344→                    </Button>
+  1345→  1345→                  </div>
+  1346→  1346→                </div>
+  1347→  1347→              </div>
+  1348→  1348→
+  1349→  1349→              <Separator />
+  1350→  1350→
+  1351→  1351→              {/* Row 4: Room Number with Autocomplete */}
+  1352→  1352→              <div className="space-y-1">
+  1353→  1353→                <Label className="text-xs flex items-center gap-1">
+  1354→  1354→                  <Hotel className="h-3 w-3" /> Room Number
+  1355→  1355→                </Label>
+  1356→  1356→                <div className="relative" ref={roomDropdownRef}>
+  1357→  1357→                  <div className="relative">
+  1358→  1358→                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+  1359→  1359→                    <Input
+  1360→  1360→                      className={cn(
+  1361→  1361→                        "h-8 text-xs pl-8 pr-8",
+  1362→  1362→                        errors.room && !selectedRoom && "border-red-500"
+  1363→  1363→                      )}
+  1364→  1364→                      placeholder="Type room number to search (e.g., 201, 302)..."
+  1365→  1365→                      value={roomSearchInput}
+  1366→  1366→                      onChange={(e) => {
+  1367→  1367→                        setRoomSearchInput(e.target.value)
+  1368→  1368→                        setRoomDropdownOpen(true)
+  1369→  1369→                        if (selectedRoom) {
+  1370→  1370→                          setSelectedRoom(null)
+  1371→  1371→                          setSelectedRoomTypeId('')
+  1372→  1372→                          setSelectedRatePlanId('')
+  1373→  1373→                          setRoomRate(0)
+  1374→  1374→                        }
+  1375→  1375→                      }}
+  1376→  1376→                      onFocus={() => setRoomDropdownOpen(true)}
+  1377→  1377→                    />
+  1378→  1378→                    {selectedRoom && (
+  1379→  1379→                      <button
+  1380→  1380→                        onClick={() => {
+  1381→  1381→                          setSelectedRoom(null)
+  1382→  1382→                          setRoomSearchInput('')
+  1383→  1383→                          setSelectedRoomTypeId('')
+  1384→  1384→                          setSelectedRatePlanId('')
+  1385→  1385→                          setRoomRate(0)
+  1386→  1386→                        }}
+  1387→  1387→                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+  1388→  1388→                      >
+  1389→  1389→                        <X className="h-3.5 w-3.5" />
+  1390→  1390→                      </button>
+  1391→  1391→                    )}
+  1392→  1392→                  </div>
+  1393→  1393→
+  1394→  1394→                  {/* Room Dropdown */}
+  1395→  1395→                  {roomDropdownOpen && !selectedRoom && (
+  1396→  1396→                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
+  1397→  1397→                      {roomsLoading ? (
+  1398→  1398→                        <div className="p-3 flex items-center justify-center">
+  1399→  1399→                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
+  1400→  1400→                          <span className="text-xs text-muted-foreground">Loading rooms...</span>
+  1401→  1401→                        </div>
+  1402→  1402→                      ) : filteredRooms.length === 0 ? (
+  1403→  1403→                        <div className="p-3 text-center">
+  1404→  1404→                          <p className="text-xs text-muted-foreground">No available rooms found</p>
+  1405→  1405→                        </div>
+  1406→  1406→                      ) : (
+  1407→  1407→                        <>
+  1408→  1408→                          <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/30">
+  1409→  1409→                            {filteredRooms.length} available room{filteredRooms.length !== 1 ? 's' : ''}
+  1410→  1410→                          </div>
+  1411→  1411→                          {filteredRooms.map((room) => (
+  1412→  1412→                            <button
+  1413→  1413→                              key={room.id}
+  1414→  1414→                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left text-xs border-b last:border-0"
+  1415→  1415→                              onClick={() => handleRoomSelect(room)}
+  1416→  1416→                            >
+  1417→  1417→                              <span className={cn("shrink-0 h-2 w-2 rounded-full", STATUS_COLORS[room.status])} />
+  1418→  1418→                              <span className="font-mono font-medium w-10">{room.number}</span>
+  1419→  1419→                              <span className="text-muted-foreground truncate">
+  1420→  1420→                                {room.type.name} &middot; Floor {room.floor}
+  1421→  1421→                                {room.wing && <span> &middot; {room.wing} Wing</span>}
+  1422→  1422→                              </span>
+  1423→  1423→                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-auto shrink-0">
+  1424→  1424→                                {STATUS_LABELS[room.status]}
+  1425→  1425→                              </Badge>
+  1426→  1426→                            </button>
+  1427→  1427→                          ))}
+  1428→  1428→                        </>
+  1429→  1429→                      )}
+  1430→  1430→                    </div>
+  1431→  1431→                  )}
+  1432→  1432→                </div>
+  1433→  1433→
+  1434→  1434→                {/* Selected Room Info */}
+  1435→  1435→                {selectedRoom && (
+  1436→  1436→                  <div className="mt-1.5 flex items-start gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-md">
+  1437→  1437→                    <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+  1438→  1438→                    <div className="text-xs text-emerald-700 space-y-0.5">
+  1439→  1439→                      <p>
+  1440→  1440→                        <strong className="font-mono">{selectedRoom.number}</strong> — {selectedRoom.type.name}
+  1441→  1441→                      </p>
+  1442→  1442→                      <p className="text-emerald-600">
+  1443→  1443→                        Room Type: {selectedRoom.type.name} | Floor: {selectedRoom.floor}
+  1444→  1444→                        {selectedRoom.wing && ` | Wing: ${selectedRoom.wing}`}
+  1445→  1445→                      </p>
+  1446→  1446→                    </div>
+  1447→  1447→                  </div>
+  1448→  1448→                )}
+  1449→  1449→                {errors.room && !selectedRoom && (
+  1450→  1450→                  <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1451→  1451→                    <AlertCircle className="h-3 w-3" />{errors.room}
+  1452→  1452→                  </p>
+  1453→  1453→                )}
+  1454→  1454→              </div>
+  1455→  1455→
+  1456→  1456→              {/* Row 5: Room Type & Rate Plan */}
+  1457→  1457→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1458→  1458→                <div className="space-y-1">
+  1459→  1459→                  <Label className="text-xs">Room Type</Label>
+  1460→  1460→                  <Select
+  1461→  1461→                    value={selectedRoomTypeId}
+  1462→  1462→                    onValueChange={(v) => {
+  1463→  1463→                      setSelectedRoomTypeId(v)
+  1464→  1464→                      // Clear room selection if manually changing type
+  1465→  1465→                      if (selectedRoom && selectedRoom.typeId !== v) {
+  1466→  1466→                        setSelectedRoom(null)
+  1467→  1467→                        setRoomSearchInput('')
+  1468→  1468→                      }
+  1469→  1469→                      // Auto-select first rate plan
+  1470→  1470→                      const rt = roomTypes.find((t) => t.id === v)
+  1471→  1471→                      if (rt && rt.ratePlans.length > 0) {
+  1472→  1472→                        setSelectedRatePlanId(rt.ratePlans[0].id)
+  1473→  1473→                        setRoomRate(rt.ratePlans[0].baseRate)
+  1474→  1474→                      } else {
+  1475→  1475→                        setSelectedRatePlanId('')
+  1476→  1476→                        setRoomRate(0)
+  1477→  1477→                      }
+  1478→  1478→                    }}
+  1479→  1479→                  >
+  1480→  1480→                    <SelectTrigger className="h-8 text-xs w-full">
+  1481→  1481→                      <SelectValue placeholder="Select room type" />
+  1482→  1482→                    </SelectTrigger>
+  1483→  1483→                    <SelectContent className="max-h-60">
+  1484→  1484→                      {roomTypes.map((rt) => (
+  1485→  1485→                        <SelectItem key={rt.id} value={rt.id}>
+  1486→  1486→                          {rt.name} ({rt.code}) — {rt.bedConfig} — {rt.roomCount} rooms
+  1487→  1487→                        </SelectItem>
+  1488→  1488→                      ))}
+  1489→  1489→                    </SelectContent>
+  1490→  1490→                  </Select>
+  1491→  1491→                </div>
+  1492→  1492→                <div className="space-y-1">
+  1493→  1493→                  <Label className="text-xs flex items-center gap-1">
+  1494→  1494→                    <BadgePercent className="h-3 w-3" /> Rate Plan
+  1495→  1495→                  </Label>
+  1496→  1496→                  <Select
+  1497→  1497→                    value={selectedRatePlanId}
+  1498→  1498→                    onValueChange={handleRatePlanChange}
+  1499→  1499→                    disabled={ratePlansForType.length === 0}
+  1500→  1500→                  >
+  1501→  1501→                    <SelectTrigger className="h-8 text-xs w-full">
+  1502→  1502→                      <SelectValue placeholder={ratePlansForType.length === 0 ? 'Select room type first' : 'Select rate plan'} />
+  1503→  1503→                    </SelectTrigger>
+  1504→  1504→                    <SelectContent>
+  1505→  1505→                      {ratePlansForType.map((rp) => (
+  1506→  1506→                        <SelectItem key={rp.id} value={rp.id}>
+  1507→  1507→                          {rp.name} — {formatCurrency(rp.baseRate)}/night
+  1508→  1508→                        </SelectItem>
+  1509→  1509→                      ))}
+  1510→  1510→                    </SelectContent>
+  1511→  1511→                  </Select>
+  1512→  1512→                </div>
+  1513→  1513→              </div>
+  1514→  1514→
+  1515→  1515→              {/* Row 6: Room Rate */}
+  1516→  1516→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1517→  1517→                <div className="space-y-1">
+  1518→  1518→                  <Label className="text-xs flex items-center gap-1">
+  1519→  1519→                    <CreditCard className="h-3 w-3" /> Room Rate (NPR)
+  1520→  1520→                  </Label>
+  1521→  1521→                  <Input
+  1522→  1522→                    className="h-8 text-xs"
+  1523→  1523→                    type="number"
+  1524→  1524→                    min={0}
+  1525→  1525→                    value={roomRate || ''}
+  1526→  1526→                    onChange={(e) => setRoomRate(parseFloat(e.target.value) || 0)}
+  1527→  1527→                    placeholder="0"
+  1528→  1528→                  />
+  1529→  1529→                </div>
+  1530→  1530→                <div className="space-y-1">
+  1531→  1531→                  <Label className="text-xs">Rate / Night</Label>
+  1532→  1532→                  <div className="h-8 flex items-center px-3 bg-muted rounded-md border">
+  1533→  1533→                    <span className="text-sm font-semibold text-amber-600">
+  1534→  1534→                      {roomRate > 0 ? formatCurrency(roomRate) : '—'}
+  1535→  1535→                    </span>
+  1536→  1536→                  </div>
+  1537→  1537→                </div>
+  1538→  1538→              </div>
+  1539→  1539→
+  1540→  1540→              <Separator />
+  1541→  1541→
+  1542→  1542→              {/* Cost Summary */}
+  1543→  1543→              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+  1544→  1544→                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+  1545→  1545→                  Cost Summary
+  1546→  1546→                </h4>
+  1547→  1547→                <div className="space-y-1.5">
+  1548→  1548→                  <div className="flex justify-between text-xs">
+  1549→  1549→                    <span className="text-muted-foreground">
+  1550→  1550→                      {roomRate.toLocaleString()} × {nights} night{nights !== 1 ? 's' : ''}
+  1551→  1551→                    </span>
+  1552→  1552→                    <span className="font-medium">{formatCurrency(subtotal)}</span>
+  1553→  1553→                  </div>
+  1554→  1554→                  <div className="flex justify-between text-xs">
+  1555→  1555→                    <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+  1556→  1556→                    <span className="font-medium">{formatCurrency(taxAmount)}</span>
+  1557→  1557→                  </div>
+  1558→  1558→                  <Separator />
+  1559→  1559→                  <div className="flex justify-between text-sm font-semibold">
+  1560→  1560→                    <span>Total</span>
+  1561→  1561→                    <span className="text-amber-600">{formatCurrency(totalAmount)}</span>
+  1562→  1562→                  </div>
+  1563→  1563→                </div>
+  1564→  1564→              </div>
+  1565→  1565→            </CardContent>
+  1566→  1566→          </Card>
+  1567→  1567→
+  1568→  1568→          {/* ── 5. Additional Information Section ─────────────────── */}
+  1569→  1569→          <Card>
+  1570→  1570→            <CardHeader className="pb-3">
+  1571→  1571→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+  1572→  1572→                <FileText className="h-4 w-4 text-amber-600" />
+  1573→  1573→                Additional Information
+  1574→  1574→              </CardTitle>
+  1575→  1575→            </CardHeader>
+  1576→  1576→            <CardContent className="pt-0 space-y-3">
+  1577→  1577→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1578→  1578→                <div className="space-y-1 md:col-span-2">
+  1579→  1579→                  <Label className="text-xs">Special Requests</Label>
+  1580→  1580→                  <Textarea
+  1581→  1581→                    className="text-xs min-h-[60px] resize-y"
+  1582→  1582→                    value={specialRequests}
+  1583→  1583→                    onChange={(e) => setSpecialRequests(e.target.value)}
+  1584→  1584→                    placeholder="Late check-in, extra pillows, high floor, etc."
+  1585→  1585→                  />
+  1586→  1586→                </div>
+  1587→  1587→                <div className="space-y-1">
+  1588→  1588→                  <Label className="text-xs flex items-center gap-1">
+  1589→  1589→                    <Building className="h-3 w-3" /> Company (if not in booking contact)
+  1590→  1590→                  </Label>
+  1591→  1591→                  <Input
+  1592→  1592→                    className="h-8 text-xs"
+  1593→  1593→                    value={addCompany}
+  1594→  1594→                    onChange={(e) => setAddCompany(e.target.value)}
+  1595→  1595→                    placeholder="Company name"
+  1596→  1596→                  />
+  1597→  1597→                </div>
+  1598→  1598→                <div className="space-y-1">
+  1599→  1599→                  <Label className="text-xs flex items-center gap-1">
+  1600→  1600→                    <Hash className="h-3 w-3" /> PO Number
+  1601→  1601→                  </Label>
+  1602→  1602→                  <Input
+  1603→  1603→                    className="h-8 text-xs"
+  1604→  1604→                    value={poNumber}
+  1605→  1605→                    onChange={(e) => setPoNumber(e.target.value)}
+  1606→  1606→                    placeholder="PO-XXXX"
+  1607→  1607→                  />
+  1608→  1608→                </div>
+  1609→  1609→                <div className="space-y-1">
+  1610→  1610→                  <div className="flex items-center gap-2">
+  1611→  1611→                    <Checkbox
+  1612→  1612→                      id="guaranteed"
+  1613→  1613→                      checked={guaranteed}
+  1614→  1614→                      onCheckedChange={(v) => setGuaranteed(v === true)}
+  1615→  1615→                    />
+  1616→  1616→                    <Label htmlFor="guaranteed" className="text-xs cursor-pointer">
+  1617→  1617→                      Guaranteed Booking
+  1618→  1618→                    </Label>
+  1619→  1619→                  </div>
+  1620→  1620→                </div>
+  1621→  1621→                <div className="space-y-1 md:col-span-2">
+  1622→  1622→                  <Label className="text-xs">Notes (Internal)</Label>
+  1623→  1623→                  <Textarea
+  1624→  1624→                    className="text-xs min-h-[60px] resize-y"
+  1625→  1625→                    value={notes}
+  1626→  1626→                    onChange={(e) => setNotes(e.target.value)}
+  1627→  1627→                    placeholder="Internal notes for staff..."
+  1628→  1628→                  />
+  1629→  1629→                </div>
+  1630→  1630→              </div>
+  1631→  1631→            </CardContent>
+  1632→  1632→          </Card>
+  1633→  1633→
+  1634→  1634→        </div>
+  1635→  1635→      </div>
+  1636→  1636→
+  1637→  1637→      {/* ── 6. Footer ────────────────────────────────────────────── */}
+  1638→  1638→      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-t bg-white shrink-0">
+  1639→  1639→        <Button variant="outline" onClick={onBack} className="text-xs">
+  1640→  1640→          Cancel
+  1641→  1641→        </Button>
+  1642→  1642→        <div className="flex items-center gap-3">
+  1643→  1643→          {Object.keys(errors).length > 0 && (
+  1644→  1644→            <span className="text-xs text-red-500 flex items-center gap-1">
+  1645→  1645→              <AlertCircle className="h-3 w-3" />
+  1646→  1646→              {Object.keys(errors).length} error{Object.keys(errors).length !== 1 ? 's' : ''} — please fix above
+  1647→  1647→            </span>
+  1648→  1648→          )}
+  1649→  1649→          <Button
+  1650→  1650→            onClick={handleSubmit}
+  1651→  1651→            disabled={isSubmitting}
+  1652→  1652→            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+  1653→  1653→          >
+  1654→  1654→            {isSubmitting ? (
+  1655→  1655→              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+  1656→  1656→            ) : (
+  1657→  1657→              <CheckCircle2 className="h-4 w-4 mr-2" />
+  1658→  1658→            )}
+  1659→  1659→            Create Reservation
+  1660→  1660→          </Button>
+  1661→  1661→        </div>
+  1662→  1662→      </div>
+  1663→  1663→    </div>
+  1664→  1664→  )
+  1665→  1665→}
+  1666→  1666→

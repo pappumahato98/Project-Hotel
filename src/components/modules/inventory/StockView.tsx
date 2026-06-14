@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -62,12 +63,10 @@ const EMPTY_FORM = {
 type ItemForm = typeof EMPTY_FORM
 
 // ── API helpers ──────────────────────────────────────────────
-async function fetchInventory(category?: string) {
+function fetchInventory(category?: string) {
   const params = new URLSearchParams()
   if (category) params.set('category', category)
-  const res = await fetch(`/api/inventory?${params.toString()}`)
-  if (!res.ok) throw new Error('Failed to fetch inventory')
-  return res.json()
+  return apiFetch(`/api/inventory?${params.toString()}`)
 }
 
 // ── Component ────────────────────────────────────────────────
@@ -98,13 +97,11 @@ export function StockView() {
   // ── Mutations ───────────────────────────────────────────────
   const createMutation = useMutation({
     mutationFn: async (body: ItemForm) => {
-      const res = await fetch('/api/inventory', {
+      return apiFetch('/api/inventory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error('Failed to create item')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] })
@@ -117,13 +114,11 @@ export function StockView() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...body }: InventoryItem & { id: string }) => {
-      const res = await fetch(`/api/inventory/${id}`, {
+      return apiFetch(`/api/inventory/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error('Failed to update item')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] })
@@ -137,9 +132,7 @@ export function StockView() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/inventory/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete item')
-      return res.json()
+      return apiFetch(`/api/inventory/${id}`, { method: 'DELETE' })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inventory'] })

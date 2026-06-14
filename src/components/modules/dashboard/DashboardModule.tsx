@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { apiFetch } from '@/lib/api'
 import { toast } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -11,7 +12,7 @@ import {
   CalendarCheck, CalendarX, ShoppingCart, ClipboardList,
   AlertTriangle, Star, Clock, ArrowRight, UserCheck, CreditCard,
   Wrench, UtensilsCrossed, FileText, Moon, Coffee, AlertCircle,
-  PartyPopper, ChevronUp, ChevronDown, LogOut,
+  PartyPopper, ChevronUp, ChevronDown, LogOut, WifiOff, RefreshCw,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -826,24 +827,39 @@ function DashboardLoading() {
 }
 
 // ─── Error State ────────────────────────────────────────────────────────
-function DashboardError({ error }: { error: Error }) {
+function DashboardError({ error, refetch }: { error: Error; refetch: () => void }) {
+  const isServerDown = error.message?.includes('Server unavailable') || error.message?.includes('Failed to fetch')
   return (
-    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
-      <Alert variant="destructive">
-        <AlertCircle className="size-4" />
-        <AlertTitle>Failed to load dashboard</AlertTitle>
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 overflow-y-auto">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+          {isServerDown ? <WifiOff className="size-6 text-muted-foreground" /> : <AlertCircle className="size-6 text-destructive" />}
+        </div>
+        <AlertTitle className="text-base">
+          {isServerDown ? 'Connecting to server...' : 'Failed to load dashboard'}
+        </AlertTitle>
+        <AlertDescription className="text-sm text-muted-foreground max-w-md">
+          {isServerDown
+            ? 'The server is starting up. This may take a moment.'
+            : error.message || 'An unexpected error occurred.'}
+        </AlertDescription>
+      </div>
+      <Button variant="outline" size="sm" onClick={() => refetch()}>
+        <RefreshCw className="size-4 mr-2" />
+        Retry
+      </Button>
     </div>
   )
 }
 
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
-  const { data, isLoading, isError, error } = useQuery<DashboardData>({
+  const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
-    queryFn: () => fetch('/api/dashboard').then((res) => res.json()),
+    queryFn: () => apiFetch('/api/dashboard'),
     refetchInterval: 30000, // refresh every 30s
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   })
 
   // Defensive defaults — guard against partial API responses
@@ -866,7 +882,7 @@ export function DashboardModule() {
   }
 
   if (isLoading) return <DashboardLoading />
-  if (isError || !data) return <DashboardError error={error ?? new Error('Unknown error')} />
+  if (isError || !data) return <DashboardError error={error ?? new Error('Unknown error')} refetch={refetch} />
 
   return (
     <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">

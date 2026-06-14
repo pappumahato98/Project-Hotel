@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -32,10 +33,8 @@ const typeColors: Record<string, string> = {
   expense: 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
 }
 
-async function fetchAccounts() {
-  const res = await fetch('/api/accounting')
-  if (!res.ok) throw new Error('Failed to fetch accounting data')
-  return res.json()
+function fetchAccounts() {
+  return apiFetch('/api/accounting')
 }
 
 export function LedgerView() {

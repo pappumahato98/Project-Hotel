@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { apiFetch } from '@/lib/api'
 import { useTheme } from 'next-themes'
 import {
   Search, Bell, User, Building2,
@@ -149,19 +150,14 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
     setSaving(true)
     try {
       // Persist to backend first
-      const res = await fetch('/api/auth/profile', {
+      await apiFetch('/api/auth/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName }),
       })
-      if (res.ok) {
-        updateUser({ firstName, lastName })
-        toast.success('Profile updated successfully')
-        onOpenChange(false)
-      } else {
-        const err = await res.json().catch(() => ({}))
-        toast.error(err.error || 'Failed to update profile')
-      }
+      updateUser({ firstName, lastName })
+      toast.success('Profile updated successfully')
+      onOpenChange(false)
     } catch {
       toast.error('Failed to update profile')
     } finally {

@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -32,10 +33,8 @@ interface DeptSummary {
   late: number
 }
 
-async function fetchAttendance() {
-  const res = await fetch('/api/attendance')
-  if (!res.ok) throw new Error('Failed to fetch attendance')
-  return res.json()
+function fetchAttendance() {
+  return apiFetch('/api/attendance')
 }
 
 export function AttendanceView() {

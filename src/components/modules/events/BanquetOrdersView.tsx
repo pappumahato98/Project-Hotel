@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -40,10 +41,8 @@ const serviceIcons: Record<string, React.ReactNode> = {
   Decoration: <Flower2 className="h-4 w-4" />,
 }
 
-async function fetchBeoOrders() {
-  const res = await fetch('/api/banquet-orders')
-  if (!res.ok) throw new Error('Failed to fetch BEO orders')
-  return res.json()
+function fetchBeoOrders() {
+  return apiFetch('/api/banquet-orders')
 }
 
 export function BanquetOrdersView() {

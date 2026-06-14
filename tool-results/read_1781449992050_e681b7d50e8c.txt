@@ -1,0 +1,666 @@
+  1001→                  <Label className="text-xs">
+  1002→                    Last Name <span className="text-red-500">*</span>
+  1003→                  </Label>
+  1004→                  <Input
+  1005→                    className={cn("h-8 text-xs", errors.guestLastName && "border-red-500")}
+  1006→                    value={guestFields.lastName}
+  1007→                    onChange={(e) => updateGuestField('lastName', e.target.value)}
+  1008→                    placeholder="Sharma"
+  1009→                  />
+  1010→                  {errors.guestLastName && (
+  1011→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1012→                      <AlertCircle className="h-3 w-3" />{errors.guestLastName}
+  1013→                    </p>
+  1014→                  )}
+  1015→                </div>
+  1016→                <div className="space-y-1">
+  1017→                  <Label className="text-xs flex items-center gap-1">
+  1018→                    <Mail className="h-3 w-3" /> Email
+  1019→                  </Label>
+  1020→                  <Input
+  1021→                    className="h-8 text-xs"
+  1022→                    type="email"
+  1023→                    value={guestFields.email}
+  1024→                    onChange={(e) => updateGuestField('email', e.target.value)}
+  1025→                    placeholder="guest@email.com"
+  1026→                  />
+  1027→                </div>
+  1028→                <div className="space-y-1">
+  1029→                  <Label className="text-xs flex items-center gap-1">
+  1030→                    <Phone className="h-3 w-3" /> Phone
+  1031→                  </Label>
+  1032→                  <Input
+  1033→                    className="h-8 text-xs"
+  1034→                    value={guestFields.phone}
+  1035→                    onChange={(e) => updateGuestField('phone', e.target.value)}
+  1036→                    placeholder="+977-98..."
+  1037→                  />
+  1038→                </div>
+  1039→                <div className="space-y-1">
+  1040→                  <Label className="text-xs flex items-center gap-1">
+  1041→                    <Globe className="h-3 w-3" /> Nationality
+  1042→                  </Label>
+  1043→                  <Select value={guestFields.nationality} onValueChange={(v) => updateGuestField('nationality', v)}>
+  1044→                    <SelectTrigger className="h-8 text-xs w-full">
+  1045→                      <SelectValue placeholder="Select" />
+  1046→                    </SelectTrigger>
+  1047→                    <SelectContent className="max-h-60">
+  1048→                      {NATIONALITIES.map((n) => (
+  1049→                        <SelectItem key={n} value={n}>{n}</SelectItem>
+  1050→                      ))}
+  1051→                    </SelectContent>
+  1052→                  </Select>
+  1053→                </div>
+  1054→                <div className="space-y-1">
+  1055→                  <Label className="text-xs">Date of Birth</Label>
+  1056→                  <Input
+  1057→                    className="h-8 text-xs"
+  1058→                    type="date"
+  1059→                    value={guestFields.dateOfBirth}
+  1060→                    onChange={(e) => updateGuestField('dateOfBirth', e.target.value)}
+  1061→                  />
+  1062→                </div>
+  1063→                <div className="space-y-1">
+  1064→                  <Label className="text-xs">Gender</Label>
+  1065→                  <Select value={guestFields.gender} onValueChange={(v) => updateGuestField('gender', v)}>
+  1066→                    <SelectTrigger className="h-8 text-xs w-full">
+  1067→                      <SelectValue placeholder="Select" />
+  1068→                    </SelectTrigger>
+  1069→                    <SelectContent>
+  1070→                      <SelectItem value="Male">Male</SelectItem>
+  1071→                      <SelectItem value="Female">Female</SelectItem>
+  1072→                      <SelectItem value="Other">Other</SelectItem>
+  1073→                    </SelectContent>
+  1074→                  </Select>
+  1075→                </div>
+  1076→                <div className="space-y-1">
+  1077→                  <Label className="text-xs">ID Type</Label>
+  1078→                  <Select value={guestFields.idType} onValueChange={(v) => updateGuestField('idType', v)}>
+  1079→                    <SelectTrigger className="h-8 text-xs w-full">
+  1080→                      <SelectValue placeholder="Select" />
+  1081→                    </SelectTrigger>
+  1082→                    <SelectContent>
+  1083→                      {ID_TYPES.map((t) => (
+  1084→                        <SelectItem key={t} value={t}>{t}</SelectItem>
+  1085→                      ))}
+  1086→                    </SelectContent>
+  1087→                  </Select>
+  1088→                </div>
+  1089→                <div className="space-y-1">
+  1090→                  <Label className="text-xs">ID Number</Label>
+  1091→                  <Input
+  1092→                    className="h-8 text-xs"
+  1093→                    value={guestFields.idNumber}
+  1094→                    onChange={(e) => updateGuestField('idNumber', e.target.value)}
+  1095→                    placeholder="ID number"
+  1096→                  />
+  1097→                </div>
+  1098→                <div className="space-y-1">
+  1099→                  <Label className="text-xs flex items-center gap-1">
+  1100→                    <MapPin className="h-3 w-3" /> Address
+  1101→                  </Label>
+  1102→                  <Input
+  1103→                    className="h-8 text-xs"
+  1104→                    value={guestFields.address}
+  1105→                    onChange={(e) => updateGuestField('address', e.target.value)}
+  1106→                    placeholder="Street address"
+  1107→                  />
+  1108→                </div>
+  1109→                <div className="space-y-1">
+  1110→                  <Label className="text-xs">City</Label>
+  1111→                  <Input
+  1112→                    className="h-8 text-xs"
+  1113→                    value={guestFields.city}
+  1114→                    onChange={(e) => updateGuestField('city', e.target.value)}
+  1115→                    placeholder="City"
+  1116→                  />
+  1117→                </div>
+  1118→                <div className="space-y-1">
+  1119→                  <Label className="text-xs">Country</Label>
+  1120→                  <Select value={guestFields.country} onValueChange={(v) => updateGuestField('country', v)}>
+  1121→                    <SelectTrigger className="h-8 text-xs w-full">
+  1122→                      <SelectValue placeholder="Select" />
+  1123→                    </SelectTrigger>
+  1124→                    <SelectContent className="max-h-60">
+  1125→                      {COUNTRIES.map((c) => (
+  1126→                        <SelectItem key={c} value={c}>{c}</SelectItem>
+  1127→                      ))}
+  1128→                    </SelectContent>
+  1129→                  </Select>
+  1130→                </div>
+  1131→                <div className="space-y-1 md:col-span-2 lg:col-span-1">
+  1132→                  <Label className="text-xs flex items-center gap-1">
+  1133→                    <Crown className="h-3 w-3" /> VIP Level
+  1134→                  </Label>
+  1135→                  <div className="flex gap-2 flex-wrap">
+  1136→                    {VIP_LEVELS.map((lvl) => (
+  1137→                      <button
+  1138→                        key={lvl.value}
+  1139→                        type="button"
+  1140→                        onClick={() => updateGuestField('vipLevel', lvl.value)}
+  1141→                        className={cn(
+  1142→                          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border transition-colors",
+  1143→                          guestFields.vipLevel === lvl.value
+  1144→                            ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/20"
+  1145→                            : "border-muted bg-muted/50 text-muted-foreground hover:bg-muted"
+  1146→                        )}
+  1147→                      >
+  1148→                        {lvl.label}
+  1149→                      </button>
+  1150→                    ))}
+  1151→                  </div>
+  1152→                </div>
+  1153→              </div>
+  1154→            </CardContent>
+  1155→          </Card>
+  1156→
+  1157→          {/* ── 4. Stay Details Section ───────────────────────────── */}
+  1158→          <Card>
+  1159→            <CardHeader className="pb-3">
+  1160→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+  1161→                <BedDouble className="h-4 w-4 text-amber-600" />
+  1162→                Stay Details
+  1163→              </CardTitle>
+  1164→            </CardHeader>
+  1165→            <CardContent className="pt-0 space-y-4">
+  1166→              {/* Row 1: Reservation Type & Source */}
+  1167→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1168→                <div className="space-y-1">
+  1169→                  <Label className="text-xs">Reservation Type</Label>
+  1170→                  <Select value={reservationType} onValueChange={setReservationType}>
+  1171→                    <SelectTrigger className="h-8 text-xs w-full">
+  1172→                      <SelectValue />
+  1173→                    </SelectTrigger>
+  1174→                    <SelectContent>
+  1175→                      {RESERVATION_TYPES.map((t) => (
+  1176→                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+  1177→                      ))}
+  1178→                    </SelectContent>
+  1179→                  </Select>
+  1180→                </div>
+  1181→                <div className="space-y-1">
+  1182→                  <Label className="text-xs">Source</Label>
+  1183→                  <Select value={source} onValueChange={setSource}>
+  1184→                    <SelectTrigger className="h-8 text-xs w-full">
+  1185→                      <SelectValue />
+  1186→                    </SelectTrigger>
+  1187→                    <SelectContent>
+  1188→                      {SOURCES.map((s) => (
+  1189→                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+  1190→                      ))}
+  1191→                    </SelectContent>
+  1192→                  </Select>
+  1193→                </div>
+  1194→              </div>
+  1195→
+  1196→              <Separator />
+  1197→
+  1198→              {/* Row 2: Dates */}
+  1199→              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+  1200→                <div className="space-y-1">
+  1201→                  <Label className="text-xs flex items-center gap-1">
+  1202→                    <Clock className="h-3 w-3" /> Check-in Date <span className="text-red-500">*</span>
+  1203→                  </Label>
+  1204→                  <Popover>
+  1205→                    <PopoverTrigger asChild>
+  1206→                      <Button
+  1207→                        variant="outline"
+  1208→                        className={cn(
+  1209→                          "h-8 w-full justify-start text-xs font-normal",
+  1210→                          !checkInDate && "text-muted-foreground",
+  1211→                          errors.checkIn && "border-red-500"
+  1212→                        )}
+  1213→                      >
+  1214→                        {checkInDate ? formatDate(checkInDate) : "Select date"}
+  1215→                      </Button>
+  1216→                    </PopoverTrigger>
+  1217→                    <PopoverContent className="w-auto p-0" align="start">
+  1218→                      <Calendar
+  1219→                        mode="single"
+  1220→                        selected={checkInDate ? new Date(checkInDate) : undefined}
+  1221→                        onSelect={(date) => date && handleCheckInChange(date.toISOString().split('T')[0])}
+  1222→                        initialFocus
+  1223→                      />
+  1224→                    </PopoverContent>
+  1225→                  </Popover>
+  1226→                  {errors.checkIn && (
+  1227→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1228→                      <AlertCircle className="h-3 w-3" />{errors.checkIn}
+  1229→                    </p>
+  1230→                  )}
+  1231→                </div>
+  1232→                <div className="space-y-1">
+  1233→                  <Label className="text-xs flex items-center gap-1">
+  1234→                    <Clock className="h-3 w-3" /> Check-out Date <span className="text-red-500">*</span>
+  1235→                  </Label>
+  1236→                  <Popover>
+  1237→                    <PopoverTrigger asChild>
+  1238→                      <Button
+  1239→                        variant="outline"
+  1240→                        className={cn(
+  1241→                          "h-8 w-full justify-start text-xs font-normal",
+  1242→                          !checkOutDate && "text-muted-foreground",
+  1243→                          errors.checkOut && "border-red-500"
+  1244→                        )}
+  1245→                      >
+  1246→                        {checkOutDate ? formatDate(checkOutDate) : "Select date"}
+  1247→                      </Button>
+  1248→                    </PopoverTrigger>
+  1249→                    <PopoverContent className="w-auto p-0" align="start">
+  1250→                      <Calendar
+  1251→                        mode="single"
+  1252→                        selected={checkOutDate ? new Date(checkOutDate) : undefined}
+  1253→                        onSelect={(date) => date && setCheckOutDate(date.toISOString().split('T')[0])}
+  1254→                        disabledDate={(date) => checkInDate ? date < new Date(checkInDate) : false}
+  1255→                        initialFocus
+  1256→                      />
+  1257→                    </PopoverContent>
+  1258→                  </Popover>
+  1259→                  {errors.checkOut && (
+  1260→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1261→                      <AlertCircle className="h-3 w-3" />{errors.checkOut}
+  1262→                    </p>
+  1263→                  )}
+  1264→                </div>
+  1265→                <div className="space-y-1">
+  1266→                  <Label className="text-xs">Nights</Label>
+  1267→                  <div className="h-8 flex items-center px-3 bg-muted rounded-md border">
+  1268→                    <span className={cn(
+  1269→                      "text-sm font-semibold",
+  1270→                      nights > 0 ? "text-amber-600" : "text-muted-foreground"
+  1271→                    )}>
+  1272→                      {nights || '—'}
+  1273→                    </span>
+  1274→                    <span className="text-xs text-muted-foreground ml-1">
+  1275→                      {nights === 1 ? 'night' : nights > 1 ? 'nights' : ''}
+  1276→                    </span>
+  1277→                  </div>
+  1278→                </div>
+  1279→              </div>
+  1280→
+  1281→              {/* Row 3: Adults & Children */}
+  1282→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1283→                <div className="space-y-1">
+  1284→                  <Label className="text-xs flex items-center gap-1">
+  1285→                    <Users className="h-3 w-3" /> Adults
+  1286→                  </Label>
+  1287→                  <div className="flex items-center gap-2">
+  1288→                    <Button
+  1289→                      type="button"
+  1290→                      variant="outline"
+  1291→                      size="icon"
+  1292→                      className="h-8 w-8"
+  1293→                      onClick={() => setAdults((a) => Math.max(1, a - 1))}
+  1294→                    >
+  1295→                      -
+  1296→                    </Button>
+  1297→                    <Input
+  1298→                      className="h-8 w-16 text-center text-sm"
+  1299→                      type="number"
+  1300→                      min={1}
+  1301→                      value={adults}
+  1302→                      onChange={(e) => setAdults(Math.max(1, parseInt(e.target.value) || 1))}
+  1303→                    />
+  1304→                    <Button
+  1305→                      type="button"
+  1306→                      variant="outline"
+  1307→                      size="icon"
+  1308→                      className="h-8 w-8"
+  1309→                      onClick={() => setAdults((a) => a + 1)}
+  1310→                    >
+  1311→                      +
+  1312→                    </Button>
+  1313→                  </div>
+  1314→                </div>
+  1315→                <div className="space-y-1">
+  1316→                  <Label className="text-xs flex items-center gap-1">
+  1317→                    <Users className="h-3 w-3" /> Children
+  1318→                  </Label>
+  1319→                  <div className="flex items-center gap-2">
+  1320→                    <Button
+  1321→                      type="button"
+  1322→                      variant="outline"
+  1323→                      size="icon"
+  1324→                      className="h-8 w-8"
+  1325→                      onClick={() => setChildren((c) => Math.max(0, c - 1))}
+  1326→                    >
+  1327→                      -
+  1328→                    </Button>
+  1329→                    <Input
+  1330→                      className="h-8 w-16 text-center text-sm"
+  1331→                      type="number"
+  1332→                      min={0}
+  1333→                      value={children}
+  1334→                      onChange={(e) => setChildren(Math.max(0, parseInt(e.target.value) || 0))}
+  1335→                    />
+  1336→                    <Button
+  1337→                      type="button"
+  1338→                      variant="outline"
+  1339→                      size="icon"
+  1340→                      className="h-8 w-8"
+  1341→                      onClick={() => setChildren((c) => c + 1)}
+  1342→                    >
+  1343→                      +
+  1344→                    </Button>
+  1345→                  </div>
+  1346→                </div>
+  1347→              </div>
+  1348→
+  1349→              <Separator />
+  1350→
+  1351→              {/* Row 4: Room Number with Autocomplete */}
+  1352→              <div className="space-y-1">
+  1353→                <Label className="text-xs flex items-center gap-1">
+  1354→                  <Hotel className="h-3 w-3" /> Room Number
+  1355→                </Label>
+  1356→                <div className="relative" ref={roomDropdownRef}>
+  1357→                  <div className="relative">
+  1358→                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+  1359→                    <Input
+  1360→                      className={cn(
+  1361→                        "h-8 text-xs pl-8 pr-8",
+  1362→                        errors.room && !selectedRoom && "border-red-500"
+  1363→                      )}
+  1364→                      placeholder="Type room number to search (e.g., 201, 302)..."
+  1365→                      value={roomSearchInput}
+  1366→                      onChange={(e) => {
+  1367→                        setRoomSearchInput(e.target.value)
+  1368→                        setRoomDropdownOpen(true)
+  1369→                        if (selectedRoom) {
+  1370→                          setSelectedRoom(null)
+  1371→                          setSelectedRoomTypeId('')
+  1372→                          setSelectedRatePlanId('')
+  1373→                          setRoomRate(0)
+  1374→                        }
+  1375→                      }}
+  1376→                      onFocus={() => setRoomDropdownOpen(true)}
+  1377→                    />
+  1378→                    {selectedRoom && (
+  1379→                      <button
+  1380→                        onClick={() => {
+  1381→                          setSelectedRoom(null)
+  1382→                          setRoomSearchInput('')
+  1383→                          setSelectedRoomTypeId('')
+  1384→                          setSelectedRatePlanId('')
+  1385→                          setRoomRate(0)
+  1386→                        }}
+  1387→                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+  1388→                      >
+  1389→                        <X className="h-3.5 w-3.5" />
+  1390→                      </button>
+  1391→                    )}
+  1392→                  </div>
+  1393→
+  1394→                  {/* Room Dropdown */}
+  1395→                  {roomDropdownOpen && !selectedRoom && (
+  1396→                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
+  1397→                      {roomsLoading ? (
+  1398→                        <div className="p-3 flex items-center justify-center">
+  1399→                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
+  1400→                          <span className="text-xs text-muted-foreground">Loading rooms...</span>
+  1401→                        </div>
+  1402→                      ) : filteredRooms.length === 0 ? (
+  1403→                        <div className="p-3 text-center">
+  1404→                          <p className="text-xs text-muted-foreground">No available rooms found</p>
+  1405→                        </div>
+  1406→                      ) : (
+  1407→                        <>
+  1408→                          <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/30">
+  1409→                            {filteredRooms.length} available room{filteredRooms.length !== 1 ? 's' : ''}
+  1410→                          </div>
+  1411→                          {filteredRooms.map((room) => (
+  1412→                            <button
+  1413→                              key={room.id}
+  1414→                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left text-xs border-b last:border-0"
+  1415→                              onClick={() => handleRoomSelect(room)}
+  1416→                            >
+  1417→                              <span className={cn("shrink-0 h-2 w-2 rounded-full", STATUS_COLORS[room.status])} />
+  1418→                              <span className="font-mono font-medium w-10">{room.number}</span>
+  1419→                              <span className="text-muted-foreground truncate">
+  1420→                                {room.type.name} &middot; Floor {room.floor}
+  1421→                                {room.wing && <span> &middot; {room.wing} Wing</span>}
+  1422→                              </span>
+  1423→                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-auto shrink-0">
+  1424→                                {STATUS_LABELS[room.status]}
+  1425→                              </Badge>
+  1426→                            </button>
+  1427→                          ))}
+  1428→                        </>
+  1429→                      )}
+  1430→                    </div>
+  1431→                  )}
+  1432→                </div>
+  1433→
+  1434→                {/* Selected Room Info */}
+  1435→                {selectedRoom && (
+  1436→                  <div className="mt-1.5 flex items-start gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-md">
+  1437→                    <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+  1438→                    <div className="text-xs text-emerald-700 space-y-0.5">
+  1439→                      <p>
+  1440→                        <strong className="font-mono">{selectedRoom.number}</strong> — {selectedRoom.type.name}
+  1441→                      </p>
+  1442→                      <p className="text-emerald-600">
+  1443→                        Room Type: {selectedRoom.type.name} | Floor: {selectedRoom.floor}
+  1444→                        {selectedRoom.wing && ` | Wing: ${selectedRoom.wing}`}
+  1445→                      </p>
+  1446→                    </div>
+  1447→                  </div>
+  1448→                )}
+  1449→                {errors.room && !selectedRoom && (
+  1450→                  <p className="text-[10px] text-red-500 flex items-center gap-1">
+  1451→                    <AlertCircle className="h-3 w-3" />{errors.room}
+  1452→                  </p>
+  1453→                )}
+  1454→              </div>
+  1455→
+  1456→              {/* Row 5: Room Type & Rate Plan */}
+  1457→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1458→                <div className="space-y-1">
+  1459→                  <Label className="text-xs">Room Type</Label>
+  1460→                  <Select
+  1461→                    value={selectedRoomTypeId}
+  1462→                    onValueChange={(v) => {
+  1463→                      setSelectedRoomTypeId(v)
+  1464→                      // Clear room selection if manually changing type
+  1465→                      if (selectedRoom && selectedRoom.typeId !== v) {
+  1466→                        setSelectedRoom(null)
+  1467→                        setRoomSearchInput('')
+  1468→                      }
+  1469→                      // Auto-select first rate plan
+  1470→                      const rt = roomTypes.find((t) => t.id === v)
+  1471→                      if (rt && rt.ratePlans.length > 0) {
+  1472→                        setSelectedRatePlanId(rt.ratePlans[0].id)
+  1473→                        setRoomRate(rt.ratePlans[0].baseRate)
+  1474→                      } else {
+  1475→                        setSelectedRatePlanId('')
+  1476→                        setRoomRate(0)
+  1477→                      }
+  1478→                    }}
+  1479→                  >
+  1480→                    <SelectTrigger className="h-8 text-xs w-full">
+  1481→                      <SelectValue placeholder="Select room type" />
+  1482→                    </SelectTrigger>
+  1483→                    <SelectContent className="max-h-60">
+  1484→                      {roomTypes.map((rt) => (
+  1485→                        <SelectItem key={rt.id} value={rt.id}>
+  1486→                          {rt.name} ({rt.code}) — {rt.bedConfig} — {rt.roomCount} rooms
+  1487→                        </SelectItem>
+  1488→                      ))}
+  1489→                    </SelectContent>
+  1490→                  </Select>
+  1491→                </div>
+  1492→                <div className="space-y-1">
+  1493→                  <Label className="text-xs flex items-center gap-1">
+  1494→                    <BadgePercent className="h-3 w-3" /> Rate Plan
+  1495→                  </Label>
+  1496→                  <Select
+  1497→                    value={selectedRatePlanId}
+  1498→                    onValueChange={handleRatePlanChange}
+  1499→                    disabled={ratePlansForType.length === 0}
+  1500→                  >
+  1501→                    <SelectTrigger className="h-8 text-xs w-full">
+  1502→                      <SelectValue placeholder={ratePlansForType.length === 0 ? 'Select room type first' : 'Select rate plan'} />
+  1503→                    </SelectTrigger>
+  1504→                    <SelectContent>
+  1505→                      {ratePlansForType.map((rp) => (
+  1506→                        <SelectItem key={rp.id} value={rp.id}>
+  1507→                          {rp.name} — {formatCurrency(rp.baseRate)}/night
+  1508→                        </SelectItem>
+  1509→                      ))}
+  1510→                    </SelectContent>
+  1511→                  </Select>
+  1512→                </div>
+  1513→              </div>
+  1514→
+  1515→              {/* Row 6: Room Rate */}
+  1516→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1517→                <div className="space-y-1">
+  1518→                  <Label className="text-xs flex items-center gap-1">
+  1519→                    <CreditCard className="h-3 w-3" /> Room Rate (NPR)
+  1520→                  </Label>
+  1521→                  <Input
+  1522→                    className="h-8 text-xs"
+  1523→                    type="number"
+  1524→                    min={0}
+  1525→                    value={roomRate || ''}
+  1526→                    onChange={(e) => setRoomRate(parseFloat(e.target.value) || 0)}
+  1527→                    placeholder="0"
+  1528→                  />
+  1529→                </div>
+  1530→                <div className="space-y-1">
+  1531→                  <Label className="text-xs">Rate / Night</Label>
+  1532→                  <div className="h-8 flex items-center px-3 bg-muted rounded-md border">
+  1533→                    <span className="text-sm font-semibold text-amber-600">
+  1534→                      {roomRate > 0 ? formatCurrency(roomRate) : '—'}
+  1535→                    </span>
+  1536→                  </div>
+  1537→                </div>
+  1538→              </div>
+  1539→
+  1540→              <Separator />
+  1541→
+  1542→              {/* Cost Summary */}
+  1543→              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+  1544→                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+  1545→                  Cost Summary
+  1546→                </h4>
+  1547→                <div className="space-y-1.5">
+  1548→                  <div className="flex justify-between text-xs">
+  1549→                    <span className="text-muted-foreground">
+  1550→                      {roomRate.toLocaleString()} × {nights} night{nights !== 1 ? 's' : ''}
+  1551→                    </span>
+  1552→                    <span className="font-medium">{formatCurrency(subtotal)}</span>
+  1553→                  </div>
+  1554→                  <div className="flex justify-between text-xs">
+  1555→                    <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+  1556→                    <span className="font-medium">{formatCurrency(taxAmount)}</span>
+  1557→                  </div>
+  1558→                  <Separator />
+  1559→                  <div className="flex justify-between text-sm font-semibold">
+  1560→                    <span>Total</span>
+  1561→                    <span className="text-amber-600">{formatCurrency(totalAmount)}</span>
+  1562→                  </div>
+  1563→                </div>
+  1564→              </div>
+  1565→            </CardContent>
+  1566→          </Card>
+  1567→
+  1568→          {/* ── 5. Additional Information Section ─────────────────── */}
+  1569→          <Card>
+  1570→            <CardHeader className="pb-3">
+  1571→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+  1572→                <FileText className="h-4 w-4 text-amber-600" />
+  1573→                Additional Information
+  1574→              </CardTitle>
+  1575→            </CardHeader>
+  1576→            <CardContent className="pt-0 space-y-3">
+  1577→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1578→                <div className="space-y-1 md:col-span-2">
+  1579→                  <Label className="text-xs">Special Requests</Label>
+  1580→                  <Textarea
+  1581→                    className="text-xs min-h-[60px] resize-y"
+  1582→                    value={specialRequests}
+  1583→                    onChange={(e) => setSpecialRequests(e.target.value)}
+  1584→                    placeholder="Late check-in, extra pillows, high floor, etc."
+  1585→                  />
+  1586→                </div>
+  1587→                <div className="space-y-1">
+  1588→                  <Label className="text-xs flex items-center gap-1">
+  1589→                    <Building className="h-3 w-3" /> Company (if not in booking contact)
+  1590→                  </Label>
+  1591→                  <Input
+  1592→                    className="h-8 text-xs"
+  1593→                    value={addCompany}
+  1594→                    onChange={(e) => setAddCompany(e.target.value)}
+  1595→                    placeholder="Company name"
+  1596→                  />
+  1597→                </div>
+  1598→                <div className="space-y-1">
+  1599→                  <Label className="text-xs flex items-center gap-1">
+  1600→                    <Hash className="h-3 w-3" /> PO Number
+  1601→                  </Label>
+  1602→                  <Input
+  1603→                    className="h-8 text-xs"
+  1604→                    value={poNumber}
+  1605→                    onChange={(e) => setPoNumber(e.target.value)}
+  1606→                    placeholder="PO-XXXX"
+  1607→                  />
+  1608→                </div>
+  1609→                <div className="space-y-1">
+  1610→                  <div className="flex items-center gap-2">
+  1611→                    <Checkbox
+  1612→                      id="guaranteed"
+  1613→                      checked={guaranteed}
+  1614→                      onCheckedChange={(v) => setGuaranteed(v === true)}
+  1615→                    />
+  1616→                    <Label htmlFor="guaranteed" className="text-xs cursor-pointer">
+  1617→                      Guaranteed Booking
+  1618→                    </Label>
+  1619→                  </div>
+  1620→                </div>
+  1621→                <div className="space-y-1 md:col-span-2">
+  1622→                  <Label className="text-xs">Notes (Internal)</Label>
+  1623→                  <Textarea
+  1624→                    className="text-xs min-h-[60px] resize-y"
+  1625→                    value={notes}
+  1626→                    onChange={(e) => setNotes(e.target.value)}
+  1627→                    placeholder="Internal notes for staff..."
+  1628→                  />
+  1629→                </div>
+  1630→              </div>
+  1631→            </CardContent>
+  1632→          </Card>
+  1633→
+  1634→        </div>
+  1635→      </div>
+  1636→
+  1637→      {/* ── 6. Footer ────────────────────────────────────────────── */}
+  1638→      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-t bg-white shrink-0">
+  1639→        <Button variant="outline" onClick={onBack} className="text-xs">
+  1640→          Cancel
+  1641→        </Button>
+  1642→        <div className="flex items-center gap-3">
+  1643→          {Object.keys(errors).length > 0 && (
+  1644→            <span className="text-xs text-red-500 flex items-center gap-1">
+  1645→              <AlertCircle className="h-3 w-3" />
+  1646→              {Object.keys(errors).length} error{Object.keys(errors).length !== 1 ? 's' : ''} — please fix above
+  1647→            </span>
+  1648→          )}
+  1649→          <Button
+  1650→            onClick={handleSubmit}
+  1651→            disabled={isSubmitting}
+  1652→            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+  1653→          >
+  1654→            {isSubmitting ? (
+  1655→              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+  1656→            ) : (
+  1657→              <CheckCircle2 className="h-4 w-4 mr-2" />
+  1658→            )}
+  1659→            Create Reservation
+  1660→          </Button>
+  1661→        </div>
+  1662→      </div>
+  1663→    </div>
+  1664→  )
+  1665→}
+  1666→

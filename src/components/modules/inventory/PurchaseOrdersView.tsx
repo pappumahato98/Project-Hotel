@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -223,16 +224,12 @@ const MOCK_PURCHASE_ORDERS: PurchaseOrder[] = [
 ]
 
 // ── API helpers ──────────────────────────────────────────────
-async function fetchInventory() {
-  const res = await fetch('/api/inventory')
-  if (!res.ok) throw new Error('Failed to fetch inventory')
-  return res.json()
+function fetchInventory() {
+  return apiFetch('/api/inventory')
 }
 
-async function fetchVendors() {
-  const res = await fetch('/api/vendors')
-  if (!res.ok) throw new Error('Failed to fetch vendors')
-  return res.json()
+function fetchVendors() {
+  return apiFetch('/api/vendors')
 }
 
 // ── Component ────────────────────────────────────────────────

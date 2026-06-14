@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api'
 import {
   Receipt, DollarSign, TrendingUp, Ban, Calendar, Filter,
   Clock, Eye, ShoppingBag,
@@ -230,9 +231,7 @@ export default function OrderHistoryView() {
         date: dateFilter,
         status: statusFilter,
       })
-      const res = await fetch(`/api/pos?${params}`)
-      if (!res.ok) throw new Error('Failed to fetch order history')
-      return res.json()
+      return apiFetch(`/api/pos?${params}`)
     },
     refetchInterval: 15000, // 15-second auto-refresh
   })

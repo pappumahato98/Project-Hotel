@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -83,10 +84,13 @@ export function CampaignsView() {
 
   const { data, isLoading } = useQuery<{ campaigns: Campaign[]; total: number }>({
     queryKey: ['campaigns'],
-    queryFn: () => fetch('/api/guests').then((r) => r.json()).then((d) => ({
-      campaigns: d.guests?.length > 0 ? generateCampaigns(d.guests.length) : [],
-      total: d.guests?.length ?? 0,
-    })),
+    queryFn: async () => {
+      const d = await apiFetch<{ guests: unknown[] }>('/api/guests')
+      return {
+        campaigns: d.guests?.length > 0 ? generateCampaigns(d.guests.length) : [],
+        total: d.guests?.length ?? 0,
+      }
+    },
   })
 
   const campaigns = data?.campaigns ?? []
@@ -151,13 +155,11 @@ export function CampaignsView() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/guests', {
+      return apiFetch('/api/guests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note: `Campaign: ${createForm.name}` }),
       })
-      if (!res.ok) throw new Error('Failed to save campaign')
-      return res.json()
     },
     onSuccess: () => {
       toast.success(`Campaign "${createForm.name}" created successfully`)

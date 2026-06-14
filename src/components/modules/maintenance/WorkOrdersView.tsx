@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -36,14 +37,12 @@ const priorityConfig: Record<string, { color: string; label: string; icon: React
   low: { color: 'border-gray-300 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400', label: 'Low', icon: <Clock className="h-3 w-3" /> },
 }
 
-async function fetchWorkOrders(status?: string, priority?: string, category?: string) {
+function fetchWorkOrders(status?: string, priority?: string, category?: string) {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
   if (priority) params.set('priority', priority)
   if (category) params.set('category', category)
-  const res = await fetch(`/api/work-orders?${params.toString()}`)
-  if (!res.ok) throw new Error('Failed to fetch work orders')
-  return res.json()
+  return apiFetch(`/api/work-orders?${params.toString()}`)
 }
 
 export function WorkOrdersView() {

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,10 +46,8 @@ interface DepartmentData {
   activeCount: number
 }
 
-async function fetchEmployees() {
-  const res = await fetch('/api/employees')
-  if (!res.ok) throw new Error('Failed to fetch employees')
-  return res.json()
+function fetchEmployees() {
+  return apiFetch('/api/employees')
 }
 
 export function DepartmentsView() {

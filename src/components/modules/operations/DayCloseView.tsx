@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import {
   CalendarClock, CheckCircle2, Circle, Lock, Loader2,
   BedDouble, Users, ArrowRightLeft, DollarSign, AlertTriangle, TrendingUp,
@@ -89,9 +90,7 @@ export function DayCloseView() {
   const { data, isLoading, isError } = useQuery<DayCloseData>({
     queryKey: ['operations', 'day-close'],
     queryFn: async () => {
-      const res = await fetch('/api/operations')
-      if (!res.ok) throw new Error('Failed to fetch day close data')
-      const json = await res.json()
+      const json = await apiFetch<{ dayClose: DayCloseData }>('/api/operations')
       return json.dayClose
     },
   })
@@ -104,13 +103,11 @@ export function DayCloseView() {
 
   const closeDayMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/operations', {
+      return apiFetch('/api/operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'close-day' }),
       })
-      if (!res.ok) throw new Error('Failed to close day')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Business day closed successfully')

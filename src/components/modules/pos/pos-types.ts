@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 
 export interface TableItem {
   id: number
@@ -175,11 +176,7 @@ export function timeAgo(dateStr: string): string {
 export function usePosData(section: string = 'all') {
   return useQuery<PosData>({
     queryKey: ['pos', section],
-    queryFn: async () => {
-      const res = await fetch(`/api/pos?section=${section}`)
-      if (!res.ok) throw new Error('Failed to fetch POS data')
-      return res.json()
-    },
+    queryFn: () => apiFetch(`/api/pos?section=${section}`),
     refetchInterval: 15000, // Auto refresh every 15 seconds
   })
 }

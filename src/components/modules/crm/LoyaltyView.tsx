@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -159,7 +160,7 @@ function TierCard({ tier }: { tier: typeof TIERS[number] }) {
 export function LoyaltyView() {
   const { data, isLoading } = useQuery<{ guests: Guest[]; total: number }>({
     queryKey: ['guests-loyalty'],
-    queryFn: () => fetch('/api/guests').then((r) => r.json()),
+    queryFn: () => apiFetch('/api/guests'),
   })
 
   const guests = data?.guests || []

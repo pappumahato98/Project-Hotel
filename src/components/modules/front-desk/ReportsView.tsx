@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import {
   CalendarDays,
   Users,
@@ -195,9 +196,7 @@ function useReportQuery<T>(type: ReportType, date?: string) {
     queryFn: async () => {
       const params = new URLSearchParams({ type })
       if (date) params.set('date', date)
-      const res = await fetch(`/api/front-desk/reports?${params.toString()}`)
-      if (!res.ok) throw new Error(`Failed to fetch ${type} report`)
-      return res.json()
+      return apiFetch(`/api/front-desk/reports?${params.toString()}`)
     },
     refetchInterval: 30000,
   })

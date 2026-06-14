@@ -217,6 +217,9 @@ model Reservation {
   guest         Guest?   @relation(fields: [guestId], references: [id])
   room          Room?    @relation(fields: [roomId], references: [id])
   folios        Folio[]
+  bookingContact BookingContact?
+  ratePostings  RoomRatePosting[]
+  guestDocuments GuestDocument[]
 }
 
 // ─── GUEST FOLIO ─────────────────────────────────────────────
@@ -234,6 +237,7 @@ model Folio {
   guest         Guest     @relation(fields: [guestId], references: [id])
   transactions  FolioTransaction[]
   payments      FolioPayment[]
+  ratePostings  RoomRatePosting[]
 }
 
 model FolioTransaction {
@@ -661,6 +665,72 @@ model Channel {
   notes             String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+// ─── BOOKING CONTACT (Person/Company who made the reservation) ──
+model BookingContact {
+  id            String   @id @default(cuid())
+  reservationId String   @unique
+  contactType   String   @default("person") // person, company, travel_agent, online_travel_agent
+  salutation    String?  // Mr, Ms, Mrs, Dr, etc.
+  firstName     String?
+  lastName      String?
+  email         String?
+  phone         String?
+  mobile        String?
+  companyName   String?
+  companyAddress String?
+  city          String?
+  country       String?
+  taxId         String?  // VAT/PAN number for companies
+  website       String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+}
+
+// ─── GUEST DOCUMENTS (ID verification for check-in) ───────────
+model GuestDocument {
+  id            String   @id @default(cuid())
+  reservationId String
+  guestId       String?
+  docType       String   // passport, national_id, drivers_license, visa, birth_certificate
+  docNumber     String?
+  docExpiry     DateTime?
+  issueCountry  String?
+  issueDate     DateTime?
+  placeOfIssue  String?
+  filePath      String?  // future file storage reference
+  fileName      String?
+  fileSize      Int?     // bytes
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+}
+
+// ─── ROOM RATE POSTING (Daily room charge to guest ledger) ────
+model RoomRatePosting {
+  id            String   @id @default(cuid())
+  reservationId String
+  folioId       String
+  roomId        String
+  postingDate   DateTime  // the date the charge is for (the stay night)
+  roomRate      Float     // base room rate for that night
+  taxAmount     Float     @default(0)
+  serviceCharge Float     @default(0)
+  totalAmount   Float     // roomRate + taxAmount + serviceCharge
+  status        String    @default("posted") // posted, voided, adjusted
+  postedBy      String?
+  voidedBy      String?
+  voidReason    String?
+  createdAt     DateTime  @default(now())
+
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  folio         Folio      @relation(fields: [folioId], references: [id], onDelete: Cascade)
 }
 
 // ─── ACTIVITY LOG ─────────────────────────────────────────

@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useState } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -89,7 +90,7 @@ export function LostFoundView() {
 
   const { data, isLoading } = useQuery<LostFoundItem[]>({
     queryKey: ['lost-found'],
-    queryFn: () => fetch('/api/housekeeping?section=lost-found').then((r) => r.json()),
+    queryFn: () => apiFetch('/api/housekeeping?section=lost-found'),
   })
 
   const items = data || []

@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,10 +35,8 @@ interface DeptTotal {
   totalNetPay: number
 }
 
-async function fetchPayroll() {
-  const res = await fetch('/api/payroll')
-  if (!res.ok) throw new Error('Failed to fetch payroll')
-  return res.json()
+function fetchPayroll() {
+  return apiFetch('/api/payroll')
 }
 
 export function PayrollView() {

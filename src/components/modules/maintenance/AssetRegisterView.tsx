@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -27,10 +28,8 @@ interface Asset {
   lastMaintenance: string
 }
 
-async function fetchAssets() {
-  const res = await fetch('/api/assets')
-  if (!res.ok) throw new Error('Failed to fetch assets')
-  return res.json()
+function fetchAssets() {
+  return apiFetch('/api/assets')
 }
 
 export function AssetRegisterView() {

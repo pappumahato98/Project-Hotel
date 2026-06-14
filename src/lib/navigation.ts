@@ -32,7 +32,9 @@ export const NAV_ITEMS: NavItem[] = [
     color: 'text-blue-600',
     children: [
       { id: 'dashboard', label: 'Dashboard' },
+      { id: 'new-reservation', label: 'New Reservation' },
       { id: 'reservations', label: 'Reservations' },
+      { id: 'check-in', label: 'Check-In' },
       { id: 'arrivals', label: 'Arrivals' },
       { id: 'in-house', label: 'In-House Guests' },
       { id: 'departures', label: 'Departures' },

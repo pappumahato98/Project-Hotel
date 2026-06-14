@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -88,13 +89,11 @@ const ROLES = [
   { value: 'staff', label: 'Staff' },
 ]
 
-async function fetchEmployees(department?: string, status?: string) {
+function fetchEmployees(department?: string, status?: string) {
   const params = new URLSearchParams()
   if (department) params.set('department', department)
   if (status) params.set('status', status)
-  const res = await fetch(`/api/employees?${params.toString()}`)
-  if (!res.ok) throw new Error('Failed to fetch employees')
-  return res.json()
+  return apiFetch(`/api/employees?${params.toString()}`)
 }
 
 export function EmployeesView() {
@@ -139,7 +138,7 @@ export function EmployeesView() {
   // Create mutation
   const createMutation = useMutation({
     mutationFn: async (formData: EmployeeFormData) => {
-      const res = await fetch('/api/employees', {
+      return apiFetch('/api/employees', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,8 +147,6 @@ export function EmployeesView() {
           hireDate: formData.hireDate || null,
         }),
       })
-      if (!res.ok) throw new Error('Failed to create employee')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] })
@@ -164,7 +161,7 @@ export function EmployeesView() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, formData }: { id: string; formData: EmployeeFormData }) => {
-      const res = await fetch(`/api/employees/${id}`, {
+      return apiFetch(`/api/employees/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -173,8 +170,6 @@ export function EmployeesView() {
           hireDate: formData.hireDate || null,
         }),
       })
-      if (!res.ok) throw new Error('Failed to update employee')
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] })
@@ -189,9 +184,7 @@ export function EmployeesView() {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete employee')
-      return res.json()
+      return apiFetch(`/api/employees/${id}`, { method: 'DELETE' })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees'] })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { apiFetch } from '@/lib/api'
 import { Search, User, BedDouble, CalendarCheck, Loader2, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -37,11 +38,8 @@ export function QuickSearch() {
     }
     setLoading(true)
     try {
-      const res = await fetch(`/api/front-desk/search?q=${encodeURIComponent(searchQuery)}`)
-      if (res.ok) {
-        const data = await res.json()
-        setResults(data.results || [])
-      }
+      const data = await apiFetch<{ results: SearchResult[] }>(`/api/front-desk/search?q=${encodeURIComponent(searchQuery)}`)
+      setResults(data.results || [])
     } catch {
       setResults([])
     } finally {

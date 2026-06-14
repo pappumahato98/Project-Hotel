@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -179,7 +180,7 @@ export function ContactSupportView() {
   // Fetch tickets
   const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
     queryKey: ['support-tickets'],
-    queryFn: () => fetch('/api/support-tickets').then((r) => r.json()),
+    queryFn: () => apiFetch('/api/support-tickets'),
   })
 
   // Create ticket mutation
@@ -193,13 +194,11 @@ export function ContactSupportView() {
       createdByName: string
       createdBy: string
     }) => {
-      const res = await fetch('/api/support-tickets', {
+      return apiFetch('/api/support-tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!res.ok) throw new Error('Failed to create ticket')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Support ticket submitted successfully!')
@@ -225,13 +224,11 @@ export function ContactSupportView() {
       resolution: string
       status: string
     }) => {
-      const res = await fetch(`/api/support-tickets/${id}`, {
+      return apiFetch(`/api/support-tickets/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ resolution, status }),
       })
-      if (!res.ok) throw new Error('Failed to update ticket')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Ticket updated successfully!')

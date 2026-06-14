@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TrendingUp, CalendarDays } from 'lucide-react'
@@ -16,10 +17,8 @@ interface DemandDay {
   occupancy: number
 }
 
-async function fetchRevenue() {
-  const res = await fetch('/api/revenue')
-  if (!res.ok) throw new Error('Failed to fetch revenue data')
-  return res.json()
+function fetchRevenue() {
+  return apiFetch('/api/revenue')
 }
 
 const levelColors: Record<string, { bg: string; text: string; border: string }> = {

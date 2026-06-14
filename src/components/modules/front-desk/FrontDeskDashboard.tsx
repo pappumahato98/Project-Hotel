@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import {
   LogIn,
   LogOut,
@@ -268,11 +269,7 @@ export function FrontDeskDashboard() {
     isFetching,
   } = useQuery<DashboardData>({
     queryKey: ['front-desk-dashboard'],
-    queryFn: async () => {
-      const res = await fetch('/api/front-desk/dashboard')
-      if (!res.ok) throw new Error('Failed to fetch dashboard data')
-      return res.json()
-    },
+    queryFn: () => apiFetch('/api/front-desk/dashboard'),
     refetchInterval: 30000,
   })
 

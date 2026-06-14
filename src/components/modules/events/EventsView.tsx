@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -44,13 +45,11 @@ const eventTypeColors: Record<string, string> = {
   meeting: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
 }
 
-async function fetchEvents(status?: string, eventType?: string) {
+function fetchEvents(status?: string, eventType?: string) {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
   if (eventType) params.set('eventType', eventType)
-  const res = await fetch(`/api/events?${params.toString()}`)
-  if (!res.ok) throw new Error('Failed to fetch events')
-  return res.json()
+  return apiFetch(`/api/events?${params.toString()}`)
 }
 
 export function EventsView() {

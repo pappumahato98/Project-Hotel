@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { apiFetch } from '@/lib/api'
 import {
   ChefHat, Flame, Clock, AlertTriangle, CheckCircle,
   Undo2, PartyPopper, Loader2,
@@ -293,13 +294,11 @@ export default function KitchenDisplayView() {
 
   const updateItemStatusMutation = useMutation({
     mutationFn: async (params: { ticketId: string; orderId: string; action: 'preparing' | 'ready' | 'served' }) => {
-      const res = await fetch('/api/pos', {
+      return apiFetch('/api/pos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update_order_status', orderId: params.orderId, status: params.action }),
       })
-      if (!res.ok) throw new Error('Failed to update status')
-      return res.json()
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['pos', 'kitchen-display'] })

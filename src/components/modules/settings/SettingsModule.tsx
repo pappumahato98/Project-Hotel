@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { apiFetch } from '@/lib/api'
 import { useTheme } from 'next-themes'
 import { useSidebar } from '@/components/ui/sidebar'
 import {
@@ -1595,20 +1596,15 @@ function SecurityTab() {
       return
     }
     try {
-      const res = await fetch('/api/auth/password', {
+      await apiFetch('/api/auth/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user?.email, currentPassword, newPassword }),
       })
-      const data = await res.json()
-      if (res.ok) {
-        setCurrentPassword('')
-        setNewPassword('')
-        setConfirmPassword('')
-        toast.success('Password changed successfully')
-      } else {
-        toast.error(data.error || 'Failed to change password')
-      }
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success('Password changed successfully')
     } catch {
       toast.error('Failed to change password. Please try again.')
     }

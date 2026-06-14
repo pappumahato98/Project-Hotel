@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useState } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -278,7 +279,7 @@ export function GuestProfilesView() {
       const params = new URLSearchParams()
       if (searchQuery) params.set('search', searchQuery)
       if (vipFilter !== 'all') params.set('vipLevel', vipFilter)
-      return fetch(`/api/guests?${params}`).then((r) => r.json())
+      return apiFetch(`/api/guests?${params}`)
     },
   })
 

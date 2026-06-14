@@ -1,0 +1,666 @@
+     1→  1001→                  <Label className="text-xs">
+     2→  1002→                    Last Name <span className="text-red-500">*</span>
+     3→  1003→                  </Label>
+     4→  1004→                  <Input
+     5→  1005→                    className={cn("h-8 text-xs", errors.guestLastName && "border-red-500")}
+     6→  1006→                    value={guestFields.lastName}
+     7→  1007→                    onChange={(e) => updateGuestField('lastName', e.target.value)}
+     8→  1008→                    placeholder="Sharma"
+     9→  1009→                  />
+    10→  1010→                  {errors.guestLastName && (
+    11→  1011→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+    12→  1012→                      <AlertCircle className="h-3 w-3" />{errors.guestLastName}
+    13→  1013→                    </p>
+    14→  1014→                  )}
+    15→  1015→                </div>
+    16→  1016→                <div className="space-y-1">
+    17→  1017→                  <Label className="text-xs flex items-center gap-1">
+    18→  1018→                    <Mail className="h-3 w-3" /> Email
+    19→  1019→                  </Label>
+    20→  1020→                  <Input
+    21→  1021→                    className="h-8 text-xs"
+    22→  1022→                    type="email"
+    23→  1023→                    value={guestFields.email}
+    24→  1024→                    onChange={(e) => updateGuestField('email', e.target.value)}
+    25→  1025→                    placeholder="guest@email.com"
+    26→  1026→                  />
+    27→  1027→                </div>
+    28→  1028→                <div className="space-y-1">
+    29→  1029→                  <Label className="text-xs flex items-center gap-1">
+    30→  1030→                    <Phone className="h-3 w-3" /> Phone
+    31→  1031→                  </Label>
+    32→  1032→                  <Input
+    33→  1033→                    className="h-8 text-xs"
+    34→  1034→                    value={guestFields.phone}
+    35→  1035→                    onChange={(e) => updateGuestField('phone', e.target.value)}
+    36→  1036→                    placeholder="+977-98..."
+    37→  1037→                  />
+    38→  1038→                </div>
+    39→  1039→                <div className="space-y-1">
+    40→  1040→                  <Label className="text-xs flex items-center gap-1">
+    41→  1041→                    <Globe className="h-3 w-3" /> Nationality
+    42→  1042→                  </Label>
+    43→  1043→                  <Select value={guestFields.nationality} onValueChange={(v) => updateGuestField('nationality', v)}>
+    44→  1044→                    <SelectTrigger className="h-8 text-xs w-full">
+    45→  1045→                      <SelectValue placeholder="Select" />
+    46→  1046→                    </SelectTrigger>
+    47→  1047→                    <SelectContent className="max-h-60">
+    48→  1048→                      {NATIONALITIES.map((n) => (
+    49→  1049→                        <SelectItem key={n} value={n}>{n}</SelectItem>
+    50→  1050→                      ))}
+    51→  1051→                    </SelectContent>
+    52→  1052→                  </Select>
+    53→  1053→                </div>
+    54→  1054→                <div className="space-y-1">
+    55→  1055→                  <Label className="text-xs">Date of Birth</Label>
+    56→  1056→                  <Input
+    57→  1057→                    className="h-8 text-xs"
+    58→  1058→                    type="date"
+    59→  1059→                    value={guestFields.dateOfBirth}
+    60→  1060→                    onChange={(e) => updateGuestField('dateOfBirth', e.target.value)}
+    61→  1061→                  />
+    62→  1062→                </div>
+    63→  1063→                <div className="space-y-1">
+    64→  1064→                  <Label className="text-xs">Gender</Label>
+    65→  1065→                  <Select value={guestFields.gender} onValueChange={(v) => updateGuestField('gender', v)}>
+    66→  1066→                    <SelectTrigger className="h-8 text-xs w-full">
+    67→  1067→                      <SelectValue placeholder="Select" />
+    68→  1068→                    </SelectTrigger>
+    69→  1069→                    <SelectContent>
+    70→  1070→                      <SelectItem value="Male">Male</SelectItem>
+    71→  1071→                      <SelectItem value="Female">Female</SelectItem>
+    72→  1072→                      <SelectItem value="Other">Other</SelectItem>
+    73→  1073→                    </SelectContent>
+    74→  1074→                  </Select>
+    75→  1075→                </div>
+    76→  1076→                <div className="space-y-1">
+    77→  1077→                  <Label className="text-xs">ID Type</Label>
+    78→  1078→                  <Select value={guestFields.idType} onValueChange={(v) => updateGuestField('idType', v)}>
+    79→  1079→                    <SelectTrigger className="h-8 text-xs w-full">
+    80→  1080→                      <SelectValue placeholder="Select" />
+    81→  1081→                    </SelectTrigger>
+    82→  1082→                    <SelectContent>
+    83→  1083→                      {ID_TYPES.map((t) => (
+    84→  1084→                        <SelectItem key={t} value={t}>{t}</SelectItem>
+    85→  1085→                      ))}
+    86→  1086→                    </SelectContent>
+    87→  1087→                  </Select>
+    88→  1088→                </div>
+    89→  1089→                <div className="space-y-1">
+    90→  1090→                  <Label className="text-xs">ID Number</Label>
+    91→  1091→                  <Input
+    92→  1092→                    className="h-8 text-xs"
+    93→  1093→                    value={guestFields.idNumber}
+    94→  1094→                    onChange={(e) => updateGuestField('idNumber', e.target.value)}
+    95→  1095→                    placeholder="ID number"
+    96→  1096→                  />
+    97→  1097→                </div>
+    98→  1098→                <div className="space-y-1">
+    99→  1099→                  <Label className="text-xs flex items-center gap-1">
+   100→  1100→                    <MapPin className="h-3 w-3" /> Address
+   101→  1101→                  </Label>
+   102→  1102→                  <Input
+   103→  1103→                    className="h-8 text-xs"
+   104→  1104→                    value={guestFields.address}
+   105→  1105→                    onChange={(e) => updateGuestField('address', e.target.value)}
+   106→  1106→                    placeholder="Street address"
+   107→  1107→                  />
+   108→  1108→                </div>
+   109→  1109→                <div className="space-y-1">
+   110→  1110→                  <Label className="text-xs">City</Label>
+   111→  1111→                  <Input
+   112→  1112→                    className="h-8 text-xs"
+   113→  1113→                    value={guestFields.city}
+   114→  1114→                    onChange={(e) => updateGuestField('city', e.target.value)}
+   115→  1115→                    placeholder="City"
+   116→  1116→                  />
+   117→  1117→                </div>
+   118→  1118→                <div className="space-y-1">
+   119→  1119→                  <Label className="text-xs">Country</Label>
+   120→  1120→                  <Select value={guestFields.country} onValueChange={(v) => updateGuestField('country', v)}>
+   121→  1121→                    <SelectTrigger className="h-8 text-xs w-full">
+   122→  1122→                      <SelectValue placeholder="Select" />
+   123→  1123→                    </SelectTrigger>
+   124→  1124→                    <SelectContent className="max-h-60">
+   125→  1125→                      {COUNTRIES.map((c) => (
+   126→  1126→                        <SelectItem key={c} value={c}>{c}</SelectItem>
+   127→  1127→                      ))}
+   128→  1128→                    </SelectContent>
+   129→  1129→                  </Select>
+   130→  1130→                </div>
+   131→  1131→                <div className="space-y-1 md:col-span-2 lg:col-span-1">
+   132→  1132→                  <Label className="text-xs flex items-center gap-1">
+   133→  1133→                    <Crown className="h-3 w-3" /> VIP Level
+   134→  1134→                  </Label>
+   135→  1135→                  <div className="flex gap-2 flex-wrap">
+   136→  1136→                    {VIP_LEVELS.map((lvl) => (
+   137→  1137→                      <button
+   138→  1138→                        key={lvl.value}
+   139→  1139→                        type="button"
+   140→  1140→                        onClick={() => updateGuestField('vipLevel', lvl.value)}
+   141→  1141→                        className={cn(
+   142→  1142→                          "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium border transition-colors",
+   143→  1143→                          guestFields.vipLevel === lvl.value
+   144→  1144→                            ? "border-primary bg-primary/5 text-primary ring-1 ring-primary/20"
+   145→  1145→                            : "border-muted bg-muted/50 text-muted-foreground hover:bg-muted"
+   146→  1146→                        )}
+   147→  1147→                      >
+   148→  1148→                        {lvl.label}
+   149→  1149→                      </button>
+   150→  1150→                    ))}
+   151→  1151→                  </div>
+   152→  1152→                </div>
+   153→  1153→              </div>
+   154→  1154→            </CardContent>
+   155→  1155→          </Card>
+   156→  1156→
+   157→  1157→          {/* ── 4. Stay Details Section ───────────────────────────── */}
+   158→  1158→          <Card>
+   159→  1159→            <CardHeader className="pb-3">
+   160→  1160→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   161→  1161→                <BedDouble className="h-4 w-4 text-amber-600" />
+   162→  1162→                Stay Details
+   163→  1163→              </CardTitle>
+   164→  1164→            </CardHeader>
+   165→  1165→            <CardContent className="pt-0 space-y-4">
+   166→  1166→              {/* Row 1: Reservation Type & Source */}
+   167→  1167→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   168→  1168→                <div className="space-y-1">
+   169→  1169→                  <Label className="text-xs">Reservation Type</Label>
+   170→  1170→                  <Select value={reservationType} onValueChange={setReservationType}>
+   171→  1171→                    <SelectTrigger className="h-8 text-xs w-full">
+   172→  1172→                      <SelectValue />
+   173→  1173→                    </SelectTrigger>
+   174→  1174→                    <SelectContent>
+   175→  1175→                      {RESERVATION_TYPES.map((t) => (
+   176→  1176→                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+   177→  1177→                      ))}
+   178→  1178→                    </SelectContent>
+   179→  1179→                  </Select>
+   180→  1180→                </div>
+   181→  1181→                <div className="space-y-1">
+   182→  1182→                  <Label className="text-xs">Source</Label>
+   183→  1183→                  <Select value={source} onValueChange={setSource}>
+   184→  1184→                    <SelectTrigger className="h-8 text-xs w-full">
+   185→  1185→                      <SelectValue />
+   186→  1186→                    </SelectTrigger>
+   187→  1187→                    <SelectContent>
+   188→  1188→                      {SOURCES.map((s) => (
+   189→  1189→                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+   190→  1190→                      ))}
+   191→  1191→                    </SelectContent>
+   192→  1192→                  </Select>
+   193→  1193→                </div>
+   194→  1194→              </div>
+   195→  1195→
+   196→  1196→              <Separator />
+   197→  1197→
+   198→  1198→              {/* Row 2: Dates */}
+   199→  1199→              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+   200→  1200→                <div className="space-y-1">
+   201→  1201→                  <Label className="text-xs flex items-center gap-1">
+   202→  1202→                    <Clock className="h-3 w-3" /> Check-in Date <span className="text-red-500">*</span>
+   203→  1203→                  </Label>
+   204→  1204→                  <Popover>
+   205→  1205→                    <PopoverTrigger asChild>
+   206→  1206→                      <Button
+   207→  1207→                        variant="outline"
+   208→  1208→                        className={cn(
+   209→  1209→                          "h-8 w-full justify-start text-xs font-normal",
+   210→  1210→                          !checkInDate && "text-muted-foreground",
+   211→  1211→                          errors.checkIn && "border-red-500"
+   212→  1212→                        )}
+   213→  1213→                      >
+   214→  1214→                        {checkInDate ? formatDate(checkInDate) : "Select date"}
+   215→  1215→                      </Button>
+   216→  1216→                    </PopoverTrigger>
+   217→  1217→                    <PopoverContent className="w-auto p-0" align="start">
+   218→  1218→                      <Calendar
+   219→  1219→                        mode="single"
+   220→  1220→                        selected={checkInDate ? new Date(checkInDate) : undefined}
+   221→  1221→                        onSelect={(date) => date && handleCheckInChange(date.toISOString().split('T')[0])}
+   222→  1222→                        initialFocus
+   223→  1223→                      />
+   224→  1224→                    </PopoverContent>
+   225→  1225→                  </Popover>
+   226→  1226→                  {errors.checkIn && (
+   227→  1227→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+   228→  1228→                      <AlertCircle className="h-3 w-3" />{errors.checkIn}
+   229→  1229→                    </p>
+   230→  1230→                  )}
+   231→  1231→                </div>
+   232→  1232→                <div className="space-y-1">
+   233→  1233→                  <Label className="text-xs flex items-center gap-1">
+   234→  1234→                    <Clock className="h-3 w-3" /> Check-out Date <span className="text-red-500">*</span>
+   235→  1235→                  </Label>
+   236→  1236→                  <Popover>
+   237→  1237→                    <PopoverTrigger asChild>
+   238→  1238→                      <Button
+   239→  1239→                        variant="outline"
+   240→  1240→                        className={cn(
+   241→  1241→                          "h-8 w-full justify-start text-xs font-normal",
+   242→  1242→                          !checkOutDate && "text-muted-foreground",
+   243→  1243→                          errors.checkOut && "border-red-500"
+   244→  1244→                        )}
+   245→  1245→                      >
+   246→  1246→                        {checkOutDate ? formatDate(checkOutDate) : "Select date"}
+   247→  1247→                      </Button>
+   248→  1248→                    </PopoverTrigger>
+   249→  1249→                    <PopoverContent className="w-auto p-0" align="start">
+   250→  1250→                      <Calendar
+   251→  1251→                        mode="single"
+   252→  1252→                        selected={checkOutDate ? new Date(checkOutDate) : undefined}
+   253→  1253→                        onSelect={(date) => date && setCheckOutDate(date.toISOString().split('T')[0])}
+   254→  1254→                        disabledDate={(date) => checkInDate ? date < new Date(checkInDate) : false}
+   255→  1255→                        initialFocus
+   256→  1256→                      />
+   257→  1257→                    </PopoverContent>
+   258→  1258→                  </Popover>
+   259→  1259→                  {errors.checkOut && (
+   260→  1260→                    <p className="text-[10px] text-red-500 flex items-center gap-1">
+   261→  1261→                      <AlertCircle className="h-3 w-3" />{errors.checkOut}
+   262→  1262→                    </p>
+   263→  1263→                  )}
+   264→  1264→                </div>
+   265→  1265→                <div className="space-y-1">
+   266→  1266→                  <Label className="text-xs">Nights</Label>
+   267→  1267→                  <div className="h-8 flex items-center px-3 bg-muted rounded-md border">
+   268→  1268→                    <span className={cn(
+   269→  1269→                      "text-sm font-semibold",
+   270→  1270→                      nights > 0 ? "text-amber-600" : "text-muted-foreground"
+   271→  1271→                    )}>
+   272→  1272→                      {nights || '—'}
+   273→  1273→                    </span>
+   274→  1274→                    <span className="text-xs text-muted-foreground ml-1">
+   275→  1275→                      {nights === 1 ? 'night' : nights > 1 ? 'nights' : ''}
+   276→  1276→                    </span>
+   277→  1277→                  </div>
+   278→  1278→                </div>
+   279→  1279→              </div>
+   280→  1280→
+   281→  1281→              {/* Row 3: Adults & Children */}
+   282→  1282→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   283→  1283→                <div className="space-y-1">
+   284→  1284→                  <Label className="text-xs flex items-center gap-1">
+   285→  1285→                    <Users className="h-3 w-3" /> Adults
+   286→  1286→                  </Label>
+   287→  1287→                  <div className="flex items-center gap-2">
+   288→  1288→                    <Button
+   289→  1289→                      type="button"
+   290→  1290→                      variant="outline"
+   291→  1291→                      size="icon"
+   292→  1292→                      className="h-8 w-8"
+   293→  1293→                      onClick={() => setAdults((a) => Math.max(1, a - 1))}
+   294→  1294→                    >
+   295→  1295→                      -
+   296→  1296→                    </Button>
+   297→  1297→                    <Input
+   298→  1298→                      className="h-8 w-16 text-center text-sm"
+   299→  1299→                      type="number"
+   300→  1300→                      min={1}
+   301→  1301→                      value={adults}
+   302→  1302→                      onChange={(e) => setAdults(Math.max(1, parseInt(e.target.value) || 1))}
+   303→  1303→                    />
+   304→  1304→                    <Button
+   305→  1305→                      type="button"
+   306→  1306→                      variant="outline"
+   307→  1307→                      size="icon"
+   308→  1308→                      className="h-8 w-8"
+   309→  1309→                      onClick={() => setAdults((a) => a + 1)}
+   310→  1310→                    >
+   311→  1311→                      +
+   312→  1312→                    </Button>
+   313→  1313→                  </div>
+   314→  1314→                </div>
+   315→  1315→                <div className="space-y-1">
+   316→  1316→                  <Label className="text-xs flex items-center gap-1">
+   317→  1317→                    <Users className="h-3 w-3" /> Children
+   318→  1318→                  </Label>
+   319→  1319→                  <div className="flex items-center gap-2">
+   320→  1320→                    <Button
+   321→  1321→                      type="button"
+   322→  1322→                      variant="outline"
+   323→  1323→                      size="icon"
+   324→  1324→                      className="h-8 w-8"
+   325→  1325→                      onClick={() => setChildren((c) => Math.max(0, c - 1))}
+   326→  1326→                    >
+   327→  1327→                      -
+   328→  1328→                    </Button>
+   329→  1329→                    <Input
+   330→  1330→                      className="h-8 w-16 text-center text-sm"
+   331→  1331→                      type="number"
+   332→  1332→                      min={0}
+   333→  1333→                      value={children}
+   334→  1334→                      onChange={(e) => setChildren(Math.max(0, parseInt(e.target.value) || 0))}
+   335→  1335→                    />
+   336→  1336→                    <Button
+   337→  1337→                      type="button"
+   338→  1338→                      variant="outline"
+   339→  1339→                      size="icon"
+   340→  1340→                      className="h-8 w-8"
+   341→  1341→                      onClick={() => setChildren((c) => c + 1)}
+   342→  1342→                    >
+   343→  1343→                      +
+   344→  1344→                    </Button>
+   345→  1345→                  </div>
+   346→  1346→                </div>
+   347→  1347→              </div>
+   348→  1348→
+   349→  1349→              <Separator />
+   350→  1350→
+   351→  1351→              {/* Row 4: Room Number with Autocomplete */}
+   352→  1352→              <div className="space-y-1">
+   353→  1353→                <Label className="text-xs flex items-center gap-1">
+   354→  1354→                  <Hotel className="h-3 w-3" /> Room Number
+   355→  1355→                </Label>
+   356→  1356→                <div className="relative" ref={roomDropdownRef}>
+   357→  1357→                  <div className="relative">
+   358→  1358→                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+   359→  1359→                    <Input
+   360→  1360→                      className={cn(
+   361→  1361→                        "h-8 text-xs pl-8 pr-8",
+   362→  1362→                        errors.room && !selectedRoom && "border-red-500"
+   363→  1363→                      )}
+   364→  1364→                      placeholder="Type room number to search (e.g., 201, 302)..."
+   365→  1365→                      value={roomSearchInput}
+   366→  1366→                      onChange={(e) => {
+   367→  1367→                        setRoomSearchInput(e.target.value)
+   368→  1368→                        setRoomDropdownOpen(true)
+   369→  1369→                        if (selectedRoom) {
+   370→  1370→                          setSelectedRoom(null)
+   371→  1371→                          setSelectedRoomTypeId('')
+   372→  1372→                          setSelectedRatePlanId('')
+   373→  1373→                          setRoomRate(0)
+   374→  1374→                        }
+   375→  1375→                      }}
+   376→  1376→                      onFocus={() => setRoomDropdownOpen(true)}
+   377→  1377→                    />
+   378→  1378→                    {selectedRoom && (
+   379→  1379→                      <button
+   380→  1380→                        onClick={() => {
+   381→  1381→                          setSelectedRoom(null)
+   382→  1382→                          setRoomSearchInput('')
+   383→  1383→                          setSelectedRoomTypeId('')
+   384→  1384→                          setSelectedRatePlanId('')
+   385→  1385→                          setRoomRate(0)
+   386→  1386→                        }}
+   387→  1387→                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+   388→  1388→                      >
+   389→  1389→                        <X className="h-3.5 w-3.5" />
+   390→  1390→                      </button>
+   391→  1391→                    )}
+   392→  1392→                  </div>
+   393→  1393→
+   394→  1394→                  {/* Room Dropdown */}
+   395→  1395→                  {roomDropdownOpen && !selectedRoom && (
+   396→  1396→                    <div className="absolute z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
+   397→  1397→                      {roomsLoading ? (
+   398→  1398→                        <div className="p-3 flex items-center justify-center">
+   399→  1399→                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
+   400→  1400→                          <span className="text-xs text-muted-foreground">Loading rooms...</span>
+   401→  1401→                        </div>
+   402→  1402→                      ) : filteredRooms.length === 0 ? (
+   403→  1403→                        <div className="p-3 text-center">
+   404→  1404→                          <p className="text-xs text-muted-foreground">No available rooms found</p>
+   405→  1405→                        </div>
+   406→  1406→                      ) : (
+   407→  1407→                        <>
+   408→  1408→                          <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b bg-muted/30">
+   409→  1409→                            {filteredRooms.length} available room{filteredRooms.length !== 1 ? 's' : ''}
+   410→  1410→                          </div>
+   411→  1411→                          {filteredRooms.map((room) => (
+   412→  1412→                            <button
+   413→  1413→                              key={room.id}
+   414→  1414→                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left text-xs border-b last:border-0"
+   415→  1415→                              onClick={() => handleRoomSelect(room)}
+   416→  1416→                            >
+   417→  1417→                              <span className={cn("shrink-0 h-2 w-2 rounded-full", STATUS_COLORS[room.status])} />
+   418→  1418→                              <span className="font-mono font-medium w-10">{room.number}</span>
+   419→  1419→                              <span className="text-muted-foreground truncate">
+   420→  1420→                                {room.type.name} &middot; Floor {room.floor}
+   421→  1421→                                {room.wing && <span> &middot; {room.wing} Wing</span>}
+   422→  1422→                              </span>
+   423→  1423→                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 ml-auto shrink-0">
+   424→  1424→                                {STATUS_LABELS[room.status]}
+   425→  1425→                              </Badge>
+   426→  1426→                            </button>
+   427→  1427→                          ))}
+   428→  1428→                        </>
+   429→  1429→                      )}
+   430→  1430→                    </div>
+   431→  1431→                  )}
+   432→  1432→                </div>
+   433→  1433→
+   434→  1434→                {/* Selected Room Info */}
+   435→  1435→                {selectedRoom && (
+   436→  1436→                  <div className="mt-1.5 flex items-start gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-md">
+   437→  1437→                    <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+   438→  1438→                    <div className="text-xs text-emerald-700 space-y-0.5">
+   439→  1439→                      <p>
+   440→  1440→                        <strong className="font-mono">{selectedRoom.number}</strong> — {selectedRoom.type.name}
+   441→  1441→                      </p>
+   442→  1442→                      <p className="text-emerald-600">
+   443→  1443→                        Room Type: {selectedRoom.type.name} | Floor: {selectedRoom.floor}
+   444→  1444→                        {selectedRoom.wing && ` | Wing: ${selectedRoom.wing}`}
+   445→  1445→                      </p>
+   446→  1446→                    </div>
+   447→  1447→                  </div>
+   448→  1448→                )}
+   449→  1449→                {errors.room && !selectedRoom && (
+   450→  1450→                  <p className="text-[10px] text-red-500 flex items-center gap-1">
+   451→  1451→                    <AlertCircle className="h-3 w-3" />{errors.room}
+   452→  1452→                  </p>
+   453→  1453→                )}
+   454→  1454→              </div>
+   455→  1455→
+   456→  1456→              {/* Row 5: Room Type & Rate Plan */}
+   457→  1457→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   458→  1458→                <div className="space-y-1">
+   459→  1459→                  <Label className="text-xs">Room Type</Label>
+   460→  1460→                  <Select
+   461→  1461→                    value={selectedRoomTypeId}
+   462→  1462→                    onValueChange={(v) => {
+   463→  1463→                      setSelectedRoomTypeId(v)
+   464→  1464→                      // Clear room selection if manually changing type
+   465→  1465→                      if (selectedRoom && selectedRoom.typeId !== v) {
+   466→  1466→                        setSelectedRoom(null)
+   467→  1467→                        setRoomSearchInput('')
+   468→  1468→                      }
+   469→  1469→                      // Auto-select first rate plan
+   470→  1470→                      const rt = roomTypes.find((t) => t.id === v)
+   471→  1471→                      if (rt && rt.ratePlans.length > 0) {
+   472→  1472→                        setSelectedRatePlanId(rt.ratePlans[0].id)
+   473→  1473→                        setRoomRate(rt.ratePlans[0].baseRate)
+   474→  1474→                      } else {
+   475→  1475→                        setSelectedRatePlanId('')
+   476→  1476→                        setRoomRate(0)
+   477→  1477→                      }
+   478→  1478→                    }}
+   479→  1479→                  >
+   480→  1480→                    <SelectTrigger className="h-8 text-xs w-full">
+   481→  1481→                      <SelectValue placeholder="Select room type" />
+   482→  1482→                    </SelectTrigger>
+   483→  1483→                    <SelectContent className="max-h-60">
+   484→  1484→                      {roomTypes.map((rt) => (
+   485→  1485→                        <SelectItem key={rt.id} value={rt.id}>
+   486→  1486→                          {rt.name} ({rt.code}) — {rt.bedConfig} — {rt.roomCount} rooms
+   487→  1487→                        </SelectItem>
+   488→  1488→                      ))}
+   489→  1489→                    </SelectContent>
+   490→  1490→                  </Select>
+   491→  1491→                </div>
+   492→  1492→                <div className="space-y-1">
+   493→  1493→                  <Label className="text-xs flex items-center gap-1">
+   494→  1494→                    <BadgePercent className="h-3 w-3" /> Rate Plan
+   495→  1495→                  </Label>
+   496→  1496→                  <Select
+   497→  1497→                    value={selectedRatePlanId}
+   498→  1498→                    onValueChange={handleRatePlanChange}
+   499→  1499→                    disabled={ratePlansForType.length === 0}
+   500→  1500→                  >
+   501→  1501→                    <SelectTrigger className="h-8 text-xs w-full">
+   502→  1502→                      <SelectValue placeholder={ratePlansForType.length === 0 ? 'Select room type first' : 'Select rate plan'} />
+   503→  1503→                    </SelectTrigger>
+   504→  1504→                    <SelectContent>
+   505→  1505→                      {ratePlansForType.map((rp) => (
+   506→  1506→                        <SelectItem key={rp.id} value={rp.id}>
+   507→  1507→                          {rp.name} — {formatCurrency(rp.baseRate)}/night
+   508→  1508→                        </SelectItem>
+   509→  1509→                      ))}
+   510→  1510→                    </SelectContent>
+   511→  1511→                  </Select>
+   512→  1512→                </div>
+   513→  1513→              </div>
+   514→  1514→
+   515→  1515→              {/* Row 6: Room Rate */}
+   516→  1516→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   517→  1517→                <div className="space-y-1">
+   518→  1518→                  <Label className="text-xs flex items-center gap-1">
+   519→  1519→                    <CreditCard className="h-3 w-3" /> Room Rate (NPR)
+   520→  1520→                  </Label>
+   521→  1521→                  <Input
+   522→  1522→                    className="h-8 text-xs"
+   523→  1523→                    type="number"
+   524→  1524→                    min={0}
+   525→  1525→                    value={roomRate || ''}
+   526→  1526→                    onChange={(e) => setRoomRate(parseFloat(e.target.value) || 0)}
+   527→  1527→                    placeholder="0"
+   528→  1528→                  />
+   529→  1529→                </div>
+   530→  1530→                <div className="space-y-1">
+   531→  1531→                  <Label className="text-xs">Rate / Night</Label>
+   532→  1532→                  <div className="h-8 flex items-center px-3 bg-muted rounded-md border">
+   533→  1533→                    <span className="text-sm font-semibold text-amber-600">
+   534→  1534→                      {roomRate > 0 ? formatCurrency(roomRate) : '—'}
+   535→  1535→                    </span>
+   536→  1536→                  </div>
+   537→  1537→                </div>
+   538→  1538→              </div>
+   539→  1539→
+   540→  1540→              <Separator />
+   541→  1541→
+   542→  1542→              {/* Cost Summary */}
+   543→  1543→              <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+   544→  1544→                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+   545→  1545→                  Cost Summary
+   546→  1546→                </h4>
+   547→  1547→                <div className="space-y-1.5">
+   548→  1548→                  <div className="flex justify-between text-xs">
+   549→  1549→                    <span className="text-muted-foreground">
+   550→  1550→                      {roomRate.toLocaleString()} × {nights} night{nights !== 1 ? 's' : ''}
+   551→  1551→                    </span>
+   552→  1552→                    <span className="font-medium">{formatCurrency(subtotal)}</span>
+   553→  1553→                  </div>
+   554→  1554→                  <div className="flex justify-between text-xs">
+   555→  1555→                    <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+   556→  1556→                    <span className="font-medium">{formatCurrency(taxAmount)}</span>
+   557→  1557→                  </div>
+   558→  1558→                  <Separator />
+   559→  1559→                  <div className="flex justify-between text-sm font-semibold">
+   560→  1560→                    <span>Total</span>
+   561→  1561→                    <span className="text-amber-600">{formatCurrency(totalAmount)}</span>
+   562→  1562→                  </div>
+   563→  1563→                </div>
+   564→  1564→              </div>
+   565→  1565→            </CardContent>
+   566→  1566→          </Card>
+   567→  1567→
+   568→  1568→          {/* ── 5. Additional Information Section ─────────────────── */}
+   569→  1569→          <Card>
+   570→  1570→            <CardHeader className="pb-3">
+   571→  1571→              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   572→  1572→                <FileText className="h-4 w-4 text-amber-600" />
+   573→  1573→                Additional Information
+   574→  1574→              </CardTitle>
+   575→  1575→            </CardHeader>
+   576→  1576→            <CardContent className="pt-0 space-y-3">
+   577→  1577→              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   578→  1578→                <div className="space-y-1 md:col-span-2">
+   579→  1579→                  <Label className="text-xs">Special Requests</Label>
+   580→  1580→                  <Textarea
+   581→  1581→                    className="text-xs min-h-[60px] resize-y"
+   582→  1582→                    value={specialRequests}
+   583→  1583→                    onChange={(e) => setSpecialRequests(e.target.value)}
+   584→  1584→                    placeholder="Late check-in, extra pillows, high floor, etc."
+   585→  1585→                  />
+   586→  1586→                </div>
+   587→  1587→                <div className="space-y-1">
+   588→  1588→                  <Label className="text-xs flex items-center gap-1">
+   589→  1589→                    <Building className="h-3 w-3" /> Company (if not in booking contact)
+   590→  1590→                  </Label>
+   591→  1591→                  <Input
+   592→  1592→                    className="h-8 text-xs"
+   593→  1593→                    value={addCompany}
+   594→  1594→                    onChange={(e) => setAddCompany(e.target.value)}
+   595→  1595→                    placeholder="Company name"
+   596→  1596→                  />
+   597→  1597→                </div>
+   598→  1598→                <div className="space-y-1">
+   599→  1599→                  <Label className="text-xs flex items-center gap-1">
+   600→  1600→                    <Hash className="h-3 w-3" /> PO Number
+   601→  1601→                  </Label>
+   602→  1602→                  <Input
+   603→  1603→                    className="h-8 text-xs"
+   604→  1604→                    value={poNumber}
+   605→  1605→                    onChange={(e) => setPoNumber(e.target.value)}
+   606→  1606→                    placeholder="PO-XXXX"
+   607→  1607→                  />
+   608→  1608→                </div>
+   609→  1609→                <div className="space-y-1">
+   610→  1610→                  <div className="flex items-center gap-2">
+   611→  1611→                    <Checkbox
+   612→  1612→                      id="guaranteed"
+   613→  1613→                      checked={guaranteed}
+   614→  1614→                      onCheckedChange={(v) => setGuaranteed(v === true)}
+   615→  1615→                    />
+   616→  1616→                    <Label htmlFor="guaranteed" className="text-xs cursor-pointer">
+   617→  1617→                      Guaranteed Booking
+   618→  1618→                    </Label>
+   619→  1619→                  </div>
+   620→  1620→                </div>
+   621→  1621→                <div className="space-y-1 md:col-span-2">
+   622→  1622→                  <Label className="text-xs">Notes (Internal)</Label>
+   623→  1623→                  <Textarea
+   624→  1624→                    className="text-xs min-h-[60px] resize-y"
+   625→  1625→                    value={notes}
+   626→  1626→                    onChange={(e) => setNotes(e.target.value)}
+   627→  1627→                    placeholder="Internal notes for staff..."
+   628→  1628→                  />
+   629→  1629→                </div>
+   630→  1630→              </div>
+   631→  1631→            </CardContent>
+   632→  1632→          </Card>
+   633→  1633→
+   634→  1634→        </div>
+   635→  1635→      </div>
+   636→  1636→
+   637→  1637→      {/* ── 6. Footer ────────────────────────────────────────────── */}
+   638→  1638→      <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-t bg-white shrink-0">
+   639→  1639→        <Button variant="outline" onClick={onBack} className="text-xs">
+   640→  1640→          Cancel
+   641→  1641→        </Button>
+   642→  1642→        <div className="flex items-center gap-3">
+   643→  1643→          {Object.keys(errors).length > 0 && (
+   644→  1644→            <span className="text-xs text-red-500 flex items-center gap-1">
+   645→  1645→              <AlertCircle className="h-3 w-3" />
+   646→  1646→              {Object.keys(errors).length} error{Object.keys(errors).length !== 1 ? 's' : ''} — please fix above
+   647→  1647→            </span>
+   648→  1648→          )}
+   649→  1649→          <Button
+   650→  1650→            onClick={handleSubmit}
+   651→  1651→            disabled={isSubmitting}
+   652→  1652→            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+   653→  1653→          >
+   654→  1654→            {isSubmitting ? (
+   655→  1655→              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+   656→  1656→            ) : (
+   657→  1657→              <CheckCircle2 className="h-4 w-4 mr-2" />
+   658→  1658→            )}
+   659→  1659→            Create Reservation
+   660→  1660→          </Button>
+   661→  1661→        </div>
+   662→  1662→      </div>
+   663→  1663→    </div>
+   664→  1664→  )
+   665→  1665→}
+   666→  1666→

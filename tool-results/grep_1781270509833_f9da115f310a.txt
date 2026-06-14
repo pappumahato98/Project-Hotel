@@ -1,0 +1,252 @@
+/home/z/my-project/src/components/modules/help/HelpSupportPage.tsx:9:import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/help/HelpSupportPage.tsx:145:            <CardDescription className="text-xs">Follow these steps to get started with the PMS system.</CardDescription>
+/home/z/my-project/src/components/modules/help/HelpSupportPage.tsx:256:            <CardDescription className="text-xs">Use shortcuts to navigate and act faster across the system.</CardDescription>
+/home/z/my-project/src/components/modules/help/HelpSupportPage.tsx:315:            <CardDescription className="text-xs">Complete module reference. Click a module to explore sub-modules.</CardDescription>
+/home/z/my-project/src/components/modules/help/HelpSupportPage.tsx:403:            <CardDescription className="text-xs">Our IT team is available to assist you with any technical issues.</CardDescription>
+/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:27:  DialogDescription,
+/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:587:            <DialogDescription>
+/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:589:            </DialogDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:19:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:23:import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:421:            <AlertDescription className="text-red-700 dark:text-red-300">
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:423:            </AlertDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:434:            <AlertDescription className="text-amber-700 dark:text-amber-300">
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:436:            </AlertDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:447:            <AlertDescription className="text-orange-700 dark:text-orange-300">
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:449:            </AlertDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:460:            <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:462:            </AlertDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:473:            <AlertDescription className="text-rose-700 dark:text-rose-300">
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:477:            </AlertDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:510:            <CardDescription>Last 7 days — Room & F&B revenue</CardDescription>
+/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:835:        <AlertDescription>{error.message}</AlertDescription>
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:13:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:20:import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:178:        <AlertDescription>Failed to load night audit data. Please try again.</AlertDescription>
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:204:        <AlertDescription>
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:211:        </AlertDescription>
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:221:          <CardDescription>
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:223:          </CardDescription>
+/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:407:          <CardDescription>Last 7 audit records</CardDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:13:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:18:import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:22:  DialogDescription,
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:154:        <AlertDescription>Failed to load cashier data. Please try again.</AlertDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:191:          <CardDescription className="text-xs">Current cashier shift information</CardDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:314:          <CardDescription className="text-xs">All cashier shifts with status and variance details</CardDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:394:            <DialogDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:396:            </DialogDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:447:            <DialogDescription>
+/home/z/my-project/src/components/modules/operations/CashierView.tsx:451:            </DialogDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:12:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:17:import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:22:  AccordionContent,
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:116:        <AlertDescription>Failed to load shift handover data. Please try again.</AlertDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:139:              <CardDescription className="mt-1">
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:141:              </CardDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:291:          <CardDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:293:          </CardDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:333:          <CardDescription>Important information for the incoming shift</CardDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:362:          <CardDescription>Expand sections for detailed handover information</CardDescription>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:370:              <AccordionContent>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:379:              </AccordionContent>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:386:              <AccordionContent>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:392:              </AccordionContent>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:399:              <AccordionContent>
+/home/z/my-project/src/components/modules/operations/ShiftHandoverView.tsx:404:              </AccordionContent>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:11:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:17:import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:21:  DialogDescription,
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:142:        <AlertDescription>Failed to load day close data. Please try again.</AlertDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:157:        <AlertDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:159:        </AlertDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:169:          <CardDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:171:          </CardDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:281:          <CardDescription>Department-wise revenue distribution</CardDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:321:            <DialogDescription>
+/home/z/my-project/src/components/modules/operations/DayCloseView.tsx:324:            </DialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:19:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:22:  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:589:            <DialogDescription>Add a new purchase order with item details.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:704:            <DialogDescription>Full purchase order information.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:822:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:824:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:847:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:849:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:872:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:874:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/StockView.tsx:20:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/inventory/StockView.tsx:23:  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+/home/z/my-project/src/components/modules/inventory/StockView.tsx:432:            <DialogDescription>Create a new item in the inventory.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/StockView.tsx:503:            <DialogDescription>Update item details.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/StockView.tsx:574:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/StockView.tsx:576:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:20:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:23:  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:414:            <DialogDescription>Add a new vendor to the directory.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:477:            <DialogDescription>Update vendor details.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:540:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:542:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:19:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:22:  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:457:            <DialogDescription>Create a new supply requisition.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:548:            <DialogDescription>Update items, priority, or notes for a pending requisition.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:645:            <DialogDescription>Full requisition information.</DialogDescription>
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:741:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:743:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:19:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:295:            <DialogDescription>Record a stock movement or adjustment.</DialogDescription>
+/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:18:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:22:  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:542:            <DialogDescription>
+/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:544:            </DialogDescription>
+/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:679:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:682:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:12:import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:138:          <DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:141:          </DialogDescription>
+/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:18:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:234:            <DialogDescription>
+/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:236:            </DialogDescription>
+/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:314:            <DialogDescription>Create a new department. You can assign employees via the Staff Directory.</DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:19:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:300:            <DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:302:            </DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:376:            <DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:378:            </DialogDescription>
+/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:18:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:363:            <DialogDescription>
+/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:365:            </DialogDescription>
+/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:460:            <DialogDescription>
+/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:462:            </DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:10:import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:171:          <DialogDescription>
+/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:173:          </DialogDescription>
+/home/z/my-project/src/components/ui/accordion.tsx:50:function AccordionContent({
+/home/z/my-project/src/components/ui/accordion.tsx:66:export { Accordion, AccordionItem, AccordionTrigger, AccordionContent }
+/home/z/my-project/src/components/modules/rooms/RoomDetailDrawer.tsx:29:  DialogDescription,
+/home/z/my-project/src/components/modules/rooms/RoomDetailDrawer.tsx:498:                        <DialogDescription>
+/home/z/my-project/src/components/modules/rooms/RoomDetailDrawer.tsx:500:                        </DialogDescription>
+/home/z/my-project/src/components/ui/card.tsx:41:function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+/home/z/my-project/src/components/ui/card.tsx:90:  CardDescription,
+/home/z/my-project/src/components/ui/form.tsx:125:function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
+/home/z/my-project/src/components/ui/form.tsx:164:  FormDescription,
+/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:6:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:137:            <CardDescription className="mt-1">
+/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:139:            </CardDescription>
+/home/z/my-project/src/components/ui/alert-dialog.tsx:108:function AlertDialogDescription({
+/home/z/my-project/src/components/ui/alert-dialog.tsx:154:  AlertDialogDescription,
+/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:24:  DialogDescription,
+/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:191:          <DialogDescription>
+/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:193:          </DialogDescription>
+/home/z/my-project/src/components/modules/settings/SettingsModule.tsx:30:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/settings/SettingsModule.tsx:537:          <CardDescription className="text-xs">Estimated total charges for a Rs. 5,000 room rate</CardDescription>
+/home/z/my-project/src/components/ui/command.tsx:11:  DialogDescription,
+/home/z/my-project/src/components/ui/command.tsx:49:        <DialogDescription>{description}</DialogDescription>
+/home/z/my-project/src/components/ui/dialog.tsx:120:function DialogDescription({
+/home/z/my-project/src/components/ui/dialog.tsx:137:  DialogDescription,
+/home/z/my-project/src/components/layout/header.tsx:38:  DialogDescription,
+/home/z/my-project/src/components/layout/header.tsx:189:          <DialogDescription>View and manage your account information.</DialogDescription>
+/home/z/my-project/src/components/layout/header.tsx:292:          <DialogDescription>Current shift information.</DialogDescription>
+/home/z/my-project/src/components/layout/header.tsx:365:          <DialogDescription>Resources and support contacts.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:32:  DialogDescription,
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:964:                <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:966:                </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:1142:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:1144:            </DialogDescription>
+/home/z/my-project/src/components/ui/alert.tsx:50:function AlertDescription({
+/home/z/my-project/src/components/ui/alert.tsx:66:export { Alert, AlertTitle, AlertDescription }
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:16:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:30:  DialogDescription,
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:963:            <CardDescription className="text-xs">
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:965:            </CardDescription>
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1152:            <CardDescription className="text-xs">
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1154:            </CardDescription>
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1274:            <CardDescription className="text-xs">
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1276:            </CardDescription>
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1555:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1557:            </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:19:  DialogDescription,
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:34:  AlertDialogDescription,
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:1829:                    <DialogDescription className="text-xs">
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:1831:                    </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2033:                <DialogDescription className="text-xs ml-[46px] text-white/70">
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2040:                </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2248:                <DialogDescription className="text-xs">
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2250:                </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2296:              <AlertDialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2301:              </AlertDialogDescription>
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2332:                <DialogDescription className="text-xs">
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2334:                </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:17:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:560:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:562:            </DialogDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:21:  Card, CardContent, CardDescription, CardHeader, CardTitle,
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:301:          <CardDescription>Your profile photo is displayed across the system</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:340:          <CardDescription>Your personal and contact details</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:542:              <CardDescription>Your role and employment details</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:582:              <CardDescription>Property you are currently assigned to</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:605:              <CardDescription>Modules accessible with your current role</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:786:              <CardDescription>Update your account password regularly for security</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:900:              <CardDescription>Add an extra layer of security to your account</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:942:              <CardDescription>Devices currently signed in to your account</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:998:              <CardDescription>Recent login activity</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1058:              <CardDescription>Customize display language and regional formats</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1147:              <CardDescription>Customize the look and feel of the interface</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1195:              <CardDescription>Choose how you want to receive notifications</CardDescription>
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1411:              <CardDescription className="flex items-center gap-2">
+/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1416:              </CardDescription>
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:29:import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:840:            <AlertDialogDescription asChild>
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:869:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:17:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:572:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:574:            </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:680:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:684:            </DialogDescription>
+/home/z/my-project/src/components/shared/SettingsDialog.tsx:51:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/shared/SettingsDialog.tsx:55:  DialogDescription,
+/home/z/my-project/src/components/shared/SettingsDialog.tsx:1040:              <DialogDescription>
+/home/z/my-project/src/components/shared/SettingsDialog.tsx:1042:              </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:23:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:609:            <DialogDescription>Select a vacant room to assign and check in this guest.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:659:            <DialogDescription>Review guest details and capture preferences before check-in.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:804:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:806:            </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1060:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1062:            </DialogDescription>
+/home/z/my-project/src/components/shared/help-support-dialog.tsx:10:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+/home/z/my-project/src/components/shared/help-support-dialog.tsx:550:              <DialogDescription>{config.desc}</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:25:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/shared/keyboard-shortcuts-dialog.tsx:11:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+/home/z/my-project/src/components/shared/keyboard-shortcuts-dialog.tsx:90:          <DialogDescription>
+/home/z/my-project/src/components/shared/keyboard-shortcuts-dialog.tsx:92:          </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:20:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:37:  AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel,
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:924:                  <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:926:                  </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:1421:            <AlertDialogDescription asChild>
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:1458:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:25:import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:492:                <CardDescription>Recent front desk operations for today</CardDescription>
+/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:573:                <CardDescription>Next expected arrivals for today</CardDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:19:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:34:  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:639:              <DialogDescription>Fill in the details below to create a new guest reservation.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1151:                <DialogDescription>Detailed reservation information.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1322:            <DialogDescription>Modify the reservation details. The total amount will be recalculated automatically.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1454:            <DialogDescription>Create a new reservation based on an existing one. Check-in is set to today.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1627:            <DialogDescription>This note will be appended to the existing reservation notes.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1664:            <DialogDescription>Review the confirmation details before printing.</DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1796:            <AlertDialogDescription>
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1805:            </AlertDialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:26:  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:551:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:555:            </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:640:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:644:            </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:713:            <DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:717:            </DialogDescription>
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:858:            <DialogDescription>Guest checkout receipt</DialogDescription>
+
+[Showing results with pagination = limit: 250]

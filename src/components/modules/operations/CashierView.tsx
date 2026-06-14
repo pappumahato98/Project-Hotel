@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { apiFetch } from '@/lib/api'
 import {
   Banknote, Clock, User, ArrowDownRight, ArrowUpRight, FileText,
   Loader2, AlertTriangle, CreditCard, Building, Wallet,
@@ -118,22 +118,18 @@ export function CashierView() {
   const { data, isLoading, isError } = useQuery<CashierData>({
     queryKey: ['operations', 'cashier'],
     queryFn: async () => {
-      const res = await fetch('/api/operations')
-      if (!res.ok) throw new Error('Failed to fetch cashier data')
-      const json = await res.json()
+      const json = await apiFetch<{ cashier: CashierData }>('/api/operations')
       return json.cashier
     },
   })
 
   const closeShiftMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/operations', {
+      return apiFetch('/api/operations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'close-shift' }),
       })
-      if (!res.ok) throw new Error('Failed to close shift')
-      return res.json()
     },
     onSuccess: () => {
       toast.success('Shift closed successfully')

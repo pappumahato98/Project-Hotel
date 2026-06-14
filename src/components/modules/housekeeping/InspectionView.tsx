@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useState } from 'react'
+import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -232,7 +233,7 @@ export function InspectionView() {
     summary: HkSummary
   }>({
     queryKey: ['housekeeping-tasks'],
-    queryFn: () => fetch('/api/housekeeping').then((r) => r.json()),
+    queryFn: () => apiFetch('/api/housekeeping'),
   })
 
   const tasks = data?.tasks || []

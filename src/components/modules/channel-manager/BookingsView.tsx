@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -30,10 +31,8 @@ interface ChannelBooking {
   status: string
 }
 
-async function fetchChannelBookings() {
-  const res = await fetch('/api/channel-bookings')
-  if (!res.ok) throw new Error('Failed to fetch channel bookings')
-  return res.json()
+function fetchChannelBookings() {
+  return apiFetch('/api/channel-bookings')
 }
 
 export function BookingsView() {

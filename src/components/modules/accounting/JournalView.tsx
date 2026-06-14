@@ -2,6 +2,7 @@
 import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -39,10 +40,8 @@ interface JournalEntry {
   lines: JournalLine[]
 }
 
-async function fetchAccounting() {
-  const res = await fetch('/api/accounting')
-  if (!res.ok) throw new Error('Failed to fetch accounting data')
-  return res.json()
+function fetchAccounting() {
+  return apiFetch('/api/accounting')
 }
 
 export function JournalView() {
