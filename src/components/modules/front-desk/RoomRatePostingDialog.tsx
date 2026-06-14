@@ -31,6 +31,12 @@ interface RoomRatePostingDialogProps {
   onOpenChange: (open: boolean) => void
   reservationId: string
   onPosted?: () => void
+  roomNumber?: string
+  roomTypeName?: string
+  roomRate?: number
+  checkIn?: string
+  checkOut?: string
+  reservationConfirmationNo?: string
 }
 
 interface ReservationDetail {
@@ -93,11 +99,12 @@ export function RoomRatePostingDialog({
   })
 
   // ── Fetch existing rate postings ──────────────────────────────────────
-  const { data: postings = [], isLoading: isLoadingPostings } = useQuery({
+  const { data: postingsRaw, isLoading: isLoadingPostings } = useQuery({
     queryKey: ['room-rate-postings', reservationId],
-    queryFn: () => apiFetch(`/api/room-rate-posting?reservationId=${reservationId}`) as Promise<RatePosting[]>,
+    queryFn: () => apiFetch<{ postings: RatePosting[]; count: number }>(`/api/room-rate-posting?reservationId=${reservationId}`),
     enabled: open && !!reservationId,
   })
+  const postings: RatePosting[] = Array.isArray(postingsRaw?.postings) ? postingsRaw.postings : []
 
   // ── Build nights array ───────────────────────────────────────────────
   const nights: NightRow[] = useMemo(() => {

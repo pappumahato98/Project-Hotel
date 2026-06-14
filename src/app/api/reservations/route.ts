@@ -27,7 +27,12 @@ export async function GET(request: Request) {
     const where: Prisma.ReservationWhereInput = {}
 
     if (status) {
-      where.status = status
+      const statusValues = status.split(',').map(s => s.trim())
+      if (statusValues.length === 1) {
+        where.status = statusValues[0]
+      } else {
+        where.status = { in: statusValues }
+      }
     }
 
     if (search) {

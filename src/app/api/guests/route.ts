@@ -11,12 +11,14 @@ export async function GET(request: Request) {
     const where: Prisma.GuestWhereInput = {}
 
     if (search) {
+      // SQLite does not support mode: 'insensitive', so use contains directly
+      const searchLower = search.toLowerCase()
       where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search } },
+        { lastName: { contains: search } },
+        { email: { contains: search } },
         { phone: { contains: search } },
-        { nationality: { contains: search, mode: 'insensitive' } },
+        { nationality: { contains: search } },
       ]
     }
 

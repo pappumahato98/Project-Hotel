@@ -33,10 +33,11 @@ export async function GET(request: Request) {
     }
 
     if (search) {
+      // SQLite does not support mode: 'insensitive'
       where.OR = [
-        { guest: { firstName: { contains: search, mode: 'insensitive' } } },
-        { guest: { lastName: { contains: search, mode: 'insensitive' } } },
-        { reservation: { confirmationNo: { contains: search, mode: 'insensitive' } } },
+        { guest: { firstName: { contains: search } } },
+        { guest: { lastName: { contains: search } } },
+        { reservation: { confirmationNo: { contains: search } } },
         { reservation: { room: { number: { contains: search } } } },
       ]
     }

@@ -332,3 +332,25 @@ Stage Summary:
 - Step indicator: numbered circles with icons, progress lines (green=completed, orange=active, gray=upcoming)
 - Navigation footer: Back/Continue/Submit buttons with step counter
 - All existing functionality preserved (API calls, state management, mutations)
+
+---
+Task ID: 13
+Agent: Main Orchestrator
+Task: Fix Room Rate Posting page error + related API bugs
+
+Work Log:
+- Investigated "Something went wrong" error on Room Rate Posting page
+- Root cause: API returns `{ postings: [...], count: N }` but dialog expected plain `RatePosting[]`
+- Fixed RoomRatePostingDialog.tsx: added proper type for API response, extract `postingsRaw.postings` array
+- Added optional props (roomNumber, roomTypeName, roomRate, checkIn, checkOut, reservationConfirmationNo) to dialog interface
+- Fixed guests API: removed `mode: 'insensitive'` (SQLite incompatible) from all search fields
+- Fixed folio API: removed `mode: 'insensitive'` from search conditions
+- Fixed front-desk search API: removed `mode: 'insensitive'` from guest/reservation search
+- Fixed reservations API: comma-separated `status` parameter now properly split and uses `in` operator
+- Verified all fixes: lint 0 errors, no console errors, API returns correct format
+
+Stage Summary:
+- 5 files fixed: RoomRatePostingDialog.tsx, guests/route.ts, folio/route.ts, front-desk/search/route.ts, reservations/route.ts
+- Room Rate Posting dialog now correctly handles `{ postings: [...] }` response shape
+- Guest search, folio search, and reservation search all work with SQLite (no mode:insensitive)
+- Reservation search with `status=confirmed,tentative` now works correctly with comma-separated values

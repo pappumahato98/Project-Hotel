@@ -16,8 +16,8 @@ export async function GET(request: Request) {
     const guests = await db.guest.findMany({
       where: {
         OR: [
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
+          { firstName: { contains: query } },
+          { lastName: { contains: query } },
           { phone: { contains: query } },
         ],
       },
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     const reservations = await db.reservation.findMany({
       where: {
         OR: [
-          { confirmationNo: { contains: query, mode: 'insensitive' } },
+          { confirmationNo: { contains: query } },
         ],
       },
       select: {
