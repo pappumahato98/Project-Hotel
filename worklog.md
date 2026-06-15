@@ -375,3 +375,103 @@ Stage Summary:
 - Server is persistently running on port 3000 via detached spawn (PID tracked in .server.pid)
 - Launch command: `node /home/z/my-project/launch-server.cjs` (auto-starts if not running)
 - Key insight: `spawn({ detached: true })` + `unref()` + `process.exit(0)` creates sandbox-proof orphan process
+
+---
+Task ID: 4
+Agent: full-stack-developer
+Task: Rewrite CheckInWizard with realistic PMS design
+
+Work Log:
+- Read current CheckInWizard.tsx (1677 lines), shared step-indicator.tsx, format.ts, api.ts, RoomRatePostingDialog.tsx, status-badge.tsx
+- Verified all UI components exist (switch, tooltip, textarea, etc.)
+- Rewrote CheckInWizard.tsx (~1350 lines) with professional Opera/Protel-style PMS design
+- Added professional page header bar: back arrow, "Guest Check-In" title, Express Mode toggle
+- Implemented two-column layout: main form (left ~65%) + sticky sidebar (right ~35%)
+- Sidebar shows 4 cards: Guest (name, VIP badge, contact), Room (number, type, floor), Stay (dates, nights, rate), Cost Summary (subtotal, tax, service, total, balance)
+- Step 1: Prominent Find Reservation / Direct Walk-in toggle; search with results; Today's Expected Arrivals section with teal ring selection; detail panel for selected reservation; walk-in form with guest info + stay details
+- Step 2: If reservation has room, show card with "Use Assigned Room"; room grid with 2/3 column cards showing room number (large), type, floor/wing badges, bed config, base rate; teal ring + checkmark on selected; filter bar (room type dropdown, floor dropdown); room detail panel with amenities; rate section with rate plan dropdown; nights display "3 nights (Sat 14 Jun → Tue 17 Jun)"; occupancy steppers (+/-) with max occupancy warning
+- Step 3: Switch toggle for document collection; disabled state shows "Documents will be collected at a later time"; document form with type/number/country/place/date fields; compact document cards with delete
+- Step 4: Switch toggle for advance payment; payment form with amount/method/reference; quick amount buttons (Full Amount, 50%, 1 Night Rate); read-only stay summary card (guest, room, dates, rate, cost breakdown, special requests); confirmation checkbox with proper wording
+- Step 5: Success screen with animated checkmark, "Guest Checked In Successfully" heading, hotel key card visual (gradient header with room number, guest name, check-in/out dates, key issued badge), two action buttons (Post Room Charges, Back to Front Desk)
+- Preserved same props interface, API endpoints, mutation logic, state management
+- Used Switch component from shadcn/ui for toggles
+- Colors: slate/teal for PMS professional look, amber for current step, emerald for success
+- Lint: 0 errors on CheckInWizard.tsx
+
+Stage Summary:
+- CheckInWizard.tsx rewritten with realistic PMS design (Opera/Protel style)
+- Professional two-column layout with sticky sidebar showing guest/room/stay/cost summary
+- All 4 steps enhanced with better UX (mode toggle, room grid, occupancy steppers, document switch, payment switch)
+- Hotel key card visual on success screen
+- Lint clean: 0 errors in CheckInWizard.tsx
+
+---
+Task ID: 3
+Agent: full-stack-developer
+Task: Rewrite NewReservationPage with realistic PMS design
+
+Work Log:
+- Read existing NewReservationPage.tsx (1971 lines, 4-step wizard using shared step-indicator)
+- Read shared StepIndicator/StepContent/StepNav components
+- Read API routes: /api/rooms (response shape with rooms, roomTypes), /api/guests (search, create), /api/reservations (POST)
+- Read format utilities (formatDate, formatCurrency, nightsBetween, getTodayString)
+- Completely rewrote NewReservationPage.tsx with professional Opera/Protel-style PMS design
+- Layout: Header bar (back arrow + title + "Save as Draft") → Step indicator → Two-column (main 65% + sidebar 35%) → StepNav footer
+- Step 1: Card with teal-500 top border, radio-style tab buttons (Person/Company/Travel Agent), "Same as Guest" checkbox, 2-3 column form grid
+- Step 2: Debounced guest search (300ms), avatar placeholder in results, VIP badge with star icon, collapsible profile card, "Create New Guest" toggle, VIP visual selector with colored badges
+- Step 3: Four sub-sections with section headers — Dates & Guests (day-of-week display, +/- buttons), Room Selection (filter bar, visual room grid cards with status dots), Rate & Source (room type, rate plan, custom rate, source, reservation type, market segment), Special Requests (textarea + quick-add chips)
+- Step 4: Summary cards with edit buttons (Guest Info, Stay Details, Booking Contact), cost breakdown with service charge (10%), guarantee checkbox
+- Sticky sidebar: Live Stay Summary with confirmation preview, room, dates, nights badge, guests, rate, source, cost breakdown (tax + service charge)
+- Guest creation flow: If no existing guest selected, creates guest first via POST /api/guests, then uses returned guest.id
+- Cost: subtotal = nights × rate, tax = 13%, service charge = 10%, total = subtotal + tax + service
+- Added: formatDateWithDay helper, useDebounce hook, REQUEST_CHIPS, MARKET_SEGMENTS constants
+- Colors: slate/teal professional PMS palette, amber for current step/nights, emerald for success/total
+- Lint: 0 errors in NewReservationPage.tsx
+
+Stage Summary:
+- NewReservationPage.tsx completely rewritten with realistic hotel PMS design
+- Two-column layout with live sidebar updates
+- Professional Opera/Protel-style UI with teal/slate color scheme
+- All existing functionality preserved: API calls, guest search/creation, room selection, rate plans, reservation creation
+- Lint clean (0 errors in target file)
+
+---
+Task ID: 3
+Agent: full-stack-developer
+Task: Rewrite NewReservationPage with realistic PMS design
+
+Work Log:
+- Rewrote NewReservationPage.tsx (2181 lines) with Opera/Protel-style PMS design
+- Professional header: back arrow, "New Reservation" title, confirmation preview, "Save as Draft" button
+- Two-column layout: main form (65%) + sticky sidebar (35%) with live Stay Summary
+- Step 1: Booking Contact with Person/Company/Travel Agent radio tabs, "Same as Guest" checkbox
+- Step 2: Guest search with debounce, profile card, VIP visual selector (None/Silver/Gold/Platinum)
+- Step 3: 4 sub-sections - Dates & Guests (calendar pickers, +/- steppers), Room Selection (visual grid cards), Rate & Source, Special Requests (quick-add chips)
+- Step 4: Review with editable summary cards, cost breakdown table, guarantee checkbox
+- Lint: 0 errors
+
+Stage Summary:
+- Professional two-column PMS layout with live sidebar summary
+- Guest search, room visual grid, rate comparison, special request chips
+- All existing API integrations preserved
+
+---
+Task ID: 4
+Agent: full-stack-developer
+Task: Rewrite CheckInWizard with realistic PMS design
+
+Work Log:
+- Rewrote CheckInWizard.tsx (2117 lines) with Opera/Protel-style PMS design
+- Professional header: back arrow, "Guest Check-In" title, Express Mode toggle
+- Two-column layout: main form (65%) + sticky sidebar (35%) with Guest/Room/Stay/Cost cards
+- Step 1: Find Reservation / Direct Walk-in toggle, search input, "Today's Expected Arrivals" section
+- Step 2: Room visual grid with teal ring selection, detail panel, rate plan, occupancy steppers
+- Step 3: Document collection toggle, document form with type/number/country/dates, document list cards
+- Step 4: Payment toggle, quick amount buttons (Full/50%/1 Night), stay summary, confirmation checkbox
+- Success screen: animated checkmark, hotel key card visual, "Post Room Charges" + "Back to Front Desk" buttons
+- Lint: 0 errors
+
+Stage Summary:
+- Professional two-column PMS layout with live sidebar
+- Today's arrivals, room grid, document management, payment collection
+- Hotel key card visual on success screen

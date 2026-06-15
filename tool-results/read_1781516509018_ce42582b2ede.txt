@@ -1,0 +1,1677 @@
+     1→'use client'
+     2→
+     3→import { apiFetch } from '@/lib/api'
+     4→import React, { useState, useMemo, useCallback } from 'react'
+     5→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     6→import {
+     7→  FileText, BedDouble, Shield, CreditCard,
+     8→  Check, Loader2, Search, User, Mail, Phone, Building, CalendarDays,
+     9→  AlertCircle, BadgeCheck, KeyRound, ArrowRight, Plus, Trash2,
+    10→  PartyPopper, Star, Sparkles, DoorOpen,
+    11→} from 'lucide-react'
+    12→import { toast } from 'sonner'
+    13→
+    14→import { Button } from '@/components/ui/button'
+    15→import { Badge } from '@/components/ui/badge'
+    16→import { Card, CardContent, CardTitle } from '@/components/ui/card'
+    17→import { Input } from '@/components/ui/input'
+    18→import { Label } from '@/components/ui/label'
+    19→import { Checkbox } from '@/components/ui/checkbox'
+    20→import { Separator } from '@/components/ui/separator'
+    21→import { Skeleton } from '@/components/ui/skeleton'
+    22→import { ScrollArea } from '@/components/ui/scroll-area'
+    23→import {
+    24→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    25→} from '@/components/ui/select'
+    26→import { Calendar } from '@/components/ui/calendar'
+    27→import {
+    28→  Popover, PopoverTrigger, PopoverContent,
+    29→} from '@/components/ui/popover'
+    30→import { StatusBadge } from '@/components/shared/status-badge'
+    31→import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/components/shared/step-indicator'
+    32→import { formatDate, formatCurrency, nightsBetween, getTodayString } from '@/lib/format'
+    33→import { cn } from '@/lib/utils'
+    34→import { useAuthStore, useSettingsStore } from '@/lib/store'
+    35→import { RoomRatePostingDialog } from './RoomRatePostingDialog'
+    36→
+    37→// ─── Constants ──────────────────────────────────────────────────────────
+    38→
+    39→const DOCUMENT_TYPES = [
+    40→  { value: 'passport', label: 'Passport' },
+    41→  { value: 'national_id', label: 'National ID' },
+    42→  { value: 'drivers_license', label: "Driver's License" },
+    43→  { value: 'visa', label: 'Visa' },
+    44→]
+    45→
+    46→const COUNTRIES = [
+    47→  'Nepal', 'India', 'China', 'USA', 'UK', 'Japan', 'South Korea',
+    48→  'Germany', 'France', 'Australia', 'Canada', 'Singapore', 'Malaysia',
+    49→  'Thailand', 'Sri Lanka', 'Bangladesh', 'Pakistan', 'UAE', 'Saudi Arabia',
+    50→  'Netherlands', 'Italy', 'Spain', 'Brazil', 'Russia', 'Other',
+    51→]
+    52→
+    53→const PAYMENT_METHODS = [
+    54→  { value: 'cash', label: 'Cash' },
+    55→  { value: 'card', label: 'Card' },
+    56→  { value: 'bank_transfer', label: 'Bank Transfer' },
+    57→]
+    58→
+    59→const STEPS: StepConfig[] = [
+    60→  { label: 'Reservation', description: 'Find or create', icon: FileText },
+    61→  { label: 'Room & Rate', description: 'Assign & price', icon: BedDouble },
+    62→  { label: 'Documents', description: 'ID verification', icon: Shield, optional: true },
+    63→  { label: 'Payment', description: 'Advance & confirm', icon: CreditCard },
+    64→]
+    65→
+    66→// ─── Types ──────────────────────────────────────────────────────────────
+    67→
+    68→interface CheckInWizardProps {
+    69→  onBack?: () => void
+    70→  onOpenRatePosting?: (reservationId: string) => void
+    71→  prefillReservationId?: string
+    72→}
+    73→
+    74→interface ReservationData {
+    75→  id: string
+    76→  confirmationNo: string
+    77→  status: string
+    78→  reservationType: string | null
+    79→  adults: number
+    80→  children: number
+    81→  checkIn: string
+    82→  checkOut: string
+    83→  roomRate: number
+    84→  totalAmount: number
+    85→  specialRequests: string | null
+    86→  source: string | null
+    87→  company: string | null
+    88→  guaranteed: boolean
+    89→  roomTypeId: string | null
+    90→  ratePlanId: string | null
+    91→  guest: {
+    92→    id: string
+    93→    firstName: string
+    94→    lastName: string
+    95→    email: string | null
+    96→    phone: string | null
+    97→    nationality: string | null
+    98→    vipLevel: string
+    99→    idType: string | null
+   100→    idNumber: string | null
+   101→  } | null
+   102→  room: {
+   103→    id: string
+   104→    number: string
+   105→    floor: number
+   106→    wing: string | null
+   107→    status: string
+   108→    type: {
+   109→      id: string
+   110→      name: string
+   111→      code: string
+   112→      bedConfig: string
+   113→      areaSqFt: number | null
+   114→      view: string | null
+   115→      amenities: string | null
+   116→      baseOccupancy: number
+   117→      maxOccupancy: number
+   118→    }
+   119→  } | null
+   120→}
+   121→
+   122→interface RoomData {
+   123→  id: string
+   124→  number: string
+   125→  floor: number
+   126→  wing: string | null
+   127→  status: string
+   128→  type: {
+   129→    id: string
+   130→    name: string
+   131→    code: string
+   132→    bedConfig: string
+   133→    areaSqFt: number | null
+   134→    view: string | null
+   135→    amenities: string | null
+   136→    baseOccupancy: number
+   137→    maxOccupancy: number
+   138→  }
+   139→}
+   140→
+   141→interface RatePlanData {
+   142→  id: string
+   143→  name: string
+   144→  code: string
+   145→  baseRate: number
+   146→  channel: string | null
+   147→}
+   148→
+   149→interface GuestDocument {
+   150→  id: string
+   151→  docType: string
+   152→  docNumber: string
+   153→  issueCountry: string
+   154→  issueDate: string
+   155→  expiryDate: string
+   156→  placeOfIssue: string
+   157→}
+   158→
+   159→interface CheckInResult {
+   160→  reservation: ReservationData
+   161→  message: string
+   162→}
+   163→
+   164→// ─── Component ──────────────────────────────────────────────────────────
+   165→
+   166→export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId }: CheckInWizardProps) {
+   167→  const queryClient = useQueryClient()
+   168→  const { user } = useAuthStore()
+   169→  const { settings } = useSettingsStore()
+   170→  const today = getTodayString()
+   171→
+   172→  // ─── Step state ────────────────────────────────────────────────
+   173→  const [currentStep, setCurrentStep] = useState(1)
+   174→
+   175→  // ─── Reservation lookup ──────────────────────────────────────────
+   176→  const [searchQuery, setSearchQuery] = useState('')
+   177→  const [searchedReservationId, setSearchedReservationId] = useState<string | null>(null)
+   178→  const [confirmedReservationId, setConfirmedReservationId] = useState<string | null>(null)
+   179→  const [isDirectWalkIn, setIsDirectWalkIn] = useState(false)
+   180→
+   181→  // ─── Walk-in fields ────────────────────────────────────────────
+   182→  const [walkInDate, setWalkInDate] = useState(today)
+   183→  const [walkInCheckOut, setWalkInCheckOut] = useState(() => {
+   184→    const d = new Date()
+   185→    d.setDate(d.getDate() + 1)
+   186→    return d.toISOString().split('T')[0]
+   187→  })
+   188→  const [walkInAdults, setWalkInAdults] = useState(2)
+   189→  const [walkInChildren, setWalkInChildren] = useState(0)
+   190→
+   191→  // ─── Walk-in guest fields ──────────────────────────────────────
+   192→  const [guestFirstName, setGuestFirstName] = useState('')
+   193→  const [guestLastName, setGuestLastName] = useState('')
+   194→  const [guestEmail, setGuestEmail] = useState('')
+   195→  const [guestPhone, setGuestPhone] = useState('')
+   196→  const [guestNationality, setGuestNationality] = useState('')
+   197→  const [guestIdType, setGuestIdType] = useState('')
+   198→  const [guestIdNumber, setGuestIdNumber] = useState('')
+   199→
+   200→  // ─── Room & Rate ───────────────────────────────────────────────
+   201→  const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+   202→  const [roomSearchFilter, setRoomSearchFilter] = useState('')
+   203→  const [selectedRatePlanId, setSelectedRatePlanId] = useState<string>('')
+   204→  const [roomRate, setRoomRate] = useState<number>(0)
+   205→  const [checkInDate, setCheckInDate] = useState(today)
+   206→  const [checkOutDate, setCheckOutDate] = useState(() => {
+   207→    const d = new Date()
+   208→    d.setDate(d.getDate() + 1)
+   209→    return d.toISOString().split('T')[0]
+   210→  })
+   211→  const [adults, setAdults] = useState(2)
+   212→  const [children, setChildren] = useState(0)
+   213→
+   214→  // ─── Documents ────────────────────────────────────────────────
+   215→  const [collectDocuments, setCollectDocuments] = useState(false)
+   216→  const [documents, setDocuments] = useState<GuestDocument[]>([])
+   217→  const [editingDoc, setEditingDoc] = useState<Partial<GuestDocument>>({})
+   218→
+   219→  // ─── Payment ───────────────────────────────────────────────────
+   220→  const [advanceAmount, setAdvanceAmount] = useState<string>('')
+   221→  const [advanceMethod, setAdvanceMethod] = useState<string>('')
+   222→  const [advanceReference, setAdvanceReference] = useState('')
+   223→  const [confirmChecked, setConfirmChecked] = useState(false)
+   224→
+   225→  // ─── Success ──────────────────────────────────────────────────
+   226→  const [checkInResult, setCheckInResult] = useState<CheckInResult | null>(null)
+   227→  const [keyCardIssued, setKeyCardIssued] = useState(false)
+   228→  const [showRatePosting, setShowRatePosting] = useState(false)
+   229→
+   230→  // ─── Data queries ────────────────────────────────────────────
+   231→
+   232→  // Reservation prefilled or searched
+   233→  const activeReservationId = prefillReservationId || searchedReservationId
+   234→  const {
+   235→    data: reservationData,
+   236→    isLoading: reservationLoading,
+   237→    error: reservationError,
+   238→  } = useQuery({
+   239→    queryKey: ['reservation', activeReservationId],
+   240→    queryFn: async () => {
+   241→      if (!activeReservationId) return null
+   242→      const data = await apiFetch(`/api/reservations/${activeReservationId}`) as { reservation: ReservationData }
+   243→      return data.reservation
+   244→    },
+   245→    enabled: !!activeReservationId,
+   246→  })
+   247→
+   248→  // Rooms list
+   249→  const { data: roomsData } = useQuery({
+   250→    queryKey: ['rooms'],
+   251→    queryFn: async () => {
+   252→      return apiFetch('/api/rooms?status=vacant_clean,inspected') as Promise<{
+   253→        rooms: RoomData[]
+   254→        roomTypes: Array<{
+   255→          id: string; name: string; code: string; baseOccupancy: number
+   256→          maxOccupancy: number; bedConfig: string; areaSqFt: number | null
+   257→          view: string | null; amenities: string | null
+   258→          ratePlans: RatePlanData[]
+   259→        }>
+   260→      }>
+   261→    },
+   262→  })
+   263→
+   264→  // Reservation search by confirmation number
+   265→  const {
+   266→    data: searchResults,
+   267→    isLoading: searchLoading,
+   268→  } = useQuery({
+   269→    queryKey: ['reservation-search', searchQuery],
+   270→    queryFn: async () => {
+   271→      if (!searchQuery || searchQuery.length < 2) return null
+   272→      const data = await apiFetch(`/api/reservations?search=${encodeURIComponent(searchQuery)}&status=confirmed,tentative`)
+   273→      return (data.reservations || []) as ReservationData[]
+   274→    },
+   275→    enabled: searchQuery.length >= 2,
+   276→  })
+   277→
+   278→  // ─── Check-in mutation ────────────────────────────────────────
+   279→  const checkInMutation = useMutation({
+   280→    mutationFn: async (payload: Record<string, unknown>) => {
+   281→      return apiFetch('/api/check-in', {
+   282→        method: 'POST',
+   283→        headers: { 'Content-Type': 'application/json' },
+   284→        body: JSON.stringify(payload),
+   285→      }) as Promise<CheckInResult>
+   286→    },
+   287→    onSuccess: (data) => {
+   288→      setCheckInResult(data)
+   289→      setCurrentStep(5)
+   290→      toast.success('Guest checked in successfully!')
+   291→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   292→      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+   293→      queryClient.invalidateQueries({ queryKey: ['front-desk-dashboard'] })
+   294→    },
+   295→    onError: (err: Error) => {
+   296→      toast.error(err.message || 'Check-in failed')
+   297→    },
+   298→  })
+   299→
+   300→  // ─── Derived values ────────────────────────────────────────────
+   301→
+   302→  const nights = useMemo(() => nightsBetween(checkInDate, checkOutDate), [checkInDate, checkOutDate])
+   303→  const taxRate = settings?.taxRate ?? 13
+   304→  const serviceCharge = settings?.serviceCharge ?? 10
+   305→  const subtotal = roomRate * nights
+   306→  const taxAmount = subtotal * (taxRate / 100)
+   307→  const serviceChargeAmount = subtotal * (serviceCharge / 100)
+   308→  const grandTotal = subtotal + taxAmount + serviceChargeAmount
+   309→  const advanceNum = parseFloat(advanceAmount) || 0
+   310→  const balanceDue = grandTotal - advanceNum
+   311→
+   312→  const selectedRoom = useMemo(() => {
+   313→    if (!roomsData || !selectedRoomId) return null
+   314→    return roomsData.rooms.find(r => r.id === selectedRoomId) || null
+   315→  }, [roomsData, selectedRoomId])
+   316→
+   317→  const selectedRoomType = useMemo(() => {
+   318→    if (!roomsData || !selectedRoom) return null
+   319→    return roomsData.roomTypes.find(rt => rt.id === selectedRoom.type.id) || null
+   320→  }, [roomsData, selectedRoom])
+   321→
+   322→  const ratePlans = useMemo(() => {
+   323→    if (!selectedRoomType) return []
+   324→    return selectedRoomType.ratePlans || []
+   325→  }, [selectedRoomType])
+   326→
+   327→  const selectedRatePlan = useMemo(() => {
+   328→    return ratePlans.find(rp => rp.id === selectedRatePlanId) || null
+   329→  }, [ratePlans, selectedRatePlanId])
+   330→
+   331→  const filteredRooms = useMemo(() => {
+   332→    if (!roomsData) return []
+   333→    const available = roomsData.rooms.filter(
+   334→      r => r.status === 'vacant_clean' || r.status === 'inspected'
+   335→    )
+   336→    if (!roomSearchFilter) return available
+   337→    const f = roomSearchFilter.toLowerCase()
+   338→    return available.filter(r =>
+   339→      r.number.toLowerCase().includes(f) ||
+   340→      r.type.name.toLowerCase().includes(f) ||
+   341→      r.type.code.toLowerCase().includes(f) ||
+   342→      String(r.floor).includes(f) ||
+   343→      (r.wing && r.wing.toLowerCase().includes(f))
+   344→    )
+   345→  }, [roomsData, roomSearchFilter])
+   346→
+   347→  // ─── Handlers ─────────────────────────────────────────────────
+   348→
+   349→  const handleUseReservation = useCallback(() => {
+   350→    if (reservationData) {
+   351→      setConfirmedReservationId(reservationData.id)
+   352→      // Auto-fill dates
+   353→      if (reservationData.checkIn) {
+   354→        setCheckInDate(reservationData.checkIn.split('T')[0])
+   355→      }
+   356→      if (reservationData.checkOut) {
+   357→        setCheckOutDate(reservationData.checkOut.split('T')[0])
+   358→      }
+   359→      setAdults(reservationData.adults || 2)
+   360→      setChildren(reservationData.children || 0)
+   361→      setRoomRate(reservationData.roomRate || 0)
+   362→      // Pre-select room if assigned
+   363→      if (reservationData.room) {
+   364→        setSelectedRoomId(reservationData.room.id)
+   365→      }
+   366→      if (reservationData.ratePlanId) {
+   367→        setSelectedRatePlanId(reservationData.ratePlanId)
+   368→      }
+   369→      toast.success('Reservation confirmed! Data auto-filled.')
+   370→      setCurrentStep(2)
+   371→    }
+   372→  }, [reservationData])
+   373→
+   374→  const handleSelectRoom = useCallback((roomId: string) => {
+   375→    setSelectedRoomId(roomId)
+   376→    const room = roomsData?.rooms.find(r => r.id === roomId)
+   377→    if (room) {
+   378→      setRoomRate(room.type.baseOccupancy ? room.type.baseOccupancy : 0)
+   379→      // Get the base rate from rate plans
+   380→      const rt = roomsData?.roomTypes.find(r => r.id === room.type.id)
+   381→      if (rt?.ratePlans && rt.ratePlans.length > 0) {
+   382→        setSelectedRatePlanId(rt.ratePlans[0].id)
+   383→        setRoomRate(rt.ratePlans[0].baseRate)
+   384→      }
+   385→    }
+   386→  }, [roomsData])
+   387→
+   388→  const handleRatePlanChange = useCallback((rpId: string) => {
+   389→    setSelectedRatePlanId(rpId)
+   390→    const rp = ratePlans.find(r => r.id === rpId)
+   391→    if (rp) {
+   392→      setRoomRate(rp.baseRate)
+   393→    }
+   394→  }, [ratePlans])
+   395→
+   396→  const handleAddDocument = useCallback(() => {
+   397→    if (!editingDoc.docType) {
+   398→      toast.error('Please select a document type')
+   399→      return
+   400→    }
+   401→    const newDoc: GuestDocument = {
+   402→      id: crypto.randomUUID(),
+   403→      docType: editingDoc.docType || '',
+   404→      docNumber: editingDoc.docNumber || '',
+   405→      issueCountry: editingDoc.issueCountry || '',
+   406→      issueDate: editingDoc.issueDate || '',
+   407→      expiryDate: editingDoc.expiryDate || '',
+   408→      placeOfIssue: editingDoc.placeOfIssue || '',
+   409→    }
+   410→    setDocuments(prev => [...prev, newDoc])
+   411→    setEditingDoc({})
+   412→  }, [editingDoc])
+   413→
+   414→  const handleRemoveDocument = useCallback((docId: string) => {
+   415→    setDocuments(prev => prev.filter(d => d.id !== docId))
+   416→  }, [])
+   417→
+   418→  const handleCompleteCheckIn = useCallback(() => {
+   419→    if (!selectedRoomId) {
+   420→      toast.error('Please select a room')
+   421→      return
+   422→    }
+   423→    if (!confirmChecked) {
+   424→      toast.error('Please confirm all details are correct')
+   425→      return
+   426→    }
+   427→
+   428→    const payload: Record<string, unknown> = {
+   429→      source: confirmedReservationId ? 'reservation' : 'direct',
+   430→      roomId: selectedRoomId,
+   431→      roomTypeId: selectedRoom?.type.id,
+   432→      ratePlanId: selectedRatePlanId || undefined,
+   433→      adults,
+   434→      children,
+   435→      roomRate,
+   436→      advanceAmount: advanceNum > 0 ? advanceNum : undefined,
+   437→      advancePaymentMethod: advanceNum > 0 ? (advanceMethod || 'cash') : undefined,
+   438→      advanceReference: advanceNum > 0 ? advanceReference : undefined,
+   439→      documents: collectDocuments && documents.length > 0
+   440→        ? documents.map(d => ({
+   441→            docType: d.docType,
+   442→            docNumber: d.docNumber || undefined,
+   443→            issueCountry: d.issueCountry || undefined,
+   444→            issueDate: d.issueDate || undefined,
+   445→            expiryDate: d.expiryDate || undefined,
+   446→            placeOfIssue: d.placeOfIssue || undefined,
+   447→          }))
+   448→        : undefined,
+   449→      checkedInBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'System',
+   450→    }
+   451→
+   452→    if (confirmedReservationId) {
+   453→      payload.reservationId = confirmedReservationId
+   454→    } else {
+   455→      // Direct walk-in
+   456→      payload.guest = {
+   457→        firstName: guestFirstName,
+   458→        lastName: guestLastName,
+   459→        email: guestEmail || undefined,
+   460→        phone: guestPhone || undefined,
+   461→        nationality: guestNationality || undefined,
+   462→        idType: guestIdType || undefined,
+   463→        idNumber: guestIdNumber || undefined,
+   464→      }
+   465→      payload.checkIn = checkInDate
+   466→      payload.checkOut = checkOutDate
+   467→    }
+   468→
+   469→    checkInMutation.mutate(payload)
+   470→  }, [
+   471→    confirmedReservationId, selectedRoomId, selectedRoom, selectedRatePlanId,
+   472→    adults, children, roomRate, advanceNum, advanceMethod, advanceReference,
+   473→    collectDocuments, documents, user, guestFirstName, guestLastName,
+   474→    guestEmail, guestPhone, guestNationality, guestIdType, guestIdNumber,
+   475→    checkInDate, checkOutDate, confirmChecked, checkInMutation,
+   476→  ])
+   477→
+   478→  const handleStepClick = useCallback((step: number) => {
+   479→    // Can only jump to completed steps or current
+   480→    if (step < currentStep) {
+   481→      setCurrentStep(step)
+   482→    }
+   483→  }, [currentStep])
+   484→
+   485→  const handleNext = useCallback(() => {
+   486→    if (currentStep === 1) {
+   487→      // Validate: need either confirmed reservation or direct walk-in
+   488→      if (!confirmedReservationId && !isDirectWalkIn) {
+   489→        toast.error('Please select a reservation or choose direct walk-in')
+   490→        return
+   491→      }
+   492→      if (isDirectWalkIn && (!guestFirstName || !guestLastName)) {
+   493→        toast.error('Please enter guest name for walk-in')
+   494→        return
+   495→      }
+   496→    }
+   497→    if (currentStep === 2) {
+   498→      if (!selectedRoomId) {
+   499→        toast.error('Please select a room')
+   500→        return
+   501→      }
+   502→      if (roomRate <= 0) {
+   503→        toast.error('Please set a valid room rate')
+   504→        return
+   505→      }
+   506→      // Auto-fill dates for direct walk-in if not set
+   507→      if (isDirectWalkIn && checkInDate === today) {
+   508→        // already default
+   509→      }
+   510→    }
+   511→    setCurrentStep(prev => Math.min(prev + 1, 5))
+   512→  }, [currentStep, confirmedReservationId, isDirectWalkIn, guestFirstName, guestLastName, selectedRoomId, roomRate, checkInDate, today])
+   513→
+   514→  const handleBack = useCallback(() => {
+   515→    if (currentStep === 1) {
+   516→      onBack?.()
+   517→    } else {
+   518→      setCurrentStep(prev => Math.max(prev - 1, 1))
+   519→    }
+   520→  }, [currentStep, onBack])
+   521→
+   522→  const handleProceedRatePosting = useCallback(() => {
+   523→    if (checkInResult?.reservation?.id && onOpenRatePosting) {
+   524→      onOpenRatePosting(checkInResult.reservation.id)
+   525→    } else {
+   526→      setShowRatePosting(true)
+   527→    }
+   528→  }, [checkInResult, onOpenRatePosting])
+   529→
+   530→  const handleQuickAdvance = useCallback((percent: number | 'none' | 'full') => {
+   531→    if (percent === 'none') {
+   532→      setAdvanceAmount('0')
+   533→    } else if (percent === 'full') {
+   534→      setAdvanceAmount(String(Math.round(grandTotal)))
+   535→    } else {
+   536→      setAdvanceAmount(String(Math.round(grandTotal * (percent / 100))))
+   537→    }
+   538→  }, [grandTotal])
+   539→
+   540→  // ─── Amenities display helper ────────────────────────────────
+   541→  const parseAmenities = (amenities: string | null) => {
+   542→    if (!amenities) return []
+   543→    try { return JSON.parse(amenities) } catch { return [] }
+   544→  }
+   545→
+   546→  // ─── Format document type label ───────────────────────────────
+   547→  const formatDocType = (type: string) => {
+   548→    return DOCUMENT_TYPES.find(d => d.value === type)?.label || type
+   549→  }
+   550→
+   551→  // ─── Step 1: Reservation Details ──────────────────────────────
+   552→  const renderStep1 = () => (
+   553→    <StepContent title="Reservation Details" description="Search for an existing reservation or process a direct walk-in" icon={FileText}>
+   554→      {prefillReservationId ? (
+   555→        // Prefilled reservation mode
+   556→        <>
+   557→          {reservationLoading && (
+   558→            <div className="space-y-3">
+   559→              <Skeleton className="h-4 w-3/4" />
+   560→              <Skeleton className="h-32 w-full" />
+   561→            </div>
+   562→          )}
+   563→          {reservationError && (
+   564→            <Card className="border-red-200 dark:border-red-800">
+   565→              <CardContent className="p-4">
+   566→                <div className="flex items-start gap-2 text-red-600 dark:text-red-400">
+   567→                  <AlertCircle className="h-5 w-5 mt-0.5" />
+   568→                  <div>
+   569→                    <p className="font-medium">Reservation Not Found</p>
+   570→                    <p className="text-sm text-muted-foreground mt-1">
+   571→                      The reservation could not be found. Please search or use direct walk-in.
+   572→                    </p>
+   573→                  </div>
+   574→                </div>
+   575→                <Button
+   576→                  variant="outline"
+   577→                  size="sm"
+   578→                  className="mt-3"
+   579→                  onClick={() => {
+   580→                    setSearchedReservationId(null)
+   581→                    setIsDirectWalkIn(true)
+   582→                  }}
+   583→                >
+   584→                  Use Direct Walk-in Instead
+   585→                </Button>
+   586→              </CardContent>
+   587→            </Card>
+   588→          )}
+   589→          {reservationData && (
+   590→            <>
+   591→              <div className="flex items-center gap-2">
+   592→                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+   593→                  <BadgeCheck className="w-3 h-3 mr-1" />
+   594→                  Reservation Found
+   595→                </Badge>
+   596→              </div>
+   597→              <p className="text-xs text-muted-foreground">
+   598→                Data will be auto-filled in subsequent steps.
+   599→              </p>
+   600→              <Card className="p-4">
+   601→                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   602→                  <div className="space-y-1">
+   603→                    <span className="text-xs text-muted-foreground">Reservation No.</span>
+   604→                    <p className="text-sm font-semibold">{reservationData.confirmationNo}</p>
+   605→                  </div>
+   606→                  <div className="space-y-1">
+   607→                    <span className="text-xs text-muted-foreground">Status</span>
+   608→                    <StatusBadge status={reservationData.status} />
+   609→                  </div>
+   610→                  <div className="space-y-1">
+   611→                    <span className="text-xs text-muted-foreground">Type</span>
+   612→                    <p className="text-sm">{reservationData.reservationType || '—'}</p>
+   613→                  </div>
+   614→                  <div className="space-y-1">
+   615→                    <span className="text-xs text-muted-foreground">Guest Name</span>
+   616→                    <p className="text-sm font-medium">
+   617→                      {reservationData.guest
+   618→                        ? `${reservationData.guest.firstName} ${reservationData.guest.lastName}`
+   619→                        : '—'}
+   620→                    </p>
+   621→                  </div>
+   622→                  <div className="space-y-1">
+   623→                    <span className="text-xs text-muted-foreground">Email</span>
+   624→                    <p className="text-sm flex items-center gap-1">
+   625→                      <Mail className="h-3 w-3 text-muted-foreground" />
+   626→                      {reservationData.guest?.email || '—'}
+   627→                    </p>
+   628→                  </div>
+   629→                  <div className="space-y-1">
+   630→                    <span className="text-xs text-muted-foreground">Phone</span>
+   631→                    <p className="text-sm flex items-center gap-1">
+   632→                      <Phone className="h-3 w-3 text-muted-foreground" />
+   633→                      {reservationData.guest?.phone || '—'}
+   634→                    </p>
+   635→                  </div>
+   636→                  <div className="space-y-1">
+   637→                    <span className="text-xs text-muted-foreground">Check-in</span>
+   638→                    <p className="text-sm flex items-center gap-1">
+   639→                      <CalendarDays className="h-3 w-3 text-muted-foreground" />
+   640→                      {formatDate(reservationData.checkIn)}
+   641→                    </p>
+   642→                  </div>
+   643→                  <div className="space-y-1">
+   644→                    <span className="text-xs text-muted-foreground">Check-out</span>
+   645→                    <p className="text-sm flex items-center gap-1">
+   646→                      <CalendarDays className="h-3 w-3 text-muted-foreground" />
+   647→                      {formatDate(reservationData.checkOut)}
+   648→                    </p>
+   649→                  </div>
+   650→                  {reservationData.room && (
+   651→                    <div className="space-y-1">
+   652→                      <span className="text-xs text-muted-foreground">Room</span>
+   653→                      <p className="text-sm">
+   654→                        {reservationData.room.number} — {reservationData.room.type.name}
+   655→                      </p>
+   656→                    </div>
+   657→                  )}
+   658→                  <div className="space-y-1">
+   659→                    <span className="text-xs text-muted-foreground">Source</span>
+   660→                    <p className="text-sm">{reservationData.source || '—'}</p>
+   661→                  </div>
+   662→                  {reservationData.company && (
+   663→                    <div className="space-y-1">
+   664→                      <span className="text-xs text-muted-foreground">Company</span>
+   665→                      <p className="text-sm flex items-center gap-1">
+   666→                        <Building className="h-3 w-3 text-muted-foreground" />
+   667→                        {reservationData.company}
+   668→                      </p>
+   669→                    </div>
+   670→                  )}
+   671→                </div>
+   672→              </Card>
+   673→              <Button onClick={handleUseReservation} className="w-full sm:w-auto">
+   674→                <Check className="w-4 h-4 mr-2" />
+   675→                Use This Reservation
+   676→              </Button>
+   677→            </>
+   678→          )}
+   679→        </>
+   680→      ) : confirmedReservationId ? (
+   681→        // Already confirmed
+   682→        <Card className="p-4 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20">
+   683→          <div className="flex items-center gap-2">
+   684→            <BadgeCheck className="h-5 w-5 text-emerald-600" />
+   685→            <div>
+   686→              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+   687→                Reservation Confirmed
+   688→              </p>
+   689→              <p className="text-xs text-muted-foreground mt-0.5">
+   690→                Data has been auto-filled. Proceed to next steps.
+   691→              </p>
+   692→            </div>
+   693→          </div>
+   694→        </Card>
+   695→      ) : (
+   696→        // Search mode
+   697→        <>
+   698→          {!isDirectWalkIn ? (
+   699→            <div className="space-y-3">
+   700→              <div className="relative">
+   701→                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   702→                <Input
+   703→                  placeholder="Search by confirmation number, guest name, or room..."
+   704→                  value={searchQuery}
+   705→                  onChange={e => setSearchQuery(e.target.value)}
+   706→                  className="pl-9"
+   707→                />
+   708→              </div>
+   709→
+   710→              {searchLoading && (
+   711→                <div className="flex items-center gap-2 py-3 justify-center">
+   712→                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+   713→                  <span className="text-sm text-muted-foreground">Searching...</span>
+   714→                </div>
+   715→              )}
+   716→
+   717→              {searchResults && searchResults.length > 0 && (
+   718→                <div className="space-y-2 max-h-64 overflow-y-auto">
+   719→                  {searchResults.map(res => (
+   720→                    <Card
+   721→                      key={res.id}
+   722→                      className="p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+   723→                      onClick={() => {
+   724→                        setSearchedReservationId(res.id)
+   725→                      }}
+   726→                    >
+   727→                      <div className="flex items-start justify-between">
+   728→                        <div className="space-y-1">
+   729→                          <div className="flex items-center gap-2">
+   730→                            <span className="text-sm font-semibold">{res.confirmationNo}</span>
+   731→                            <StatusBadge status={res.status} />
+   732→                          </div>
+   733→                          <p className="text-xs">
+   734→                            {res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : 'Guest unknown'}
+   735→                            {res.room && ` — Room ${res.room.number}`}
+   736→                          </p>
+   737→                          <p className="text-xs text-muted-foreground">
+   738→                            {formatDate(res.checkIn)} → {formatDate(res.checkOut)} · {formatCurrency(res.roomRate)}/night
+   739→                          </p>
+   740→                        </div>
+   741→                        <ArrowRight className="h-4 w-4 text-muted-foreground mt-1" />
+   742→                      </div>
+   743→                    </Card>
+   744→                  ))}
+   745→                </div>
+   746→              )}
+   747→
+   748→              {searchResults && searchResults.length === 0 && (
+   749→                <p className="text-sm text-muted-foreground text-center py-4">
+   750→                  No reservations found matching &quot;{searchQuery}&quot;
+   751→                </p>
+   752→              )}
+   753→
+   754→              <div className="flex items-center gap-3">
+   755→                <Separator className="flex-1" />
+   756→                <span className="text-xs text-muted-foreground">or</span>
+   757→                <Separator className="flex-1" />
+   758→              </div>
+   759→
+   760→              <Button
+   761→                variant="outline"
+   762→                className="w-full"
+   763→                onClick={() => setIsDirectWalkIn(true)}
+   764→              >
+   765→                <User className="h-4 w-4 mr-2" />
+   766→                Direct Walk-in (No Reservation)
+   767→              </Button>
+   768→            </div>
+   769→          ) : (
+   770→            // Direct walk-in form
+   771→            <div className="space-y-4">
+   772→              <div className="flex items-center justify-between">
+   773→                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+   774→                  <User className="w-3 h-3 mr-1" />
+   775→                  Direct Walk-in
+   776→                </Badge>
+   777→                <Button
+   778→                  variant="ghost"
+   779→                  size="sm"
+   780→                  onClick={() => {
+   781→                    setIsDirectWalkIn(false)
+   782→                    setSearchQuery('')
+   783→                  }}
+   784→                >
+   785→                  ← Search Reservation Instead
+   786→                </Button>
+   787→              </div>
+   788→
+   789→              <Card className="p-4">
+   790→                <CardTitle className="text-sm mb-3">Guest Information</CardTitle>
+   791→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   792→                  <div className="space-y-1.5">
+   793→                    <Label className="text-xs">First Name *</Label>
+   794→                    <Input
+   795→                      value={guestFirstName}
+   796→                      onChange={e => setGuestFirstName(e.target.value)}
+   797→                      placeholder="First name"
+   798→                      className="h-8 text-sm"
+   799→                    />
+   800→                  </div>
+   801→                  <div className="space-y-1.5">
+   802→                    <Label className="text-xs">Last Name *</Label>
+   803→                    <Input
+   804→                      value={guestLastName}
+   805→                      onChange={e => setGuestLastName(e.target.value)}
+   806→                      placeholder="Last name"
+   807→                      className="h-8 text-sm"
+   808→                    />
+   809→                  </div>
+   810→                  <div className="space-y-1.5">
+   811→                    <Label className="text-xs">Email</Label>
+   812→                    <Input
+   813→                      type="email"
+   814→                      value={guestEmail}
+   815→                      onChange={e => setGuestEmail(e.target.value)}
+   816→                      placeholder="guest@email.com"
+   817→                      className="h-8 text-sm"
+   818→                    />
+   819→                  </div>
+   820→                  <div className="space-y-1.5">
+   821→                    <Label className="text-xs">Phone</Label>
+   822→                    <Input
+   823→                      value={guestPhone}
+   824→                      onChange={e => setGuestPhone(e.target.value)}
+   825→                      placeholder="+977-98XXXXXXXX"
+   826→                      className="h-8 text-sm"
+   827→                    />
+   828→                  </div>
+   829→                  <div className="space-y-1.5">
+   830→                    <Label className="text-xs">Nationality</Label>
+   831→                    <Select value={guestNationality} onValueChange={setGuestNationality}>
+   832→                      <SelectTrigger className="h-8 text-sm">
+   833→                        <SelectValue placeholder="Select nationality" />
+   834→                      </SelectTrigger>
+   835→                      <SelectContent>
+   836→                        {COUNTRIES.map(c => (
+   837→                          <SelectItem key={c} value={c}>{c}</SelectItem>
+   838→                        ))}
+   839→                      </SelectContent>
+   840→                    </Select>
+   841→                  </div>
+   842→                </div>
+   843→              </Card>
+   844→
+   845→              <Card className="p-4">
+   846→                <CardTitle className="text-sm mb-3">Stay Details</CardTitle>
+   847→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   848→                  <div className="space-y-1.5">
+   849→                    <Label className="text-xs">Check-in Date</Label>
+   850→                    <Popover>
+   851→                      <PopoverTrigger asChild>
+   852→                        <Button variant="outline" className="h-8 text-sm w-full justify-start font-normal">
+   853→                          <CalendarDays className="mr-2 h-3.5 w-3.5" />
+   854→                          {formatDate(walkInDate)}
+   855→                        </Button>
+   856→                      </PopoverTrigger>
+   857→                      <PopoverContent className="w-auto p-0" align="start">
+   858→                        <Calendar
+   859→                          mode="single"
+   860→                          selected={new Date(walkInDate)}
+   861→                          onSelect={d => d && setWalkInDate(d.toISOString().split('T')[0])}
+   862→                          initialFocus
+   863→                        />
+   864→                      </PopoverContent>
+   865→                    </Popover>
+   866→                  </div>
+   867→                  <div className="space-y-1.5">
+   868→                    <Label className="text-xs">Expected Check-out</Label>
+   869→                    <Popover>
+   870→                      <PopoverTrigger asChild>
+   871→                        <Button variant="outline" className="h-8 text-sm w-full justify-start font-normal">
+   872→                          <CalendarDays className="mr-2 h-3.5 w-3.5" />
+   873→                          {formatDate(walkInCheckOut)}
+   874→                        </Button>
+   875→                      </PopoverTrigger>
+   876→                      <PopoverContent className="w-auto p-0" align="start">
+   877→                        <Calendar
+   878→                          mode="single"
+   879→                          selected={new Date(walkInCheckOut)}
+   880→                          onSelect={d => d && setWalkInCheckOut(d.toISOString().split('T')[0])}
+   881→                          initialFocus
+   882→                        />
+   883→                      </PopoverContent>
+   884→                    </Popover>
+   885→                  </div>
+   886→                  <div className="space-y-1.5">
+   887→                    <Label className="text-xs">Adults</Label>
+   888→                    <Select value={String(walkInAdults)} onValueChange={v => { setWalkInAdults(Number(v)); setAdults(Number(v)) }}>
+   889→                      <SelectTrigger className="h-8 text-sm">
+   890→                        <SelectValue />
+   891→                      </SelectTrigger>
+   892→                      <SelectContent>
+   893→                        {[1, 2, 3, 4, 5, 6].map(n => (
+   894→                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+   895→                        ))}
+   896→                      </SelectContent>
+   897→                    </Select>
+   898→                  </div>
+   899→                  <div className="space-y-1.5">
+   900→                    <Label className="text-xs">Children</Label>
+   901→                    <Select value={String(walkInChildren)} onValueChange={v => { setWalkInChildren(Number(v)); setChildren(Number(v)) }}>
+   902→                      <SelectTrigger className="h-8 text-sm">
+   903→                        <SelectValue />
+   904→                      </SelectTrigger>
+   905→                      <SelectContent>
+   906→                        {[0, 1, 2, 3, 4].map(n => (
+   907→                          <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+   908→                        ))}
+   909→                      </SelectContent>
+   910→                    </Select>
+   911→                  </div>
+   912→                </div>
+   913→                <div className="mt-3">
+   914→                  <Badge variant="outline" className="text-xs">
+   915→                    Source: Walk-in
+   916→                  </Badge>
+   917→                </div>
+   918→              </Card>
+   919→            </div>
+   920→          )}
+   921→        </>
+   922→      )}
+   923→    </StepContent>
+   924→  )
+   925→
+   926→  // ─── Step 2: Room & Rate ──────────────────────────────────────
+   927→  const renderStep2 = () => (
+   928→    <StepContent title="Room & Rate" description="Select a room and set the rate plan" icon={BedDouble}>
+   929→      {/* Room Selection */}
+   930→      <Card className="p-4">
+   931→        <CardTitle className="text-sm mb-3">Room Selection</CardTitle>
+   932→        <div className="relative mb-3">
+   933→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   934→          <Input
+   935→            placeholder="Search rooms by number, type, floor, or wing..."
+   936→            value={roomSearchFilter}
+   937→            onChange={e => setRoomSearchFilter(e.target.value)}
+   938→            className="pl-9 h-8 text-sm"
+   939→          />
+   940→        </div>
+   941→        <div className="max-h-52 overflow-y-auto space-y-1.5">
+   942→          {filteredRooms.length === 0 && (
+   943→            <p className="text-sm text-muted-foreground text-center py-4">No available rooms found</p>
+   944→          )}
+   945→          {filteredRooms.map(room => (
+   946→            <button
+   947→              key={room.id}
+   948→              type="button"
+   949→              onClick={() => handleSelectRoom(room.id)}
+   950→              className={cn(
+   951→                'w-full flex items-center justify-between p-2.5 rounded-lg border text-left transition-all',
+   952→                selectedRoomId === room.id
+   953→                  ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-600'
+   954→                  : 'border-border hover:bg-muted/50'
+   955→              )}
+   956→            >
+   957→              <div className="flex items-center gap-3">
+   958→                <div
+   959→                  className={cn(
+   960→                    'w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold',
+   961→                    room.status === 'vacant_clean'
+   962→                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
+   963→                      : 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300'
+   964→                  )}
+   965→                >
+   966→                  {room.number}
+   967→                </div>
+   968→                <div>
+   969→                  <p className="text-sm font-medium">{room.type.name}</p>
+   970→                  <p className="text-xs text-muted-foreground">
+   971→                    Floor {room.floor} {room.wing ? `· ${room.wing} Wing` : ''}
+   972→                  </p>
+   973→                </div>
+   974→              </div>
+   975→              <StatusBadge status={room.status} />
+   976→            </button>
+   977→          ))}
+   978→        </div>
+   979→      </Card>
+   980→
+   981→      {/* Room Details Card */}
+   982→      {selectedRoom && (
+   983→        <Card className="p-4">
+   984→          <CardTitle className="text-sm mb-3">Room Details</CardTitle>
+   985→          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   986→            <div className="space-y-0.5">
+   987→              <span className="text-xs text-muted-foreground">Room Number</span>
+   988→              <p className="text-sm font-semibold">{selectedRoom.number}</p>
+   989→            </div>
+   990→            <div className="space-y-0.5">
+   991→              <span className="text-xs text-muted-foreground">Type</span>
+   992→              <p className="text-sm">{selectedRoom.type.name}</p>
+   993→            </div>
+   994→            <div className="space-y-0.5">
+   995→              <span className="text-xs text-muted-foreground">Bed Config</span>
+   996→              <p className="text-sm">{selectedRoom.type.bedConfig}</p>
+   997→            </div>
+   998→            {selectedRoom.type.areaSqFt && (
+   999→              <div className="space-y-0.5">
+  1000→                <span className="text-xs text-muted-foreground">Area</span>
+  1001→                <p className="text-sm">{Math.round(selectedRoom.type.areaSqFt)} sq ft</p>
+  1002→              </div>
+  1003→            )}
+  1004→            {selectedRoom.type.view && (
+  1005→              <div className="space-y-0.5">
+  1006→                <span className="text-xs text-muted-foreground">View</span>
+  1007→                <p className="text-sm">{selectedRoom.type.view}</p>
+  1008→              </div>
+  1009→            )}
+  1010→            <div className="space-y-0.5">
+  1011→              <span className="text-xs text-muted-foreground">Status</span>
+  1012→              <StatusBadge status={selectedRoom.status} />
+  1013→            </div>
+  1014→          </div>
+  1015→          {selectedRoom.type.amenities && parseAmenities(selectedRoom.type.amenities).length > 0 && (
+  1016→            <div className="mt-3">
+  1017→              <span className="text-xs text-muted-foreground">Amenities</span>
+  1018→              <div className="flex flex-wrap gap-1.5 mt-1">
+  1019→                {parseAmenities(selectedRoom.type.amenities).map((a: string) => (
+  1020→                  <Badge key={a} variant="secondary" className="text-[10px] px-2 py-0.5">
+  1021→                    {a}
+  1022→                  </Badge>
+  1023→                ))}
+  1024→              </div>
+  1025→            </div>
+  1026→          )}
+  1027→        </Card>
+  1028→      )}
+  1029→
+  1030→      {/* Rate Selection */}
+  1031→      {selectedRoom && (
+  1032→        <Card className="p-4">
+  1033→          <CardTitle className="text-sm mb-3">Rate Selection</CardTitle>
+  1034→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1035→            <div className="space-y-1.5">
+  1036→              <Label className="text-xs">Rate Plan</Label>
+  1037→              <Select value={selectedRatePlanId} onValueChange={handleRatePlanChange}>
+  1038→                <SelectTrigger className="h-8 text-sm">
+  1039→                  <SelectValue placeholder="Select rate plan" />
+  1040→                </SelectTrigger>
+  1041→                <SelectContent>
+  1042→                  {ratePlans.map(rp => (
+  1043→                    <SelectItem key={rp.id} value={rp.id}>
+  1044→                      {rp.name} — {formatCurrency(rp.baseRate)}/night
+  1045→                    </SelectItem>
+  1046→                  ))}
+  1047→                  {ratePlans.length === 0 && (
+  1048→                    <SelectItem value="manual">Manual Entry</SelectItem>
+  1049→                  )}
+  1050→                </SelectContent>
+  1051→              </Select>
+  1052→            </div>
+  1053→            <div className="space-y-1.5">
+  1054→              <Label className="text-xs">Room Rate (NPR/night)</Label>
+  1055→              <Input
+  1056→                type="number"
+  1057→                value={roomRate || ''}
+  1058→                onChange={e => setRoomRate(parseFloat(e.target.value) || 0)}
+  1059→                placeholder="Enter room rate"
+  1060→                className="h-8 text-sm"
+  1061→              />
+  1062→            </div>
+  1063→            <div className="space-y-1.5">
+  1064→              <Label className="text-xs">Check-in Date</Label>
+  1065→              <Popover>
+  1066→                <PopoverTrigger asChild>
+  1067→                  <Button variant="outline" className="h-8 text-sm w-full justify-start font-normal">
+  1068→                    <CalendarDays className="mr-2 h-3.5 w-3.5" />
+  1069→                    {formatDate(checkInDate)}
+  1070→                  </Button>
+  1071→                </PopoverTrigger>
+  1072→                <PopoverContent className="w-auto p-0" align="start">
+  1073→                  <Calendar
+  1074→                    mode="single"
+  1075→                    selected={new Date(checkInDate)}
+  1076→                    onSelect={d => d && setCheckInDate(d.toISOString().split('T')[0])}
+  1077→                    initialFocus
+  1078→                  />
+  1079→                </PopoverContent>
+  1080→              </Popover>
+  1081→            </div>
+  1082→            <div className="space-y-1.5">
+  1083→              <Label className="text-xs">Check-out Date</Label>
+  1084→              <Popover>
+  1085→                <PopoverTrigger asChild>
+  1086→                  <Button variant="outline" className="h-8 text-sm w-full justify-start font-normal">
+  1087→                    <CalendarDays className="mr-2 h-3.5 w-3.5" />
+  1088→                    {formatDate(checkOutDate)}
+  1089→                  </Button>
+  1090→                </PopoverTrigger>
+  1091→                <PopoverContent className="w-auto p-0" align="start">
+  1092→                  <Calendar
+  1093→                    mode="single"
+  1094→                    selected={new Date(checkOutDate)}
+  1095→                    onSelect={d => d && setCheckOutDate(d.toISOString().split('T')[0])}
+  1096→                    initialFocus
+  1097→                  />
+  1098→                </PopoverContent>
+  1099→              </Popover>
+  1100→            </div>
+  1101→          </div>
+  1102→          <div className="mt-3 flex items-center gap-4 text-sm">
+  1103→            <span className="text-muted-foreground">Nights:</span>
+  1104→            <span className="font-semibold text-amber-600 dark:text-amber-400">{nights}</span>
+  1105→            <Separator orientation="vertical" className="h-4" />
+  1106→            <span className="text-muted-foreground">Room Total:</span>
+  1107→            <span className="font-semibold">{formatCurrency(subtotal)}</span>
+  1108→          </div>
+  1109→        </Card>
+  1110→      )}
+  1111→
+  1112→      {/* Occupancy */}
+  1113→      {selectedRoom && (
+  1114→        <Card className="p-4">
+  1115→          <CardTitle className="text-sm mb-3">Occupancy</CardTitle>
+  1116→          <div className="grid grid-cols-2 gap-3">
+  1117→            <div className="space-y-1.5">
+  1118→              <Label className="text-xs">Adults</Label>
+  1119→              <Select value={String(adults)} onValueChange={v => setAdults(Number(v))}>
+  1120→                <SelectTrigger className="h-8 text-sm">
+  1121→                  <SelectValue />
+  1122→                </SelectTrigger>
+  1123→                <SelectContent>
+  1124→                  {[1, 2, 3, 4, 5, 6].map(n => (
+  1125→                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+  1126→                  ))}
+  1127→                </SelectContent>
+  1128→              </Select>
+  1129→            </div>
+  1130→            <div className="space-y-1.5">
+  1131→              <Label className="text-xs">Children</Label>
+  1132→              <Select value={String(children)} onValueChange={v => setChildren(Number(v))}>
+  1133→                <SelectTrigger className="h-8 text-sm">
+  1134→                  <SelectValue />
+  1135→                </SelectTrigger>
+  1136→                <SelectContent>
+  1137→                  {[0, 1, 2, 3, 4].map(n => (
+  1138→                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+  1139→                  ))}
+  1140→                </SelectContent>
+  1141→              </Select>
+  1142→            </div>
+  1143→          </div>
+  1144→        </Card>
+  1145→      )}
+  1146→    </StepContent>
+  1147→  )
+  1148→
+  1149→  // ─── Step 3: Guest Documents ─────────────────────────────────
+  1150→  const renderStep3 = () => {
+  1151→    const resGuest = confirmedReservationId && reservationData?.guest ? reservationData.guest : null
+  1152→    const walkInGuest = isDirectWalkIn && guestFirstName ? {
+  1153→      firstName: guestFirstName,
+  1154→      lastName: guestLastName,
+  1155→      nationality: guestNationality || null,
+  1156→      idType: guestIdType || null,
+  1157→      idNumber: guestIdNumber || null,
+  1158→    } : null
+  1159→    const displayGuest = resGuest || walkInGuest
+  1160→
+  1161→    return (
+  1162→      <StepContent title="Guest Documents" description="Collect guest identification documents" icon={Shield}>
+  1163→        <Card className="p-3 border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+  1164→          <p className="text-xs text-muted-foreground">
+  1165→            Document collection is optional and can be completed later if needed.
+  1166→          </p>
+  1167→        </Card>
+  1168→
+  1169→        <div className="flex items-center gap-2">
+  1170→          <Checkbox
+  1171→            id="collect-docs"
+  1172→            checked={collectDocuments}
+  1173→            onCheckedChange={v => setCollectDocuments(!!v)}
+  1174→          />
+  1175→          <Label htmlFor="collect-docs" className="text-sm cursor-pointer">
+  1176→            Collect documents now
+  1177→          </Label>
+  1178→        </div>
+  1179→
+  1180→        {/* Guest Info Preview */}
+  1181→        {displayGuest && (
+  1182→          <Card className="p-3 bg-muted/30">
+  1183→            <p className="text-xs text-muted-foreground mb-2">Guest Information (from reservation)</p>
+  1184→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+  1185→              <div>
+  1186→                <span className="text-muted-foreground">Name</span>
+  1187→                <p className="font-medium">{displayGuest.firstName} {displayGuest.lastName}</p>
+  1188→              </div>
+  1189→              {displayGuest.nationality && (
+  1190→                <div>
+  1191→                  <span className="text-muted-foreground">Nationality</span>
+  1192→                  <p className="font-medium">{displayGuest.nationality}</p>
+  1193→                </div>
+  1194→              )}
+  1195→              {displayGuest.idType && (
+  1196→                <div>
+  1197→                  <span className="text-muted-foreground">ID Type</span>
+  1198→                  <p className="font-medium capitalize">{displayGuest.idType.replace('_', ' ')}</p>
+  1199→                </div>
+  1200→              )}
+  1201→              {displayGuest.idNumber && (
+  1202→                <div>
+  1203→                  <span className="text-muted-foreground">ID Number</span>
+  1204→                  <p className="font-medium">{displayGuest.idNumber}</p>
+  1205→                </div>
+  1206→              )}
+  1207→            </div>
+  1208→          </Card>
+  1209→        )}
+  1210→
+  1211→        {collectDocuments && (
+  1212→          <>
+  1213→            {/* Document Entry Form */}
+  1214→            <Card className="p-4">
+  1215→              <CardTitle className="text-sm mb-3">Add Document</CardTitle>
+  1216→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1217→                <div className="space-y-1.5">
+  1218→                  <Label className="text-xs">Document Type *</Label>
+  1219→                  <Select
+  1220→                    value={editingDoc.docType || ''}
+  1221→                    onValueChange={v => setEditingDoc(prev => ({ ...prev, docType: v }))}
+  1222→                  >
+  1223→                    <SelectTrigger className="h-8 text-sm">
+  1224→                      <SelectValue placeholder="Select type" />
+  1225→                    </SelectTrigger>
+  1226→                    <SelectContent>
+  1227→                      {DOCUMENT_TYPES.map(dt => (
+  1228→                        <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
+  1229→                      ))}
+  1230→                    </SelectContent>
+  1231→                  </Select>
+  1232→                </div>
+  1233→                <div className="space-y-1.5">
+  1234→                  <Label className="text-xs">Document Number</Label>
+  1235→                  <Input
+  1236→                    value={editingDoc.docNumber || ''}
+  1237→                    onChange={e => setEditingDoc(prev => ({ ...prev, docNumber: e.target.value }))}
+  1238→                    placeholder="Enter document number"
+  1239→                    className="h-8 text-sm"
+  1240→                  />
+  1241→                </div>
+  1242→                <div className="space-y-1.5">
+  1243→                  <Label className="text-xs">Issue Country</Label>
+  1244→                  <Select
+  1245→                    value={editingDoc.issueCountry || ''}
+  1246→                    onValueChange={v => setEditingDoc(prev => ({ ...prev, issueCountry: v }))}
+  1247→                  >
+  1248→                    <SelectTrigger className="h-8 text-sm">
+  1249→                      <SelectValue placeholder="Select country" />
+  1250→                    </SelectTrigger>
+  1251→                    <SelectContent>
+  1252→                      {COUNTRIES.map(c => (
+  1253→                        <SelectItem key={c} value={c}>{c}</SelectItem>
+  1254→                      ))}
+  1255→                    </SelectContent>
+  1256→                  </Select>
+  1257→                </div>
+  1258→                <div className="space-y-1.5">
+  1259→                  <Label className="text-xs">Place of Issue</Label>
+  1260→                  <Input
+  1261→                    value={editingDoc.placeOfIssue || ''}
+  1262→                    onChange={e => setEditingDoc(prev => ({ ...prev, placeOfIssue: e.target.value }))}
+  1263→                    placeholder="City or authority"
+  1264→                    className="h-8 text-sm"
+  1265→                  />
+  1266→                </div>
+  1267→                <div className="space-y-1.5">
+  1268→                  <Label className="text-xs">Issue Date</Label>
+  1269→                  <Input
+  1270→                    type="date"
+  1271→                    value={editingDoc.issueDate || ''}
+  1272→                    onChange={e => setEditingDoc(prev => ({ ...prev, issueDate: e.target.value }))}
+  1273→                    className="h-8 text-sm"
+  1274→                  />
+  1275→                </div>
+  1276→                <div className="space-y-1.5">
+  1277→                  <Label className="text-xs">Expiry Date</Label>
+  1278→                  <Input
+  1279→                    type="date"
+  1280→                    value={editingDoc.expiryDate || ''}
+  1281→                    onChange={e => setEditingDoc(prev => ({ ...prev, expiryDate: e.target.value }))}
+  1282→                    className="h-8 text-sm"
+  1283→                  />
+  1284→                </div>
+  1285→              </div>
+  1286→              <Button
+  1287→                variant="outline"
+  1288→                size="sm"
+  1289→                className="mt-3"
+  1290→                onClick={handleAddDocument}
+  1291→              >
+  1292→                <Plus className="w-3.5 h-3.5 mr-1.5" />
+  1293→                Add Document
+  1294→              </Button>
+  1295→            </Card>
+  1296→
+  1297→            {/* Documents List */}
+  1298→            {documents.length > 0 && (
+  1299→              <Card className="p-4">
+  1300→                <CardTitle className="text-sm mb-3">
+  1301→                  Added Documents ({documents.length})
+  1302→                </CardTitle>
+  1303→                <div className="space-y-2">
+  1304→                  {documents.map((doc, idx) => (
+  1305→                    <div
+  1306→                      key={doc.id}
+  1307→                      className="flex items-center justify-between p-2.5 rounded-lg bg-muted/50 border text-sm"
+  1308→                    >
+  1309→                      <div className="flex items-center gap-3">
+  1310→                        <Badge variant="outline" className="text-xs shrink-0">
+  1311→                          #{idx + 1}
+  1312→                        </Badge>
+  1313→                        <div className="space-y-0.5">
+  1314→                          <p className="text-xs font-medium">{formatDocType(doc.docType)}</p>
+  1315→                          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+  1316→                            {doc.docNumber && <span>{doc.docNumber}</span>}
+  1317→                            {doc.issueCountry && <span>{doc.issueCountry}</span>}
+  1318→                            {doc.expiryDate && <span>Exp: {formatDate(doc.expiryDate)}</span>}
+  1319→                          </div>
+  1320→                        </div>
+  1321→                      </div>
+  1322→                      <Button
+  1323→                        variant="ghost"
+  1324→                        size="sm"
+  1325→                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+  1326→                        onClick={() => handleRemoveDocument(doc.id)}
+  1327→                      >
+  1328→                        <Trash2 className="w-3.5 h-3.5" />
+  1329→                      </Button>
+  1330→                    </div>
+  1331→                  ))}
+  1332→                </div>
+  1333→              </Card>
+  1334→            )}
+  1335→          </>
+  1336→        )}
+  1337→      </StepContent>
+  1338→    )
+  1339→  }
+  1340→
+  1341→  // ─── Step 4: Advance Payment ─────────────────────────────────
+  1342→  const renderStep4 = () => (
+  1343→    <StepContent title="Advance Payment" description="Review charges and process advance payment" icon={CreditCard}>
+  1344→      {/* Payment Summary */}
+  1345→      <Card className="p-4">
+  1346→        <CardTitle className="text-sm mb-3">Payment Summary</CardTitle>
+  1347→        <div className="space-y-2">
+  1348→          <div className="flex justify-between text-sm">
+  1349→            <span className="text-muted-foreground">
+  1350→              Room: {selectedRoom?.number || '—'} — {selectedRoom?.type.name || '—'}
+  1351→            </span>
+  1352→          </div>
+  1353→          <div className="flex justify-between text-sm">
+  1354→            <span className="text-muted-foreground">
+  1355→              Check-in: {formatDate(checkInDate)} | Check-out: {formatDate(checkOutDate)}
+  1356→            </span>
+  1357→          </div>
+  1358→          <div className="flex justify-between text-sm">
+  1359→            <span className="text-muted-foreground">
+  1360→              Nights: {nights} | Rate: {formatCurrency(roomRate)}/night
+  1361→            </span>
+  1362→          </div>
+  1363→          <Separator className="my-2" />
+  1364→          <div className="flex justify-between text-sm">
+  1365→            <span className="text-muted-foreground">Subtotal</span>
+  1366→            <span>{formatCurrency(subtotal)}</span>
+  1367→          </div>
+  1368→          <div className="flex justify-between text-sm">
+  1369→            <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+  1370→            <span>{formatCurrency(Math.round(taxAmount))}</span>
+  1371→          </div>
+  1372→          <div className="flex justify-between text-sm">
+  1373→            <span className="text-muted-foreground">Service Charge ({serviceCharge}%)</span>
+  1374→            <span>{formatCurrency(Math.round(serviceChargeAmount))}</span>
+  1375→          </div>
+  1376→          <Separator className="my-2" />
+  1377→          <div className="flex justify-between text-lg font-bold">
+  1378→            <span>Grand Total</span>
+  1379→            <span className="text-primary">{formatCurrency(Math.round(grandTotal))}</span>
+  1380→          </div>
+  1381→        </div>
+  1382→      </Card>
+  1383→
+  1384→      {/* Advance Amount */}
+  1385→      <Card className="p-4">
+  1386→        <CardTitle className="text-sm mb-3">Advance Payment Amount</CardTitle>
+  1387→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1388→          <div className="space-y-1.5">
+  1389→            <Label className="text-xs">Amount (NPR)</Label>
+  1390→            <Input
+  1391→              type="number"
+  1392→              value={advanceAmount}
+  1393→              onChange={e => setAdvanceAmount(e.target.value)}
+  1394→              placeholder="0"
+  1395→              className="h-8 text-sm"
+  1396→            />
+  1397→          </div>
+  1398→          <div className="space-y-1.5">
+  1399→            <Label className="text-xs">Payment Method</Label>
+  1400→            <Select value={advanceMethod} onValueChange={setAdvanceMethod}>
+  1401→              <SelectTrigger className="h-8 text-sm">
+  1402→                <SelectValue placeholder="Select method" />
+  1403→              </SelectTrigger>
+  1404→              <SelectContent>
+  1405→                {PAYMENT_METHODS.map(pm => (
+  1406→                  <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+  1407→                ))}
+  1408→              </SelectContent>
+  1409→            </Select>
+  1410→          </div>
+  1411→        </div>
+  1412→        <div className="mt-3">
+  1413→          <Label className="text-xs text-muted-foreground mb-2 block">Quick Select</Label>
+  1414→          <div className="flex flex-wrap gap-2">
+  1415→            <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance('none')}>
+  1416→              No Advance
+  1417→            </Button>
+  1418→            <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance(25)}>
+  1419→              25%
+  1420→            </Button>
+  1421→            <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance(50)}>
+  1422→              50%
+  1423→            </Button>
+  1424→            <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance('full')}>
+  1425→              Full Payment
+  1426→            </Button>
+  1427→          </div>
+  1428→        </div>
+  1429→        <div className="mt-3 space-y-1.5">
+  1430→          <Label className="text-xs">Reference Number</Label>
+  1431→          <Input
+  1432→            value={advanceReference}
+  1433→            onChange={e => setAdvanceReference(e.target.value)}
+  1434→            placeholder="Optional reference"
+  1435→            className="h-8 text-sm"
+  1436→          />
+  1437→        </div>
+  1438→      </Card>
+  1439→
+  1440→      {/* Balance Display */}
+  1441→      <Card className={cn(
+  1442→        'p-4',
+  1443→        balanceDue > 0
+  1444→          ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20'
+  1445→          : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20'
+  1446→      )}>
+  1447→        <div className="flex justify-between items-center">
+  1448→          <span className="text-sm font-medium">
+  1449→            {advanceNum > 0 ? `Paid: ${formatCurrency(advanceNum)}` : 'No advance payment'}
+  1450→          </span>
+  1451→          <span className={cn(
+  1452→            'text-sm font-semibold',
+  1453→            balanceDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+  1454→          )}>
+  1455→            Balance Due: {formatCurrency(Math.round(balanceDue))}
+  1456→          </span>
+  1457→        </div>
+  1458→      </Card>
+  1459→
+  1460→      {/* Confirmation */}
+  1461→      <div className="flex items-center gap-2">
+  1462→        <Checkbox
+  1463→          id="confirm-details"
+  1464→          checked={confirmChecked}
+  1465→          onCheckedChange={v => setConfirmChecked(!!v)}
+  1466→        />
+  1467→        <Label htmlFor="confirm-details" className="text-sm cursor-pointer">
+  1468→          I confirm all details are correct
+  1469→        </Label>
+  1470→      </div>
+  1471→    </StepContent>
+  1472→  )
+  1473→
+  1474→  // ─── Step 5: Success Screen ──────────────────────────────────
+  1475→  const renderSuccess = () => (
+  1476→    <div className="flex flex-col items-center py-6 sm:py-10 px-4">
+  1477→      {/* Decorative confetti elements */}
+  1478→      <div className="relative mb-8">
+  1479→        {/* Background glow */}
+  1480→        <div className="absolute inset-0 -m-6 rounded-full bg-emerald-500/10 blur-2xl" />
+  1481→
+  1482→        {/* Animated checkmark circle */}
+  1483→        <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/60 dark:to-emerald-950/40 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+  1484→          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-inner">
+  1485→            <Check className="w-9 h-9 text-white" strokeWidth={3} />
+  1486→          </div>
+  1487→        </div>
+  1488→
+  1489→        {/* Floating decorative icons */}
+  1490→        <div className="absolute -top-3 -left-4 animate-bounce" style={{ animationDelay: '0ms', animationDuration: '2s' }}>
+  1491→          <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shadow-sm">
+  1492→            <Star className="w-4 h-4 text-amber-500" fill="currentColor" />
+  1493→          </div>
+  1494→        </div>
+  1495→        <div className="absolute -top-2 -right-3 animate-bounce" style={{ animationDelay: '300ms', animationDuration: '2.5s' }}>
+  1496→          <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shadow-sm">
+  1497→            <Sparkles className="w-4 h-4 text-purple-500" />
+  1498→          </div>
+  1499→        </div>
+  1500→        <div className="absolute -bottom-2 -left-5 animate-bounce" style={{ animationDelay: '600ms', animationDuration: '2.2s' }}>
+  1501→          <div className="w-7 h-7 rounded-full bg-sky-100 dark:bg-sky-900/60 flex items-center justify-center shadow-sm">
+  1502→            <PartyPopper className="w-3.5 h-3.5 text-sky-500" />
+  1503→          </div>
+  1504→        </div>
+  1505→        <div className="absolute -bottom-1 -right-4 animate-bounce" style={{ animationDelay: '150ms', animationDuration: '1.8s' }}>
+  1506→          <div className="w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shadow-sm">
+  1507→            <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+  1508→          </div>
+  1509→        </div>
+  1510→      </div>
+  1511→
+  1512→      {/* Title */}
+  1513→      <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">
+  1514→        Check-In Successful!
+  1515→      </h2>
+  1516→      <p className="text-sm text-muted-foreground mb-8 text-center max-w-sm">
+  1517→        The guest has been successfully checked in. Please issue the room key card below.
+  1518→      </p>
+  1519→
+  1520→      {/* Room Key Card Section */}
+  1521→      <div className={cn(
+  1522→        'w-full max-w-md rounded-2xl p-5 mb-6 border-2 transition-all',
+  1523→        keyCardIssued
+  1524→          ? 'border-emerald-300 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/30 dark:to-background'
+  1525→          : 'border-dashed border-amber-300 bg-gradient-to-br from-amber-50/80 to-white dark:from-amber-950/20 dark:to-background'
+  1526→      )}>
+  1527→        {/* Key card visual */}
+  1528→        <div className="flex items-center gap-4 mb-4">
+  1529→          <div className={cn(
+  1530→            'w-14 h-14 rounded-xl flex items-center justify-center shrink-0 transition-colors',
+  1531→            keyCardIssued
+  1532→              ? 'bg-emerald-500 shadow-lg shadow-emerald-500/25'
+  1533→              : 'bg-amber-500/10'
+  1534→          )}>
+  1535→            {keyCardIssued ? (
+  1536→              <DoorOpen className="w-7 h-7 text-white" />
+  1537→            ) : (
+  1538→              <KeyRound className="w-7 h-7 text-amber-500" />
+  1539→            )}
+  1540→          </div>
+  1541→          <div className="min-w-0">
+  1542→            <p className={cn(
+  1543→              'text-sm font-bold transition-colors',
+  1544→              keyCardIssued ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
+  1545→            )}>
+  1546→              {keyCardIssued ? 'Key Card Issued ✓' : 'Room Key Card'}
+  1547→            </p>
+  1548→            {checkInResult?.reservation?.room && (
+  1549→              <p className="text-xs text-muted-foreground mt-0.5">
+  1550→                Room {checkInResult.reservation.room.number} · {checkInResult.reservation.room.type.name}
+  1551→              </p>
+  1552→            )}
+  1553→          </div>
+  1554→        </div>
+  1555→
+  1556→        {/* Guest & reservation details */}
+  1557→        <div className="space-y-2.5 bg-background/60 dark:bg-background/30 rounded-xl p-3.5">
+  1558→          {checkInResult?.reservation?.guest && (
+  1559→            <div className="flex items-center gap-3">
+  1560→              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+  1561→                <User className="w-4 h-4 text-primary" />
+  1562→              </div>
+  1563→              <div className="min-w-0">
+  1564→                <p className="text-[11px] text-muted-foreground">Guest</p>
+  1565→                <p className="text-sm font-semibold truncate">
+  1566→                  {checkInResult.reservation.guest.firstName} {checkInResult.reservation.guest.lastName}
+  1567→                </p>
+  1568→              </div>
+  1569→            </div>
+  1570→          )}
+  1571→          <div className="flex items-center gap-3">
+  1572→            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+  1573→              <FileText className="w-4 h-4 text-primary" />
+  1574→            </div>
+  1575→            <div className="min-w-0">
+  1576→              <p className="text-[11px] text-muted-foreground">Confirmation No.</p>
+  1577→              <p className="text-sm font-semibold font-mono">
+  1578→                {checkInResult?.reservation?.confirmationNo}
+  1579→              </p>
+  1580→            </div>
+  1581→          </div>
+  1582→        </div>
+  1583→
+  1584→        {/* Key card checkbox */}
+  1585→        <div className="mt-4 flex items-center gap-2.5">
+  1586→          <Checkbox
+  1587→            id="key-card"
+  1588→            checked={keyCardIssued}
+  1589→            onCheckedChange={v => setKeyCardIssued(!!v)}
+  1590→            className={cn(
+  1591→              'transition-colors',
+  1592→              keyCardIssued && 'data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500'
+  1593→            )}
+  1594→          />
+  1595→          <Label htmlFor="key-card" className="text-sm cursor-pointer flex items-center gap-1.5 select-none">
+  1596→            <KeyRound className="w-3.5 h-3.5" />
+  1597→            I have issued the room key card
+  1598→          </Label>
+  1599→        </div>
+  1600→      </div>
+  1601→
+  1602→      {/* Action buttons */}
+  1603→      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+  1604→        <Button
+  1605→          className="flex-1 h-11 text-sm font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+  1606→          onClick={handleProceedRatePosting}
+  1607→        >
+  1608→          <CreditCard className="w-4 h-4 mr-2" />
+  1609→          Proceed to Room Rate Posting
+  1610→        </Button>
+  1611→        <Button
+  1612→          variant="outline"
+  1613→          className="flex-1 h-11 text-sm font-medium"
+  1614→          onClick={onBack}
+  1615→        >
+  1616→          <ArrowRight className="w-4 h-4 mr-2" />
+  1617→          Back to Front Desk
+  1618→        </Button>
+  1619→      </div>
+  1620→    </div>
+  1621→  )
+  1622→
+  1623→  // ─── Main Render ──────────────────────────────────────────────
+  1624→
+  1625→  return (
+  1626→    <div className="flex flex-col h-full bg-background">
+  1627→      {/* Step Indicator */}
+  1628→      <div className="shrink-0 border-b bg-card">
+  1629→        <StepIndicator
+  1630→          steps={STEPS}
+  1631→          currentStep={currentStep}
+  1632→          onStepClick={handleStepClick}
+  1633→        />
+  1634→      </div>
+  1635→
+  1636→      {/* Content Area */}
+  1637→      <ScrollArea className="flex-1">
+  1638→        <div className="max-w-3xl mx-auto p-4 sm:p-6">
+  1639→          {currentStep === 1 && renderStep1()}
+  1640→          {currentStep === 2 && renderStep2()}
+  1641→          {currentStep === 3 && renderStep3()}
+  1642→          {currentStep === 4 && renderStep4()}
+  1643→          {currentStep === 5 && renderSuccess()}
+  1644→        </div>
+  1645→      </ScrollArea>
+  1646→
+  1647→      {/* Navigation Footer */}
+  1648→      {currentStep < 5 && (
+  1649→        <StepNav
+  1650→          currentStep={currentStep}
+  1651→          totalSteps={4}
+  1652→          onBack={handleBack}
+  1653→          onNext={handleNext}
+  1654→          onSubmit={handleCompleteCheckIn}
+  1655→          submitLabel="Complete Check-In"
+  1656→          isSubmitting={checkInMutation.isPending}
+  1657→          submitDisabled={!confirmChecked || checkInMutation.isPending}
+  1658→        />
+  1659→      )}
+  1660→
+  1661→      {/* Room Rate Posting Dialog */}
+  1662→      {showRatePosting && checkInResult?.reservation && (
+  1663→        <RoomRatePostingDialog
+  1664→          open={showRatePosting}
+  1665→          onOpenChange={setShowRatePosting}
+  1666→          reservationId={checkInResult.reservation.id}
+  1667→          roomNumber={checkInResult.reservation.room?.number || ''}
+  1668→          roomTypeName={checkInResult.reservation.room?.type.name || ''}
+  1669→          roomRate={checkInResult.reservation.roomRate || 0}
+  1670→          checkIn={checkInResult.reservation.checkIn}
+  1671→          checkOut={checkInResult.reservation.checkOut}
+  1672→          reservationConfirmationNo={checkInResult.reservation.confirmationNo}
+  1673→        />
+  1674→      )}
+  1675→    </div>
+  1676→  )
+  1677→}
