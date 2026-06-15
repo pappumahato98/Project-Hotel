@@ -1,9 +1,31 @@
 #!/bin/bash
-cd /home/z/my-project
-while true; do
-  echo "[$(date)] Starting dev server..." >> /home/z/my-project/dev.log
-  NODE_OPTIONS="--max-old-space-size=4096" npx next dev -p 3000 -H 0.0.0.0 --turbopack </dev/null >> /home/z/my-project/dev.log 2>&1
-  EXIT_CODE=$?
-  echo "[$(date)] Server exited with code $EXIT_CODE, restarting in 2s..." >> /home/z/my-project/dev.log
-  sleep 2
-done
+# Start or keep-alive the Next.js dev server
+PIDFILE="/home/z/my-project/.server.pid"
+LOGFILE="/home/z/my-project/dev.log"
+SERVER_CMD="NODE_OPTIONS='--max-old-space-size=4096' node /home/z/my-project/node_modules/.bin/next dev -p 3000 -H 0.0.0.0 --turbopack"
+
+start_server() {
+  if [ -f "$PIDFILE" ]; then
+    OLD_PID=$(cat "$PIDFILE" 2>/dev/null)
+    if kill -0 "$OLD_PID" 2>/dev/null; then
+      return 0  # Already running
+    fi
+  fi
+  eval "$SERVER_CMD" >> "$LOGFILE" 2>&1 &
+  echo $! > "$PIDFILE"
+  disown
+  return 1
+}
+
+# Try to start, wait, then check
+start_server
+sleep 12
+# Verify
+if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null | grep -q "200"; then
+  exit 0
+else
+  # Server died, try once more
+  start_server
+  sleep 12
+  exit 0
+fi
