@@ -475,3 +475,25 @@ Stage Summary:
 - Professional two-column PMS layout with live sidebar
 - Today's arrivals, room grid, document management, payment collection
 - Hotel key card visual on success screen
+---
+Task ID: 1
+Agent: Main
+Task: Fix spacing/gapping in New Reservation and Check-In pages, make bottom nav buttons fixed position
+
+Work Log:
+- Analyzed StepIndicator, StepContent, StepNav shared components in step-indicator.tsx
+- Analyzed NewReservationPage.tsx (2181 lines) and CheckInWizard.tsx (2117 lines) layout structure
+- Reduced StepIndicator vertical padding from py-5 to py-2.5, connector line margins from mx-2/3 to mx-1.5/2.5 and mt-5 to mt-4
+- Reduced StepContent spacing from space-y-5 to space-y-3, icon box from w-9 h-9 to w-8 h-8
+- Made StepNav sticky bottom-0 z-10 with shadow, reduced padding from p-4 to p-3
+- Reduced NewReservationPage: content py-5→py-3, two-col gap-6→gap-4, step internal space-y-4→space-y-3, header py-3/3.5→py-2.5
+- Reduced CheckInWizard: content p-4/p-6→p-3/p-4, gap-4→gap-3, header py-3→py-2.5, step1 space-y-4→space-y-3, success card px-5/py-4→px-4/py-3, grid gap-4→gap-3
+- Fixed accidental removal of <div className="relative"> wrapper in CheckInWizard search area
+- Verified with agent-browser: StepNav stays at bottom (bottom=577=viewport height) on both pages, including content-heavy steps
+- Lint passes, no compilation errors
+
+Stage Summary:
+- All excessive spacing reduced across 3 shared components + 2 page components
+- Bottom navigation buttons always visible at viewport bottom via flex layout (shrink-0) + sticky bottom-0
+- No visual regressions, layout works correctly on all steps
+

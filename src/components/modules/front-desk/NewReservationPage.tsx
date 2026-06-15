@@ -890,7 +890,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
         {/* Teal top border accent */}
         <div className="h-1 bg-gradient-to-r from-teal-500 to-teal-400" />
 
-        <div className="p-4 sm:p-5 space-y-4">
+        <div className="p-4 sm:p-5 space-y-3">
           {/* Radio-style Tab Buttons */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             {(['person', 'company', 'travel_agent'] as const).map((type) => {
@@ -1178,7 +1178,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
       description="Search for an existing guest or create a new profile"
       icon={User}
     >
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Guest Search */}
         <div className="relative" ref={guestSearchRef}>
           <div className="flex items-center gap-2">
@@ -1479,7 +1479,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
       description="Select dates, room, and rate plan"
       icon={BedDouble}
     >
-      <div className="space-y-5">
+      <div className="space-y-3">
         {/* ── Section: Dates & Guests ── */}
         <div className="space-y-3">
           <div className="flex items-center gap-2">
@@ -1488,7 +1488,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
             </div>
             <h4 className="text-sm font-semibold text-slate-700">Dates & Guests</h4>
           </div>
-          <div className="rounded-lg border border-slate-200 p-4 space-y-4">
+          <div className="rounded-lg border border-slate-200 p-4 space-y-3">
             {/* Date pickers row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
@@ -1876,10 +1876,10 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
         description="Verify all details before creating the reservation"
         icon={CheckCircle2}
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
 
           {/* Preview Confirmation */}
-          <div className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-teal-50 to-slate-50 border border-teal-200">
+          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-gradient-to-r from-teal-50 to-slate-50 border border-teal-200">
             <Hash className="h-4 w-4 text-teal-600" />
             <span className="text-xs text-teal-700">
               Preview Confirmation: <strong className="font-mono text-sm">{previewConf}</strong>
@@ -2105,7 +2105,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
   return (
     <div className="flex flex-col h-full bg-background">
       {/* ── Header Bar ──────────────────────────────────────────── */}
-      <header className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3.5 border-b bg-white shrink-0 shadow-sm">
+      <header className="flex items-center justify-between px-4 py-2.5 md:px-6 md:py-2.5 border-b bg-white shrink-0 shadow-sm">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -2144,8 +2144,8 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
 
       {/* ── Scrollable Content — Two Column Layout ─────────────── */}
       <ScrollArea className="flex-1">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
-          <div className="flex flex-col lg:flex-row gap-6">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex flex-col lg:flex-row gap-4">
             {/* Main Form Column */}
             <div className="flex-1 min-w-0 lg:max-w-[65%]">
               {currentStep === 1 && renderStep1()}

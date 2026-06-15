@@ -26,7 +26,7 @@ export function StepIndicator({
   const completed = completedSteps || new Set<number>()
 
   return (
-    <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-2.5">
       <div className="flex items-start justify-between max-w-3xl mx-auto">
         {steps.map((step, idx) => {
           const stepNum = idx + 1
@@ -121,7 +121,7 @@ export function StepIndicator({
 
               {/* Connector line */}
               {idx < steps.length - 1 && (
-                <div className="flex-1 mx-2 sm:mx-3 mt-5">
+                <div className="flex-1 mx-1.5 sm:mx-2.5 mt-4">
                   <div className="h-0.5 rounded-full transition-colors duration-500 relative">
                     <div className="absolute inset-0 bg-border rounded-full" />
                     <div
@@ -157,11 +157,11 @@ interface StepContentProps {
 
 export function StepContent({ title, description, icon: Icon, children }: StepContentProps) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {/* Step header */}
-      <div className="flex items-start gap-3">
-        <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
-          <Icon className="w-4.5 h-4.5 text-amber-600 dark:text-amber-400" />
+      <div className="flex items-start gap-2.5">
+        <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
         </div>
         <div>
           <h3 className="text-base font-semibold text-foreground">{title}</h3>
@@ -207,7 +207,7 @@ export function StepNav({
   const isLastStep = currentStep === totalSteps
 
   return (
-    <div className="shrink-0 border-t bg-card/80 backdrop-blur-sm p-4 sm:px-6">
+    <div className="shrink-0 sticky bottom-0 z-10 border-t bg-card/95 backdrop-blur-sm p-3 sm:px-6 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
       <div className="max-w-3xl mx-auto flex items-center justify-between">
         <div>
           {currentStep > 1 && (

@@ -827,7 +827,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                 Data will be auto-filled in subsequent steps.
               </p>
               <Card className="p-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   <SidebarInfoItem label="Reservation No." value={reservationData.confirmationNo} />
                   <SidebarInfoItem label="Status">
                     <StatusBadge status={reservationData.status} />
@@ -904,7 +904,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
 
           {!isDirectWalkIn ? (
             /* ─── Find Reservation Mode ─── */
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* Search input */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -918,7 +918,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
 
               {/* Search results */}
               {searchLoading && (
-                <div className="flex items-center gap-2 py-3 justify-center">
+                <div className="flex items-center gap-2 py-2 justify-center">
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Searching...</span>
                 </div>
@@ -968,7 +968,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                 </div>
               )}
               {searchResults && searchQuery.length >= 2 && searchResults.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">
+                <p className="text-sm text-muted-foreground text-center py-3">
                   No reservations found matching &quot;{searchQuery}&quot;
                 </p>
               )}
@@ -1035,7 +1035,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                     </div>
                   )}
                   {arrivalsData && arrivalsData.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-3 bg-muted/30 rounded-lg">
+                    <p className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded-lg">
                       No expected arrivals for today
                     </p>
                   )}
@@ -1070,7 +1070,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
             </div>
           ) : (
             /* ─── Direct Walk-in Mode ─── */
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                   <User className="w-3 h-3 mr-1" />
@@ -1938,7 +1938,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
             <p className="text-xs text-white/80 mt-0.5">{roomTypeName}</p>
           </div>
           {/* Card Body */}
-          <div className="px-5 py-4 bg-white dark:bg-card space-y-3">
+          <div className="px-4 py-3 bg-white dark:bg-card space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
                 <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
@@ -2020,7 +2020,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
     <div className="flex flex-col h-full bg-background">
       {/* Professional Page Header Bar */}
       <div className="shrink-0 border-b bg-card">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-2.5">
           <button
             type="button"
             onClick={onBack}
@@ -2051,9 +2051,9 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
       {/* Content Area: Two-Column Layout */}
       <div className="flex-1 overflow-y-auto" ref={mainContentRef}>
         {currentStep < 5 ? (
-          <div className="flex flex-col lg:flex-row gap-4 p-4 sm:p-6 max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-3 p-3 sm:p-4 max-w-7xl mx-auto">
             {/* Main Form (Left ~65%) */}
-            <main className="flex-1 min-w-0 space-y-4">
+            <main className="flex-1 min-w-0 space-y-3">
               {currentStep === 1 && renderStep1()}
               {currentStep === 2 && renderStep2()}
               {currentStep === 3 && renderStep3()}
@@ -2064,7 +2064,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
           </div>
         ) : (
           /* Success Screen - centered */
-          <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          <div className="max-w-7xl mx-auto p-3 sm:p-4">
             {renderSuccess()}
           </div>
         )}
