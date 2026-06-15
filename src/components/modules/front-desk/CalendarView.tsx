@@ -425,6 +425,7 @@ export function CalendarView() {
   // ─── Drag & Drop state ───────────────────────────────────────────────
   const [dragReservation, setDragReservation] = useState<CalendarReservation | null>(null)
   const [dragOverRoomId, setDragOverRoomId] = useState<string | null>(null)
+  const [dragOverDayIndex, setDragOverDayIndex] = useState<number | null>(null)
   const [showMoveDialog, setShowMoveDialog] = useState(false)
   const [moveData, setMoveData] = useState<{
     reservationId: string
@@ -472,7 +473,7 @@ export function CalendarView() {
       if (!res.ok) throw new Error('Failed to fetch reservations')
       return res.json()
     },
-    staleTime: 15_000,
+    staleTime: 0,
   })
 
   // ─── Fetch guests for new reservation dialog ──────────────────────────
@@ -729,6 +730,46 @@ export function CalendarView() {
       }
       return res.json()
     },
+    onMutate: async (data) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await queryClient.cancelQueries({ queryKey: ['reservations', startDateStr, endDateStr] })
+
+      // Snapshot the current reservations data for rollback
+      const previousReservations = queryClient.getQueryData(['reservations', startDateStr, endDateStr])
+
+      // Optimistically update the reservations cache
+      queryClient.setQueryData(['reservations', startDateStr, endDateStr], (old: Record<string, unknown> | undefined) => {
+        if (!old) return old
+        const reservations = (old.reservations as Record<string, unknown>[]) || []
+        return {
+          ...old,
+          reservations: reservations.map((r) => {
+            if (r.id !== data.reservationId) return r
+            // Look up the target room from the rooms cache
+            const roomsCache = queryClient.getQueryData(['rooms']) as Record<string, unknown> | undefined
+            const allRooms = ((roomsCache?.rooms) as Record<string, unknown>[]) || []
+            const targetRoom = allRooms.find((rm) => rm.id === data.toRoomId)
+            return {
+              ...r,
+              roomId: data.toRoomId,
+              checkIn: data.toCheckIn || r.checkIn,
+              checkOut: data.toCheckOut || r.checkOut,
+              room: targetRoom
+                ? {
+                    id: (targetRoom.id as string) || data.toRoomId,
+                    number: (targetRoom.number as string) || '',
+                    floor: (targetRoom.floor as number) || 0,
+                    wing: (targetRoom.wing as string) || null,
+                    type: (targetRoom.type as Record<string, unknown>) || { name: '', code: '' },
+                  }
+                : r.room,
+            }
+          }),
+        }
+      })
+
+      return { previousReservations }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
       queryClient.invalidateQueries({ queryKey: ['rooms'] })
@@ -746,8 +787,18 @@ export function CalendarView() {
       setMoveCustomReason('')
       setDragReservation(null)
     },
-    onError: (err: Error) => {
-      toast.error(err.message || 'Failed to move reservation')
+    onError: (err, _vars, context) => {
+      // Rollback to the snapshot on failure
+      if (context?.previousReservations) {
+        queryClient.setQueryData(['reservations', startDateStr, endDateStr], context.previousReservations)
+      }
+      // Show contextual error — 409 means room conflict
+      const msg = err instanceof Error ? err.message : 'Failed to move reservation'
+      if (msg.includes('not available') || msg.includes('conflicts')) {
+        toast.error(msg, { duration: 6000 })
+      } else {
+        toast.error(msg)
+      }
     },
   })
 
@@ -933,9 +984,9 @@ export function CalendarView() {
     e.dataTransfer.dropEffect = 'move'
     setDragOverRoomId(roomId)
   }, [])
-
   const handleDragLeave = useCallback(() => {
     setDragOverRoomId(null)
+    setDragOverDayIndex(null)
   }, [])
 
   const handleDrop = useCallback((e: React.DragEvent, targetRoomId: string, targetDate: Date) => {
@@ -996,6 +1047,7 @@ export function CalendarView() {
   const handleDragEnd = useCallback(() => {
     setDragReservation(null)
     setDragOverRoomId(null)
+    setDragOverDayIndex(null)
   }, [])
 
   const handleMoveConfirm = useCallback(() => {
@@ -1260,7 +1312,7 @@ export function CalendarView() {
       requestAnimationFrame(() => {
         if (scrollRef.current) {
           const scrollTarget = todayIndex * dayWidth - dayWidth * 0.5
-          scrollRef.current.scrollLeft = Math.max(0, scrollTarget)
+          scrollRef.current.scrollTo({ left: Math.max(0, scrollTarget), behavior: 'smooth' })
           hasAutoScrolledRef.current = true
         }
       })
@@ -1481,7 +1533,7 @@ export function CalendarView() {
               ref={scrollRef}
               className="overflow-auto h-full"
             >
-              <div style={{ width: '100%' }}>
+              <div style={{ width: `${actualGridWidth}px`, minWidth: '100%' }}>
                 {/* ─── Day Column Headers (white, clean) ──────────────────── */}
                 <div className="flex sticky top-0 z-30 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
                   {/* Corner cell — always fixed at top-left corner */}
@@ -1500,58 +1552,50 @@ export function CalendarView() {
                       const bs = showBSDates ? adToBS(date) : null
                       const isHoliday = holidayInfo.isHoliday
                       const isFirstOfMonth = monthBoundaries.includes(i)
-                      const monthLabel = isFirstOfMonth
-                        ? date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                        : null
                       return (
                         <Tooltip key={i}>
                           <TooltipTrigger asChild>
                             <div
                               className={cn(
-                                'relative flex flex-col items-center justify-center border-r last:border-r-0 select-none shrink-0',
+                                'relative flex flex-row items-center justify-center gap-1 border-r last:border-r-0 select-none shrink-0',
                                 'bg-white dark:bg-gray-950',
                                 !isTodayCol && weekend && 'bg-gray-50/80 dark:bg-gray-900/40',
                                 !isTodayCol && isHoliday && HOLIDAY_HEADER_BG,
                               )}
                               style={{ width: dayWidth, height: HEADER_HEIGHT }}
                             >
-                              {/* Day abbreviation */}
-                              <span
-                                className={cn(
-                                  'text-[10px] sm:text-xs font-medium leading-none',
-                                  isTodayCol ? 'text-blue-500 dark:text-blue-400' : weekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400',
-                                )}
-                              >
-                                {isCompact ? DAY_ABBR_SHORT[date.getDay()] : DAY_ABBR_THREE[date.getDay()]}
-                              </span>
-                              {/* Date number — in circle for today */}
+                              {/* Compact header: "Sat 06" or "Sat 06 Jun" */}
                               {isTodayCol ? (
-                                <span className="w-7 h-7 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs sm:text-sm font-semibold mt-1">
-                                  {showBSDates && bs ? bs.day : date.getDate()}
-                                </span>
+                                <>
+                                  <span className="text-[11px] font-medium text-blue-500 dark:text-blue-400 leading-none">
+                                    {DAY_ABBR_THREE[date.getDay()]}
+                                  </span>
+                                  <span className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[11px] font-semibold shrink-0">
+                                    {String(showBSDates && bs ? bs.day : date.getDate()).padStart(2, '0')}
+                                  </span>
+                                  {isFirstOfMonth && (
+                                    <span className="text-[11px] font-medium text-blue-500 dark:text-blue-400 leading-none">
+                                      {showBSDates && bs ? getNepaliMonthShortEnglish(bs.month) : date.toLocaleDateString('en-US', { month: 'short' })}
+                                    </span>
+                                  )}
+                                </>
                               ) : (
                                 <span
                                   className={cn(
-                                    'text-xs sm:text-sm font-medium mt-1',
-                                    isHoliday ? 'text-orange-600 dark:text-orange-400' : weekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-300',
+                                    'text-[11px] font-medium leading-none whitespace-nowrap',
+                                    isHoliday ? 'text-orange-600 dark:text-orange-400' : weekend ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400',
                                   )}
                                 >
-                                  {showBSDates && bs ? bs.day : date.getDate()}
+                                  {DAY_ABBR_THREE[date.getDay()]} {String(showBSDates && bs ? bs.day : date.getDate()).padStart(2, '0')}{isFirstOfMonth ? ` ${showBSDates && bs ? getNepaliMonthShortEnglish(bs.month) : date.toLocaleDateString('en-US', { month: 'short' })}` : ''}
                                 </span>
                               )}
-                              {/* BS date or month label shown below */}
-                              {showBSDates && bs && !isTodayCol ? (
-                                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 leading-none">
-                                  {date.getDate()}
-                                </span>
-                              ) : !showBSDates && monthLabel && !isTodayCol ? (
-                                <span className="text-[8px] sm:text-[9px] text-gray-400 dark:text-gray-500 mt-0.5 font-medium leading-none">
-                                  {monthLabel}
-                                </span>
-                              ) : null}
                               {/* Holiday dot indicator */}
                               {isHoliday && (
                                 <span className="absolute top-1 right-1.5 size-1.5 rounded-full bg-orange-400" />
+                              )}
+                              {/* Drag column indicator — blue underline on target day */}
+                              {dragReservation && dragOverDayIndex === i && (
+                                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-blue-500" />
                               )}
                             </div>
                           </TooltipTrigger>
@@ -1633,17 +1677,20 @@ export function CalendarView() {
                             if (mouseX >= 0) {
                               const dayIndex = Math.min(Math.floor(mouseX / dayWidth), numDays - 1)
                               setDragOverRoomId(room.id)
+                              setDragOverDayIndex(dayIndex)
                             }
                           }}
                           onDragLeave={(e) => {
                             // Only clear if actually leaving the room row (not entering a child)
                             if (!e.currentTarget.contains(e.relatedTarget as Node)) {
                               setDragOverRoomId(null)
+                              setDragOverDayIndex(null)
                             }
                           }}
                           onDrop={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
+                            setDragOverDayIndex(null)
                             try {
                               const rect = e.currentTarget.getBoundingClientRect()
                               const roomLabelWidth = roomColWidth
@@ -1672,12 +1719,15 @@ export function CalendarView() {
                                   !isTodayCell && weekend && 'bg-gray-100/30 dark:bg-gray-900/30',
                                   cellHoliday.isHoliday && !isTodayCell && !weekend && HOLIDAY_CELL_BG,
                                   !isTodayCell && !weekend && !cellHoliday.isHoliday && roomIdx % 2 !== 0 && 'bg-gray-50/30 dark:bg-gray-900/15',
-                                  dragReservation && dragOverRoomId === room.id && 'bg-blue-50/30 dark:bg-blue-950/10',
+                                  dragReservation && dragOverRoomId === room.id && dragOverDayIndex === dayIdx && 'bg-blue-50/50 dark:bg-blue-950/20 border-l-2 border-blue-500',
                                 )}
                                 style={{ width: dayWidth, height: ROW_HEIGHT }}
                                 onDoubleClick={() => handleCellDoubleClick(room.id, date)}
                               >
                                 {/* Today vertical indicator */}
+                                {dragReservation && dragOverRoomId === room.id && dragOverDayIndex === dayIdx && (
+                                  <div className="absolute inset-y-0 right-0 w-0.5 bg-blue-400/50 z-10" />
+                                )}
                                 {isTodayCell && (
                                   <div className="absolute inset-y-0 left-0 w-0.5 bg-blue-400/50 z-10" />
                                 )}

@@ -1,0 +1,1852 @@
+     1→'use client'
+     2→
+     3→import { apiFetch } from '@/lib/api'
+     4→import { useState, useMemo, useEffect, useCallback } from 'react'
+     5→import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+     6→import {
+     7→  Plus, Search, MoreHorizontal, Eye, LogIn, XCircle, UserX, CalendarRange,
+     8→  Edit, Copy, FileText, Printer, Trash2, StickyNote, BedDouble,
+     9→  Users, ArrowDownToLine, ArrowUpFromLine, DollarSign, Hotel,
+    10→  CalendarIcon, X, LayoutGrid, BookOpen,
+    11→} from 'lucide-react'
+    12→import { Button } from '@/components/ui/button'
+    13→import { Input } from '@/components/ui/input'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Card, CardContent } from '@/components/ui/card'
+    16→import {
+    17→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    18→} from '@/components/ui/table'
+    19→import {
+    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    21→} from '@/components/ui/dialog'
+    22→import {
+    23→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    24→} from '@/components/ui/select'
+    25→import { Label } from '@/components/ui/label'
+    26→import { Textarea } from '@/components/ui/textarea'
+    27→import { Checkbox } from '@/components/ui/checkbox'
+    28→import { Separator } from '@/components/ui/separator'
+    29→import { Skeleton } from '@/components/ui/skeleton'
+    30→import {
+    31→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+    32→} from '@/components/ui/dropdown-menu'
+    33→import {
+    34→  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+    35→  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+    36→} from '@/components/ui/alert-dialog'
+    37→import { Calendar } from '@/components/ui/calendar'
+    38→import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+    39→import { StatusBadge } from '@/components/shared/status-badge'
+    40→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    41→import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
+    42→import { cn } from '@/lib/utils'
+    43→import { toast } from 'sonner'
+    44→import { useNavigationStore, useSettingsStore, useFrontDeskContextStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
+    45→
+    46→// ─── Types ──────────────────────────────────────────────────────────────
+    47→
+    48→interface ReservationGuest {
+    49→  id: string
+    50→  firstName: string
+    51→  lastName: string
+    52→  email: string | null
+    53→  phone: string | null
+    54→  vipLevel: string
+    55→}
+    56→
+    57→interface ReservationRoom {
+    58→  id: string
+    59→  number: string
+    60→  floor: number
+    61→  wing: string | null
+    62→  type: { name: string; code: string }
+    63→}
+    64→
+    65→interface ReservationFolio {
+    66→  id: string
+    67→  balance: number
+    68→  status: string
+    69→}
+    70→
+    71→interface Reservation {
+    72→  id: string
+    73→  confirmationNo: string
+    74→  status: string
+    75→  reservationType: string
+    76→  adults: number
+    77→  children: number
+    78→  checkIn: string
+    79→  checkOut: string
+    80→  roomRate: number
+    81→  totalAmount: number
+    82→  paidAmount: number
+    83→  creditLimit: number
+    84→  specialRequests: string | null
+    85→  source: string | null
+    86→  guaranteed: boolean
+    87→  company: string | null
+    88→  poNumber: string | null
+    89→  notes: string | null
+    90→  createdAt: string
+    91→  guest: ReservationGuest | null
+    92→  room: ReservationRoom | null
+    93→  folios: ReservationFolio[]
+    94→  roomId?: string
+    95→}
+    96→
+    97→interface NewReservationForm {
+    98→  guestId: string
+    99→  newGuest: boolean
+   100→  firstName: string
+   101→  lastName: string
+   102→  phone: string
+   103→  email: string
+   104→  roomTypeId: string
+   105→  ratePlanId: string
+   106→  checkIn: string
+   107→  checkOut: string
+   108→  adults: number
+   109→  children: number
+   110→  specialRequests: string
+   111→  source: string
+   112→  guaranteed: boolean
+   113→  notes: string
+   114→}
+   115→
+   116→interface EditReservationForm {
+   117→  checkIn: string
+   118→  checkOut: string
+   119→  adults: number
+   120→  children: number
+   121→  specialRequests: string
+   122→  notes: string
+   123→  source: string
+   124→  guaranteed: boolean
+   125→  roomRate: number
+   126→}
+   127→
+   128→// ─── Constants ──────────────────────────────────────────────────────────
+   129→
+   130→const ROOM_TYPES = [
+   131→  { id: 'rt-1', name: 'Deluxe Room', code: 'DLX', baseRate: 8000 },
+   132→  { id: 'rt-2', name: 'Standard Room', code: 'STD', baseRate: 5000 },
+   133→  { id: 'rt-3', name: 'Suite', code: 'STE', baseRate: 15000 },
+   134→  { id: 'rt-4', name: 'Superior Room', code: 'SPR', baseRate: 6500 },
+   135→  { id: 'rt-5', name: 'Premium Suite', code: 'PRS', baseRate: 25000 },
+   136→  { id: 'rt-6', name: 'Twin Room', code: 'TWN', baseRate: 5500 },
+   137→]
+   138→
+   139→const STATUS_OPTIONS = [
+   140→  { value: 'all', label: 'All Statuses' },
+   141→  { value: 'confirmed', label: 'Confirmed' },
+   142→  { value: 'checked_in', label: 'Checked In' },
+   143→  { value: 'checked_out', label: 'Checked Out' },
+   144→  { value: 'cancelled', label: 'Cancelled' },
+   145→  { value: 'no_show', label: 'No Show' },
+   146→]
+   147→
+   148→const SOURCE_OPTIONS = [
+   149→  { value: 'direct', label: 'Direct' },
+   150→  { value: 'booking_com', label: 'Booking.com' },
+   151→  { value: 'expedia', label: 'Expedia' },
+   152→  { value: 'walk_in', label: 'Walk-in' },
+   153→  { value: 'phone', label: 'Phone' },
+   154→  { value: 'email', label: 'Email' },
+   155→  { value: 'corporate', label: 'Corporate' },
+   156→]
+   157→
+   158→const INITIAL_FORM: NewReservationForm = {
+   159→  guestId: '',
+   160→  newGuest: true,
+   161→  firstName: '',
+   162→  lastName: '',
+   163→  phone: '',
+   164→  email: '',
+   165→  roomTypeId: '',
+   166→  ratePlanId: '',
+   167→  checkIn: getTodayString(),
+   168→  checkOut: '',
+   169→  adults: 1,
+   170→  children: 0,
+   171→  specialRequests: '',
+   172→  source: 'direct',
+   173→  guaranteed: false,
+   174→  notes: '',
+   175→}
+   176→
+   177→// ─── Debounce hook ────────────────────────────────────────────────────
+   178→function useDebounce<T>(value: T, delay: number): T {
+   179→  const [debounced, setDebounced] = useState(value)
+   180→  useEffect(() => {
+   181→    const timer = setTimeout(() => setDebounced(value), delay)
+   182→    return () => clearTimeout(timer)
+   183→  }, [value, delay])
+   184→  return debounced
+   185→}
+   186→
+   187→// ─── Date range presets ──────────────────────────────────────────────
+   188→function getDatePreset(preset: string): { from: Date; to: Date } {
+   189→  const today = new Date()
+   190→  today.setHours(0, 0, 0, 0)
+   191→  switch (preset) {
+   192→    case 'today':
+   193→      return { from: today, to: today }
+   194→    case 'this-week': {
+   195→      const from = new Date(today)
+   196→      from.setDate(today.getDate() - today.getDay() + 1) // Monday
+   197→      const to = new Date(from)
+   198→      to.setDate(from.getDate() + 6) // Sunday
+   199→      return { from, to }
+   200→    }
+   201→    case 'this-month': {
+   202→      const from = new Date(today.getFullYear(), today.getMonth(), 1)
+   203→      const to = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+   204→      return { from, to }
+   205→    }
+   206→    case 'next-7': {
+   207→      const to = new Date(today)
+   208→      to.setDate(today.getDate() + 6)
+   209→      return { from: today, to }
+   210→    }
+   211→    case 'next-14': {
+   212→      const to = new Date(today)
+   213→      to.setDate(today.getDate() + 13)
+   214→      return { from: today, to }
+   215→    }
+   216→    case 'next-30': {
+   217→      const to = new Date(today)
+   218→      to.setDate(today.getDate() + 29)
+   219→      return { from: today, to }
+   220→    }
+   221→    default:
+   222→      return { from: today, to: today }
+   223→  }
+   224→}
+   225→
+   226→function toDateString(d: Date): string {
+   227→  const y = d.getFullYear()
+   228→  const m = String(d.getMonth() + 1).padStart(2, '0')
+   229→  const day = String(d.getDate()).padStart(2, '0')
+   230→  return `${y}-${m}-${day}`
+   231→}
+   232→
+   233→function formatShortDate(dateStr: string): string {
+   234→  if (!dateStr) return ''
+   235→  const d = new Date(dateStr + 'T00:00:00')
+   236→  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+   237→}
+   238→
+   239→// ─── Component ──────────────────────────────────────────────────────────
+   240→
+   241→export function ReservationsView() {
+   242→  const queryClient = useQueryClient()
+   243→  const { navigateTo } = useNavigationStore()
+   244→  const { settings } = useSettingsStore()
+   245→  const { setPrefillReservationId, setShowNewReservation } = useFrontDeskContextStore()
+   246→  const [statusFilter, setStatusFilter] = useState('all')
+   247→  const [searchQuery, setSearchQuery] = useState('')
+   248→  const [dateFrom, setDateFrom] = useState('')
+   249→  const [dateTo, setDateTo] = useState('')
+   250→  const [datePopoverOpen, setDatePopoverOpen] = useState(false)
+   251→  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
+   252→  const [newResOpen, setNewResOpen] = useState(false)
+   253→  const [detailOpen, setDetailOpen] = useState(false)
+   254→  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
+   255→
+   256→  // Debounced search for realtime filtering
+   257→  const debouncedSearch = useDebounce(searchQuery, 300)
+   258→
+   259→  // Edit dialog state
+   260→  const [editOpen, setEditOpen] = useState(false)
+   261→  const [editForm, setEditForm] = useState<EditReservationForm>({
+   262→    checkIn: '',
+   263→    checkOut: '',
+   264→    adults: 1,
+   265→    children: 0,
+   266→    specialRequests: '',
+   267→    notes: '',
+   268→    source: 'direct',
+   269→    guaranteed: false,
+   270→    roomRate: 5000,
+   271→  })
+   272→
+   273→  // Duplicate dialog state
+   274→  const [duplicateOpen, setDuplicateOpen] = useState(false)
+   275→  const [duplicateForm, setDuplicateForm] = useState<NewReservationForm>({ ...INITIAL_FORM })
+   276→
+   277→  // Add Note dialog state
+   278→  const [noteOpen, setNoteOpen] = useState(false)
+   279→  const [noteText, setNoteText] = useState('')
+   280→
+   281→  // Print Confirmation dialog state
+   282→  const [printOpen, setPrintOpen] = useState(false)
+   283→
+   284→  // Delete confirmation dialog state
+   285→  const [deleteOpen, setDeleteOpen] = useState(false)
+   286→
+   287→  // New reservation form state
+   288→  const [form, setForm] = useState<NewReservationForm>({ ...INITIAL_FORM })
+   289→
+   290→  // Selected room type rate for new reservation
+   291→  const selectedRoomType = useMemo(
+   292→    () => ROOM_TYPES.find((rt) => rt.id === form.roomTypeId),
+   293→    [form.roomTypeId],
+   294→  )
+   295→
+   296→  // Edit form derived rate
+   297→  const editNights = useMemo(() => {
+   298→    if (editForm.checkIn && editForm.checkOut) {
+   299→      return nightsBetween(editForm.checkIn, editForm.checkOut)
+   300→    }
+   301→    return 0
+   302→  }, [editForm.checkIn, editForm.checkOut])
+   303→
+   304→  const editTotal = useMemo(() => editNights * editForm.roomRate, [editNights, editForm.roomRate])
+   305→
+   306→  // ─── Fetch reservations ──────────────────────────────────────────────
+   307→  const { data, isLoading } = useQuery({
+   308→    queryKey: ['reservations', statusFilter, debouncedSearch, dateFrom, dateTo],
+   309→    queryFn: async () => {
+   310→      const params = new URLSearchParams()
+   311→      if (statusFilter !== 'all') params.set('status', statusFilter)
+   312→      if (debouncedSearch) params.set('search', debouncedSearch)
+   313→      if (dateFrom) params.set('dateFrom', dateFrom)
+   314→      if (dateTo) params.set('dateTo', dateTo)
+   315→      const res = await fetch(`/api/reservations?${params.toString()}`)
+   316→      if (!res.ok) throw new Error('Failed to fetch reservations')
+   317→      return res.json()
+   318→    },
+   319→  })
+   320→
+   321→  const reservations: Reservation[] = data?.reservations || []
+   322→
+   323→  // ─── Summary Stats ──────────────────────────────────────────────────
+   324→  const todayStr = getTodayString()
+   325→
+   326→  const stats = useMemo(() => {
+   327→    const total = reservations.length
+   328→    const todayCheckIns = reservations.filter(
+   329→      (r) => r.checkIn === todayStr && r.status !== 'cancelled' && r.status !== 'no_show',
+   330→    ).length
+   331→    const todayCheckOuts = reservations.filter(
+   332→      (r) => r.checkOut === todayStr && (r.status === 'checked_in' || r.status === 'checked_out'),
+   333→    ).length
+   334→    const revenue = reservations.reduce((sum, r) => sum + r.totalAmount, 0)
+   335→    return { total, todayCheckIns, todayCheckOuts, revenue }
+   336→  }, [reservations, todayStr])
+   337→
+   338→  // ─── New form nights / rate ──────────────────────────────────────────
+   339→  const nights = useMemo(() => {
+   340→    if (form.checkIn && form.checkOut) {
+   341→      return nightsBetween(form.checkIn, form.checkOut)
+   342→    }
+   343→    return 0
+   344→  }, [form.checkIn, form.checkOut])
+   345→
+   346→  const currentRate = selectedRoomType?.baseRate ?? 5000
+   347→  const estimatedTotal = nights * currentRate
+   348→
+   349→  // ─── Mutations ───────────────────────────────────────────────────────
+   350→
+   351→  // Create reservation mutation
+   352→  const createMutation = useMutation({
+   353→    mutationFn: async (formData: NewReservationForm) => {
+   354→      let guestId = formData.guestId
+   355→      if (formData.newGuest) {
+   356→        const guestRes = await fetch('/api/guests', {
+   357→          method: 'POST',
+   358→          headers: { 'Content-Type': 'application/json' },
+   359→          body: JSON.stringify({
+   360→            firstName: formData.firstName,
+   361→            lastName: formData.lastName,
+   362→            phone: formData.phone,
+   363→            email: formData.email,
+   364→          }),
+   365→        })
+   366→        if (guestRes.ok) {
+   367→          const guestData = await guestRes.json()
+   368→          guestId = guestData.guest.id
+   369→        }
+   370→      }
+   371→      const roomType = ROOM_TYPES.find((rt) => rt.id === formData.roomTypeId)
+   372→      const res = await fetch('/api/reservations', {
+   373→        method: 'POST',
+   374→        headers: { 'Content-Type': 'application/json' },
+   375→        body: JSON.stringify({
+   376→          guestId,
+   377→          roomTypeId: formData.roomTypeId || undefined,
+   378→          checkIn: formData.checkIn,
+   379→          checkOut: formData.checkOut,
+   380→          adults: formData.adults,
+   381→          children: formData.children,
+   382→          roomRate: roomType?.baseRate ?? 5000,
+   383→          specialRequests: formData.specialRequests || undefined,
+   384→          source: formData.source,
+   385→          guaranteed: formData.guaranteed,
+   386→          notes: formData.notes || undefined,
+   387→        }),
+   388→      })
+   389→      if (!res.ok) {
+   390→        const errData = await res.json().catch(() => ({}))
+   391→        throw new Error(errData.error || 'Failed to create reservation')
+   392→      }
+   393→      return res.json()
+   394→    },
+   395→    onSuccess: () => {
+   396→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   397→      setNewResOpen(false)
+   398→      setForm({ ...INITIAL_FORM, checkIn: getTodayString() })
+   399→      toast.success('Reservation created successfully')
+   400→    },
+   401→    onError: (err: Error) => {
+   402→      toast.error(err.message || 'Failed to create reservation')
+   403→    },
+   404→  })
+   405→
+   406→  // Update reservation status mutation
+   407→  const updateMutation = useMutation({
+   408→    mutationFn: async ({ id, ...body }: { id: string; status?: string; roomId?: string }) => {
+   409→      const res = await fetch(`/api/reservations/${id}`, {
+   410→        method: 'PATCH',
+   411→        headers: { 'Content-Type': 'application/json' },
+   412→        body: JSON.stringify(body),
+   413→      })
+   414→      if (!res.ok) throw new Error('Failed to update reservation')
+   415→      return res.json()
+   416→    },
+   417→    onSuccess: () => {
+   418→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   419→    },
+   420→  })
+   421→
+   422→  // Edit reservation mutation
+   423→  const editMutation = useMutation({
+   424→    mutationFn: async ({ id, data }: { id: string; data: Partial<EditReservationForm> & { totalAmount: number } }) => {
+   425→      const res = await fetch(`/api/reservations/${id}`, {
+   426→        method: 'PATCH',
+   427→        headers: { 'Content-Type': 'application/json' },
+   428→        body: JSON.stringify(data),
+   429→      })
+   430→      if (!res.ok) throw new Error('Failed to update reservation')
+   431→      return res.json()
+   432→    },
+   433→    onSuccess: () => {
+   434→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   435→      setEditOpen(false)
+   436→      toast.success('Reservation updated successfully')
+   437→    },
+   438→    onError: () => {
+   439→      toast.error('Failed to update reservation')
+   440→    },
+   441→  })
+   442→
+   443→  // Add note mutation
+   444→  const noteMutation = useMutation({
+   445→    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+   446→      const res = await fetch(`/api/reservations/${id}`, {
+   447→        method: 'PATCH',
+   448→        headers: { 'Content-Type': 'application/json' },
+   449→        body: JSON.stringify({ notes }),
+   450→      })
+   451→      if (!res.ok) throw new Error('Failed to add note')
+   452→      return res.json()
+   453→    },
+   454→    onSuccess: () => {
+   455→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   456→      setNoteOpen(false)
+   457→      setNoteText('')
+   458→      toast.success('Note added successfully')
+   459→    },
+   460→    onError: () => {
+   461→      toast.error('Failed to add note')
+   462→    },
+   463→  })
+   464→
+   465→  // Delete reservation mutation
+   466→  const deleteMutation = useMutation({
+   467→    mutationFn: async (id: string) => {
+   468→      const res = await fetch(`/api/reservations/${id}`, {
+   469→        method: 'DELETE',
+   470→      })
+   471→      if (!res.ok) throw new Error('Failed to delete reservation')
+   472→      return res.json()
+   473→    },
+   474→    onSuccess: () => {
+   475→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   476→      setDeleteOpen(false)
+   477→      setSelectedReservation(null)
+   478→      toast.success('Reservation deleted successfully')
+   479→    },
+   480→    onError: () => {
+   481→      toast.error('Failed to delete reservation')
+   482→    },
+   483→  })
+   484→
+   485→  // ─── Date range handler ────────────────────────────────────────────
+   486→  const handleDateSelect = useCallback((day: Date | undefined) => {
+   487→    if (!day) return
+   488→    const dayStr = toDateString(day)
+   489→    if (!dateFrom || (dateFrom && dateTo)) {
+   490→      // Start new range
+   491→      setDateFrom(dayStr)
+   492→      setDateTo('')
+   493→    } else {
+   494→      // Complete the range
+   495→      if (day >= new Date(dateFrom + 'T00:00:00')) {
+   496→        setDateTo(dayStr)
+   497→      } else {
+   498→        setDateFrom(dayStr)
+   499→        setDateTo('')
+   500→      }
+   501→    }
+   502→  }, [dateFrom, dateTo])
+   503→
+   504→  const handlePreset = useCallback((preset: string) => {
+   505→    const { from, to } = getDatePreset(preset)
+   506→    setDateFrom(toDateString(from))
+   507→    setDateTo(toDateString(to))
+   508→    setCalendarMonth(from)
+   509→    setDatePopoverOpen(false)
+   510→  }, [])
+   511→
+   512→  const clearDateRange = useCallback(() => {
+   513→    setDateFrom('')
+   514→    setDateTo('')
+   515→  }, [])
+   516→
+   517→  const isSearching = searchQuery !== debouncedSearch
+   518→
+   519→  // ─── Handlers ────────────────────────────────────────────────────────
+   520→
+   521→  const handleCheckIn = (reservation: Reservation) => {
+   522→    // Navigate to the 4-step Check-In Wizard with prefill
+   523→    setPrefillReservationId(reservation.id)
+   524→    navigateTo('front-desk', 'check-in')
+   525→  }
+   526→
+   527→  const handleViewFolio = (res: any) => {
+   528→    useFolioContextStore.getState().setFolioContext({
+   529→      reservationId: res.id,
+   530→      guestId: res.guest?.id || res.guestId,
+   531→      guestName: `${res.guest?.firstName || ''} ${res.guest?.lastName || ''}`.trim() || 'Guest',
+   532→      roomNumber: res.room?.number || res.roomNumber || '',
+   533→      confirmationNo: res.confirmationNo,
+   534→    })
+   535→    navigateTo('front-desk', 'folio')
+   536→  }
+   537→
+   538→  const handleViewLedger = (res: any) => {
+   539→    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+   540→      guestId: res.guest?.id || res.guestId,
+   541→      guestName: `${res.guest?.firstName || ''} ${res.guest?.lastName || ''}`.trim() || 'Guest',
+   542→    })
+   543→    navigateTo('front-desk', 'guest-ledger')
+   544→  }
+   545→
+   546→  const handleCancel = (reservation: Reservation) => {
+   547→    updateMutation.mutate({ id: reservation.id, status: 'cancelled' })
+   548→    toast.success('Reservation cancelled')
+   549→  }
+   550→
+   551→  const handleNoShow = (reservation: Reservation) => {
+   552→    updateMutation.mutate({ id: reservation.id, status: 'no_show' })
+   553→    toast.success('Reservation marked as no-show')
+   554→  }
+   555→
+   556→  const openEditDialog = (reservation: Reservation) => {
+   557→    setSelectedReservation(reservation)
+   558→    setEditForm({
+   559→      checkIn: reservation.checkIn,
+   560→      checkOut: reservation.checkOut,
+   561→      adults: reservation.adults,
+   562→      children: reservation.children,
+   563→      specialRequests: reservation.specialRequests || '',
+   564→      notes: reservation.notes || '',
+   565→      source: reservation.source || 'direct',
+   566→      guaranteed: reservation.guaranteed,
+   567→      roomRate: reservation.roomRate,
+   568→    })
+   569→    setEditOpen(true)
+   570→  }
+   571→
+   572→  const handleEditSave = () => {
+   573→    if (!selectedReservation) return
+   574→    editMutation.mutate({
+   575→      id: selectedReservation.id,
+   576→      data: {
+   577→        ...editForm,
+   578→        specialRequests: editForm.specialRequests || undefined,
+   579→        notes: editForm.notes || undefined,
+   580→        totalAmount: editTotal,
+   581→      },
+   582→    })
+   583→  }
+   584→
+   585→  const openDuplicateDialog = (reservation: Reservation) => {
+   586→    setSelectedReservation(reservation)
+   587→    const roomType = ROOM_TYPES.find(
+   588→      (rt) => rt.code === reservation.room?.type.code,
+   589→    )
+   590→    setDuplicateForm({
+   591→      guestId: reservation.guest?.id || '',
+   592→      newGuest: !reservation.guest,
+   593→      firstName: reservation.guest?.firstName || '',
+   594→      lastName: reservation.guest?.lastName || '',
+   595→      phone: reservation.guest?.phone || '',
+   596→      email: reservation.guest?.email || '',
+   597→      roomTypeId: roomType?.id || '',
+   598→      ratePlanId: reservation.ratePlanId || '',
+   599→      checkIn: getTodayString(),
+   600→      checkOut: reservation.checkOut,
+   601→      adults: reservation.adults,
+   602→      children: reservation.children,
+   603→      specialRequests: reservation.specialRequests || '',
+   604→      source: reservation.source || 'direct',
+   605→      guaranteed: reservation.guaranteed,
+   606→      notes: reservation.notes || '',
+   607→    })
+   608→    setDuplicateOpen(true)
+   609→  }
+   610→
+   611→  const handleDuplicate = () => {
+   612→    createMutation.mutate(duplicateForm)
+   613→    setDuplicateOpen(false)
+   614→  }
+   615→
+   616→  const openNoteDialog = (reservation: Reservation) => {
+   617→    setSelectedReservation(reservation)
+   618→    setNoteText('')
+   619→    setNoteOpen(true)
+   620→  }
+   621→
+   622→  const handleAddNote = () => {
+   623→    if (!selectedReservation) return
+   624→    const existing = selectedReservation.notes ? selectedReservation.notes + '\n\n' : ''
+   625→    noteMutation.mutate({
+   626→      id: selectedReservation.id,
+   627→      notes: existing + noteText,
+   628→    })
+   629→  }
+   630→
+   631→  const openPrintDialog = (reservation: Reservation) => {
+   632→    setSelectedReservation(reservation)
+   633→    setPrintOpen(true)
+   634→  }
+   635→
+   636→  const handlePrint = () => {
+   637→    window.print()
+   638→  }
+   639→
+   640→  const openDeleteDialog = (reservation: Reservation) => {
+   641→    setSelectedReservation(reservation)
+   642→    setDeleteOpen(true)
+   643→  }
+   644→
+   645→  const handleDelete = () => {
+   646→    if (!selectedReservation) return
+   647→    deleteMutation.mutate(selectedReservation.id)
+   648→  }
+   649→
+   650→  return (
+   651→    <div className="flex flex-col gap-2">
+   652→      {/* New Reservation Dialog */}
+   653→      <Dialog open={newResOpen} onOpenChange={setNewResOpen}>
+   654→          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+   655→            <DialogHeader>
+   656→              <DialogTitle>Create New Reservation</DialogTitle>
+   657→              <DialogDescription>Fill in the details below to create a new guest reservation.</DialogDescription>
+   658→            </DialogHeader>
+   659→            <div className="grid gap-4 py-2">
+   660→              {/* Guest Section */}
+   661→              <div className="space-y-3">
+   662→                <h4 className="text-sm font-semibold">Guest Information</h4>
+   663→                <div className="grid grid-cols-2 gap-3">
+   664→                  <div className="space-y-1">
+   665→                    <Label>First Name *</Label>
+   666→                    <Input
+   667→                      placeholder="First name"
+   668→                      value={form.firstName}
+   669→                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+   670→                    />
+   671→                  </div>
+   672→                  <div className="space-y-1">
+   673→                    <Label>Last Name *</Label>
+   674→                    <Input
+   675→                      placeholder="Last name"
+   676→                      value={form.lastName}
+   677→                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+   678→                    />
+   679→                  </div>
+   680→                </div>
+   681→                <div className="grid grid-cols-2 gap-3">
+   682→                  <div className="space-y-1">
+   683→                    <Label>Phone</Label>
+   684→                    <Input
+   685→                      placeholder="Phone number"
+   686→                      value={form.phone}
+   687→                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+   688→                    />
+   689→                  </div>
+   690→                  <div className="space-y-1">
+   691→                    <Label>Email</Label>
+   692→                    <Input
+   693→                      placeholder="Email address"
+   694→                      type="email"
+   695→                      value={form.email}
+   696→                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+   697→                    />
+   698→                  </div>
+   699→                </div>
+   700→              </div>
+   701→
+   702→              <Separator />
+   703→
+   704→              {/* Stay Details */}
+   705→              <div className="space-y-3">
+   706→                <h4 className="text-sm font-semibold">Stay Details</h4>
+   707→                <div className="grid grid-cols-2 gap-3">
+   708→                  <div className="space-y-1">
+   709→                    <Label>Room Type</Label>
+   710→                    <Select
+   711→                      value={form.roomTypeId}
+   712→                      onValueChange={(v) => setForm({ ...form, roomTypeId: v })}
+   713→                    >
+   714→                      <SelectTrigger>
+   715→                        <SelectValue placeholder="Select room type" />
+   716→                      </SelectTrigger>
+   717→                      <SelectContent>
+   718→                        {ROOM_TYPES.map((rt) => (
+   719→                          <SelectItem key={rt.id} value={rt.id}>
+   720→                            {rt.name} ({rt.code})
+   721→                          </SelectItem>
+   722→                        ))}
+   723→                      </SelectContent>
+   724→                    </Select>
+   725→                  </div>
+   726→                  <div className="space-y-1">
+   727→                    <Label>Rate / Night</Label>
+   728→                    <div className="flex items-center h-9 px-3 rounded-md border bg-muted/50 text-sm font-medium">
+   729→                      {formatCurrency(currentRate)}
+   730→                    </div>
+   731→                  </div>
+   732→                </div>
+   733→                <div className="grid grid-cols-2 gap-3">
+   734→                  <div className="space-y-1">
+   735→                    <Label>Check-in *</Label>
+   736→                    <Input
+   737→                      type="date"
+   738→                      value={form.checkIn}
+   739→                      onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
+   740→                    />
+   741→                  </div>
+   742→                  <div className="space-y-1">
+   743→                    <Label>Check-out *</Label>
+   744→                    <Input
+   745→                      type="date"
+   746→                      value={form.checkOut}
+   747→                      onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
+   748→                    />
+   749→                  </div>
+   750→                </div>
+   751→                {nights > 0 && (
+   752→                  <p className="text-xs text-muted-foreground">
+   753→                    {nights} night{nights > 1 ? 's' : ''} &bull; Rate: {formatCurrency(currentRate)}/night &bull; Estimated Total: {formatCurrency(estimatedTotal)}
+   754→                  </p>
+   755→                )}
+   756→                <div className="grid grid-cols-2 gap-3">
+   757→                  <div className="space-y-1">
+   758→                    <Label>Adults</Label>
+   759→                    <Input
+   760→                      type="number"
+   761→                      min={1}
+   762→                      max={10}
+   763→                      value={form.adults}
+   764→                      onChange={(e) => setForm({ ...form, adults: parseInt(e.target.value) || 1 })}
+   765→                    />
+   766→                  </div>
+   767→                  <div className="space-y-1">
+   768→                    <Label>Children</Label>
+   769→                    <Input
+   770→                      type="number"
+   771→                      min={0}
+   772→                      max={10}
+   773→                      value={form.children}
+   774→                      onChange={(e) => setForm({ ...form, children: parseInt(e.target.value) || 0 })}
+   775→                    />
+   776→                  </div>
+   777→                </div>
+   778→              </div>
+   779→
+   780→              <Separator />
+   781→
+   782→              {/* Booking Details */}
+   783→              <div className="space-y-3">
+   784→                <h4 className="text-sm font-semibold">Booking Details</h4>
+   785→                <div className="space-y-1">
+   786→                  <Label>Source</Label>
+   787→                  <Select value={form.source} onValueChange={(v) => setForm({ ...form, source: v })}>
+   788→                    <SelectTrigger><SelectValue /></SelectTrigger>
+   789→                    <SelectContent>
+   790→                      {SOURCE_OPTIONS.map((s) => (
+   791→                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+   792→                      ))}
+   793→                    </SelectContent>
+   794→                  </Select>
+   795→                </div>
+   796→                <div className="space-y-1">
+   797→                  <Label>Special Requests</Label>
+   798→                  <Textarea
+   799→                    placeholder="Any special requests..."
+   800→                    value={form.specialRequests}
+   801→                    onChange={(e) => setForm({ ...form, specialRequests: e.target.value })}
+   802→                    rows={2}
+   803→                  />
+   804→                </div>
+   805→                <div className="space-y-1">
+   806→                  <Label>Notes</Label>
+   807→                  <Textarea
+   808→                    placeholder="Internal notes..."
+   809→                    value={form.notes}
+   810→                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+   811→                    rows={2}
+   812→                  />
+   813→                </div>
+   814→                <div className="flex items-center gap-2">
+   815→                  <Checkbox
+   816→                    id="guaranteed"
+   817→                    checked={form.guaranteed}
+   818→                    onCheckedChange={(checked) => setForm({ ...form, guaranteed: !!checked })}
+   819→                  />
+   820→                  <Label htmlFor="guaranteed" className="text-sm">Guaranteed reservation</Label>
+   821→                </div>
+   822→              </div>
+   823→            </div>
+   824→            <DialogFooter>
+   825→              <Button variant="outline" onClick={() => setNewResOpen(false)}>Cancel</Button>
+   826→              <Button
+   827→                onClick={() => createMutation.mutate(form)}
+   828→                disabled={!form.firstName || !form.lastName || !form.checkOut || createMutation.isPending}
+   829→              >
+   830→                {createMutation.isPending ? 'Creating...' : 'Create Reservation'}
+   831→              </Button>
+   832→            </DialogFooter>
+   833→          </DialogContent>
+   834→        </Dialog>
+   835→
+   836→      {/* Filters — sticky */}
+   837→      <div className="sticky top-0 z-20 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports-[backdrop-filter]:bg-background/50 border-b shadow-sm">
+   838→        <div className="py-1.5 px-1">
+   839→          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+   840→            {/* Search — wide with bold circle X clear */}
+   841→            <div className="relative flex-1 sm:max-w-[360px]">
+   842→              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+   843→              <Input
+   844→                placeholder="Search guest, conf #, room, source, amount..."
+   845→                value={searchQuery}
+   846→                onChange={(e) => setSearchQuery(e.target.value)}
+   847→                className={cn(
+   848→                  "h-7 pl-8 text-xs",
+   849→                  searchQuery ? "pr-8" : "pr-3",
+   850→                  isSearching && "ring-1 ring-primary/30"
+   851→                )}
+   852→              />
+   853→              {searchQuery && !isSearching && (
+   854→                <button
+   855→                  type="button"
+   856→                  className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+   857→                  onClick={() => setSearchQuery('')}
+   858→                >
+   859→                  <X className="size-3" strokeWidth={2.5} />
+   860→                </button>
+   861→              )}
+   862→              {isSearching && (
+   863→                <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+   864→                  <div className="size-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+   865→                </div>
+   866→              )}
+   867→            </div>
+   868→            {/* Status filter with inline bold circle X clear */}
+   869→            <div className="relative">
+   870→              <Select value={statusFilter} onValueChange={setStatusFilter}>
+   871→                <SelectTrigger className={cn(
+   872→                  "w-full sm:w-[140px] data-[size=default]:h-7 h-7 text-xs",
+   873→                  statusFilter !== 'all' && "pr-8"
+   874→                )}>
+   875→                  <SelectValue />
+   876→                </SelectTrigger>
+   877→                <SelectContent>
+   878→                  {STATUS_OPTIONS.map((opt) => (
+   879→                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+   880→                  ))}
+   881→                </SelectContent>
+   882→              </Select>
+   883→              {statusFilter !== 'all' && (
+   884→                <button
+   885→                  type="button"
+   886→                  className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+   887→                  onClick={(e) => { e.stopPropagation(); setStatusFilter('all') }}
+   888→                >
+   889→                  <X className="size-3" strokeWidth={2.5} />
+   890→                </button>
+   891→              )}
+   892→            </div>
+   893→            {/* Calendar Date Range Picker */}
+   894→            <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
+   895→              <PopoverTrigger asChild>
+   896→                <button
+   897→                  type="button"
+   898→                  className={cn(
+   899→                    "inline-flex items-center h-7 text-xs gap-1.5 w-full sm:w-auto sm:min-w-[170px] font-normal px-3 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-colors",
+   900→                    !dateFrom && !dateTo && "text-muted-foreground"
+   901→                  )}
+   902→                >
+   903→                  <CalendarIcon className="size-3.5 shrink-0" />
+   904→                  {dateFrom && dateTo ? (
+   905→                    <span>{formatShortDate(dateFrom)} — {formatShortDate(dateTo)}</span>
+   906→                  ) : dateFrom ? (
+   907→                    <span>{formatShortDate(dateFrom)} — ...</span>
+   908→                  ) : (
+   909→                    <span>Check-in date range</span>
+   910→                  )}
+   911→                  {(dateFrom || dateTo) && (
+   912→                    <span
+   913→                      className="flex size-4 items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+   914→                      onClick={(e) => { e.stopPropagation(); clearDateRange() }}
+   915→                    >
+   916→                      <X className="size-2.5" strokeWidth={2.5} />
+   917→                    </span>
+   918→                  )}
+   919→                </button>
+   920→              </PopoverTrigger>
+   921→              <PopoverContent className="w-auto p-0" align="start">
+   922→                <div className="flex">
+   923→                  {/* Quick presets */}
+   924→                  <div className="flex flex-col gap-0.5 p-2 border-r bg-muted/30 min-w-[100px]">
+   925→                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1.5 pb-1">Quick</p>
+   926→                    {[
+   927→                      { key: 'today', label: 'Today' },
+   928→                      { key: 'this-week', label: 'This Week' },
+   929→                      { key: 'this-month', label: 'This Month' },
+   930→                      { key: 'next-7', label: 'Next 7 Days' },
+   931→                      { key: 'next-14', label: 'Next 14 Days' },
+   932→                      { key: 'next-30', label: 'Next 30 Days' },
+   933→                    ].map((p) => (
+   934→                      <button
+   935→                        key={p.key}
+   936→                        type="button"
+   937→                        className="text-[11px] text-left px-2 py-1.5 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+   938→                        onClick={() => handlePreset(p.key)}
+   939→                      >
+   940→                        {p.label}
+   941→                      </button>
+   942→                    ))}
+   943→                    {(dateFrom || dateTo) && (
+   944→                      <>
+   945→                        <div className="my-1 border-t" />
+   946→                        <button
+   947→                          type="button"
+   948→                          className="text-[11px] text-left px-2 py-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+   949→                          onClick={() => { clearDateRange(); setDatePopoverOpen(false) }}
+   950→                        >
+   951→                          Clear
+   952→                        </button>
+   953→                      </>
+   954→                    )}
+   955→                  </div>
+   956→                  {/* Calendar */}
+   957→                  <div className="p-2">
+   958→                    <Calendar
+   959→                      mode="single"
+   960→                      defaultMonth={calendarMonth}
+   961→                      onMonthChange={setCalendarMonth}
+   962→                      onSelect={handleDateSelect}
+   963→                    />
+   964→                    <div className="mt-2 px-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+   965→                      <div className="size-2 rounded-sm bg-primary/20 border border-primary/40" />
+   966→                      <span>{dateFrom && dateTo ? `${formatShortDate(dateFrom)} — ${formatShortDate(dateTo)}` : 'Click to select start, then end date'}</span>
+   967→                    </div>
+   968→                  </div>
+   969→                </div>
+   970→              </PopoverContent>
+   971→            </Popover>
+   972→            {/* Spacer to push right-side buttons */}
+   973→            <div className="hidden sm:block flex-1" />
+   974→            {/* New Reservation button */}
+   975→            <Button
+   976→              size="sm"
+   977→              className="h-7 text-[11px] gap-1 shrink-0"
+   978→              onClick={() => setShowNewReservation(true)}
+   979→            >
+   980→              <Plus className="size-3.5" />
+   981→              <span className="hidden sm:inline">New Reservation</span>
+   982→              <span className="sm:hidden">New</span>
+   983→            </Button>
+   984→            {/* Room Board button — far right */}
+   985→            <Button
+   986→              variant="outline"
+   987→              size="sm"
+   988→              className="h-7 text-[11px] gap-1 shrink-0"
+   989→              onClick={() => navigateTo('rooms', 'room-board')}
+   990→            >
+   991→              <LayoutGrid className="size-3.5" />
+   992→              <span className="hidden sm:inline">Room Board</span>
+   993→            </Button>
+   994→          </div>
+   995→        </div>
+   996→      </div>
+   997→
+   998→      {/* Reservations Table */}
+   999→      <Card className="py-0">
+  1000→        <CardContent className="p-0">
+  1001→          <div className="rounded-md">
+  1002→            <Table>
+  1003→              <TableHeader>
+  1004→                <TableRow>
+  1005→                  <TableHead className="w-[120px]">Confirmation #</TableHead>
+  1006→                  <TableHead className="min-w-[180px]">Guest</TableHead>
+  1007→                  <TableHead className="w-[80px]">Room</TableHead>
+  1008→                  <TableHead className="w-[100px]">Check-in</TableHead>
+  1009→                  <TableHead className="w-[100px]">Check-out</TableHead>
+  1010→                  <TableHead className="w-[110px]">Status</TableHead>
+  1011→                  <TableHead className="w-[90px]">Source</TableHead>
+  1012→                  <TableHead className="w-[100px] text-right">Amount</TableHead>
+  1013→                  <TableHead className="w-[50px]"></TableHead>
+  1014→                </TableRow>
+  1015→              </TableHeader>
+  1016→              <TableBody>
+  1017→                {isLoading ? (
+  1018→                  Array.from({ length: 5 }).map((_, i) => (
+  1019→                    <TableRow key={i}>
+  1020→                      {Array.from({ length: 9 }).map((_, j) => (
+  1021→                        <TableCell key={j}>
+  1022→                          <Skeleton className="h-4 w-full" />
+  1023→                        </TableCell>
+  1024→                      ))}
+  1025→                    </TableRow>
+  1026→                  ))
+  1027→                ) : reservations.length === 0 ? (
+  1028→                  <TableRow>
+  1029→                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+  1030→                      <div className="flex flex-col items-center gap-2">
+  1031→                        <CalendarRange className="size-8 text-muted-foreground/50" />
+  1032→                        <span>No reservations found</span>
+  1033→                      </div>
+  1034→                    </TableCell>
+  1035→                  </TableRow>
+  1036→                ) : (
+  1037→                  reservations.map((res) => (
+  1038→                    <TableRow
+  1039→                      key={res.id}
+  1040→                      className="cursor-pointer hover:bg-muted/50"
+  1041→                      onClick={() => {
+  1042→                        setSelectedReservation(res)
+  1043→                        setDetailOpen(true)
+  1044→                      }}
+  1045→                    >
+  1046→                      <TableCell className="font-mono text-xs font-medium">
+  1047→                        {res.confirmationNo}
+  1048→                      </TableCell>
+  1049→                      <TableCell>
+  1050→                        <div className="flex items-center gap-2">
+  1051→                          {res.guest ? (
+  1052→                            <>
+  1053→                              <Avatar className="size-7 shrink-0">
+  1054→                                <AvatarFallback className={cn(
+  1055→                                  'text-[10px] font-semibold',
+  1056→                                  res.guest.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  1057→                                  res.guest.vipLevel === 'gold' && 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+  1058→                                  res.guest.vipLevel === 'silver' && 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  1059→                                  (!res.guest.vipLevel || res.guest.vipLevel === 'none') && 'bg-muted text-muted-foreground'
+  1060→                                )}>
+  1061→                                  {(res.guest.firstName || '').charAt(0)}{(res.guest.lastName || '').charAt(0)}
+  1062→                                </AvatarFallback>
+  1063→                              </Avatar>
+  1064→                              <span className="font-medium truncate">{res.guest.firstName} {res.guest.lastName}</span>
+  1065→                              {res.guest.vipLevel !== 'none' && (
+  1066→                                <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 shrink-0">
+  1067→                                  VIP
+  1068→                                </Badge>
+  1069→                              )}
+  1070→                            </>
+  1071→                          ) : (
+  1072→                            <span className="text-muted-foreground">No guest</span>
+  1073→                          )}
+  1074→                        </div>
+  1075→                      </TableCell>
+  1076→                      <TableCell>
+  1077→                        {res.room ? (
+  1078→                          <Button
+  1079→                            variant="ghost"
+  1080→                            size="sm"
+  1081→                            className="h-7 px-2 font-medium text-xs"
+  1082→                            onClick={(e) => { e.stopPropagation(); navigateTo('rooms', 'room-board') }}
+  1083→                          >
+  1084→                            {res.room.number}
+  1085→                          </Button>
+  1086→                        ) : (
+  1087→                          <span className="text-amber-600 dark:text-amber-400 text-xs">Unassigned</span>
+  1088→                        )}
+  1089→                      </TableCell>
+  1090→                      <TableCell className="text-xs">{formatDate(res.checkIn)}</TableCell>
+  1091→                      <TableCell className="text-xs">{formatDate(res.checkOut)}</TableCell>
+  1092→                      <TableCell>
+  1093→                        <StatusBadge status={res.status} />
+  1094→                      </TableCell>
+  1095→                      <TableCell className="text-xs capitalize">{res.source?.replace('_', ' ')}</TableCell>
+  1096→                      <TableCell className="text-right font-medium">
+  1097→                        {formatCurrency(res.totalAmount)}
+  1098→                      </TableCell>
+  1099→                      <TableCell>
+  1100→                        <DropdownMenu>
+  1101→                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+  1102→                            <Button variant="ghost" size="icon" className="size-8">
+  1103→                              <MoreHorizontal className="size-4" />
+  1104→                            </Button>
+  1105→                          </DropdownMenuTrigger>
+  1106→                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+  1107→                            <DropdownMenuItem onClick={() => {
+  1108→                              setSelectedReservation(res)
+  1109→                              setDetailOpen(true)
+  1110→                            }}>
+  1111→                              <Eye className="size-4 mr-2" /> View Details
+  1112→                            </DropdownMenuItem>
+  1113→                            <DropdownMenuItem onClick={() => openEditDialog(res)}>
+  1114→                              <Edit className="size-4 mr-2" /> Edit
+  1115→                            </DropdownMenuItem>
+  1116→                            <DropdownMenuItem onClick={() => openDuplicateDialog(res)}>
+  1117→                              <Copy className="size-4 mr-2" /> Duplicate
+  1118→                            </DropdownMenuItem>
+  1119→                            <DropdownMenuItem onClick={() => openNoteDialog(res)}>
+  1120→                              <StickyNote className="size-4 mr-2" /> Add Note
+  1121→                            </DropdownMenuItem>
+  1122→                            <DropdownMenuItem onClick={() => openPrintDialog(res)}>
+  1123→                              <Printer className="size-4 mr-2" /> Print Confirmation
+  1124→                            </DropdownMenuItem>
+  1125→                            <DropdownMenuSeparator />
+  1126→                            {res.status === 'confirmed' && (
+  1127→                              <DropdownMenuItem onClick={() => handleCheckIn(res)}>
+  1128→                                <LogIn className="size-4 mr-2" /> Check In
+  1129→                              </DropdownMenuItem>
+  1130→                            )}
+  1131→                            <DropdownMenuItem onClick={() => handleViewFolio(res)}>
+  1132→                              <FileText className="size-4 mr-2" /> View Folio
+  1133→                            </DropdownMenuItem>
+  1134→                            <DropdownMenuItem onClick={() => handleViewLedger(res)}>
+  1135→                              <BookOpen className="size-4 mr-2" /> View Guest Ledger
+  1136→                            </DropdownMenuItem>
+  1137→                            <DropdownMenuItem onClick={() => handleCancel(res)} variant="destructive">
+  1138→                              <XCircle className="size-4 mr-2" /> Cancel
+  1139→                            </DropdownMenuItem>
+  1140→                            {res.status === 'confirmed' && (
+  1141→                              <DropdownMenuItem onClick={() => handleNoShow(res)}>
+  1142→                                <UserX className="size-4 mr-2" /> Mark No-Show
+  1143→                              </DropdownMenuItem>
+  1144→                            )}
+  1145→                            {(res.status === 'cancelled' || res.status === 'draft') && (
+  1146→                              <>
+  1147→                                <DropdownMenuSeparator />
+  1148→                                <DropdownMenuItem onClick={() => openDeleteDialog(res)} variant="destructive">
+  1149→                                  <Trash2 className="size-4 mr-2" /> Delete
+  1150→                                </DropdownMenuItem>
+  1151→                              </>
+  1152→                            )}
+  1153→                          </DropdownMenuContent>
+  1154→                        </DropdownMenu>
+  1155→                      </TableCell>
+  1156→                    </TableRow>
+  1157→                  ))
+  1158→                )}
+  1159→              </TableBody>
+  1160→            </Table>
+  1161→          </div>
+  1162→        </CardContent>
+  1163→      </Card>
+  1164→
+  1165→      {/* ─── Reservation Detail Dialog ──────────────────────────────── */}
+  1166→      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+  1167→        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+  1168→          {selectedReservation && (
+  1169→            <>
+  1170→              <DialogHeader>
+  1171→                <DialogTitle className="flex items-center gap-3">
+  1172→                  Reservation {selectedReservation.confirmationNo}
+  1173→                  <StatusBadge status={selectedReservation.status} />
+  1174→                </DialogTitle>
+  1175→                <DialogDescription>Detailed reservation information.</DialogDescription>
+  1176→              </DialogHeader>
+  1177→              <div className="space-y-4">
+  1178→                {/* Guest Info */}
+  1179→                <div className="grid gap-3">
+  1180→                  <h4 className="text-sm font-semibold">Guest Information</h4>
+  1181→                  {selectedReservation.guest ? (
+  1182→                    <div className="flex items-start gap-3">
+  1183→                      <Avatar className="size-12 shrink-0">
+  1184→                        <AvatarFallback className={cn(
+  1185→                          'text-sm font-bold',
+  1186→                          selectedReservation.guest.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+  1187→                          selectedReservation.guest.vipLevel === 'gold' && 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+  1188→                          selectedReservation.guest.vipLevel === 'silver' && 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  1189→                          (!selectedReservation.guest.vipLevel || selectedReservation.guest.vipLevel === 'none') && 'bg-muted text-muted-foreground'
+  1190→                        )}>
+  1191→                          {(selectedReservation.guest.firstName || '').charAt(0)}{(selectedReservation.guest.lastName || '').charAt(0)}
+  1192→                        </AvatarFallback>
+  1193→                      </Avatar>
+  1194→                      <div className="grid grid-cols-1 gap-1.5 text-sm flex-1 min-w-0">
+  1195→                        <div>
+  1196→                          <span className="font-medium">{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>
+  1197→                          {selectedReservation.guest.vipLevel !== 'none' && (
+  1198→                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 ml-2">
+  1199→                              {selectedReservation.guest.vipLevel.toUpperCase()}
+  1200→                            </Badge>
+  1201→                          )}
+  1202→                        </div>
+  1203→                        <div>
+  1204→                          <span className="text-muted-foreground">Email: </span>
+  1205→                          <span>{selectedReservation.guest.email || '—'}</span>
+  1206→                        </div>
+  1207→                        <div>
+  1208→                          <span className="text-muted-foreground">Phone: </span>
+  1209→                          <span>{selectedReservation.guest.phone || '—'}</span>
+  1210→                        </div>
+  1211→                      </div>
+  1212→                    </div>
+  1213→                  ) : (
+  1214→                    <span className="text-sm text-muted-foreground">No guest assigned</span>
+  1215→                  )}
+  1216→                </div>
+  1217→
+  1218→                <Separator />
+  1219→
+  1220→                {/* Stay Details */}
+  1221→                <div className="grid gap-3">
+  1222→                  <h4 className="text-sm font-semibold">Stay Details</h4>
+  1223→                  <div className="grid grid-cols-2 gap-2 text-sm">
+  1224→                    <div>
+  1225→                      <span className="text-muted-foreground">Room: </span>
+  1226→                      <span className="font-medium">{selectedReservation.room?.number || 'Unassigned'}</span>
+  1227→                      {selectedReservation.room && (
+  1228→                        <span className="text-muted-foreground"> ({selectedReservation.room.type.name})</span>
+  1229→                      )}
+  1230→                    </div>
+  1231→                    <div>
+  1232→                      <span className="text-muted-foreground">Rate: </span>
+  1233→                      <span>{formatCurrency(selectedReservation.roomRate)}/night</span>
+  1234→                    </div>
+  1235→                    <div>
+  1236→                      <span className="text-muted-foreground">Check-in: </span>
+  1237→                      <span>{formatDate(selectedReservation.checkIn)}</span>
+  1238→                    </div>
+  1239→                    <div>
+  1240→                      <span className="text-muted-foreground">Check-out: </span>
+  1241→                      <span>{formatDate(selectedReservation.checkOut)}</span>
+  1242→                    </div>
+  1243→                    <div>
+  1244→                      <span className="text-muted-foreground">Nights: </span>
+  1245→                      <span>{nightsBetween(selectedReservation.checkIn, selectedReservation.checkOut)}</span>
+  1246→                    </div>
+  1247→                    <div>
+  1248→                      <span className="text-muted-foreground">Guests: </span>
+  1249→                      <span>{selectedReservation.adults} adults, {selectedReservation.children} children</span>
+  1250→                    </div>
+  1251→                  </div>
+  1252→                </div>
+  1253→
+  1254→                <Separator />
+  1255→
+  1256→                {/* Financial Summary */}
+  1257→                <div className="grid gap-3">
+  1258→                  <h4 className="text-sm font-semibold">Financial Summary</h4>
+  1259→                  <div className="grid grid-cols-2 gap-2 text-sm">
+  1260→                    <div>
+  1261→                      <span className="text-muted-foreground">Total: </span>
+  1262→                      <span className="font-bold">{formatCurrency(selectedReservation.totalAmount)}</span>
+  1263→                    </div>
+  1264→                    <div>
+  1265→                      <span className="text-muted-foreground">Paid: </span>
+  1266→                      <span>{formatCurrency(selectedReservation.paidAmount)}</span>
+  1267→                    </div>
+  1268→                    <div>
+  1269→                      <span className="text-muted-foreground">Folio Balance: </span>
+  1270→                      <button onClick={() => handleViewFolio(selectedReservation)} className={selectedReservation.folios[0]?.balance > selectedReservation.creditLimit ? 'text-red-600 font-bold' : 'text-emerald-600 hover:underline font-medium'}>
+  1271→                        {formatCurrency(selectedReservation.folios[0]?.balance || 0)}
+  1272→                      </button>
+  1273→                    </div>
+  1274→                    <div>
+  1275→                      <span className="text-muted-foreground">Credit Limit: </span>
+  1276→                      <span>{formatCurrency(selectedReservation.creditLimit)}</span>
+  1277→                    </div>
+  1278→                  </div>
+  1279→                </div>
+  1280→
+  1281→                {/* Special Requests */}
+  1282→                {selectedReservation.specialRequests && (
+  1283→                  <>
+  1284→                    <Separator />
+  1285→                    <div className="grid gap-2">
+  1286→                      <h4 className="text-sm font-semibold">Special Requests</h4>
+  1287→                      <p className="text-sm bg-muted/50 rounded-md p-3">{selectedReservation.specialRequests}</p>
+  1288→                    </div>
+  1289→                  </>
+  1290→                )}
+  1291→
+  1292→                {/* Notes */}
+  1293→                {selectedReservation.notes && (
+  1294→                  <>
+  1295→                    <Separator />
+  1296→                    <div className="grid gap-2">
+  1297→                      <h4 className="text-sm font-semibold">Notes</h4>
+  1298→                      <p className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap">{selectedReservation.notes}</p>
+  1299→                    </div>
+  1300→                  </>
+  1301→                )}
+  1302→
+  1303→                {/* Booking Info */}
+  1304→                <Separator />
+  1305→                <div className="grid grid-cols-2 gap-2 text-sm">
+  1306→                  <div>
+  1307→                    <span className="text-muted-foreground">Source: </span>
+  1308→                    <span className="capitalize">{selectedReservation.source?.replace('_', ' ')}</span>
+  1309→                  </div>
+  1310→                  <div>
+  1311→                    <span className="text-muted-foreground">Guaranteed: </span>
+  1312→                    <span>{selectedReservation.guaranteed ? 'Yes' : 'No'}</span>
+  1313→                  </div>
+  1314→                  <div>
+  1315→                    <span className="text-muted-foreground">Booked: </span>
+  1316→                    <span>{formatDate(selectedReservation.createdAt)}</span>
+  1317→                  </div>
+  1318→                  {selectedReservation.company && (
+  1319→                    <div>
+  1320→                      <span className="text-muted-foreground">Company: </span>
+  1321→                      <span>{selectedReservation.company}</span>
+  1322→                    </div>
+  1323→                  )}
+  1324→                </div>
+  1325→              </div>
+  1326→
+  1327→              {/* Quick Actions */}
+  1328→              <DialogFooter>
+  1329→                {selectedReservation.status === 'confirmed' && (
+  1330→                  <Button onClick={() => handleCheckIn(selectedReservation)}>
+  1331→                    <LogIn className="size-4 mr-1.5" /> Check In
+  1332→                  </Button>
+  1333→                )}
+  1334→                <Button variant="outline" size="sm" onClick={() => handleViewFolio(selectedReservation)}>
+  1335→                  <FileText className="h-4 w-4 mr-1" /> View Folio
+  1336→                </Button>
+  1337→                <Button variant="outline" size="sm" onClick={() => handleViewLedger(selectedReservation)}>
+  1338→                  <BookOpen className="h-4 w-4 mr-1" /> View Ledger
+  1339→                </Button>
+  1340→                <Button variant="outline" onClick={() => setDetailOpen(false)}>Close</Button>
+  1341→              </DialogFooter>
+  1342→            </>
+  1343→          )}
+  1344→        </DialogContent>
+  1345→      </Dialog>
+  1346→
+  1347→      {/* ─── Edit Reservation Dialog ────────────────────────────────── */}
+  1348→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  1349→        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+  1350→          <DialogHeader>
+  1351→            <DialogTitle>Edit Reservation — {selectedReservation?.confirmationNo}</DialogTitle>
+  1352→            <DialogDescription>Modify the reservation details. The total amount will be recalculated automatically.</DialogDescription>
+  1353→          </DialogHeader>
+  1354→          <div className="grid gap-4 py-2">
+  1355→            {/* Room info (read-only with room assignment shown) */}
+  1356→            <div className="space-y-3">
+  1357→              <h4 className="text-sm font-semibold">Room Assignment</h4>
+  1358→              <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+  1359→                <BedDouble className="size-5 text-muted-foreground" />
+  1360→                <div className="text-sm">
+  1361→                  {selectedReservation?.room ? (
+  1362→                    <>
+  1363→                      <span className="font-medium">{selectedReservation.room.number}</span>
+  1364→                      <span className="text-muted-foreground ml-2">({selectedReservation.room.type.name} — {selectedReservation.room.type.code})</span>
+  1365→                    </>
+  1366→                  ) : (
+  1367→                    <span className="text-muted-foreground">No room assigned</span>
+  1368→                  )}
+  1369→                </div>
+  1370→              </div>
+  1371→            </div>
+  1372→
+  1373→            <Separator />
+  1374→
+  1375→            {/* Stay Details */}
+  1376→            <div className="space-y-3">
+  1377→              <h4 className="text-sm font-semibold">Stay Details</h4>
+  1378→              <div className="grid grid-cols-2 gap-3">
+  1379→                <div className="space-y-1">
+  1380→                  <Label>Check-in</Label>
+  1381→                  <Input
+  1382→                    type="date"
+  1383→                    value={editForm.checkIn}
+  1384→                    onChange={(e) => setEditForm({ ...editForm, checkIn: e.target.value })}
+  1385→                  />
+  1386→                </div>
+  1387→                <div className="space-y-1">
+  1388→                  <Label>Check-out</Label>
+  1389→                  <Input
+  1390→                    type="date"
+  1391→                    value={editForm.checkOut}
+  1392→                    onChange={(e) => setEditForm({ ...editForm, checkOut: e.target.value })}
+  1393→                  />
+  1394→                </div>
+  1395→              </div>
+  1396→              {editNights > 0 && (
+  1397→                <p className="text-xs text-muted-foreground">
+  1398→                  {editNights} night{editNights > 1 ? 's' : ''} &bull; {formatCurrency(editForm.roomRate)}/night &bull; Total: {formatCurrency(editTotal)}
+  1399→                </p>
+  1400→              )}
+  1401→              <div className="grid grid-cols-2 gap-3">
+  1402→                <div className="space-y-1">
+  1403→                  <Label>Adults</Label>
+  1404→                  <Input
+  1405→                    type="number"
+  1406→                    min={1}
+  1407→                    max={10}
+  1408→                    value={editForm.adults}
+  1409→                    onChange={(e) => setEditForm({ ...editForm, adults: parseInt(e.target.value) || 1 })}
+  1410→                  />
+  1411→                </div>
+  1412→                <div className="space-y-1">
+  1413→                  <Label>Children</Label>
+  1414→                  <Input
+  1415→                    type="number"
+  1416→                    min={0}
+  1417→                    max={10}
+  1418→                    value={editForm.children}
+  1419→                    onChange={(e) => setEditForm({ ...editForm, children: parseInt(e.target.value) || 0 })}
+  1420→                  />
+  1421→                </div>
+  1422→              </div>
+  1423→            </div>
+  1424→
+  1425→            <Separator />
+  1426→
+  1427→            {/* Booking Details */}
+  1428→            <div className="space-y-3">
+  1429→              <h4 className="text-sm font-semibold">Booking Details</h4>
+  1430→              <div className="space-y-1">
+  1431→                <Label>Source</Label>
+  1432→                <Select value={editForm.source} onValueChange={(v) => setEditForm({ ...editForm, source: v })}>
+  1433→                  <SelectTrigger><SelectValue /></SelectTrigger>
+  1434→                  <SelectContent>
+  1435→                    {SOURCE_OPTIONS.map((s) => (
+  1436→                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+  1437→                    ))}
+  1438→                  </SelectContent>
+  1439→                </Select>
+  1440→              </div>
+  1441→              <div className="space-y-1">
+  1442→                <Label>Special Requests</Label>
+  1443→                <Textarea
+  1444→                  value={editForm.specialRequests}
+  1445→                  onChange={(e) => setEditForm({ ...editForm, specialRequests: e.target.value })}
+  1446→                  rows={2}
+  1447→                />
+  1448→              </div>
+  1449→              <div className="space-y-1">
+  1450→                <Label>Notes</Label>
+  1451→                <Textarea
+  1452→                  value={editForm.notes}
+  1453→                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+  1454→                  rows={2}
+  1455→                />
+  1456→              </div>
+  1457→              <div className="flex items-center gap-2">
+  1458→                <Checkbox
+  1459→                  id="edit-guaranteed"
+  1460→                  checked={editForm.guaranteed}
+  1461→                  onCheckedChange={(checked) => setEditForm({ ...editForm, guaranteed: !!checked })}
+  1462→                />
+  1463→                <Label htmlFor="edit-guaranteed" className="text-sm">Guaranteed reservation</Label>
+  1464→              </div>
+  1465→            </div>
+  1466→          </div>
+  1467→          <DialogFooter>
+  1468→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+  1469→            <Button
+  1470→              onClick={handleEditSave}
+  1471→              disabled={editMutation.isPending}
+  1472→            >
+  1473→              {editMutation.isPending ? 'Saving...' : 'Save Changes'}
+  1474→            </Button>
+  1475→          </DialogFooter>
+  1476→        </DialogContent>
+  1477→      </Dialog>
+  1478→
+  1479→      {/* ─── Duplicate Reservation Dialog ────────────────────────────── */}
+  1480→      <Dialog open={duplicateOpen} onOpenChange={setDuplicateOpen}>
+  1481→        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+  1482→          <DialogHeader>
+  1483→            <DialogTitle>Duplicate Reservation</DialogTitle>
+  1484→            <DialogDescription>Create a new reservation based on an existing one. Check-in is set to today.</DialogDescription>
+  1485→          </DialogHeader>
+  1486→          <div className="grid gap-4 py-2">
+  1487→            {/* Guest Section */}
+  1488→            <div className="space-y-3">
+  1489→              <h4 className="text-sm font-semibold">Guest Information</h4>
+  1490→              <div className="grid grid-cols-2 gap-3">
+  1491→                <div className="space-y-1">
+  1492→                  <Label>First Name *</Label>
+  1493→                  <Input
+  1494→                    value={duplicateForm.firstName}
+  1495→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, firstName: e.target.value })}
+  1496→                  />
+  1497→                </div>
+  1498→                <div className="space-y-1">
+  1499→                  <Label>Last Name *</Label>
+  1500→                  <Input
+  1501→                    value={duplicateForm.lastName}
+  1502→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, lastName: e.target.value })}
+  1503→                  />
+  1504→                </div>
+  1505→              </div>
+  1506→              <div className="grid grid-cols-2 gap-3">
+  1507→                <div className="space-y-1">
+  1508→                  <Label>Phone</Label>
+  1509→                  <Input
+  1510→                    value={duplicateForm.phone}
+  1511→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, phone: e.target.value })}
+  1512→                  />
+  1513→                </div>
+  1514→                <div className="space-y-1">
+  1515→                  <Label>Email</Label>
+  1516→                  <Input
+  1517→                    type="email"
+  1518→                    value={duplicateForm.email}
+  1519→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, email: e.target.value })}
+  1520→                  />
+  1521→                </div>
+  1522→              </div>
+  1523→            </div>
+  1524→
+  1525→            <Separator />
+  1526→
+  1527→            {/* Stay Details */}
+  1528→            <div className="space-y-3">
+  1529→              <h4 className="text-sm font-semibold">Stay Details</h4>
+  1530→              <div className="grid grid-cols-2 gap-3">
+  1531→                <div className="space-y-1">
+  1532→                  <Label>Room Type</Label>
+  1533→                  <Select
+  1534→                    value={duplicateForm.roomTypeId}
+  1535→                    onValueChange={(v) => setDuplicateForm({ ...duplicateForm, roomTypeId: v })}
+  1536→                  >
+  1537→                    <SelectTrigger>
+  1538→                      <SelectValue placeholder="Select room type" />
+  1539→                    </SelectTrigger>
+  1540→                    <SelectContent>
+  1541→                      {ROOM_TYPES.map((rt) => (
+  1542→                        <SelectItem key={rt.id} value={rt.id}>
+  1543→                          {rt.name} ({rt.code})
+  1544→                        </SelectItem>
+  1545→                      ))}
+  1546→                    </SelectContent>
+  1547→                  </Select>
+  1548→                </div>
+  1549→                <div className="space-y-1">
+  1550→                  <Label>Rate / Night</Label>
+  1551→                  <div className="flex items-center h-9 px-3 rounded-md border bg-muted/50 text-sm font-medium">
+  1552→                    {formatCurrency(ROOM_TYPES.find((rt) => rt.id === duplicateForm.roomTypeId)?.baseRate ?? 5000)}
+  1553→                  </div>
+  1554→                </div>
+  1555→              </div>
+  1556→              <div className="grid grid-cols-2 gap-3">
+  1557→                <div className="space-y-1">
+  1558→                  <Label>Check-in *</Label>
+  1559→                  <Input
+  1560→                    type="date"
+  1561→                    value={duplicateForm.checkIn}
+  1562→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, checkIn: e.target.value })}
+  1563→                  />
+  1564→                </div>
+  1565→                <div className="space-y-1">
+  1566→                  <Label>Check-out *</Label>
+  1567→                  <Input
+  1568→                    type="date"
+  1569→                    value={duplicateForm.checkOut}
+  1570→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, checkOut: e.target.value })}
+  1571→                  />
+  1572→                </div>
+  1573→              </div>
+  1574→              <div className="grid grid-cols-2 gap-3">
+  1575→                <div className="space-y-1">
+  1576→                  <Label>Adults</Label>
+  1577→                  <Input
+  1578→                    type="number"
+  1579→                    min={1}
+  1580→                    max={10}
+  1581→                    value={duplicateForm.adults}
+  1582→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, adults: parseInt(e.target.value) || 1 })}
+  1583→                  />
+  1584→                </div>
+  1585→                <div className="space-y-1">
+  1586→                  <Label>Children</Label>
+  1587→                  <Input
+  1588→                    type="number"
+  1589→                    min={0}
+  1590→                    max={10}
+  1591→                    value={duplicateForm.children}
+  1592→                    onChange={(e) => setDuplicateForm({ ...duplicateForm, children: parseInt(e.target.value) || 0 })}
+  1593→                  />
+  1594→                </div>
+  1595→              </div>
+  1596→            </div>
+  1597→
+  1598→            <Separator />
+  1599→
+  1600→            {/* Booking Details */}
+  1601→            <div className="space-y-3">
+  1602→              <h4 className="text-sm font-semibold">Booking Details</h4>
+  1603→              <div className="space-y-1">
+  1604→                <Label>Source</Label>
+  1605→                <Select value={duplicateForm.source} onValueChange={(v) => setDuplicateForm({ ...duplicateForm, source: v })}>
+  1606→                  <SelectTrigger><SelectValue /></SelectTrigger>
+  1607→                  <SelectContent>
+  1608→                    {SOURCE_OPTIONS.map((s) => (
+  1609→                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+  1610→                    ))}
+  1611→                  </SelectContent>
+  1612→                </Select>
+  1613→              </div>
+  1614→              <div className="space-y-1">
+  1615→                <Label>Special Requests</Label>
+  1616→                <Textarea
+  1617→                  value={duplicateForm.specialRequests}
+  1618→                  onChange={(e) => setDuplicateForm({ ...duplicateForm, specialRequests: e.target.value })}
+  1619→                  rows={2}
+  1620→                />
+  1621→              </div>
+  1622→              <div className="space-y-1">
+  1623→                <Label>Notes</Label>
+  1624→                <Textarea
+  1625→                  value={duplicateForm.notes}
+  1626→                  onChange={(e) => setDuplicateForm({ ...duplicateForm, notes: e.target.value })}
+  1627→                  rows={2}
+  1628→                />
+  1629→              </div>
+  1630→              <div className="flex items-center gap-2">
+  1631→                <Checkbox
+  1632→                  id="dup-guaranteed"
+  1633→                  checked={duplicateForm.guaranteed}
+  1634→                  onCheckedChange={(checked) => setDuplicateForm({ ...duplicateForm, guaranteed: !!checked })}
+  1635→                />
+  1636→                <Label htmlFor="dup-guaranteed" className="text-sm">Guaranteed reservation</Label>
+  1637→              </div>
+  1638→            </div>
+  1639→          </div>
+  1640→          <DialogFooter>
+  1641→            <Button variant="outline" onClick={() => setDuplicateOpen(false)}>Cancel</Button>
+  1642→            <Button
+  1643→              onClick={handleDuplicate}
+  1644→              disabled={!duplicateForm.firstName || !duplicateForm.lastName || !duplicateForm.checkOut || createMutation.isPending}
+  1645→            >
+  1646→              {createMutation.isPending ? 'Creating...' : 'Create Duplicate'}
+  1647→            </Button>
+  1648→          </DialogFooter>
+  1649→        </DialogContent>
+  1650→      </Dialog>
+  1651→
+  1652→      {/* ─── Add Note Dialog ─────────────────────────────────────────── */}
+  1653→      <Dialog open={noteOpen} onOpenChange={setNoteOpen}>
+  1654→        <DialogContent className="max-w-md">
+  1655→          <DialogHeader>
+  1656→            <DialogTitle>Add Note — {selectedReservation?.confirmationNo}</DialogTitle>
+  1657→            <DialogDescription>This note will be appended to the existing reservation notes.</DialogDescription>
+  1658→          </DialogHeader>
+  1659→          {selectedReservation?.notes && (
+  1660→            <div className="space-y-1">
+  1661→              <Label className="text-xs text-muted-foreground">Existing Notes</Label>
+  1662→              <p className="text-xs bg-muted/50 rounded-md p-2 whitespace-pre-wrap max-h-20 overflow-y-auto">
+  1663→                {selectedReservation.notes}
+  1664→              </p>
+  1665→            </div>
+  1666→          )}
+  1667→          <div className="space-y-1">
+  1668→            <Label>New Note</Label>
+  1669→            <Textarea
+  1670→              placeholder="Enter your note here..."
+  1671→              value={noteText}
+  1672→              onChange={(e) => setNoteText(e.target.value)}
+  1673→              rows={4}
+  1674→              autoFocus
+  1675→            />
+  1676→          </div>
+  1677→          <DialogFooter>
+  1678→            <Button variant="outline" onClick={() => setNoteOpen(false)}>Cancel</Button>
+  1679→            <Button
+  1680→              onClick={handleAddNote}
+  1681→              disabled={!noteText.trim() || noteMutation.isPending}
+  1682→            >
+  1683→              {noteMutation.isPending ? 'Saving...' : 'Add Note'}
+  1684→            </Button>
+  1685→          </DialogFooter>
+  1686→        </DialogContent>
+  1687→      </Dialog>
+  1688→
+  1689→      {/* ─── Print Confirmation Dialog ───────────────────────────────── */}
+  1690→      <Dialog open={printOpen} onOpenChange={setPrintOpen}>
+  1691→        <DialogContent className="max-w-md">
+  1692→          <DialogHeader>
+  1693→            <DialogTitle>Reservation Confirmation</DialogTitle>
+  1694→            <DialogDescription>Review the confirmation details before printing.</DialogDescription>
+  1695→          </DialogHeader>
+  1696→          {selectedReservation && (
+  1697→            <div className="print-area">
+  1698→              {/* Hotel Header */}
+  1699→              <div className="text-center border-b pb-4 mb-4">
+  1700→                <div className="flex items-center justify-center gap-2">
+  1701→                  <Hotel className="size-6" />
+  1702→                  <h3 className="text-xl font-bold tracking-wide">{settings.hotelName}</h3>
+  1703→                </div>
+  1704→                <p className="text-xs text-muted-foreground mt-1">Luxury Hospitality &bull; Premium Experience</p>
+  1705→              </div>
+  1706→
+  1707→              {/* Confirmation Details */}
+  1708→              <div className="space-y-3 text-sm">
+  1709→                <div className="grid grid-cols-2 gap-2">
+  1710→                  <div>
+  1711→                    <span className="text-muted-foreground text-xs">Confirmation #</span>
+  1712→                    <p className="font-mono font-bold">{selectedReservation.confirmationNo}</p>
+  1713→                  </div>
+  1714→                  <div>
+  1715→                    <span className="text-muted-foreground text-xs">Status</span>
+  1716→                    <div className="mt-0.5">
+  1717→                      <StatusBadge status={selectedReservation.status} />
+  1718→                    </div>
+  1719→                  </div>
+  1720→                </div>
+  1721→
+  1722→                <Separator />
+  1723→
+  1724→                <div>
+  1725→                  <span className="text-muted-foreground text-xs">Guest</span>
+  1726→                  <p className="font-medium">
+  1727→                    {selectedReservation.guest
+  1728→                      ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}`
+  1729→                      : 'N/A'}
+  1730→                  </p>
+  1731→                </div>
+  1732→
+  1733→                <div className="grid grid-cols-2 gap-2">
+  1734→                  <div>
+  1735→                    <span className="text-muted-foreground text-xs">Check-in</span>
+  1736→                    <p className="font-medium">{formatDate(selectedReservation.checkIn)}</p>
+  1737→                  </div>
+  1738→                  <div>
+  1739→                    <span className="text-muted-foreground text-xs">Check-out</span>
+  1740→                    <p className="font-medium">{formatDate(selectedReservation.checkOut)}</p>
+  1741→                  </div>
+  1742→                </div>
+  1743→
+  1744→                <div className="grid grid-cols-2 gap-2">
+  1745→                  <div>
+  1746→                    <span className="text-muted-foreground text-xs">Room</span>
+  1747→                    <p className="font-medium">
+  1748→                      {selectedReservation.room
+  1749→                        ? `${selectedReservation.room.number} (${selectedReservation.room.type.name})`
+  1750→                        : 'To be assigned'}
+  1751→                    </p>
+  1752→                  </div>
+  1753→                  <div>
+  1754→                    <span className="text-muted-foreground text-xs">Guests</span>
+  1755→                    <p className="font-medium">
+  1756→                      {selectedReservation.adults} adults
+  1757→                      {selectedReservation.children > 0 && `, ${selectedReservation.children} children`}
+  1758→                    </p>
+  1759→                  </div>
+  1760→                </div>
+  1761→
+  1762→                <Separator />
+  1763→
+  1764→                <div className="grid grid-cols-2 gap-2">
+  1765→                  <div>
+  1766→                    <span className="text-muted-foreground text-xs">Rate / Night</span>
+  1767→                    <p className="font-medium">{formatCurrency(selectedReservation.roomRate)}</p>
+  1768→                  </div>
+  1769→                  <div>
+  1770→                    <span className="text-muted-foreground text-xs">Nights</span>
+  1771→                    <p className="font-medium">{nightsBetween(selectedReservation.checkIn, selectedReservation.checkOut)}</p>
+  1772→                  </div>
+  1773→                </div>
+  1774→
+  1775→                <div className="bg-muted/50 rounded-lg p-3">
+  1776→                  <div className="flex justify-between items-center">
+  1777→                    <span className="font-semibold">Total Amount</span>
+  1778→                    <span className="text-lg font-bold">{formatCurrency(selectedReservation.totalAmount)}</span>
+  1779→                  </div>
+  1780→                </div>
+  1781→
+  1782→                {selectedReservation.specialRequests && (
+  1783→                  <div>
+  1784→                    <span className="text-muted-foreground text-xs">Special Requests</span>
+  1785→                    <p className="bg-muted/50 rounded-md p-2 mt-1">{selectedReservation.specialRequests}</p>
+  1786→                  </div>
+  1787→                )}
+  1788→
+  1789→                <div className="grid grid-cols-2 gap-2">
+  1790→                  <div>
+  1791→                    <span className="text-muted-foreground text-xs">Source</span>
+  1792→                    <p className="capitalize">{selectedReservation.source?.replace('_', ' ')}</p>
+  1793→                  </div>
+  1794→                  <div>
+  1795→                    <span className="text-muted-foreground text-xs">Guaranteed</span>
+  1796→                    <p>{selectedReservation.guaranteed ? 'Yes' : 'No'}</p>
+  1797→                  </div>
+  1798→                </div>
+  1799→              </div>
+  1800→
+  1801→              {/* Footer */}
+  1802→              <div className="mt-6 pt-4 border-t text-center">
+  1803→                <p className="text-xs text-muted-foreground">
+  1804→                  Booked on {formatDate(selectedReservation.createdAt)}
+  1805→                </p>
+  1806→                <p className="text-[10px] text-muted-foreground mt-1">
+  1807→                  Thank you for choosing {settings.hotelName}. We look forward to your stay.
+  1808→                </p>
+  1809→              </div>
+  1810→            </div>
+  1811→          )}
+  1812→          <DialogFooter>
+  1813→            <Button variant="outline" onClick={() => setPrintOpen(false)}>Close</Button>
+  1814→            <Button onClick={handlePrint}>
+  1815→              <Printer className="size-4 mr-1.5" /> Print
+  1816→            </Button>
+  1817→          </DialogFooter>
+  1818→        </DialogContent>
+  1819→      </Dialog>
+  1820→
+  1821→      {/* ─── Delete Reservation Dialog ──────────────────────────────── */}
+  1822→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+  1823→        <AlertDialogContent>
+  1824→          <AlertDialogHeader>
+  1825→            <AlertDialogTitle>Delete Reservation</AlertDialogTitle>
+  1826→            <AlertDialogDescription>
+  1827→              Are you sure you want to permanently delete reservation{' '}
+  1828→              <span className="font-semibold font-mono">{selectedReservation?.confirmationNo}</span>?
+  1829→              {selectedReservation?.guest && (
+  1830→                <> This belongs to <span className="font-semibold">{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>.</>
+  1831→              )}
+  1832→              <br />
+  1833→              <br />
+  1834→              <span className="text-destructive font-medium">This action cannot be undone.</span>
+  1835→            </AlertDialogDescription>
+  1836→          </AlertDialogHeader>
+  1837→          <AlertDialogFooter>
+  1838→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+  1839→            <AlertDialogAction
+  1840→              onClick={handleDelete}
+  1841→              disabled={deleteMutation.isPending}
+  1842→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+  1843→            >
+  1844→              {deleteMutation.isPending ? 'Deleting...' : 'Delete Reservation'}
+  1845→            </AlertDialogAction>
+  1846→          </AlertDialogFooter>
+  1847→        </AlertDialogContent>
+  1848→      </AlertDialog>
+  1849→    </div>
+  1850→  )
+  1851→}
+  1852→

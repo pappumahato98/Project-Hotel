@@ -108,6 +108,60 @@ export async function PATCH(
       }
     }
 
+    // ─── Room availability validation ──────────────────────────────
+    const isRoomOrDateChange = 'roomId' in body || 'checkIn' in body || 'checkOut' in body
+    if (isRoomOrDateChange) {
+      // Fetch the current reservation to resolve effective values
+      const currentRes = await db.reservation.findUnique({
+        where: { id },
+        select: { roomId: true, checkIn: true, checkOut: true },
+      })
+      if (!currentRes) {
+        return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+      }
+
+      const effectiveRoomId = (updateData.roomId as string) ?? currentRes.roomId
+      const effectiveCheckIn = (updateData.checkIn as Date) ?? currentRes.checkIn
+      const effectiveCheckOut = (updateData.checkOut as Date) ?? currentRes.checkOut
+
+      // Only check if we have a valid room and both dates
+      if (effectiveRoomId && effectiveCheckIn && effectiveCheckOut) {
+        const excludedStatuses = ['cancelled', 'no_show', 'checked_out']
+
+        const conflicting = await db.reservation.findFirst({
+          where: {
+            id: { not: id },
+            roomId: effectiveRoomId,
+            status: { notIn: excludedStatuses },
+            checkIn: { lt: effectiveCheckOut },
+            checkOut: { gt: effectiveCheckIn },
+          },
+          include: {
+            room: { select: { number: true } },
+            guest: { select: { firstName: true, lastName: true } },
+          },
+        })
+
+        if (conflicting) {
+          const roomNumber = conflicting.room?.number ?? effectiveRoomId
+          const guestName = conflicting.guest
+            ? `${conflicting.guest.firstName} ${conflicting.guest.lastName}`
+            : 'Unknown'
+          const ci = effectiveCheckIn instanceof Date
+            ? effectiveCheckIn.toISOString().slice(0, 10)
+            : String(effectiveCheckIn)
+          const co = effectiveCheckOut instanceof Date
+            ? effectiveCheckOut.toISOString().slice(0, 10)
+            : String(effectiveCheckOut)
+
+          return NextResponse.json(
+            { error: `Room ${roomNumber} is not available for ${ci} – ${co}. It conflicts with reservation ${conflicting.confirmationNo} (${guestName}).` },
+            { status: 409 }
+          )
+        }
+      }
+    }
+
     // ─── Room status side-effects for check-in / check-out ─────────
     if (updateData.status === 'checked_in' && updateData.roomId) {
       await db.room.update({

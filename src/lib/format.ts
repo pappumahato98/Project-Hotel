@@ -109,13 +109,34 @@ export function formatDateTime(date: string | Date): string {
 }
 
 export function getTodayString(): string {
-  const today = new Date()
-  return today.toISOString().split('T')[0]
+  return toDateOnly(new Date())
+}
+
+/**
+ * Convert a Date object to a YYYY-MM-DD string using LOCAL timezone.
+ * Unlike `toISOString().split('T')[0]` which uses UTC, this respects the user's timezone.
+ * Critical for Nepal (UTC+5:45) where UTC conversion shifts dates.
+ */
+export function toDateOnly(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Parse a YYYY-MM-DD date string to a Date at midnight LOCAL time.
+ * Unlike `new Date('2025-06-15')` which parses as UTC midnight, this creates
+ * a local-timezone date so the Calendar component displays the correct day.
+ */
+export function fromDateOnly(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
 }
 
 export function nightsBetween(checkIn: string | Date, checkOut: string | Date): number {
-  const start = new Date(checkIn)
-  const end = new Date(checkOut)
+  const start = typeof checkIn === 'string' ? fromDateOnly(checkIn) : new Date(checkIn)
+  const end = typeof checkOut === 'string' ? fromDateOnly(checkOut) : new Date(checkOut)
   return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
 }
 

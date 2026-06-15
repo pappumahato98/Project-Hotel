@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import {
   ArrowLeft, CalendarPlus, User, Users, Building2, Plane,
   BedDouble, CreditCard, FileText, Sparkles, ChevronDown,
@@ -28,7 +29,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { formatDate, formatCurrency, nightsBetween, getTodayString } from '@/lib/format'
+import { formatDate, formatCurrency, nightsBetween, getTodayString, toDateOnly, fromDateOnly } from '@/lib/format'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
@@ -379,7 +380,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
     if (date) {
       const tomorrow = new Date(date)
       tomorrow.setDate(tomorrow.getDate() + 1)
-      const outStr = tomorrow.toISOString().split('T')[0]
+      const outStr = toDateOnly(tomorrow)
       setCheckOutDate(outStr)
     }
   }, [])
@@ -429,7 +430,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
       email: guest.email || '',
       phone: guest.phone || '',
       nationality: guest.nationality || '',
-      dateOfBirth: guest.dateOfBirth ? new Date(guest.dateOfBirth).toISOString().split('T')[0] : '',
+      dateOfBirth: guest.dateOfBirth ? toDateOnly(new Date(guest.dateOfBirth)) : '',
       gender: guest.gender || '',
       idType: guest.idType || '',
       idNumber: guest.idNumber || '',
@@ -550,9 +551,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
       toast.success('Reservation Created', {
         description: `Confirmation #${data.reservation.confirmationNo} has been created successfully.`,
       })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
-      queryClient.invalidateQueries({ queryKey: ['rooms-for-reservation'] })
-      queryClient.invalidateQueries({ queryKey: ['guests'] })
+      invalidate.afterReservationChange(queryClient)
       onCreated?.(data.reservation)
       onBack?.()
     },
@@ -1518,8 +1517,8 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={checkInDate ? new Date(checkInDate) : undefined}
-                      onSelect={(date) => date && handleCheckInChange(date.toISOString().split('T')[0])}
+                      selected={checkInDate ? fromDateOnly(checkInDate) : undefined}
+                      onSelect={(date) => date && handleCheckInChange(toDateOnly(date))}
                       initialFocus
                     />
                   </PopoverContent>
@@ -1552,9 +1551,9 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={checkOutDate ? new Date(checkOutDate) : undefined}
-                      onSelect={(date) => date && setCheckOutDate(date.toISOString().split('T')[0])}
-                      disabledDate={(date) => checkInDate ? date < new Date(checkInDate) : false}
+                      selected={checkOutDate ? fromDateOnly(checkOutDate) : undefined}
+                      onSelect={(date) => date && setCheckOutDate(toDateOnly(date))}
+                      disabledDate={(date) => checkInDate ? date < fromDateOnly(checkInDate) : false}
                       initialFocus
                     />
                   </PopoverContent>

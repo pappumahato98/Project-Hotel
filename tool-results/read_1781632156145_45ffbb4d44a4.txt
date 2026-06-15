@@ -1,0 +1,1271 @@
+     1→'use client'
+     2→
+     3→import { apiFetch } from '@/lib/api'
+     4→import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
+     5→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     6→import {
+     7→  ChevronLeft,
+     8→  ChevronRight,
+     9→  CalendarDays,
+    10→  Star,
+    11→  Plus,
+    12→  X,
+    13→  GripHorizontal,
+    14→  BedDouble,
+    15→  Eye,
+    16→  DollarSign,
+    17→  Users,
+    18→  Tag,
+    19→  MessageSquare,
+    20→  Building2,
+    21→  Calendar,
+    22→  Loader2,
+    23→} from 'lucide-react'
+    24→import { Button } from '@/components/ui/button'
+    25→import { Card, CardContent } from '@/components/ui/card'
+    26→import { Badge } from '@/components/ui/badge'
+    27→import {
+    28→  Dialog,
+    29→  DialogContent,
+    30→  DialogHeader,
+    31→  DialogTitle,
+    32→  DialogFooter,
+    33→  DialogDescription,
+    34→} from '@/components/ui/dialog'
+    35→import { Input } from '@/components/ui/input'
+    36→import { Label } from '@/components/ui/label'
+    37→import {
+    38→  Select,
+    39→  SelectContent,
+    40→  SelectItem,
+    41→  SelectTrigger,
+    42→  SelectValue,
+    43→} from '@/components/ui/select'
+    44→import { Separator } from '@/components/ui/separator'
+    45→import { Skeleton } from '@/components/ui/skeleton'
+    46→import { formatDate, formatCurrency } from '@/lib/format'
+    47→import { cn } from '@/lib/utils'
+    48→import { useEnterSubmit } from '@/hooks/use-enter-submit'
+    49→import { toast } from 'sonner'
+    50→import {
+    51→  format,
+    52→  addDays,
+    53→  startOfWeek,
+    54→  isSameDay,
+    55→  differenceInDays,
+    56→  parseISO,
+    57→  isToday,
+    58→  isWeekend,
+    59→  startOfDay,
+    60→} from 'date-fns'
+    61→
+    62→// ─── Types ──────────────────────────────────────────────────────────────
+    63→
+    64→interface RoomType {
+    65→  id: string
+    66→  name: string
+    67→  code: string
+    68→  baseOccupancy: number
+    69→  maxOccupancy: number
+    70→  bedConfig: string
+    71→  areaSqFt: number | null
+    72→  view: string | null
+    73→}
+    74→
+    75→interface Room {
+    76→  id: string
+    77→  number: string
+    78→  floor: number
+    79→  wing: string | null
+    80→  status: string
+    81→  typeId: string
+    82→  type: RoomType
+    83→}
+    84→
+    85→interface ReservationGuest {
+    86→  id: string
+    87→  firstName: string
+    88→  lastName: string
+    89→  email: string | null
+    90→  phone: string | null
+    91→  vipLevel: string
+    92→}
+    93→
+    94→interface ReservationRoom {
+    95→  id: string
+    96→  number: string
+    97→  floor: number
+    98→  wing: string | null
+    99→  type: { name: string; code: string }
+   100→}
+   101→
+   102→interface Reservation {
+   103→  id: string
+   104→  confirmationNo: string
+   105→  status: string
+   106→  adults: number
+   107→  children: number
+   108→  checkIn: string
+   109→  checkOut: string
+   110→  roomRate: number
+   111→  totalAmount: number
+   112→  specialRequests: string | null
+   113→  source: string | null
+   114→  guaranteed: boolean
+   115→  company: string | null
+   116→  notes: string | null
+   117→  createdAt: string
+   118→  guest: ReservationGuest | null
+   119→  room: ReservationRoom | null
+   120→  roomId?: string | null
+   121→  folios: { id: string; balance: number; status: string }[]
+   122→}
+   123→
+   124→interface NewReservationForm {
+   125→  guestName: string
+   126→  roomId: string
+   127→  checkIn: string
+   128→  checkOut: string
+   129→  adults: number
+   130→  roomRate: number
+   131→  source: string
+   132→}
+   133→
+   134→// ─── Constants ──────────────────────────────────────────────────────────
+   135→
+   136→const DAY_WIDTH = 60
+   137→const ROW_HEIGHT = 48
+   138→const VISIBLE_DAYS = 21
+   139→
+   140→const RESERVATION_STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+   141→  confirmed: { bg: 'bg-teal-500/85', text: 'text-white', border: 'border-teal-600' },
+   142→  checked_in: { bg: 'bg-emerald-500/85', text: 'text-white', border: 'border-emerald-600' },
+   143→  checked_out: { bg: 'bg-gray-400/75', text: 'text-gray-700', border: 'border-gray-400' },
+   144→  cancelled: { bg: 'bg-red-400/75', text: 'text-white', border: 'border-red-500' },
+   145→  no_show: { bg: 'bg-orange-500/85', text: 'text-white', border: 'border-orange-600' },
+   146→}
+   147→
+   148→const ROOM_STATUS_COLORS: Record<string, string> = {
+   149→  vacant_clean: 'bg-green-500',
+   150→  occupied: 'bg-blue-500',
+   151→  vacant_dirty: 'bg-yellow-500',
+   152→  cleaning: 'bg-orange-500',
+   153→  out_of_order: 'bg-red-500',
+   154→  inspected: 'bg-green-400',
+   155→  on_change: 'bg-yellow-400',
+   156→}
+   157→
+   158→const ROOM_STATUS_LABELS: Record<string, string> = {
+   159→  vacant_clean: 'Vacant Clean',
+   160→  occupied: 'Occupied',
+   161→  vacant_dirty: 'Vacant Dirty',
+   162→  cleaning: 'Cleaning',
+   163→  out_of_order: 'Out of Order',
+   164→  inspected: 'Inspected',
+   165→  on_change: 'Change Over',
+   166→}
+   167→
+   168→const SOURCE_OPTIONS = [
+   169→  { value: 'direct', label: 'Direct' },
+   170→  { value: 'booking_com', label: 'Booking.com' },
+   171→  { value: 'expedia', label: 'Expedia' },
+   172→  { value: 'walk_in', label: 'Walk-in' },
+   173→  { value: 'phone', label: 'Phone' },
+   174→  { value: 'email', label: 'Email' },
+   175→  { value: 'corporate', label: 'Corporate' },
+   176→]
+   177→
+   178→// ─── Utility ────────────────────────────────────────────────────────────
+   179→
+   180→function truncate(str: string, maxLen: number): string {
+   181→  if (!str) return ''
+   182→  return str.length > maxLen ? str.slice(0, maxLen) + '…' : str
+   183→}
+   184→
+   185→function getStatusColor(status: string) {
+   186→  return RESERVATION_STATUS_COLORS[status] || RESERVATION_STATUS_COLORS.confirmed
+   187→}
+   188→
+   189→function getRoomStatusColor(status: string) {
+   190→  return ROOM_STATUS_COLORS[status] || 'bg-gray-400'
+   191→}
+   192→
+   193→// ─── Component ──────────────────────────────────────────────────────────
+   194→
+   195→export function ReservationCalendarView() {
+   196→  const queryClient = useQueryClient()
+   197→
+   198→  // Navigation state
+   199→  const [baseDate, setBaseDate] = useState(() => startOfDay(new Date()))
+   200→  const gridRef = useRef<HTMLDivElement>(null)
+   201→
+   202→  // Dialogs
+   203→  const [detailOpen, setDetailOpen] = useState(false)
+   204→  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
+   205→  const [newResOpen, setNewResOpen] = useState(false)
+   206→  const [newResForm, setNewResForm] = useState<NewReservationForm>({
+   207→    guestName: '',
+   208→    roomId: '',
+   209→    checkIn: '',
+   210→    checkOut: '',
+   211→    adults: 1,
+   212→    roomRate: 0,
+   213→    source: 'direct',
+   214→  })
+   215→
+   216→  // Drag state
+   217→  const [draggingId, setDraggingId] = useState<string | null>(null)
+   218→  const [dragOverRoomId, setDragOverRoomId] = useState<string | null>(null)
+   219→  const [dragOverDate, setDragOverDate] = useState<Date | null>(null)
+   220→  const dragRef = useRef<{ reservation: Reservation; startDate: Date } | null>(null)
+   221→
+   222→  // ─── Date range computation ─────────────────────────────────────
+   223→  const startDate = useMemo(
+   224→    () => startOfWeek(baseDate, { weekStartsOn: 1 }),
+   225→    [baseDate],
+   226→  )
+   227→  const dates = useMemo(
+   228→    () => Array.from({ length: VISIBLE_DAYS }, (_, i) => addDays(startDate, i)),
+   229→    [startDate],
+   230→  )
+   231→
+   232→  // ─── Data fetching ──────────────────────────────────────────────
+   233→  const { data: roomsData, isLoading: roomsLoading } = useQuery({
+   234→    queryKey: ['rooms-calendar'],
+   235→    queryFn: async () => {
+   236→      const res = await fetch('/api/rooms')
+   237→      if (!res.ok) throw new Error('Failed to fetch rooms')
+   238→      return res.json() as Promise<{ rooms: Room[] }>
+   239→    },
+   240→    staleTime: 60_000,
+   241→  })
+   242→
+   243→  const { data: reservationsData, isLoading: reservationsLoading } = useQuery({
+   244→    queryKey: ['reservations-calendar', startDate.toISOString()],
+   245→    queryFn: async () => {
+   246→      // Fetch a wide range to cover visible days plus some buffer
+   247→      const from = format(addDays(startDate, -14), 'yyyy-MM-dd')
+   248→      const to = format(addDays(startDate, VISIBLE_DAYS + 14), 'yyyy-MM-dd')
+   249→      const params = new URLSearchParams({ checkInDate: from, checkOutDate: to })
+   250→      const res = await fetch(`/api/reservations?${params.toString()}`)
+   251→      if (!res.ok) throw new Error('Failed to fetch reservations')
+   252→      return res.json() as Promise<{ reservations: Reservation[] }>
+   253→    },
+   254→    staleTime: 30_000,
+   255→  })
+   256→
+   257→  // ─── Derived data ────────────────────────────────────────────────
+   258→  const rooms = useMemo(() => {
+   259→    if (!roomsData?.rooms) return []
+   260→    return [...roomsData.rooms].sort((a, b) => a.floor - b.floor || a.number.localeCompare(b.number))
+   261→  }, [roomsData])
+   262→
+   263→  const reservations = useMemo(() => {
+   264→    if (!reservationsData?.reservations) return []
+   265→    return reservationsData.reservations
+   266→  }, [reservationsData])
+   267→
+   268→  // Build reservation map: roomId -> reservation[]
+   269→  const roomReservations = useMemo(() => {
+   270→    const map = new Map<string, Reservation[]>()
+   271→    for (const res of reservations) {
+   272→      if (!res.roomId) continue
+   273→      const list = map.get(res.roomId) || []
+   274→      list.push(res)
+   275→      map.set(res.roomId, list)
+   276→    }
+   277→    return map
+   278→  }, [reservations])
+   279→
+   280→  // Arrival / Departure day sets (for header dots)
+   281→  const arrivalDays = useMemo(() => {
+   282→    const set = new Set<string>()
+   283→    for (const res of reservations) {
+   284→      if (res.roomId) set.add(startOfDay(parseISO(res.checkIn)).toISOString())
+   285→    }
+   286→    return set
+   287→  }, [reservations])
+   288→
+   289→  const departureDays = useMemo(() => {
+   290→    const set = new Set<string>()
+   291→    for (const res of reservations) {
+   292→      if (res.roomId) set.add(startOfDay(parseISO(res.checkOut)).toISOString())
+   293→    }
+   294→    return set
+   295→  }, [reservations])
+   296→
+   297→  // ─── Navigation handlers ────────────────────────────────────────
+   298→  const goToToday = useCallback(() => setBaseDate(startOfDay(new Date())), [])
+   299→
+   300→  const goBack = useCallback(() => {
+   301→    setBaseDate((prev) => addDays(prev, -7))
+   302→  }, [])
+   303→
+   304→  const goForward = useCallback(() => {
+   305→    setBaseDate((prev) => addDays(prev, 7))
+   306→  }, [])
+   307→
+   308→  // Scroll to today on mount
+   309→  useEffect(() => {
+   310→    if (gridRef.current) {
+   311→      const todayCol = gridRef.current.querySelector('[data-today]')
+   312→      if (todayCol) {
+   313→        todayCol.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+   314→      }
+   315→    }
+   316→  }, [startDate])
+   317→
+   318→  // ─── Drag & Drop handlers ──────────────────────────────────────
+   319→
+   320→  const handleDragStart = useCallback(
+   321→    (e: React.DragEvent, reservation: Reservation) => {
+   322→      setDraggingId(reservation.id)
+   323→      dragRef.current = {
+   324→        reservation,
+   325→        startDate: parseISO(reservation.checkIn),
+   326→      }
+   327→      e.dataTransfer.effectAllowed = 'move'
+   328→      e.dataTransfer.setData('text/plain', reservation.id)
+   329→      // Set a minimal drag image so the ghost doesn't block the drop target
+   330→      const ghost = document.createElement('div')
+   331→      ghost.style.opacity = '0'
+   332→      ghost.style.position = 'absolute'
+   333→      ghost.style.top = '-1000px'
+   334→      document.body.appendChild(ghost)
+   335→      e.dataTransfer.setDragImage(ghost, 0, 0)
+   336→      setTimeout(() => document.body.removeChild(ghost), 0)
+   337→    },
+   338→    [],
+   339→  )
+   340→
+   341→  const handleDragEnd = useCallback(() => {
+   342→    setDraggingId(null)
+   343→    setDragOverRoomId(null)
+   344→    setDragOverDate(null)
+   345→    dragRef.current = null
+   346→  }, [])
+   347→
+   348→  const handleCellDragOver = useCallback(
+   349→    (e: React.DragEvent, roomId: string, date: Date) => {
+   350→      e.preventDefault()
+   351→      e.dataTransfer.dropEffect = 'move'
+   352→      setDragOverRoomId(roomId)
+   353→      setDragOverDate(date)
+   354→    },
+   355→    [],
+   356→  )
+   357→
+   358→  const handleCellDragLeave = useCallback(() => {
+   359→    setDragOverRoomId(null)
+   360→    setDragOverDate(null)
+   361→  }, [])
+   362→
+   363→  // Update reservation dates mutation
+   364→  const updateDatesMutation = useMutation({
+   365→    mutationFn: async ({ id, checkIn, checkOut, totalAmount }: { id: string; checkIn: string; checkOut: string; totalAmount: number }) => {
+   366→      const res = await fetch(`/api/reservations/${id}`, {
+   367→        method: 'PATCH',
+   368→        headers: { 'Content-Type': 'application/json' },
+   369→        body: JSON.stringify({ checkIn, checkOut, totalAmount }),
+   370→      })
+   371→      if (!res.ok) throw new Error('Failed to update reservation')
+   372→      return res.json()
+   373→    },
+   374→    onSuccess: () => {
+   375→      queryClient.invalidateQueries({ queryKey: ['reservations-calendar'] })
+   376→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   377→      toast.success('Reservation dates updated')
+   378→    },
+   379→    onError: () => {
+   380→      toast.error('Failed to update reservation dates')
+   381→    },
+   382→  })
+   383→
+   384→  const handleCellDrop = useCallback(
+   385→    (e: React.DragEvent, roomId: string, date: Date) => {
+   386→      e.preventDefault()
+   387→      if (!dragRef.current) return
+   388→
+   389→      const { reservation, startDate: origStart } = dragRef.current
+   390→      const stayLength = differenceInDays(parseISO(reservation.checkOut), parseISO(reservation.checkIn))
+   391→      const newCheckIn = format(date, 'yyyy-MM-dd')
+   392→      const newCheckOut = format(addDays(date, stayLength), 'yyyy-MM-dd')
+   393→      const newTotal = stayLength * reservation.roomRate
+   394→
+   395→      updateDatesMutation.mutate({
+   396→        id: reservation.id,
+   397→        checkIn: newCheckIn,
+   398→        checkOut: newCheckOut,
+   399→        totalAmount: newTotal,
+   400→      })
+   401→
+   402→      setDraggingId(null)
+   403→      setDragOverRoomId(null)
+   404→      setDragOverDate(null)
+   405→      dragRef.current = null
+   406→    },
+   407→    [updateDatesMutation],
+   408→  )
+   409→
+   410→  // ─── Double-click handler for new reservation ───────────────────
+   411→  const handleCellDoubleClick = useCallback((roomId: string, date: Date) => {
+   412→    const room = rooms.find((r) => r.id === roomId)
+   413→    setNewResForm({
+   414→      guestName: '',
+   415→      roomId,
+   416→      checkIn: format(date, 'yyyy-MM-dd'),
+   417→      checkOut: format(addDays(date, 1), 'yyyy-MM-dd'),
+   418→      adults: 1,
+   419→      roomRate: room?.type ? 5000 : 0,
+   420→      source: 'direct',
+   421→    })
+   422→    setNewResOpen(true)
+   423→  }, [rooms])
+   424→
+   425→  // ─── Create reservation mutation ────────────────────────────────
+   426→  const createMutation = useMutation({
+   427→    mutationFn: async (form: NewReservationForm) => {
+   428→      // First, create or find a guest by name
+   429→      let guestId: string | undefined
+   430→      if (form.guestName.trim()) {
+   431→        const nameParts = form.guestName.trim().split(/\s+/, 2)
+   432→        const guestRes = await fetch('/api/guests', {
+   433→          method: 'POST',
+   434→          headers: { 'Content-Type': 'application/json' },
+   435→          body: JSON.stringify({
+   436→            firstName: nameParts[0] || form.guestName,
+   437→            lastName: nameParts[1] || '',
+   438→            phone: '',
+   439→            email: '',
+   440→          }),
+   441→        })
+   442→        if (guestRes.ok) {
+   443→          const guestData = await guestRes.json()
+   444→          guestId = guestData.guest?.id
+   445→        }
+   446→      }
+   447→
+   448→      const res = await fetch('/api/reservations', {
+   449→        method: 'POST',
+   450→        headers: { 'Content-Type': 'application/json' },
+   451→        body: JSON.stringify({
+   452→          guestId,
+   453→          roomId: form.roomId || undefined,
+   454→          checkIn: form.checkIn,
+   455→          checkOut: form.checkOut,
+   456→          adults: form.adults,
+   457→          roomRate: form.roomRate,
+   458→          source: form.source,
+   459→        }),
+   460→      })
+   461→      if (!res.ok) {
+   462→        const errData = await res.json().catch(() => ({}))
+   463→        throw new Error(errData.error || 'Failed to create reservation')
+   464→      }
+   465→      return res.json()
+   466→    },
+   467→    onSuccess: () => {
+   468→      queryClient.invalidateQueries({ queryKey: ['reservations-calendar'] })
+   469→      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+   470→      setNewResOpen(false)
+   471→      toast.success('Reservation created successfully')
+   472→    },
+   473→    onError: (err: Error) => {
+   474→      toast.error(err.message || 'Failed to create reservation')
+   475→    },
+   476→  })
+   477→
+   478→  // ─── Enter-submit hook for new reservation ────────────────────
+   479→  const newResRef = useEnterSubmit({ onSubmit: () => createMutation.mutate(newResForm), disabled: !newResForm.guestName || !newResForm.checkOut || createMutation.isPending })
+   480→
+   481→  // ─── Click handler for reservation detail ───────────────────────
+   482→  const handleBlockClick = useCallback((e: React.MouseEvent, reservation: Reservation) => {
+   483→    e.stopPropagation()
+   484→    setSelectedReservation(reservation)
+   485→    setDetailOpen(true)
+   486→  }, [])
+   487→
+   488→  // ─── Render: Legend ────────────────────────────────────────────
+   489→  const renderLegend = () => (
+   490→    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+   491→      {/* Booking Status */}
+   492→      <div className="flex items-center gap-1.5">
+   493→        <span className="inline-block w-3 h-3 rounded-sm bg-teal-500/85" />
+   494→        <span className="text-muted-foreground">Confirmed</span>
+   495→      </div>
+   496→      <div className="flex items-center gap-1.5">
+   497→        <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500/85" />
+   498→        <span className="text-muted-foreground">In-House</span>
+   499→      </div>
+   500→      <div className="flex items-center gap-1.5">
+   501→        <span className="inline-block w-3 h-3 rounded-sm bg-gray-400/75" />
+   502→        <span className="text-muted-foreground">Checked Out</span>
+   503→      </div>
+   504→      <div className="flex items-center gap-1.5">
+   505→        <span className="inline-block w-3 h-3 rounded-sm bg-red-400/75" />
+   506→        <span className="text-muted-foreground">Cancelled</span>
+   507→      </div>
+   508→      <div className="flex items-center gap-1.5">
+   509→        <span className="inline-block w-3 h-3 rounded-sm bg-orange-500/85" />
+   510→        <span className="text-muted-foreground">No-Show</span>
+   511→      </div>
+   512→      <Separator orientation="vertical" className="h-4 mx-0" />
+   513→      {/* Date Types */}
+   514→      <div className="flex items-center gap-1.5">
+   515→        <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500/25 border border-emerald-500/50" />
+   516→        <span className="text-muted-foreground">Arrival</span>
+   517→      </div>
+   518→      <div className="flex items-center gap-1.5">
+   519→        <span className="inline-block w-3 h-3 rounded-sm bg-amber-500/25 border border-amber-500/50" />
+   520→        <span className="text-muted-foreground">Departure</span>
+   521→      </div>
+   522→      <div className="flex items-center gap-1.5">
+   523→        <span className="inline-block w-3 h-3 rounded-sm bg-primary/8 border border-primary/20" />
+   524→        <span className="text-muted-foreground">Today</span>
+   525→      </div>
+   526→      <div className="flex items-center gap-1.5">
+   527→        <span className="inline-block w-3 h-3 rounded-sm bg-muted/50" />
+   528→        <span className="text-muted-foreground">Weekend</span>
+   529→      </div>
+   530→      <Separator orientation="vertical" className="h-4 mx-0" />
+   531→      <div className="flex items-center gap-1.5">
+   532→        <Star className="size-3 text-amber-500 fill-amber-500" />
+   533→        <span className="text-muted-foreground">VIP</span>
+   534→      </div>
+   535→      <Separator orientation="vertical" className="h-4 mx-0" />
+   536→      {/* Room Status */}
+   537→      <div className="flex items-center gap-1.5">
+   538→        <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+   539→        <span className="text-muted-foreground">Clean</span>
+   540→      </div>
+   541→      <div className="flex items-center gap-1.5">
+   542→        <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+   543→        <span className="text-muted-foreground">Occupied</span>
+   544→      </div>
+   545→      <div className="flex items-center gap-1.5">
+   546→        <span className="inline-block w-2 h-2 rounded-full bg-yellow-500" />
+   547→        <span className="text-muted-foreground">Dirty</span>
+   548→      </div>
+   549→      <div className="flex items-center gap-1.5">
+   550→        <span className="inline-block w-2 h-2 rounded-full bg-red-500" />
+   551→        <span className="text-muted-foreground">OOO</span>
+   552→      </div>
+   553→    </div>
+   554→  )
+   555→
+   556→  // ─── Render: Date Header ──────────────────────────────────────
+   557→  const renderDateHeaders = () => (
+   558→    <div className="flex" style={{ marginLeft: 200 }}>
+   559→      {dates.map((date, i) => {
+   560→        const isTodayCol = isToday(date)
+   561→        const isWeekendCol = isWeekend(date)
+   562→        return (
+   563→          <div
+   564→            key={i}
+   565→            data-today={isTodayCol ? true : undefined}
+   566→            className={cn(
+   567→              'flex-shrink-0 flex flex-col items-center justify-center border-r border-border text-center select-none',
+   568→              isTodayCol && 'bg-primary/5',
+   569→              isWeekendCol && 'bg-muted/30',
+   570→            )}
+   571→            style={{ width: DAY_WIDTH, height: 56 }}
+   572→          >
+   573→            <span className={cn(
+   574→              'text-[10px] font-medium uppercase leading-none',
+   575→              isTodayCol ? 'text-primary' : 'text-muted-foreground',
+   576→            )}>
+   577→              {format(date, 'EEE')}
+   578→            </span>
+   579→            <span className={cn(
+   580→              'text-sm font-bold leading-tight',
+   581→              isTodayCol && 'text-primary',
+   582→            )}>
+   583→              {format(date, 'd')}
+   584→            </span>
+   585→            <span className="text-[10px] text-muted-foreground leading-none">
+   586→              {format(date, 'MMM')}
+   587→            </span>
+   588→            {/* Arrival / Departure dots */}
+   589→            <div className="flex items-center gap-0.5 mt-0.5">
+   590→              {arrivalDays.has(startOfDay(date).toISOString()) && (
+   591→                <span className="size-[5px] rounded-full bg-emerald-500" title="Arrivals" />
+   592→              )}
+   593→              {departureDays.has(startOfDay(date).toISOString()) && (
+   594→                <span className="size-[5px] rounded-full bg-amber-500" title="Departures" />
+   595→              )}
+   596→            </div>
+   597→          </div>
+   598→        )
+   599→      })}
+   600→    </div>
+   601→  )
+   602→
+   603→  // ─── Render: Room Row ──────────────────────────────────────────
+   604→  const renderRoomRow = (room: Room) => {
+   605→    const roomRes = roomReservations.get(room.id) || []
+   606→    const statusColor = getRoomStatusColor(room.status)
+   607→
+   608→    return (
+   609→      <div
+   610→        key={room.id}
+   611→        className="flex border-b border-border hover:bg-muted/20 transition-colors"
+   612→        style={{ height: ROW_HEIGHT }}
+   613→      >
+   614→        {/* Sticky room label */}
+   615→        <div
+   616→          className="flex-shrink-0 flex items-center gap-2 px-2 border-r border-border bg-background z-10"
+   617→          style={{ width: 200 }}
+   618→        >
+   619→          <span className={cn('inline-block w-2 h-2 rounded-full flex-shrink-0', statusColor)} />
+   620→          <div className="flex flex-col overflow-hidden min-w-0">
+   621→            <span className="text-xs font-semibold truncate leading-tight">{room.number}</span>
+   622→            <span className="text-[10px] text-muted-foreground truncate leading-tight">
+   623→              {room.type.code} &middot; F{room.floor}
+   624→            </span>
+   625→          </div>
+   626→        </div>
+   627→
+   628→        {/* Day cells */}
+   629→        <div className="flex relative">
+   630→          {dates.map((date, dayIdx) => {
+   631→            const isTodayCol = isToday(date)
+   632→            const isWeekendCol = isWeekend(date)
+   633→            const isDragOver =
+   634→              dragOverRoomId === room.id && dragOverDate && isSameDay(dragOverDate, date)
+   635→
+   636→            // Check if any reservation covers this day
+   637→            const resForDay = roomRes.find((r) => {
+   638→              const ci = startOfDay(parseISO(r.checkIn))
+   639→              const co = startOfDay(parseISO(r.checkOut))
+   640→              return (date >= ci && date < co)
+   641→            })
+   642→
+   643→            // Only render the reservation on its first day
+   644→            const isFirstDay = resForDay
+   645→              ? isSameDay(date, startOfDay(parseISO(resForDay.checkIn)))
+   646→              : false
+   647→
+   648→            const stayLength = resForDay
+   649→              ? differenceInDays(parseISO(resForDay.checkOut), parseISO(resForDay.checkIn))
+   650→              : 0
+   651→
+   652→            // Check if this is a check-in or check-out day for any reservation in this room
+   653→            const isCheckInDay = roomRes.some((r) => isSameDay(date, startOfDay(parseISO(r.checkIn))))
+   654→            const isCheckOutDay = roomRes.some((r) => isSameDay(date, startOfDay(parseISO(r.checkOut))))
+   655→
+   656→            return (
+   657→              <div
+   658→                key={dayIdx}
+   659→                className={cn(
+   660→                  'flex-shrink-0 border-r border-border relative select-none',
+   661→                  isTodayCol && 'bg-primary/5',
+   662→                  isWeekendCol && !isTodayCol && 'bg-muted/30',
+   663→                  isDragOver && 'bg-primary/10 ring-1 ring-primary/30 ring-inset',
+   664→                  !resForDay && 'cursor-pointer',
+   665→                  !resForDay && 'hover:bg-primary/5',
+   666→                )}
+   667→                style={{ width: DAY_WIDTH, height: ROW_HEIGHT }}
+   668→                onDragOver={isFirstDay ? undefined : (e) => handleCellDragOver(e, room.id, date)}
+   669→                onDragLeave={!isFirstDay ? handleCellDragLeave : undefined}
+   670→                onDrop={!isFirstDay ? (e) => handleCellDrop(e, room.id, date) : undefined}
+   671→                onDoubleClick={!isFirstDay ? () => handleCellDoubleClick(room.id, date) : undefined}
+   672→              >
+   673→                {/* Today vertical line indicator */}
+   674→                {isTodayCol && (
+   675→                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary z-20" />
+   676→                )}
+   677→
+   678→                {/* Arrival marker – left half of check-in day */}
+   679→                {isCheckInDay && (
+   680→                  <div
+   681→                    className="absolute left-[2px] top-[6px] bottom-[6px] rounded-l-sm bg-emerald-500/20 border-l-[3px] border-l-emerald-400/70 z-[5] flex items-center justify-center"
+   682→                    style={{ width: DAY_WIDTH / 2 - 4 }}
+   683→                    title="Arrival"
+   684→                  >
+   685→                    <span className="text-[7px] font-extrabold text-emerald-600/80 uppercase leading-none select-none">
+   686→                      In
+   687→                    </span>
+   688→                  </div>
+   689→                )}
+   690→
+   691→                {/* Departure marker – right half of check-out day */}
+   692→                {isCheckOutDay && (
+   693→                  <div
+   694→                    className="absolute right-[2px] top-[6px] bottom-[6px] rounded-r-sm bg-amber-500/20 border-r-[3px] border-r-amber-400/70 z-[5] flex items-center justify-center"
+   695→                    style={{ width: DAY_WIDTH / 2 - 4 }}
+   696→                    title="Departure"
+   697→                  >
+   698→                    <span className="text-[7px] font-extrabold text-amber-600/80 uppercase leading-none select-none">
+   699→                      Out
+   700→                    </span>
+   701→                  </div>
+   702→                )}
+   703→
+   704→                {/* Reservation block – half-day positioning: starts from center of check-in day, ends at center of check-out day */}
+   705→                {isFirstDay && (
+   706→                  <div
+   707→                    className={cn(
+   708→                      'absolute top-[3px] bottom-[3px] rounded-md cursor-grab active:cursor-grabbing z-10 transition-opacity flex items-center px-1 overflow-hidden gap-1 group',
+   709→                      getStatusColor(resForDay.status).bg,
+   710→                      getStatusColor(resForDay.status).text,
+   711→                      getStatusColor(resForDay.status).border,
+   712→                      'border',
+   713→                      draggingId === resForDay.id && 'opacity-50',
+   714→                    )}
+   715→                    style={{
+   716→                      left: DAY_WIDTH / 2,
+   717→                      width: Math.max(stayLength * DAY_WIDTH - 1, DAY_WIDTH - 1),
+   718→                    }}
+   719→                    draggable
+   720→                    onDragStart={(e) => handleDragStart(e, resForDay)}
+   721→                    onDragEnd={handleDragEnd}
+   722→                    onClick={(e) => handleBlockClick(e, resForDay)}
+   723→                    title={`${resForDay.guest?.firstName || ''} ${resForDay.guest?.lastName || ''} — ${format(parseISO(resForDay.checkIn), 'MMM d')} → ${format(parseISO(resForDay.checkOut), 'MMM d')} (${stayLength} nights)`}
+   724→                  >
+   725→                    {/* Left edge arrival accent */}
+   726→                    <div className="w-[3px] self-stretch bg-white/40 rounded-l-full flex-shrink-0" />
+   727→                    <div className="flex items-center gap-0.5 min-w-0 flex-1">
+   728→                      {resForDay.guest && (
+   729→                        <>
+   730→                          <span className="text-[11px] font-semibold truncate leading-tight">
+   731→                            {truncate(`${resForDay.guest.firstName} ${resForDay.guest.lastName}`, stayLength <= 1 ? 8 : 18)}
+   732→                          </span>
+   733→                          {resForDay.guest.vipLevel && resForDay.guest.vipLevel !== 'none' && (
+   734→                            <Star className="size-3 text-amber-300 fill-amber-300 flex-shrink-0" />
+   735→                          )}
+   736→                        </>
+   737→                      )}
+   738→                    </div>
+   739→                    {stayLength >= 2 && (
+   740→                      <span className="text-[9px] opacity-70 truncate font-mono flex-shrink-0">
+   741→                        {truncate(resForDay.confirmationNo, 8)}
+   742→                      </span>
+   743→                    )}
+   744→                    {/* Right edge departure accent */}
+   745→                    <div className="w-[3px] self-stretch bg-white/40 rounded-r-full flex-shrink-0" />
+   746→                    <GripHorizontal className="size-3 opacity-0 group-hover:opacity-60 flex-shrink-0 ml-auto transition-opacity" />
+   747→                  </div>
+   748→                )}
+   749→              </div>
+   750→            )
+   751→          })}
+   752→        </div>
+   753→      </div>
+   754→    )
+   755→  }
+   756→
+   757→  // ─── Render: Mobile Day View ────────────────────────────────────
+   758→  const renderMobileDayView = () => {
+   759→    const today = new Date()
+   760→    const todayReservations = reservations.filter((r) => {
+   761→      const ci = startOfDay(parseISO(r.checkIn))
+   762→      const co = startOfDay(parseISO(r.checkOut))
+   763→      return today >= ci && today < co
+   764→    })
+   765→
+   766→    return (
+   767→      <div className="flex flex-col gap-3 p-4">
+   768→        <div className="flex items-center justify-between">
+   769→          <h3 className="text-sm font-semibold">
+   770→            {format(today, 'EEEE, MMM d, yyyy')}
+   771→          </h3>
+   772→          <Badge variant="outline">{todayReservations.length} bookings</Badge>
+   773→        </div>
+   774→
+   775→        {todayReservations.length === 0 ? (
+   776→          <div className="text-center py-8 text-muted-foreground">
+   777→            <CalendarDays className="size-8 mx-auto mb-2 opacity-50" />
+   778→            <p className="text-sm">No reservations for today</p>
+   779→          </div>
+   780→        ) : (
+   781→          <div className="flex flex-col gap-2">
+   782→            {todayReservations.map((res) => (
+   783→              <Card
+   784→                key={res.id}
+   785→                className="cursor-pointer hover:shadow-md transition-shadow"
+   786→                onClick={() => {
+   787→                  setSelectedReservation(res)
+   788→                  setDetailOpen(true)
+   789→                }}
+   790→              >
+   791→                <CardContent className="p-3 flex items-center gap-3">
+   792→                  <div className={cn('w-1 h-10 rounded-full', getStatusColor(res.status).bg)} />
+   793→                  <div className="flex-1 min-w-0">
+   794→                    <div className="flex items-center gap-2">
+   795→                      <span className="text-sm font-semibold truncate">
+   796→                        {res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : 'Walk-in'}
+   797→                      </span>
+   798→                      {res.guest?.vipLevel && res.guest.vipLevel !== 'none' && (
+   799→                        <Star className="size-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
+   800→                      )}
+   801→                    </div>
+   802→                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   803→                      <span>Room {res.room?.number || '—'}</span>
+   804→                      <span>&middot;</span>
+   805→                      <span className="font-mono">{res.confirmationNo.slice(0, 8)}</span>
+   806→                      <span>&middot;</span>
+   807→                      <span className="capitalize">{res.status.replace('_', ' ')}</span>
+   808→                    </div>
+   809→                  </div>
+   810→                  <div className="text-right flex-shrink-0">
+   811→                    <span className="text-sm font-semibold">{formatCurrency(res.roomRate)}</span>
+   812→                    <p className="text-[10px] text-muted-foreground">/night</p>
+   813→                  </div>
+   814→                </CardContent>
+   815→              </Card>
+   816→            ))}
+   817→          </div>
+   818→        )}
+   819→
+   820→        {/* Room status list for mobile */}
+   821→        <Separator className="my-2" />
+   822→        <h3 className="text-sm font-semibold">Room Status</h3>
+   823→        <div className="flex flex-col gap-1.5">
+   824→          {rooms.map((room) => (
+   825→            <div key={room.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50">
+   826→              <span className={cn('w-2 h-2 rounded-full', getRoomStatusColor(room.status))} />
+   827→              <span className="text-xs font-medium flex-1">{room.number}</span>
+   828→              <span className="text-[10px] text-muted-foreground">{room.type.code}</span>
+   829→              <span className="text-[10px] text-muted-foreground">F{room.floor}</span>
+   830→            </div>
+   831→          ))}
+   832→        </div>
+   833→      </div>
+   834→    )
+   835→  }
+   836→
+   837→  // ─── Loading State ──────────────────────────────────────────────
+   838→  if (roomsLoading || reservationsLoading) {
+   839→    return (
+   840→      <div className="flex flex-col gap-4">
+   841→        <div className="flex items-center justify-between">
+   842→          <Skeleton className="h-8 w-48" />
+   843→          <div className="flex gap-2">
+   844→            <Skeleton className="h-9 w-24" />
+   845→            <Skeleton className="h-9 w-20" />
+   846→          </div>
+   847→        </div>
+   848→        <Skeleton className="h-6 w-full" />
+   849→        <div className="flex flex-col gap-1">
+   850→          {Array.from({ length: 8 }).map((_, i) => (
+   851→            <Skeleton key={i} className="h-12 w-full" />
+   852→          ))}
+   853→        </div>
+   854→      </div>
+   855→    )
+   856→  }
+   857→
+   858→  return (
+   859→    <div className="flex flex-col gap-4">
+   860→      {/* Header */}
+   861→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   862→        <div>
+   863→          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+   864→            <CalendarDays className="size-6 text-primary" />
+   865→            Reservation Calendar
+   866→          </h2>
+   867→          <p className="text-sm text-muted-foreground">
+   868→            Drag & drop reservations to change dates. Double-click empty cells to book.
+   869→          </p>
+   870→        </div>
+   871→        <div className="flex items-center gap-2">
+   872→          <Button variant="outline" size="sm" onClick={goToToday}>
+   873→            <Calendar className="size-4 mr-1" />
+   874→            Today
+   875→          </Button>
+   876→          <Button variant="outline" size="icon" className="size-9" onClick={goBack}>
+   877→            <ChevronLeft className="size-4" />
+   878→          </Button>
+   879→          <Button variant="outline" size="icon" className="size-9" onClick={goForward}>
+   880→            <ChevronRight className="size-4" />
+   881→          </Button>
+   882→        </div>
+   883→      </div>
+   884→
+   885→      {/* Date range label & Legend */}
+   886→      <Card>
+   887→        <CardContent className="p-3">
+   888→          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+   889→            <div className="flex items-center gap-2 text-sm">
+   890→              <Badge variant="secondary" className="font-mono">
+   891→                {format(dates[0], 'MMM d')} — {format(dates[dates.length - 1], 'MMM d, yyyy')}
+   892→              </Badge>
+   893→              <span className="text-muted-foreground">
+   894→                {rooms.length} rooms &middot; {reservations.length} bookings
+   895→              </span>
+   896→            </div>
+   897→            {renderLegend()}
+   898→          </div>
+   899→        </CardContent>
+   900→      </Card>
+   901→
+   902→      {/* ─── Calendar Grid (Desktop) ─── */}
+   903→      <div className="hidden md:block rounded-lg border border-border overflow-hidden bg-background">
+   904→        {/* Corner + Date Headers */}
+   905→        <div className="sticky top-0 z-30 bg-background border-b-2 border-border">
+   906→          {/* Corner cell */}
+   907→          <div className="flex">
+   908→            <div
+   909→              className="flex-shrink-0 flex items-center justify-center border-r border-border bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+   910→              style={{ width: 200, height: 56 }}
+   911→            >
+   912→              <BedDouble className="size-4 mr-1" />
+   913→              Rooms
+   914→            </div>
+   915→            {renderDateHeaders()}
+   916→          </div>
+   917→        </div>
+   918→
+   919→        {/* Scrollable grid */}
+   920→        <div
+   921→          ref={gridRef}
+   922→          className="overflow-x-auto overflow-y-auto"
+   923→          style={{ maxHeight: 'calc(100vh - 320px)', minHeight: 300 }}
+   924→        >
+   925→          {rooms.length === 0 ? (
+   926→            <div className="flex items-center justify-center py-16 text-muted-foreground">
+   927→              <div className="flex flex-col items-center gap-2">
+   928→                <CalendarDays className="size-8 opacity-50" />
+   929→                <span>No rooms configured</span>
+   930→              </div>
+   931→            </div>
+   932→          ) : (
+   933→            rooms.map((room) => renderRoomRow(room))
+   934→          )}
+   935→        </div>
+   936→      </div>
+   937→
+   938→      {/* ─── Mobile View ─── */}
+   939→      <div className="md:hidden">
+   940→        <Card>{renderMobileDayView()}</Card>
+   941→      </div>
+   942→
+   943→      {/* ─── Reservation Detail Dialog ──────────────────────────── */}
+   944→      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+   945→        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+   946→          {selectedReservation && (
+   947→            <>
+   948→              <DialogHeader>
+   949→                <DialogTitle className="flex items-center gap-2 flex-wrap">
+   950→                  <span>Reservation Details</span>
+   951→                  <Badge
+   952→                    variant="secondary"
+   953→                    className={cn(
+   954→                      'text-xs',
+   955→                      selectedReservation.status === 'confirmed' && 'bg-teal-100 text-teal-800',
+   956→                      selectedReservation.status === 'checked_in' && 'bg-emerald-100 text-emerald-800',
+   957→                      selectedReservation.status === 'checked_out' && 'bg-gray-100 text-gray-800',
+   958→                      selectedReservation.status === 'cancelled' && 'bg-red-100 text-red-800',
+   959→                      selectedReservation.status === 'no_show' && 'bg-orange-100 text-orange-800',
+   960→                    )}
+   961→                  >
+   962→                    {selectedReservation.status.replace('_', ' ').toUpperCase()}
+   963→                  </Badge>
+   964→                </DialogTitle>
+   965→                <DialogDescription>
+   966→                  Full details for reservation {selectedReservation.confirmationNo}
+   967→                </DialogDescription>
+   968→              </DialogHeader>
+   969→
+   970→              <div className="space-y-4">
+   971→                {/* Guest */}
+   972→                <div className="grid gap-2">
+   973→                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+   974→                    <Users className="size-4 text-muted-foreground" />
+   975→                    Guest Information
+   976→                  </h4>
+   977→                  {selectedReservation.guest ? (
+   978→                    <div className="grid grid-cols-2 gap-2 text-sm">
+   979→                      <div>
+   980→                        <span className="text-muted-foreground">Name: </span>
+   981→                        <span className="font-medium">
+   982→                          {selectedReservation.guest.firstName} {selectedReservation.guest.lastName}
+   983→                        </span>
+   984→                        {selectedReservation.guest.vipLevel !== 'none' && (
+   985→                          <Star className="inline size-3.5 text-amber-500 fill-amber-500 ml-1 -mt-0.5" />
+   986→                        )}
+   987→                      </div>
+   988→                      <div>
+   989→                        <span className="text-muted-foreground">Email: </span>
+   990→                        <span>{selectedReservation.guest.email || '—'}</span>
+   991→                      </div>
+   992→                      <div>
+   993→                        <span className="text-muted-foreground">Phone: </span>
+   994→                        <span>{selectedReservation.guest.phone || '—'}</span>
+   995→                      </div>
+   996→                      <div>
+   997→                        <span className="text-muted-foreground">VIP: </span>
+   998→                        <span className="capitalize">{selectedReservation.guest.vipLevel}</span>
+   999→                      </div>
+  1000→                    </div>
+  1001→                  ) : (
+  1002→                    <p className="text-sm text-muted-foreground">No guest assigned</p>
+  1003→                  )}
+  1004→                </div>
+  1005→
+  1006→                <Separator />
+  1007→
+  1008→                {/* Stay */}
+  1009→                <div className="grid gap-2">
+  1010→                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1011→                    <Calendar className="size-4 text-muted-foreground" />
+  1012→                    Stay Details
+  1013→                  </h4>
+  1014→                  <div className="grid grid-cols-2 gap-2 text-sm">
+  1015→                    <div>
+  1016→                      <span className="text-muted-foreground">Room: </span>
+  1017→                      <span className="font-medium">
+  1018→                        {selectedReservation.room?.number || 'Unassigned'}
+  1019→                      </span>
+  1020→                      {selectedReservation.room && (
+  1021→                        <span className="text-muted-foreground">
+  1022→                          {' '}({selectedReservation.room.type.name})
+  1023→                        </span>
+  1024→                      )}
+  1025→                    </div>
+  1026→                    <div>
+  1027→                      <span className="text-muted-foreground">Confirmation #: </span>
+  1028→                      <span className="font-mono text-xs">{selectedReservation.confirmationNo}</span>
+  1029→                    </div>
+  1030→                    <div>
+  1031→                      <span className="text-muted-foreground">Check-in: </span>
+  1032→                      <span>{formatDate(selectedReservation.checkIn)}</span>
+  1033→                    </div>
+  1034→                    <div>
+  1035→                      <span className="text-muted-foreground">Check-out: </span>
+  1036→                      <span>{formatDate(selectedReservation.checkOut)}</span>
+  1037→                    </div>
+  1038→                    <div>
+  1039→                      <span className="text-muted-foreground">Nights: </span>
+  1040→                      <span className="font-medium">
+  1041→                        {differenceInDays(
+  1042→                          parseISO(selectedReservation.checkOut),
+  1043→                          parseISO(selectedReservation.checkIn),
+  1044→                        )}
+  1045→                      </span>
+  1046→                    </div>
+  1047→                    <div>
+  1048→                      <span className="text-muted-foreground">Adults/Children: </span>
+  1049→                      <span>
+  1050→                        {selectedReservation.adults} / {selectedReservation.children}
+  1051→                      </span>
+  1052→                    </div>
+  1053→                  </div>
+  1054→                </div>
+  1055→
+  1056→                <Separator />
+  1057→
+  1058→                {/* Financial */}
+  1059→                <div className="grid gap-2">
+  1060→                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1061→                    <DollarSign className="size-4 text-muted-foreground" />
+  1062→                    Financial
+  1063→                  </h4>
+  1064→                  <div className="grid grid-cols-2 gap-2 text-sm">
+  1065→                    <div>
+  1066→                      <span className="text-muted-foreground">Rate / Night: </span>
+  1067→                      <span className="font-medium">{formatCurrency(selectedReservation.roomRate)}</span>
+  1068→                    </div>
+  1069→                    <div>
+  1070→                      <span className="text-muted-foreground">Total: </span>
+  1071→                      <span className="font-bold text-base">{formatCurrency(selectedReservation.totalAmount)}</span>
+  1072→                    </div>
+  1073→                  </div>
+  1074→                </div>
+  1075→
+  1076→                <Separator />
+  1077→
+  1078→                {/* Booking */}
+  1079→                <div className="grid gap-2">
+  1080→                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1081→                    <Tag className="size-4 text-muted-foreground" />
+  1082→                    Booking Information
+  1083→                  </h4>
+  1084→                  <div className="grid grid-cols-2 gap-2 text-sm">
+  1085→                    <div>
+  1086→                      <span className="text-muted-foreground">Source: </span>
+  1087→                      <span className="capitalize">
+  1088→                        {(selectedReservation.source || 'direct').replace('_', ' ')}
+  1089→                      </span>
+  1090→                    </div>
+  1091→                    <div>
+  1092→                      <span className="text-muted-foreground">Guaranteed: </span>
+  1093→                      <span>{selectedReservation.guaranteed ? 'Yes' : 'No'}</span>
+  1094→                    </div>
+  1095→                    {selectedReservation.company && (
+  1096→                      <div className="col-span-2">
+  1097→                        <span className="text-muted-foreground">Company: </span>
+  1098→                        <span className="flex items-center gap-1">
+  1099→                          <Building2 className="size-3" />
+  1100→                          {selectedReservation.company}
+  1101→                        </span>
+  1102→                      </div>
+  1103→                    )}
+  1104→                  </div>
+  1105→                </div>
+  1106→
+  1107→                {/* Special Requests */}
+  1108→                {selectedReservation.specialRequests && (
+  1109→                  <>
+  1110→                    <Separator />
+  1111→                    <div className="grid gap-2">
+  1112→                      <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1113→                        <MessageSquare className="size-4 text-muted-foreground" />
+  1114→                        Special Requests
+  1115→                      </h4>
+  1116→                      <p className="text-sm bg-muted/50 rounded-md p-3">
+  1117→                        {selectedReservation.specialRequests}
+  1118→                      </p>
+  1119→                    </div>
+  1120→                  </>
+  1121→                )}
+  1122→
+  1123→                {selectedReservation.notes && (
+  1124→                  <div className="grid gap-1">
+  1125→                    <h4 className="text-xs font-semibold text-muted-foreground">Internal Notes</h4>
+  1126→                    <p className="text-xs bg-muted/30 rounded-md p-2">{selectedReservation.notes}</p>
+  1127→                  </div>
+  1128→                )}
+  1129→              </div>
+  1130→            </>
+  1131→          )}
+  1132→        </DialogContent>
+  1133→      </Dialog>
+  1134→
+  1135→      {/* ─── New Reservation Dialog ──────────────────────────────── */}
+  1136→      <Dialog open={newResOpen} onOpenChange={setNewResOpen}>
+  1137→        <DialogContent className="max-w-md">
+  1138→          <DialogHeader>
+  1139→            <DialogTitle className="flex items-center gap-2">
+  1140→              <Plus className="size-5 text-primary" />
+  1141→              Quick Reservation
+  1142→            </DialogTitle>
+  1143→            <DialogDescription>
+  1144→              Create a new reservation. Room and check-in date are pre-filled.
+  1145→            </DialogDescription>
+  1146→          </DialogHeader>
+  1147→
+  1148→          <div ref={newResRef} className="grid gap-4 py-2">
+  1149→            <div className="space-y-1">
+  1150→              <Label>Guest Name *</Label>
+  1151→              <Input
+  1152→                placeholder="Guest full name"
+  1153→                value={newResForm.guestName}
+  1154→                autoFocus
+  1155→                onChange={(e) => setNewResForm({ ...newResForm, guestName: e.target.value })}
+  1156→              />
+  1157→            </div>
+  1158→
+  1159→            <div className="grid grid-cols-2 gap-3">
+  1160→              <div className="space-y-1">
+  1161→                <Label>Check-in</Label>
+  1162→                <Input type="date" value={newResForm.checkIn} disabled />
+  1163→              </div>
+  1164→              <div className="space-y-1">
+  1165→                <Label>Check-out</Label>
+  1166→                <Input
+  1167→                  type="date"
+  1168→                  value={newResForm.checkOut}
+  1169→                  onChange={(e) => setNewResForm({ ...newResForm, checkOut: e.target.value })}
+  1170→                />
+  1171→              </div>
+  1172→            </div>
+  1173→
+  1174→            <div className="grid grid-cols-2 gap-3">
+  1175→              <div className="space-y-1">
+  1176→                <Label>Room</Label>
+  1177→                <Select value={newResForm.roomId} onValueChange={(v) => setNewResForm({ ...newResForm, roomId: v })}>
+  1178→                  <SelectTrigger>
+  1179→                    <SelectValue placeholder="Select room" />
+  1180→                  </SelectTrigger>
+  1181→                  <SelectContent>
+  1182→                    {rooms.map((r) => (
+  1183→                      <SelectItem key={r.id} value={r.id}>
+  1184→                        {r.number} — {r.type.name}
+  1185→                      </SelectItem>
+  1186→                    ))}
+  1187→                  </SelectContent>
+  1188→                </Select>
+  1189→              </div>
+  1190→              <div className="space-y-1">
+  1191→                <Label>Adults</Label>
+  1192→                <Input
+  1193→                  type="number"
+  1194→                  min={1}
+  1195→                  max={6}
+  1196→                  value={newResForm.adults}
+  1197→                  onChange={(e) => setNewResForm({ ...newResForm, adults: parseInt(e.target.value) || 1 })}
+  1198→                />
+  1199→              </div>
+  1200→            </div>
+  1201→
+  1202→            <div className="grid grid-cols-2 gap-3">
+  1203→              <div className="space-y-1">
+  1204→                <Label>Rate / Night</Label>
+  1205→                <Input
+  1206→                  type="number"
+  1207→                  min={0}
+  1208→                  value={newResForm.roomRate}
+  1209→                  onChange={(e) => setNewResForm({ ...newResForm, roomRate: parseFloat(e.target.value) || 0 })}
+  1210→                />
+  1211→              </div>
+  1212→              <div className="space-y-1">
+  1213→                <Label>Source</Label>
+  1214→                <Select value={newResForm.source} onValueChange={(v) => setNewResForm({ ...newResForm, source: v })}>
+  1215→                  <SelectTrigger>
+  1216→                    <SelectValue />
+  1217→                  </SelectTrigger>
+  1218→                  <SelectContent>
+  1219→                    {SOURCE_OPTIONS.map((s) => (
+  1220→                      <SelectItem key={s.value} value={s.value}>
+  1221→                        {s.label}
+  1222→                      </SelectItem>
+  1223→                    ))}
+  1224→                  </SelectContent>
+  1225→                </Select>
+  1226→              </div>
+  1227→            </div>
+  1228→
+  1229→            {/* Estimated total */}
+  1230→            {newResForm.checkIn && newResForm.checkOut && newResForm.roomRate > 0 && (
+  1231→              <div className="bg-muted/50 rounded-md p-3 flex items-center justify-between">
+  1232→                <span className="text-sm text-muted-foreground">Estimated Total</span>
+  1233→                <span className="text-lg font-bold">
+  1234→                  {formatCurrency(
+  1235→                    differenceInDays(
+  1236→                      parseISO(newResForm.checkOut),
+  1237→                      parseISO(newResForm.checkIn),
+  1238→                    ) * newResForm.roomRate,
+  1239→                  )}
+  1240→                </span>
+  1241→              </div>
+  1242→            )}
+  1243→          </div>
+  1244→
+  1245→          <DialogFooter>
+  1246→            <Button variant="outline" onClick={() => setNewResOpen(false)}>
+  1247→              Cancel
+  1248→            </Button>
+  1249→            <Button
+  1250→              onClick={() => createMutation.mutate(newResForm)}
+  1251→              disabled={!newResForm.guestName || !newResForm.checkOut || createMutation.isPending}
+  1252→            >
+  1253→              {createMutation.isPending ? (
+  1254→                <>
+  1255→                  <Loader2 className="size-4 mr-1.5 animate-spin" />
+  1256→                  Creating…
+  1257→                </>
+  1258→              ) : (
+  1259→                <>
+  1260→                  <Plus className="size-4 mr-1.5" />
+  1261→                  Create Reservation
+  1262→                </>
+  1263→              )}
+  1264→            </Button>
+  1265→          </DialogFooter>
+  1266→        </DialogContent>
+  1267→      </Dialog>
+  1268→    </div>
+  1269→  )
+  1270→}
+  1271→

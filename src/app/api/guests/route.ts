@@ -11,15 +11,34 @@ export async function GET(request: Request) {
     const where: Prisma.GuestWhereInput = {}
 
     if (search) {
-      // SQLite does not support mode: 'insensitive', so use contains directly
-      const searchLower = search.toLowerCase()
-      where.OR = [
+      // Build OR conditions for direct guest fields + relation-based search
+      const directConditions: Prisma.GuestWhereInput[] = [
         { firstName: { contains: search } },
         { lastName: { contains: search } },
         { email: { contains: search } },
         { phone: { contains: search } },
         { nationality: { contains: search } },
+        // Company search through reservations
+        {
+          reservations: {
+            some: {
+              company: { contains: search },
+            },
+          },
+        },
+        // Room number search through reservations → rooms
+        {
+          reservations: {
+            some: {
+              room: {
+                number: { contains: search },
+              },
+            },
+          },
+        },
       ]
+
+      where.OR = directConditions
     }
 
     if (vipLevel) {
@@ -28,9 +47,19 @@ export async function GET(request: Request) {
 
     const guests = await db.guest.findMany({
       where,
+      // Limit results when searching to prevent flooding with single-char queries
+      ...(search ? { take: 20 } : {}),
       include: {
         reservations: {
-          select: { id: true, confirmationNo: true, status: true, checkIn: true, checkOut: true },
+          select: {
+            id: true,
+            confirmationNo: true,
+            status: true,
+            checkIn: true,
+            checkOut: true,
+            company: true,
+            room: { select: { number: true } },
+          },
           take: 5,
           orderBy: { createdAt: 'desc' },
         },

@@ -1,0 +1,602 @@
+  1100→                        <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="guest@email.com" className="h-9 text-sm" />
+  1101→                      </div>
+  1102→                      <div className="space-y-1.5">
+  1103→                        <Label className="text-xs">Phone</Label>
+  1104→                        <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="+977-98XXXXXXXX" className="h-9 text-sm" />
+  1105→                      </div>
+  1106→                      <div className="space-y-1.5 sm:col-span-2">
+  1107→                        <Label className="text-xs">Nationality</Label>
+  1108→                        <Select value={guestNationality} onValueChange={setGuestNationality}>
+  1109→                          <SelectTrigger className="h-9 text-sm">
+  1110→                            <SelectValue placeholder="Select nationality" />
+  1111→                          </SelectTrigger>
+  1112→                          <SelectContent>
+  1113→                            {COUNTRIES.map(c => (
+  1114→                              <SelectItem key={c} value={c}>{c}</SelectItem>
+  1115→                            ))}
+  1116→                          </SelectContent>
+  1117→                        </Select>
+  1118→                      </div>
+  1119→                    </div>
+  1120→                  </Card>
+  1121→
+  1122→                  {/* Stay Details */}
+  1123→                  <Card className="p-3">
+  1124→                    <CardTitle className="text-sm mb-3">Stay Details</CardTitle>
+  1125→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1126→                      <div className="space-y-1.5">
+  1127→                        <Label className="text-xs">Check-in Date</Label>
+  1128→                        <Popover>
+  1129→                          <PopoverTrigger asChild>
+  1130→                            <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+  1131→                              <CalendarDays className="mr-2 h-3.5 w-3.5" />
+  1132→                              {formatDate(walkInDate)}
+  1133→                            </Button>
+  1134→                          </PopoverTrigger>
+  1135→                          <PopoverContent className="w-auto p-0" align="start">
+  1136→                            <Calendar mode="single" selected={fromDateOnly(walkInDate)} onSelect={d => d && setWalkInDate(toDateOnly(d))} initialFocus />
+  1137→                          </PopoverContent>
+  1138→                        </Popover>
+  1139→                      </div>
+  1140→                      <div className="space-y-1.5">
+  1141→                        <Label className="text-xs">Check-out Date</Label>
+  1142→                        <Popover>
+  1143→                          <PopoverTrigger asChild>
+  1144→                            <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+  1145→                              <CalendarDays className="mr-2 h-3.5 w-3.5" />
+  1146→                              {formatDate(walkInCheckOut)}
+  1147→                            </Button>
+  1148→                          </PopoverTrigger>
+  1149→                          <PopoverContent className="w-auto p-0" align="start">
+  1150→                            <Calendar mode="single" selected={fromDateOnly(walkInCheckOut)} onSelect={d => d && setWalkInCheckOut(toDateOnly(d))} initialFocus />
+  1151→                          </PopoverContent>
+  1152→                        </Popover>
+  1153→                      </div>
+  1154→                    </div>
+  1155→                    {/* Wide occupancy boxes */}
+  1156→                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+  1157→                      <NumberStepper label="Adults" value={walkInAdults} min={1} max={10} onChange={setWalkInAdults} />
+  1158→                      <NumberStepper label="Children" value={walkInChildren} min={0} max={10} onChange={setWalkInChildren} />
+  1159→                      <div className="hidden sm:flex items-center h-10 rounded-lg border border-border bg-muted/40 px-3">
+  1160→                        <span className="text-xs text-muted-foreground font-medium">Nights:</span>
+  1161→                        <span className="ml-auto text-sm font-semibold tabular-nums">{nightsBetween(walkInDate, walkInCheckOut)}</span>
+  1162→                      </div>
+  1163→                    </div>
+  1164→                  </Card>
+  1165→
+  1166→                  <Button onClick={handleWalkInContinue} className="w-full">
+  1167→                    Continue to Check-In
+  1168→                    <ArrowRight className="w-4 h-4 ml-2" />
+  1169→                  </Button>
+  1170→                </div>
+  1171→              )}
+  1172→            </>
+  1173→          )}
+  1174→        </div>
+  1175→      </div>
+  1176→    </div>
+  1177→  )
+  1178→
+  1179→  // ═══════════════════════════════════════════════════════════════
+  1180→  // PHASE 2: DETAILS (3-step wizard with sidebar)
+  1181→  // ═══════════════════════════════════════════════════════════════
+  1182→
+  1183→  // ─── Sidebar ──────────────────────────────────────────────────
+  1184→  const renderSidebar = () => (
+  1185→    <aside className="w-full lg:w-[300px] shrink-0 space-y-3 lg:sticky lg:top-0 lg:self-start">
+  1186→      {/* Guest Card */}
+  1187→      <Card className="overflow-hidden">
+  1188→        <div className="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 px-3 py-2">
+  1189→          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">Guest</p>
+  1190→        </div>
+  1191→        <CardContent className="p-3 space-y-2">
+  1192→          {sidebarGuestName ? (
+  1193→            <>
+  1194→              <div className="flex items-center gap-2">
+  1195→                <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center shrink-0">
+  1196→                  <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1197→                </div>
+  1198→                <div className="min-w-0 flex-1">
+  1199→                  <p className="text-sm font-semibold truncate">{sidebarGuestName}</p>
+  1200→                  {sidebarVipLevel && sidebarVipLevel !== 'none' && (
+  1201→                    <Badge className="mt-0.5 h-4 text-[9px] px-1.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800">
+  1202→                      <Crown className="w-2.5 h-2.5 mr-0.5" /> VIP
+  1203→                    </Badge>
+  1204→                  )}
+  1205→                </div>
+  1206→              </div>
+  1207→              {(sidebarGuestContact.email || sidebarGuestContact.phone) && (
+  1208→                <div className="space-y-0.5">
+  1209→                  {sidebarGuestContact.email && (
+  1210→                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+  1211→                      <Mail className="w-3 h-3" />
+  1212→                      <span className="truncate">{sidebarGuestContact.email}</span>
+  1213→                    </p>
+  1214→                  )}
+  1215→                  {sidebarGuestContact.phone && (
+  1216→                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+  1217→                      <Phone className="w-3 h-3" />
+  1218→                      <span>{sidebarGuestContact.phone}</span>
+  1219→                    </p>
+  1220→                  )}
+  1221→                </div>
+  1222→              )}
+  1223→            </>
+  1224→          ) : (
+  1225→            <p className="text-xs text-muted-foreground italic">No guest selected yet</p>
+  1226→          )}
+  1227→        </CardContent>
+  1228→      </Card>
+  1229→
+  1230→      {/* Room Card */}
+  1231→      <Card className="overflow-hidden">
+  1232→        <div className="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 px-3 py-2">
+  1233→          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">Room</p>
+  1234→        </div>
+  1235→        <CardContent className="p-3 space-y-2">
+  1236→          {selectedRoom ? (
+  1237→            <>
+  1238→              <div className="flex items-center gap-2">
+  1239→                <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+  1240→                  <span className="text-sm font-bold text-white">{selectedRoom.number}</span>
+  1241→                </div>
+  1242→                <div className="min-w-0 flex-1">
+  1243→                  <p className="text-sm font-semibold">{selectedRoom.type.name}</p>
+  1244→                  <p className="text-xs text-muted-foreground">
+  1245→                    Floor {selectedRoom.floor}{selectedRoom.wing ? ` · ${selectedRoom.wing} Wing` : ''} · {selectedRoom.type.bedConfig}
+  1246→                  </p>
+  1247→                </div>
+  1248→              </div>
+  1249→              <StatusBadge status={selectedRoom.status} />
+  1250→            </>
+  1251→          ) : (
+  1252→            <p className="text-xs text-muted-foreground italic">No room assigned yet</p>
+  1253→          )}
+  1254→        </CardContent>
+  1255→      </Card>
+  1256→
+  1257→      {/* Stay Info */}
+  1258→      <Card className="overflow-hidden">
+  1259→        <div className="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 px-3 py-2">
+  1260→          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">Stay</p>
+  1261→        </div>
+  1262→        <CardContent className="p-3 space-y-2">
+  1263→          <div className="flex items-center justify-between text-xs">
+  1264→            <span className="text-muted-foreground">Check-in</span>
+  1265→            <span className="font-medium">{formatDate(checkInDate)}</span>
+  1266→          </div>
+  1267→          <div className="flex items-center justify-between text-xs">
+  1268→            <span className="text-muted-foreground">Check-out</span>
+  1269→            <span className="font-medium">{formatDate(checkOutDate)}</span>
+  1270→          </div>
+  1271→          <Separator />
+  1272→          <div className="flex items-center justify-between text-xs">
+  1273→            <span className="text-muted-foreground">Nights</span>
+  1274→            <Badge variant="secondary" className="h-5 text-[10px] font-semibold">{nights}</Badge>
+  1275→          </div>
+  1276→          <div className="flex items-center justify-between text-xs">
+  1277→            <span className="text-muted-foreground">Rate/night</span>
+  1278→            <span className="font-semibold tabular-nums">{formatCurrency(roomRate)}</span>
+  1279→          </div>
+  1280→        </CardContent>
+  1281→      </Card>
+  1282→
+  1283→      {/* Cost Summary */}
+  1284→      <Card className="overflow-hidden">
+  1285→        <div className="bg-gradient-to-r from-emerald-700 to-emerald-800 dark:from-emerald-800 dark:to-emerald-900 px-3 py-2">
+  1286→          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100">Cost Summary</p>
+  1287→        </div>
+  1288→        <CardContent className="p-3 space-y-1.5">
+  1289→          <div className="flex items-center justify-between text-xs">
+  1290→            <span className="text-muted-foreground">Room ({nights}n × {formatCurrency(roomRate)})</span>
+  1291→            <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+  1292→          </div>
+  1293→          <div className="flex items-center justify-between text-xs">
+  1294→            <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+  1295→            <span className="tabular-nums">{formatCurrency(Math.round(taxAmount))}</span>
+  1296→          </div>
+  1297→          <div className="flex items-center justify-between text-xs">
+  1298→            <span className="text-muted-foreground">Service ({serviceChargeRate}%)</span>
+  1299→            <span className="tabular-nums">{formatCurrency(Math.round(serviceChargeAmount))}</span>
+  1300→          </div>
+  1301→          <Separator />
+  1302→          <div className="flex items-center justify-between">
+  1303→            <span className="text-sm font-bold">Total</span>
+  1304→            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+  1305→              {formatCurrency(Math.round(grandTotal))}
+  1306→            </span>
+  1307→          </div>
+  1308→          {collectAdvance && advanceNum > 0 && (
+  1309→            <>
+  1310→              <Separator />
+  1311→              <div className="flex items-center justify-between text-xs">
+  1312→                <span className="text-muted-foreground">Advance Paid</span>
+  1313→                <span className="tabular-nums text-teal-600 dark:text-teal-400 font-medium">-{formatCurrency(Math.round(advanceNum))}</span>
+  1314→              </div>
+  1315→              <div className="flex items-center justify-between">
+  1316→                <span className="text-xs font-medium">Balance Due</span>
+  1317→                <span className={cn(
+  1318→                  'text-sm font-bold tabular-nums',
+  1319→                  balanceDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+  1320→                )}>
+  1321→                  {formatCurrency(Math.round(balanceDue))}
+  1322→                </span>
+  1323→              </div>
+  1324→            </>
+  1325→          )}
+  1326→        </CardContent>
+  1327→      </Card>
+  1328→    </aside>
+  1329→  )
+  1330→
+  1331→  // ─── Step 1: Guest & Stay Verification ────────────────────────
+  1332→  const renderStep1 = () => {
+  1333→    const isReservation = !!confirmedReservationId && reservationData
+  1334→    const canEdit = isDirectWalkIn || guestInfoEditable
+  1335→
+  1336→    return (
+  1337→      <StepContent title="Guest & Stay Verification" description="Verify guest details and stay information" icon={User}>
+  1338→        {/* Guest Information Card */}
+  1339→        <Card className="p-3">
+  1340→          <div className="flex items-center justify-between mb-3">
+  1341→            <div className="flex items-center gap-2">
+  1342→              <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1343→              <h4 className="text-sm font-semibold">Guest Information</h4>
+  1344→            </div>
+  1345→            {isReservation && !isDirectWalkIn && (
+  1346→              <Button
+  1347→                variant="ghost"
+  1348→                size="sm"
+  1349→                className="h-7 text-xs"
+  1350→                onClick={() => setGuestInfoEditable(!guestInfoEditable)}
+  1351→              >
+  1352→                <Pencil className="w-3 h-3 mr-1" />
+  1353→                {guestInfoEditable ? 'Lock' : 'Edit'}
+  1354→              </Button>
+  1355→            )}
+  1356→          </div>
+  1357→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1358→            <div className="space-y-1.5">
+  1359→              <Label className="text-xs">First Name</Label>
+  1360→              {canEdit ? (
+  1361→                <Input value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} className="h-9 text-sm" />
+  1362→              ) : (
+  1363→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm font-medium">
+  1364→                  {reservationData?.guest?.firstName || '—'}
+  1365→                </div>
+  1366→              )}
+  1367→            </div>
+  1368→            <div className="space-y-1.5">
+  1369→              <Label className="text-xs">Last Name</Label>
+  1370→              {canEdit ? (
+  1371→                <Input value={guestLastName} onChange={e => setGuestLastName(e.target.value)} className="h-9 text-sm" />
+  1372→              ) : (
+  1373→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm font-medium">
+  1374→                  {reservationData?.guest?.lastName || '—'}
+  1375→                </div>
+  1376→              )}
+  1377→            </div>
+  1378→            <div className="space-y-1.5">
+  1379→              <Label className="text-xs">Email</Label>
+  1380→              {canEdit ? (
+  1381→                <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} className="h-9 text-sm" />
+  1382→              ) : (
+  1383→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+  1384→                  {reservationData?.guest?.email || '—'}
+  1385→                </div>
+  1386→              )}
+  1387→            </div>
+  1388→            <div className="space-y-1.5">
+  1389→              <Label className="text-xs">Phone</Label>
+  1390→              {canEdit ? (
+  1391→                <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="h-9 text-sm" />
+  1392→              ) : (
+  1393→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+  1394→                  {reservationData?.guest?.phone || '—'}
+  1395→                </div>
+  1396→              )}
+  1397→            </div>
+  1398→          </div>
+  1399→        </Card>
+  1400→
+  1401→        {/* Stay Dates Card */}
+  1402→        <Card className="p-3">
+  1403→          <div className="flex items-center gap-2 mb-3">
+  1404→            <CalendarDays className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1405→            <h4 className="text-sm font-semibold">Stay Dates</h4>
+  1406→          </div>
+  1407→          {isReservation && !isDirectWalkIn ? (
+  1408→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1409→              <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+  1410→                <CalendarDays className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+  1411→                {formatDate(checkInDate)}
+  1412→              </div>
+  1413→              <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+  1414→                <CalendarDays className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+  1415→                {formatDate(checkOutDate)}
+  1416→              </div>
+  1417→            </div>
+  1418→          ) : (
+  1419→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1420→              <div className="space-y-1.5">
+  1421→                <Label className="text-xs">Check-in Date</Label>
+  1422→                <Popover>
+  1423→                  <PopoverTrigger asChild>
+  1424→                    <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+  1425→                      <CalendarDays className="mr-2 h-3.5 w-3.5" />
+  1426→                      {formatDate(checkInDate)}
+  1427→                    </Button>
+  1428→                  </PopoverTrigger>
+  1429→                  <PopoverContent className="w-auto p-0" align="start">
+  1430→                    <Calendar mode="single" selected={fromDateOnly(checkInDate)} onSelect={d => d && setCheckInDate(toDateOnly(d))} initialFocus />
+  1431→                  </PopoverContent>
+  1432→                </Popover>
+  1433→              </div>
+  1434→              <div className="space-y-1.5">
+  1435→                <Label className="text-xs">Check-out Date</Label>
+  1436→                <Popover>
+  1437→                  <PopoverTrigger asChild>
+  1438→                    <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+  1439→                      <CalendarDays className="mr-2 h-3.5 w-3.5" />
+  1440→                      {formatDate(checkOutDate)}
+  1441→                    </Button>
+  1442→                  </PopoverTrigger>
+  1443→                  <PopoverContent className="w-auto p-0" align="start">
+  1444→                    <Calendar mode="single" selected={fromDateOnly(checkOutDate)} onSelect={d => d && setCheckOutDate(toDateOnly(d))} initialFocus />
+  1445→                  </PopoverContent>
+  1446→                </Popover>
+  1447→              </div>
+  1448→            </div>
+  1449→          )}
+  1450→
+  1451→          {/* Wide occupancy boxes */}
+  1452→          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+  1453→            <NumberStepper label="Adults" value={adults} min={1} max={10} onChange={setAdults} />
+  1454→            <NumberStepper label="Children" value={children} min={0} max={10} onChange={setChildren} />
+  1455→            <div className="flex items-center h-10 rounded-lg border border-border bg-muted/40 px-3">
+  1456→              <span className="text-xs text-muted-foreground font-medium">Nights:</span>
+  1457→              <span className="ml-auto text-sm font-semibold tabular-nums">{nights}</span>
+  1458→            </div>
+  1459→          </div>
+  1460→        </Card>
+  1461→
+  1462→        {/* Special Requests & Purpose */}
+  1463→        <Card className="p-3">
+  1464→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1465→            <div className="space-y-1.5">
+  1466→              <Label className="text-xs">Purpose of Visit</Label>
+  1467→              <Select value={purposeOfVisit} onValueChange={setPurposeOfVisit}>
+  1468→                <SelectTrigger className="h-9 text-sm">
+  1469→                  <SelectValue placeholder="Select purpose" />
+  1470→                </SelectTrigger>
+  1471→                <SelectContent>
+  1472→                  {PURPOSE_OF_VISIT.map(p => (
+  1473→                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+  1474→                  ))}
+  1475→                </SelectContent>
+  1476→              </Select>
+  1477→            </div>
+  1478→            <div className="space-y-1.5">
+  1479→              <Label className="text-xs">Special Requests</Label>
+  1480→              <Textarea
+  1481→                value={specialRequests}
+  1482→                onChange={e => setSpecialRequests(e.target.value)}
+  1483→                placeholder="Any special requests..."
+  1484→                className="text-sm min-h-[36px] resize-none"
+  1485→                rows={1}
+  1486→              />
+  1487→            </div>
+  1488→          </div>
+  1489→        </Card>
+  1490→      </StepContent>
+  1491→    )
+  1492→  }
+  1493→
+  1494→  // ─── Step 2: Room & Rate ──────────────────────────────────────
+  1495→  const renderStep2 = () => (
+  1496→    <StepContent title="Room & Rate" description="Select a room and set the rate plan" icon={BedDouble}>
+  1497→      {/* If reservation already has a room */}
+  1498→      {confirmedReservationId && reservationData?.room && !selectedRoomId && (
+  1499→        <Card className="p-3 border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20">
+  1500→          <div className="flex items-center justify-between gap-3">
+  1501→            <div className="flex items-center gap-2">
+  1502→              <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+  1503→                <span className="text-sm font-bold text-white">{reservationData.room.number}</span>
+  1504→              </div>
+  1505→              <div>
+  1506→                <p className="text-sm font-semibold">{reservationData.room.type.name}</p>
+  1507→                <p className="text-xs text-muted-foreground">
+  1508→                  Floor {reservationData.room.floor} · {reservationData.room.type.bedConfig}
+  1509→                </p>
+  1510→              </div>
+  1511→            </div>
+  1512→            <Button variant="outline" size="sm" onClick={() => handleSelectRoom(reservationData.room.id)}>
+  1513→              Use Assigned Room
+  1514→            </Button>
+  1515→          </div>
+  1516→        </Card>
+  1517→      )}
+  1518→
+  1519→      {/* Room Filter Bar */}
+  1520→      <Card className="p-3">
+  1521→        <div className="flex items-center gap-2 mb-3">
+  1522→          <BedDouble className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1523→          <h4 className="text-sm font-semibold">Available Rooms</h4>
+  1524→          {roomsData && (
+  1525→            <Badge variant="secondary" className="text-[10px] h-4">{filteredRooms.length} rooms</Badge>
+  1526→          )}
+  1527→        </div>
+  1528→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+  1529→          <div className="relative">
+  1530→            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+  1531→            <Input
+  1532→              placeholder="Search rooms..."
+  1533→              value={roomSearchFilter}
+  1534→              onChange={e => setRoomSearchFilter(e.target.value)}
+  1535→              className="pl-8 h-8 text-xs"
+  1536→            />
+  1537→          </div>
+  1538→          {roomsData && (
+  1539→            <Select value={roomTypeFilter} onValueChange={v => setRoomTypeFilter(v === 'all' ? '' : v)}>
+  1540→              <SelectTrigger className="h-8 text-xs">
+  1541→                <SelectValue placeholder="Room Type" />
+  1542→              </SelectTrigger>
+  1543→              <SelectContent>
+  1544→                <SelectItem value="all">All Types</SelectItem>
+  1545→                {roomsData.roomTypes.map(rt => (
+  1546→                  <SelectItem key={rt.id} value={rt.id}>
+  1547→                    {rt.name} ({roomCountsByType[rt.id] || 0})
+  1548→                  </SelectItem>
+  1549→                ))}
+  1550→              </SelectContent>
+  1551→            </Select>
+  1552→          )}
+  1553→          {uniqueFloors.length > 0 && (
+  1554→            <Select value={roomFloorFilter} onValueChange={v => setRoomFloorFilter(v === 'all' ? '' : v)}>
+  1555→              <SelectTrigger className="h-8 text-xs">
+  1556→                <SelectValue placeholder="Floor" />
+  1557→              </SelectTrigger>
+  1558→              <SelectContent>
+  1559→                <SelectItem value="all">All Floors</SelectItem>
+  1560→                {uniqueFloors.map(f => (
+  1561→                  <SelectItem key={String(f)} value={String(f)}>Floor {f}</SelectItem>
+  1562→                ))}
+  1563→              </SelectContent>
+  1564→            </Select>
+  1565→          )}
+  1566→        </div>
+  1567→
+  1568→        {/* Room Grid */}
+  1569→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto">
+  1570→          {filteredRooms.length === 0 && (
+  1571→            <div className="col-span-full py-8 text-center">
+  1572→              <BedDouble className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+  1573→              <p className="text-sm text-muted-foreground">No available rooms found</p>
+  1574→            </div>
+  1575→          )}
+  1576→          {filteredRooms.map(room => {
+  1577→            const rt = roomsData?.roomTypes.find(r => r.id === room.type.id)
+  1578→            const baseRate = rt?.ratePlans?.[0]?.baseRate
+  1579→            const amenities = parseAmenities(room.type.amenities)
+  1580→            return (
+  1581→              <button
+  1582→                key={room.id}
+  1583→                type="button"
+  1584→                onClick={() => handleSelectRoom(room.id)}
+  1585→                className={cn(
+  1586→                  'relative p-3 rounded-xl border text-left transition-all',
+  1587→                  selectedRoomId === room.id
+  1588→                    ? 'border-teal-400 ring-2 ring-teal-400/20 bg-teal-50/50 dark:bg-teal-950/20 shadow-sm'
+  1589→                    : 'border-border hover:bg-muted/50 hover:border-muted-foreground/30'
+  1590→                )}
+  1591→              >
+  1592→                {selectedRoomId === room.id && (
+  1593→                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center">
+  1594→                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+  1595→                  </div>
+  1596→                )}
+  1597→                <p className="text-lg font-bold tabular-nums">{room.number}</p>
+  1598→                <p className="text-xs text-muted-foreground mt-0.5 truncate">{room.type.name}</p>
+  1599→                <div className="flex items-center gap-1.5 mt-1">
+  1600→                  <Badge variant="secondary" className="text-[9px] h-3.5 px-1">F{room.floor}</Badge>
+  1601→                  {room.wing && <Badge variant="secondary" className="text-[9px] h-3.5 px-1">{room.wing}</Badge>}
+  1602→                </div>
+  1603→                <div className="flex items-center justify-between mt-1.5">
+  1604→                  <span className="text-[10px] text-muted-foreground">{room.type.bedConfig}</span>
+  1605→                  {baseRate && (
+  1606→                    <span className="text-[10px] font-semibold text-teal-600 dark:text-teal-400">
+  1607→                      {formatCurrency(baseRate)}
+  1608→                    </span>
+  1609→                  )}
+  1610→                </div>
+  1611→                {/* Amenity icons */}
+  1612→                {amenities.length > 0 && (
+  1613→                  <div className="flex flex-wrap gap-1 mt-1.5">
+  1614→                    {amenities.slice(0, 4).map((a: string) => (
+  1615→                      <span key={a} className="text-[9px] text-muted-foreground" title={a}>
+  1616→                        {a === 'WiFi' ? '📶' : a === 'TV' ? '📺' : a === 'Mini Bar' ? '🍷' : a === 'Safe' ? '🔒' : a === 'AC' ? '❄️' : '•'}
+  1617→                      </span>
+  1618→                    ))}
+  1619→                  </div>
+  1620→                )}
+  1621→              </button>
+  1622→            )
+  1623→          })}
+  1624→        </div>
+  1625→      </Card>
+  1626→
+  1627→      {/* Room Detail Panel */}
+  1628→      {selectedRoom && (
+  1629→        <Card className="p-3">
+  1630→          <div className="flex items-center gap-2 mb-3">
+  1631→            <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center">
+  1632→              <span className="text-sm font-bold text-white">{selectedRoom.number}</span>
+  1633→            </div>
+  1634→            <div>
+  1635→              <h4 className="text-sm font-semibold">{selectedRoom.type.name}</h4>
+  1636→              <p className="text-xs text-muted-foreground">
+  1637→                Floor {selectedRoom.floor}{selectedRoom.wing ? ` · ${selectedRoom.wing} Wing` : ''} · {selectedRoom.type.bedConfig}
+  1638→              </p>
+  1639→            </div>
+  1640→          </div>
+  1641→          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+  1642→            {selectedRoom.type.areaSqFt && <InfoItem label="Area" value={`${Math.round(selectedRoom.type.areaSqFt)} sq ft`} />}
+  1643→            {selectedRoom.type.view && <InfoItem label="View" value={selectedRoom.type.view} />}
+  1644→            <InfoItem label="Base Occupancy" value={String(selectedRoom.type.baseOccupancy)} />
+  1645→            <InfoItem label="Max Occupancy" value={String(selectedRoom.type.maxOccupancy)} />
+  1646→          </div>
+  1647→          {selectedRoom.type.amenities && parseAmenities(selectedRoom.type.amenities).length > 0 && (
+  1648→            <div className="mt-3">
+  1649→              <span className="text-xs text-muted-foreground">Amenities</span>
+  1650→              <div className="flex flex-wrap gap-1.5 mt-1">
+  1651→                {parseAmenities(selectedRoom.type.amenities).map((a: string) => (
+  1652→                  <Badge key={a} variant="secondary" className="text-[10px] px-2 py-0.5">{a}</Badge>
+  1653→                ))}
+  1654→              </div>
+  1655→            </div>
+  1656→          )}
+  1657→        </Card>
+  1658→      )}
+  1659→
+  1660→      {/* Rate Section */}
+  1661→      {selectedRoom && (
+  1662→        <Card className="p-3">
+  1663→          <div className="flex items-center gap-2 mb-3">
+  1664→            <Wallet className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1665→            <h4 className="text-sm font-semibold">Rate Selection</h4>
+  1666→          </div>
+  1667→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1668→            <div className="space-y-1.5">
+  1669→              <Label className="text-xs">Rate Plan</Label>
+  1670→              <Select value={selectedRatePlanId} onValueChange={handleRatePlanChange}>
+  1671→                <SelectTrigger className="h-8 text-sm">
+  1672→                  <SelectValue placeholder="Select rate plan" />
+  1673→                </SelectTrigger>
+  1674→                <SelectContent>
+  1675→                  {ratePlans.map(rp => (
+  1676→                    <SelectItem key={rp.id} value={rp.id}>
+  1677→                      {rp.name} — {formatCurrency(rp.baseRate)}/night
+  1678→                    </SelectItem>
+  1679→                  ))}
+  1680→                  {ratePlans.length === 0 && <SelectItem value="manual">Manual Entry</SelectItem>}
+  1681→                </SelectContent>
+  1682→              </Select>
+  1683→            </div>
+  1684→            <div className="space-y-1.5">
+  1685→              <Label className="text-xs">Room Rate</Label>
+  1686→              <Input
+  1687→                type="number"
+  1688→                value={roomRate || ''}
+  1689→                onChange={e => setRoomRate(parseFloat(e.target.value) || 0)}
+  1690→                placeholder="Enter room rate"
+  1691→                className="h-8 text-sm"
+  1692→              />
+  1693→            </div>
+  1694→          </div>
+  1695→          <div className="mt-3 p-3 rounded-lg bg-muted/40">
+  1696→            <div className="flex items-center gap-2 text-sm">
+  1697→              <span className="text-muted-foreground">{nightsDisplay}</span>
+  1698→            </div>
+  1699→            <div className="flex items-center gap-2 mt-1 text-sm">
+
+[showing lines 1100-1699 of 2168; use offset=1700 with limit to continue reading]

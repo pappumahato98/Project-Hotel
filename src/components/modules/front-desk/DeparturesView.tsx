@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
 import {
   LogOut, BedDouble, Receipt, CreditCard, AlertTriangle, CheckCircle2, Printer,
-  Zap, Eye, Clock, Banknote, Mail, X, ArrowRight, BedSingle,
+  Zap, Eye, Clock, Banknote, Mail, X, ArrowRight, BedSingle, FileText, BookOpen,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,8 @@ import {
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useSettingsStore, usePreferencesStore } from '@/lib/store'
+import { useSettingsStore, usePreferencesStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
+import { invalidate } from '@/lib/queryKeys'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ export function DeparturesView() {
   const queryClient = useQueryClient()
   const { settings } = useSettingsStore()
   const { preferences } = usePreferencesStore()
+  const { navigateTo } = useNavigationStore()
   const today = getTodayString()
 
   // Dialog states
@@ -158,9 +160,7 @@ export function DeparturesView() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departures'] })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      invalidate.afterCheckout(queryClient)
     },
   })
 
@@ -174,8 +174,7 @@ export function DeparturesView() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departures'] })
-      queryClient.invalidateQueries({ queryKey: ['folios'] })
+      invalidate.afterFolioChange(queryClient)
       setPaymentDialogOpen(false)
       setPaymentAmount('')
       setPaymentReference('')
@@ -210,9 +209,8 @@ export function DeparturesView() {
       return result
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departures'] })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
-      queryClient.invalidateQueries({ queryKey: ['folios'] })
+      invalidate.afterReservationChange(queryClient)
+      invalidate.afterFolioChange(queryClient)
       setLateCheckoutDialogOpen(false)
       toast.success('Late checkout request processed successfully')
     },
@@ -237,9 +235,7 @@ export function DeparturesView() {
       return results
     },
     onSuccess: (_data, ids) => {
-      queryClient.invalidateQueries({ queryKey: ['departures'] })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      invalidate.afterCheckout(queryClient)
       toast.success(`Batch checkout complete! ${ids.length} rooms checked out.`)
       toast.info(`${ids.length} rooms marked for housekeeping - Vacant Dirty`)
     },
@@ -264,6 +260,25 @@ export function DeparturesView() {
   const handleReviewFolio = (dep: Departure) => {
     setSelectedDeparture(dep)
     setFolioDialogOpen(true)
+  }
+
+  const handleNavigateToFolio = (dep: Departure) => {
+    useFolioContextStore.getState().setFolioContext({
+      reservationId: dep.id,
+      guestId: dep.guest?.id || '',
+      guestName: `${dep.guest?.firstName || ''} ${dep.guest?.lastName || ''}`.trim(),
+      roomNumber: dep.room?.number || '',
+      confirmationNo: dep.confirmationNo,
+    })
+    navigateTo('front-desk', 'folio')
+  }
+
+  const handleViewLedger = (dep: Departure) => {
+    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+      guestId: dep.guest?.id || '',
+      guestName: `${dep.guest?.firstName || ''} ${dep.guest?.lastName || ''}`.trim(),
+    })
+    navigateTo('front-desk', 'guest-ledger')
   }
 
   const handleFolioSettleCheckout = () => {
@@ -497,6 +512,22 @@ export function DeparturesView() {
                                   onClick={() => handleReviewFolio(dep)}
                                 >
                                   <Eye className="size-3 mr-0.5" /> Review Folio
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7"
+                                  onClick={() => handleNavigateToFolio(dep)}
+                                >
+                                  <FileText className="size-3 mr-0.5" /> Full Folio
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7"
+                                  onClick={() => handleViewLedger(dep)}
+                                >
+                                  <BookOpen className="size-3 mr-0.5" /> View Ledger
                                 </Button>
                                 {/* Late Checkout */}
                                 <Button

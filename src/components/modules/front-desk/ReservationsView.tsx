@@ -1,13 +1,14 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import {
   Plus, Search, MoreHorizontal, Eye, LogIn, XCircle, UserX, CalendarRange,
   Edit, Copy, FileText, Printer, Trash2, StickyNote, BedDouble,
   Users, ArrowDownToLine, ArrowUpFromLine, DollarSign, Hotel,
-  CalendarIcon, X, LayoutGrid,
+  CalendarIcon, X, LayoutGrid, BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +35,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
+import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -41,7 +43,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useNavigationStore, useSettingsStore, useFrontDeskContextStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore, useFrontDeskContextStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -393,7 +395,7 @@ export function ReservationsView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      invalidate.afterReservationChange(queryClient)
       setNewResOpen(false)
       setForm({ ...INITIAL_FORM, checkIn: getTodayString() })
       toast.success('Reservation created successfully')
@@ -415,7 +417,7 @@ export function ReservationsView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      invalidate.afterReservationChange(queryClient)
     },
   })
 
@@ -431,7 +433,7 @@ export function ReservationsView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      invalidate.afterReservationChange(queryClient)
       setEditOpen(false)
       toast.success('Reservation updated successfully')
     },
@@ -452,7 +454,7 @@ export function ReservationsView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      invalidate.afterReservationChange(queryClient)
       setNoteOpen(false)
       setNoteText('')
       toast.success('Note added successfully')
@@ -472,7 +474,7 @@ export function ReservationsView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      invalidate.afterReservationChange(queryClient)
       setDeleteOpen(false)
       setSelectedReservation(null)
       toast.success('Reservation deleted successfully')
@@ -522,6 +524,25 @@ export function ReservationsView() {
     // Navigate to the 4-step Check-In Wizard with prefill
     setPrefillReservationId(reservation.id)
     navigateTo('front-desk', 'check-in')
+  }
+
+  const handleViewFolio = (res: any) => {
+    useFolioContextStore.getState().setFolioContext({
+      reservationId: res.id,
+      guestId: res.guest?.id || res.guestId,
+      guestName: `${res.guest?.firstName || ''} ${res.guest?.lastName || ''}`.trim() || 'Guest',
+      roomNumber: res.room?.number || res.roomNumber || '',
+      confirmationNo: res.confirmationNo,
+    })
+    navigateTo('front-desk', 'folio')
+  }
+
+  const handleViewLedger = (res: any) => {
+    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+      guestId: res.guest?.id || res.guestId,
+      guestName: `${res.guest?.firstName || ''} ${res.guest?.lastName || ''}`.trim() || 'Guest',
+    })
+    navigateTo('front-desk', 'guest-ledger')
   }
 
   const handleCancel = (reservation: Reservation) => {
@@ -714,19 +735,39 @@ export function ReservationsView() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Check-in *</Label>
-                    <Input
-                      type="date"
-                      value={form.checkIn}
-                      onChange={(e) => setForm({ ...form, checkIn: e.target.value })}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-9 w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.checkIn ? format(new Date(form.checkIn), 'dd MMM yyyy') : 'Check-in'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.checkIn ? new Date(form.checkIn) : undefined}
+                          onSelect={(d) => { if (d) setForm({ ...form, checkIn: d.toISOString().split('T')[0] }) }}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-1">
                     <Label>Check-out *</Label>
-                    <Input
-                      type="date"
-                      value={form.checkOut}
-                      onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="h-9 w-full justify-start text-left font-normal">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {form.checkOut ? format(new Date(form.checkOut), 'dd MMM yyyy') : 'Check-out'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={form.checkOut ? new Date(form.checkOut) : undefined}
+                          onSelect={(d) => { if (d) setForm({ ...form, checkOut: d.toISOString().split('T')[0] }) }}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
                 {nights > 0 && (
@@ -1109,6 +1150,12 @@ export function ReservationsView() {
                                 <LogIn className="size-4 mr-2" /> Check In
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuItem onClick={() => handleViewFolio(res)}>
+                              <FileText className="size-4 mr-2" /> View Folio
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewLedger(res)}>
+                              <BookOpen className="size-4 mr-2" /> View Guest Ledger
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleCancel(res)} variant="destructive">
                               <XCircle className="size-4 mr-2" /> Cancel
                             </DropdownMenuItem>
@@ -1242,9 +1289,9 @@ export function ReservationsView() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Folio Balance: </span>
-                      <span className={selectedReservation.folios[0]?.balance > selectedReservation.creditLimit ? 'text-red-600 font-bold' : 'font-medium'}>
+                      <button onClick={() => handleViewFolio(selectedReservation)} className={selectedReservation.folios[0]?.balance > selectedReservation.creditLimit ? 'text-red-600 font-bold' : 'text-emerald-600 hover:underline font-medium'}>
                         {formatCurrency(selectedReservation.folios[0]?.balance || 0)}
-                      </span>
+                      </button>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Credit Limit: </span>
@@ -1306,6 +1353,12 @@ export function ReservationsView() {
                     <LogIn className="size-4 mr-1.5" /> Check In
                   </Button>
                 )}
+                <Button variant="outline" size="sm" onClick={() => handleViewFolio(selectedReservation)}>
+                  <FileText className="h-4 w-4 mr-1" /> View Folio
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => handleViewLedger(selectedReservation)}>
+                  <BookOpen className="h-4 w-4 mr-1" /> View Ledger
+                </Button>
                 <Button variant="outline" onClick={() => setDetailOpen(false)}>Close</Button>
               </DialogFooter>
             </>
@@ -1347,19 +1400,39 @@ export function ReservationsView() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Check-in</Label>
-                  <Input
-                    type="date"
-                    value={editForm.checkIn}
-                    onChange={(e) => setEditForm({ ...editForm, checkIn: e.target.value })}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-9 w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {editForm.checkIn ? format(new Date(editForm.checkIn), 'dd MMM yyyy') : 'Check-in'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={editForm.checkIn ? new Date(editForm.checkIn) : undefined}
+                        onSelect={(d) => { if (d) setEditForm({ ...editForm, checkIn: d.toISOString().split('T')[0] }) }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-1">
                   <Label>Check-out</Label>
-                  <Input
-                    type="date"
-                    value={editForm.checkOut}
-                    onChange={(e) => setEditForm({ ...editForm, checkOut: e.target.value })}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-9 w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {editForm.checkOut ? format(new Date(editForm.checkOut), 'dd MMM yyyy') : 'Check-out'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={editForm.checkOut ? new Date(editForm.checkOut) : undefined}
+                        onSelect={(d) => { if (d) setEditForm({ ...editForm, checkOut: d.toISOString().split('T')[0] }) }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               {editNights > 0 && (
@@ -1525,19 +1598,39 @@ export function ReservationsView() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Check-in *</Label>
-                  <Input
-                    type="date"
-                    value={duplicateForm.checkIn}
-                    onChange={(e) => setDuplicateForm({ ...duplicateForm, checkIn: e.target.value })}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-9 w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {duplicateForm.checkIn ? format(new Date(duplicateForm.checkIn), 'dd MMM yyyy') : 'Check-in'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={duplicateForm.checkIn ? new Date(duplicateForm.checkIn) : undefined}
+                        onSelect={(d) => { if (d) setDuplicateForm({ ...duplicateForm, checkIn: d.toISOString().split('T')[0] }) }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-1">
                   <Label>Check-out *</Label>
-                  <Input
-                    type="date"
-                    value={duplicateForm.checkOut}
-                    onChange={(e) => setDuplicateForm({ ...duplicateForm, checkOut: e.target.value })}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-9 w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {duplicateForm.checkOut ? format(new Date(duplicateForm.checkOut), 'dd MMM yyyy') : 'Check-out'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={duplicateForm.checkOut ? new Date(duplicateForm.checkOut) : undefined}
+                        onSelect={(d) => { if (d) setDuplicateForm({ ...duplicateForm, checkOut: d.toISOString().split('T')[0] }) }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

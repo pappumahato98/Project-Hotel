@@ -34,6 +34,7 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatCurrency, formatTime, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/lib/store'
+import { invalidate } from '@/lib/queryKeys'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
@@ -351,9 +352,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      invalidate.afterCheckIn(queryClient)
       queryClient.invalidateQueries({ queryKey: ['reservation', reservationId] })
       toast.success('Guest checked in successfully!')
     },

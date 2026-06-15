@@ -1,0 +1,1638 @@
+     1→'use client'
+     2→
+     3→import { apiFetch } from '@/lib/api'
+     4→import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+     5→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     6→import {
+     7→  Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
+     8→  ArrowLeft, ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
+     9→  StickyNote, XCircle, Activity, CircleAlert, Ban, X, BookOpen,
+    10→} from 'lucide-react'
+    11→
+    12→import { Button } from '@/components/ui/button'
+    13→import { Badge } from '@/components/ui/badge'
+    14→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    15→import { Input } from '@/components/ui/input'
+    16→import { Label } from '@/components/ui/label'
+    17→import { Skeleton } from '@/components/ui/skeleton'
+    18→import { Separator } from '@/components/ui/separator'
+    19→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    20→import {
+    21→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    22→} from '@/components/ui/table'
+    23→import {
+    24→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+    25→} from '@/components/ui/dialog'
+    26→import {
+    27→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    28→} from '@/components/ui/select'
+    29→import { Textarea } from '@/components/ui/textarea'
+    30→import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+    31→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+    32→import { Progress } from '@/components/ui/progress'
+    33→import { StatusBadge } from '@/components/shared/status-badge'
+    34→import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
+    35→import { cn } from '@/lib/utils'
+    36→import { useSettingsStore, usePreferencesStore, useFolioContextStore, useNavigationStore, useGuestLedgerContextStore } from '@/lib/store'
+    37→import { toast } from 'sonner'
+    38→
+    39→// ─── Types ──────────────────────────────────────────────────────────────
+    40→
+    41→interface FolioReservation {
+    42→  id: string
+    43→  confirmationNo: string
+    44→  checkIn: string
+    45→  checkOut: string
+    46→  roomRate: number
+    47→  status: string
+    48→  creditLimit: number
+    49→  room: { number: string } | null
+    50→}
+    51→
+    52→interface FolioGuest {
+    53→  id: string
+    54→  firstName: string
+    55→  lastName: string
+    56→  vipLevel: string
+    57→}
+    58→
+    59→interface FolioTransaction {
+    60→  id: string
+    61→  transactionType: string
+    62→  description: string
+    63→  amount: number
+    64→  taxAmount: number
+    65→  totalAmount: number
+    66→  quantity: number
+    67→  reference: string | null
+    68→  outlet: string | null
+    69→  postedBy: string | null
+    70→  createdAt: string
+    71→}
+    72→
+    73→interface FolioPayment {
+    74→  id: string
+    75→  paymentMethod: string
+    76→  amount: number
+    77→  reference: string | null
+    78→  cardType: string | null
+    79→  exchangeRate: number | null
+    80→  foreignAmount: number | null
+    81→  receivedBy: string | null
+    82→  status: string | null
+    83→  createdAt: string
+    84→}
+    85→
+    86→interface Folio {
+    87→  id: string
+    88→  folioType: string
+    89→  status: string
+    90→  balance: number
+    91→  reservation: FolioReservation
+    92→  guest: FolioGuest
+    93→  transactions: FolioTransaction[]
+    94→  payments: FolioPayment[]
+    95→}
+    96→
+    97→interface FolioStats {
+    98→  openFolios: number
+    99→  totalOutstanding: number
+   100→  todayCharges: number
+   101→  todayPayments: number
+   102→}
+   103→
+   104→interface SearchResult {
+   105→  type: string
+   106→  id: string
+   107→  label: string
+   108→  sublabel: string
+   109→  balance: number
+   110→}
+   111→
+   112→type SortField = 'guestName' | 'balance'
+   113→type SortDir = 'asc' | 'desc'
+   114→
+   115→interface VoidTarget {
+   116→  type: 'transaction' | 'payment'
+   117→  id: string
+   118→  description: string
+   119→  amount: number
+   120→}
+   121→
+   122→// ─── Constants ───────────────────────────────────────────────────────────
+   123→
+   124→const TRANSACTION_TYPE_LABELS: Record<string, string> = {
+   125→  room: 'Room',
+   126→  f_and_b: 'Food & Bev',
+   127→  laundry: 'Laundry',
+   128→  spa: 'Spa',
+   129→  phone: 'Phone',
+   130→  minibar: 'Minibar',
+   131→  business_center: 'Biz Center',
+   132→  miscellaneous: 'Misc',
+   133→}
+   134→
+   135→const PAYMENT_METHOD_LABELS: Record<string, string> = {
+   136→  cash: 'Cash',
+   137→  card: 'Card',
+   138→  bank_transfer: 'Bank Transfer',
+   139→  cheque: 'Cheque',
+   140→  city_ledger: 'City Ledger',
+   141→  voucher: 'Voucher',
+   142→  gift_card: 'Gift Card',
+   143→  foreign_currency: 'Foreign Currency',
+   144→}
+   145→
+   146→const CARD_TYPE_LABELS: Record<string, string> = {
+   147→  visa: 'Visa',
+   148→  mastercard: 'Mastercard',
+   149→  amex: 'Amex',
+   150→  other: 'Other',
+   151→}
+   152→
+   153→const FOLIO_TYPE_LABELS: Record<string, string> = {
+   154→  guest: 'Guest',
+   155→  company: 'Company',
+   156→  comp: 'Complimentary',
+   157→  master: 'Master',
+   158→}
+   159→
+   160→// ─── Helpers ────────────────────────────────────────────────────────────
+   161→
+   162→function guestFullName(g: FolioGuest | null | undefined): string {
+   163→  if (!g) return '—'
+   164→  return `${g.firstName} ${g.lastName}`
+   165→}
+   166→
+   167→function folioCharges(f: Folio): number {
+   168→  return f.transactions.reduce((s, t) => s + t.totalAmount, 0)
+   169→}
+   170→
+   171→function folioPayments(f: Folio): number {
+   172→  return f.payments.reduce((s, p) => s + p.amount, 0)
+   173→}
+   174→
+   175→function folioOutstanding(f: Folio): number {
+   176→  return folioCharges(f) - folioPayments(f)
+   177→}
+   178→
+   179→function isVoidedTransaction(t: FolioTransaction): boolean {
+   180→  return t.totalAmount === 0 && t.description.includes('[VOIDED')
+   181→}
+   182→
+   183→function isVoidedPayment(p: FolioPayment): boolean {
+   184→  return p.amount === 0 && p.reference?.includes('[VOIDED')
+   185→}
+   186→
+   187→function useDebounce<T>(value: T, delay: number): T {
+   188→  const [debounced, setDebounced] = useState(value)
+   189→  useEffect(() => {
+   190→    const timer = setTimeout(() => setDebounced(value), delay)
+   191→    return () => clearTimeout(timer)
+   192→  }, [value, delay])
+   193→  return debounced
+   194→}
+   195→
+   196→// ─── Component ──────────────────────────────────────────────────────────
+   197→
+   198→export function FolioView() {
+   199→  const queryClient = useQueryClient()
+   200→  const { settings } = useSettingsStore()
+   201→  const { preferences } = usePreferencesStore()
+   202→  const { folioContext, clearFolioContext } = useFolioContextStore()
+   203→  const { navigateTo } = useNavigationStore()
+   204→
+   205→  // State
+   206→  const [searchQuery, setSearchQuery] = useState('')
+   207→  const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null)
+   208→  const [sortField, setSortField] = useState<SortField>('guestName')
+   209→  const [sortDir, setSortDir] = useState<SortDir>('asc')
+   210→
+   211→  // Dialogs
+   212→  const [chargeDialogOpen, setChargeDialogOpen] = useState(false)
+   213→  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+   214→  const [voidDialogOpen, setVoidDialogOpen] = useState(false)
+   215→  const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null)
+   216→  const [voidReason, setVoidReason] = useState('')
+   217→
+   218→  // Charge form
+   219→  const [chargeType, setChargeType] = useState('miscellaneous')
+   220→  const [chargeDesc, setChargeDesc] = useState('')
+   221→  const [chargeAmount, setChargeAmount] = useState('')
+   222→  const [chargeQty, setChargeQty] = useState('1')
+   223→  const [chargeOutlet, setChargeOutlet] = useState('')
+   224→  const [chargeRef, setChargeRef] = useState('')
+   225→
+   226→  // Payment form
+   227→  const [payMethod, setPayMethod] = useState('cash')
+   228→  const [payAmount, setPayAmount] = useState('')
+   229→  const [payReference, setPayReference] = useState('')
+   230→  const [payCardType, setPayCardType] = useState('visa')
+   231→  const [payReceivedBy, setPayReceivedBy] = useState('Front Desk')
+   232→
+   233→  // Notes form
+   234→  const [folioNotes, setFolioNotes] = useState('')
+   235→
+   236→  // Search dropdown ref
+   237→  const searchRef = useRef<HTMLDivElement>(null)
+   238→
+   239→  // Debounced search
+   240→  const debouncedSearch = useDebounce(searchQuery, 300)
+   241→
+   242→  // Auto-load folio from context
+   243→  React.useEffect(() => {
+   244→    if (folioContext && !selectedFolioId) {
+   245→      setSelectedFolioId(folioContext.folioId || '')
+   246→      clearFolioContext()
+   247→    }
+   248→  }, [folioContext])
+   249→
+   250→  // Dropdown close state for search
+   251→  const [dropdownForceClose, setDropdownForceClose] = useState(false)
+   252→
+   253→  // Close search dropdown on outside click
+   254→  useEffect(() => {
+   255→    function handleClickOutside(e: MouseEvent) {
+   256→      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+   257→        setDropdownForceClose(true)
+   258→      }
+   259→    }
+   260→    document.addEventListener('mousedown', handleClickOutside)
+   261→    return () => document.removeEventListener('mousedown', handleClickOutside)
+   262→  }, [])
+   263→
+   264→  // Reset force close when search changes
+   265→  useEffect(() => {
+   266→    setDropdownForceClose(false) // eslint-disable-line react-hooks/set-state-in-effect
+   267→  }, [searchQuery])
+   268→
+   269→  // ─── Data Fetching ────────────────────────────────────────────────
+   270→
+   271→  // Fetch all folios + stats (list view)
+   272→  const { data: foliosData, isLoading: foliosLoading } = useQuery({
+   273→    queryKey: ['folios'],
+   274→    queryFn: async () => {
+   275→      const res = await fetch('/api/folio')
+   276→      if (!res.ok) throw new Error('Failed to fetch folios')
+   277→      return res.json() as Promise<{ folios: Folio[]; stats: FolioStats | null; settings: Record<string, unknown> }>
+   278→    },
+   279→  })
+   280→
+   281→  // Search folios
+   282→  const { data: searchData, isLoading: searchLoading } = useQuery({
+   283→    queryKey: ['folio-search', debouncedSearch],
+   284→    queryFn: async () => {
+   285→      if (debouncedSearch.length < 2) return null
+   286→      const res = await fetch(`/api/folio?search=${encodeURIComponent(debouncedSearch)}`)
+   287→      if (!res.ok) throw new Error('Search failed')
+   288→      return res.json() as Promise<{ folios: Folio[] }>
+   289→    },
+   290→    enabled: debouncedSearch.length >= 2,
+   291→  })
+   292→
+   293→  // Compute search results from data
+   294→  const searchResults = useMemo(() => {
+   295→    if (!searchData?.folios) return []
+   296→    return searchData.folios.map((f) => ({
+   297→      type: 'folio',
+   298→      id: f.id,
+   299→      label: guestFullName(f.guest),
+   300→      sublabel: `Room ${f.reservation.room?.number || '?'} · ${f.reservation.confirmationNo} · ${formatCurrency(folioOutstanding(f))}`,
+   301→      balance: folioOutstanding(f),
+   302→    }))
+   303→  }, [searchData])
+   304→
+   305→  // Show dropdown when results exist and search is active
+   306→  const showSearchDropdown = searchResults.length > 0 && debouncedSearch.length >= 2
+   307→  const isSearchDropdownOpen = showSearchDropdown && !dropdownForceClose
+   308→
+   309→  // Fetch selected folio detail
+   310→  const { data: folioDetail, isLoading: detailLoading } = useQuery({
+   311→    queryKey: ['folio-detail', selectedFolioId],
+   312→    queryFn: async () => {
+   313→      if (!selectedFolioId) return null
+   314→      // Find folio in the list first
+   315→      const folio = foliosData?.folios?.find((f) => f.id === selectedFolioId)
+   316→      if (folio) {
+   317→        // If folio has transactions/payments, use it; otherwise fetch with reservationId
+   318→        if (folio.transactions.length > 0 || folio.payments.length > 0) return folio
+   319→        const res = await fetch(`/api/folio?reservationId=${folio.reservation.id}`)
+   320→        if (res.ok) {
+   321→          const data = await res.json() as { folios: Folio[] }
+   322→          return data.folios?.[0] || folio
+   323→        }
+   324→        return folio
+   325→      }
+   326→      // Fallback: fetch all and find
+   327→      const res = await fetch('/api/folio')
+   328→      if (res.ok) {
+   329→        const data = await res.json() as { folios: Folio[] }
+   330→        return data.folios?.find((f) => f.id === selectedFolioId) || null
+   331→      }
+   332→      return null
+   333→    },
+   334→    enabled: !!selectedFolioId,
+   335→  })
+   336→
+   337→  const activeFolio = folioDetail || null
+   338→
+   339→  // ─── Computed Values ──────────────────────────────────────────────
+   340→
+   341→  const stats = foliosData?.stats || null
+   342→  const allFolios = foliosData?.folios || []
+   343→  const totalCharges = activeFolio ? folioCharges(activeFolio) : 0
+   344→  const totalPayments = activeFolio ? folioPayments(activeFolio) : 0
+   345→  const outstandingBalance = totalCharges - totalPayments
+   346→  const creditLimit = activeFolio?.reservation.creditLimit || 15000
+   347→  const creditPct = creditLimit > 0 ? Math.min((outstandingBalance / creditLimit) * 100, 100) : 0
+   348→
+   349→  // Charge tax preview
+   350→  const chargeAmountNum = parseFloat(chargeAmount) || 0
+   351→  const chargeTaxPreview = chargeAmountNum * (settings.taxRate / 100)
+   352→  const chargeTotalPreview = chargeAmountNum + chargeTaxPreview
+   353→
+   354→  // Sort folios list
+   355→  const sortedFolios = useMemo(() => {
+   356→    const sorted = [...allFolios]
+   357→    sorted.sort((a, b) => {
+   358→      let cmp = 0
+   359→      if (sortField === 'guestName') {
+   360→        cmp = guestFullName(a.guest).localeCompare(guestFullName(b.guest))
+   361→      } else if (sortField === 'balance') {
+   362→        cmp = folioOutstanding(a) - folioOutstanding(b)
+   363→      }
+   364→      return sortDir === 'asc' ? cmp : -cmp
+   365→    })
+   366→    return sorted
+   367→  }, [allFolios, sortField, sortDir])
+   368→
+   369→  const handleSort = (field: SortField) => {
+   370→    if (sortField === field) {
+   371→      setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
+   372→    } else {
+   373→      setSortField(field)
+   374→      setSortDir('asc')
+   375→    }
+   376→  }
+   377→
+   378→  // Activity timeline (combined charges + payments)
+   379→  const activityTimeline = useMemo(() => {
+   380→    if (!activeFolio) return []
+   381→    const items: Array<{
+   382→      id: string
+   383→      type: 'charge' | 'payment'
+   384→      description: string
+   385→      amount: number
+   386→      date: string
+   387→      meta?: string
+   388→    }> = []
+   389→
+   390→    activeFolio.transactions.forEach((t) => {
+   391→      items.push({
+   392→        id: t.id,
+   393→        type: 'charge',
+   394→        description: t.description,
+   395→        amount: t.totalAmount,
+   396→        date: t.createdAt,
+   397→        meta: TRANSACTION_TYPE_LABELS[t.transactionType] || t.transactionType,
+   398→      })
+   399→    })
+   400→
+   401→    activeFolio.payments.forEach((p) => {
+   402→      items.push({
+   403→        id: p.id,
+   404→        type: 'payment',
+   405→        description: PAYMENT_METHOD_LABELS[p.paymentMethod] || p.paymentMethod,
+   406→        amount: p.amount,
+   407→        date: p.createdAt,
+   408→        meta: p.reference || undefined,
+   409→      })
+   410→    })
+   411→
+   412→    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+   413→    return items
+   414→  }, [activeFolio])
+   415→
+   416→  // ─── Handlers ──────────────────────────────────────────────────────
+   417→
+   418→  const handleSelectFolio = useCallback((id: string) => {
+   419→    setSelectedFolioId(id)
+   420→    setDropdownForceClose(true)
+   421→  }, [])
+   422→
+   423→  const handleSelectSearchResult = (result: SearchResult) => {
+   424→    handleSelectFolio(result.id)
+   425→    setSearchQuery('')
+   426→    setDropdownForceClose(true)
+   427→  }
+   428→
+   429→  const handleBackToList = () => {
+   430→    setSelectedFolioId(null)
+   431→  }
+   432→
+   433→  const handleSortToggle = (field: SortField) => () => handleSort(field)
+   434→
+   435→  // ─── Mutations ────────────────────────────────────────────────────
+   436→
+   437→  const postChargeMutation = useMutation({
+   438→    mutationFn: async () => {
+   439→      if (!activeFolio) throw new Error('No folio selected')
+   440→      const qty = parseInt(chargeQty) || 1
+   441→      const baseAmount = chargeAmountNum
+   442→      const taxAmount = baseAmount * (settings.taxRate / 100)
+   443→      const totalAmount = (baseAmount + taxAmount) * qty
+   444→
+   445→      const res = await fetch(`/api/folio/${activeFolio.id}`, {
+   446→        method: 'POST',
+   447→        headers: { 'Content-Type': 'application/json' },
+   448→        body: JSON.stringify({
+   449→          type: 'charge',
+   450→          transactionType: chargeType,
+   451→          description: chargeDesc,
+   452→          amount: baseAmount * qty,
+   453→          taxAmount: taxAmount * qty,
+   454→          totalAmount,
+   455→          quantity: qty,
+   456→          outlet: chargeOutlet || undefined,
+   457→          reference: chargeRef || undefined,
+   458→        }),
+   459→      })
+   460→      if (!res.ok) throw new Error('Failed to post charge')
+   461→      return res.json() as Promise<{ folio: Folio }>
+   462→    },
+   463→    onSuccess: (data) => {
+   464→      queryClient.invalidateQueries({ queryKey: ['folios'] })
+   465→      queryClient.invalidateQueries({ queryKey: ['folio-detail'] })
+   466→      setSelectedFolioId(data.folio.id)
+   467→      setChargeDialogOpen(false)
+   468→      setChargeDesc('')
+   469→      setChargeAmount('')
+   470→      setChargeQty('1')
+   471→      setChargeOutlet('')
+   472→      setChargeRef('')
+   473→      setChargeType('miscellaneous')
+   474→      toast.success('Charge posted successfully')
+   475→    },
+   476→    onError: () => toast.error('Failed to post charge'),
+   477→  })
+   478→
+   479→  const recordPaymentMutation = useMutation({
+   480→    mutationFn: async () => {
+   481→      if (!activeFolio) throw new Error('No folio selected')
+   482→      const res = await fetch(`/api/folio/${activeFolio.id}`, {
+   483→        method: 'POST',
+   484→        headers: { 'Content-Type': 'application/json' },
+   485→        body: JSON.stringify({
+   486→          type: 'payment',
+   487→          paymentMethod: payMethod,
+   488→          amount: parseFloat(payAmount),
+   489→          reference: payReference || undefined,
+   490→          cardType: payMethod === 'card' ? payCardType : undefined,
+   491→          receivedBy: payReceivedBy,
+   492→        }),
+   493→      })
+   494→      if (!res.ok) throw new Error('Failed to record payment')
+   495→      return res.json() as Promise<{ folio: Folio }>
+   496→    },
+   497→    onSuccess: (data) => {
+   498→      queryClient.invalidateQueries({ queryKey: ['folios'] })
+   499→      queryClient.invalidateQueries({ queryKey: ['folio-detail'] })
+   500→      setSelectedFolioId(data.folio.id)
+   501→      setPaymentDialogOpen(false)
+   502→      setPayAmount('')
+   503→      setPayReference('')
+   504→      setPayMethod('cash')
+   505→      setPayCardType('visa')
+   506→      setPayReceivedBy('Front Desk')
+   507→      toast.success('Payment recorded successfully')
+   508→    },
+   509→    onError: () => toast.error('Failed to record payment'),
+   510→  })
+   511→
+   512→  const voidMutation = useMutation({
+   513→    mutationFn: async () => {
+   514→      if (!activeFolio || !voidTarget) throw new Error('Missing data')
+   515→      const res = await fetch(`/api/folio/${activeFolio.id}`, {
+   516→        method: 'DELETE',
+   517→        headers: { 'Content-Type': 'application/json' },
+   518→        body: JSON.stringify({
+   519→          type: voidTarget.type === 'transaction' ? 'void_transaction' : 'void_payment',
+   520→          transactionId: voidTarget.type === 'transaction' ? voidTarget.id : undefined,
+   521→          paymentId: voidTarget.type === 'payment' ? voidTarget.id : undefined,
+   522→          reason: voidReason,
+   523→        }),
+   524→      })
+   525→      if (!res.ok) throw new Error('Failed to void')
+   526→      return res.json() as Promise<{ folio: Folio }>
+   527→    },
+   528→    onSuccess: () => {
+   529→      queryClient.invalidateQueries({ queryKey: ['folios'] })
+   530→      queryClient.invalidateQueries({ queryKey: ['folio-detail'] })
+   531→      setVoidDialogOpen(false)
+   532→      setVoidTarget(null)
+   533→      setVoidReason('')
+   534→      toast.success('Transaction voided successfully')
+   535→    },
+   536→    onError: () => toast.error('Failed to void transaction'),
+   537→  })
+   538→
+   539→  const handleOpenVoidDialog = (target: VoidTarget) => {
+   540→    setVoidTarget(target)
+   541→    setVoidReason('')
+   542→    setVoidDialogOpen(true)
+   543→  }
+   544→
+   545→  const handleViewGuestLedger = (guestId: string, guestName: string) => {
+   546→    useGuestLedgerContextStore.getState().setGuestLedgerContext({ guestId, guestName })
+   547→    navigateTo('front-desk', 'guest-ledger')
+   548→  }
+   549→
+   550→  const handleViewInHouse = (reservationId: string, guestId: string, guestName: string, roomNumber: string, confirmationNo: string, folioId: string) => {
+   551→    useFolioContextStore.getState().setFolioContext({
+   552→      reservationId, guestId, guestName, roomNumber, confirmationNo, folioId,
+   553→    })
+   554→    navigateTo('front-desk', 'in-house')
+   555→  }
+   556→
+   557→  const handleOpenPaymentDialog = () => {
+   558→    setPayAmount(outstandingBalance > 0 ? String(outstandingBalance) : '')
+   559→    setPaymentDialogOpen(true)
+   560→  }
+   561→
+   562→  // ─── Render ───────────────────────────────────────────────────────
+   563→
+   564→  return (
+   565→    <div className="flex flex-col gap-2">
+   566→      {/* ─── 1. Module Header ───────────────────────────────────── */}
+   567→      <div>
+   568→        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Guest Folio</h2>
+   569→        <p className="text-xs text-muted-foreground">
+   570→          Search and manage guest folios, charges, and payments
+   571→        </p>
+   572→      </div>
+   573→
+   574→      {/* ─── 2. Search Bar ─────────────────────────────────────── */}
+   575→      <div className="relative" ref={searchRef}>
+   576→        <div className="relative">
+   577→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   578→          <Input
+   579→            placeholder="Search by guest name, room number, or confirmation #..."
+   580→            value={searchQuery}
+   581→            onChange={(e) => setSearchQuery(e.target.value)}
+   582→            className={cn('pl-9 h-8', searchQuery && !searchLoading && 'pr-7')}
+   583→            onFocus={() => { setDropdownForceClose(false) }}
+   584→          />
+   585→          {searchQuery && !searchLoading && (
+   586→            <button
+   587→              type="button"
+   588→              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+   589→              onClick={() => setSearchQuery('')}
+   590→            >
+   591→              <X className="size-3" strokeWidth={2.5} />
+   592→            </button>
+   593→          )}
+   594→          {searchLoading && (
+   595→            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+   596→              <div className="size-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+   597→            </div>
+   598→          )}
+   599→        </div>
+   600→
+   601→        {/* Search Dropdown */}
+   602→        {isSearchDropdownOpen && (
+   603→          <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover shadow-lg overflow-hidden">
+   604→            <div className="max-h-72 overflow-y-auto p-1">
+   605→              {searchResults.map((result) => (
+   606→                <button
+   607→                  key={result.id}
+   608→                  onClick={() => handleSelectSearchResult(result)}
+   609→                  className="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm hover:bg-accent transition-colors"
+   610→                >
+   611→                  <div className="flex size-9 items-center justify-center rounded-md bg-primary/10 shrink-0">
+   612→                    <Receipt className="size-4 text-primary" />
+   613→                  </div>
+   614→                  <div className="flex-1 min-w-0">
+   615→                    <p className="font-medium truncate">{result.label}</p>
+   616→                    <p className="text-xs text-muted-foreground truncate">{result.sublabel}</p>
+   617→                  </div>
+   618→                  <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+   619→                </button>
+   620→              ))}
+   621→            </div>
+   622→          </div>
+   623→        )}
+   624→      </div>
+   625→
+   626→      {/* ─── Content: List or Detail ───────────────────────────── */}
+   627→      {!activeFolio ? (
+   628→        <FolioList
+   629→          folios={sortedFolios}
+   630→          loading={foliosLoading}
+   631→          sortField={sortField}
+   632→          sortDir={sortDir}
+   633→          handleSort={handleSortToggle}
+   634→          onSelect={handleSelectFolio}
+   635→        />
+   636→      ) : (
+   637→        <div className="space-y-2">
+   638→          <div className="flex flex-col lg:flex-row gap-2">
+   639→            {/* Folio Detail Panel */}
+   640→            <div className="flex-1 min-w-0 space-y-2">
+   641→              <FolioDetailPanel
+   642→                folio={activeFolio}
+   643→                loading={detailLoading}
+   644→                totalCharges={totalCharges}
+   645→                totalPayments={totalPayments}
+   646→                outstandingBalance={outstandingBalance}
+   647→                creditLimit={creditLimit}
+   648→                creditPct={creditPct}
+   649→                currency={preferences.currency}
+   650→                taxRate={settings.taxRate}
+   651→                activityTimeline={activityTimeline}
+   652→                onBack={handleBackToList}
+   653→                onViewGuestLedger={handleViewGuestLedger}
+   654→                onViewInHouse={handleViewInHouse}
+   655→                onChargeClick={() => setChargeDialogOpen(true)}
+   656→                onPaymentClick={handleOpenPaymentDialog}
+   657→                onVoidTransaction={(id, desc, amt) => handleOpenVoidDialog({ type: 'transaction', id, description: desc, amount: amt })}
+   658→                onVoidPayment={(id, desc, amt) => handleOpenVoidDialog({ type: 'payment', id, description: desc, amount: amt })}
+   659→                onNotesChange={setFolioNotes}
+   660→                folioNotes={folioNotes}
+   661→              />
+   662→            </div>
+   663→          </div>
+   664→        </div>
+   665→      )}
+   666→
+   667→      {/* ─── 5. Post Charge Dialog ────────────────────────────── */}
+   668→      <Dialog open={chargeDialogOpen} onOpenChange={setChargeDialogOpen}>
+   669→        <DialogContent className="max-w-md">
+   670→          <DialogHeader>
+   671→            <DialogTitle className="flex items-center gap-2">
+   672→              <Plus className="size-5" />
+   673→              Post New Charge
+   674→            </DialogTitle>
+   675→          </DialogHeader>
+   676→          <div className="space-y-4">
+   677→            <div className="space-y-1.5">
+   678→              <Label>Transaction Type *</Label>
+   679→              <Select value={chargeType} onValueChange={setChargeType}>
+   680→                <SelectTrigger><SelectValue /></SelectTrigger>
+   681→                <SelectContent>
+   682→                  {Object.entries(TRANSACTION_TYPE_LABELS).map(([key, label]) => (
+   683→                    <SelectItem key={key} value={key}>{label}</SelectItem>
+   684→                  ))}
+   685→                </SelectContent>
+   686→              </Select>
+   687→            </div>
+   688→            <div className="space-y-1.5">
+   689→              <Label>Description *</Label>
+   690→              <Input
+   691→                placeholder="Charge description"
+   692→                value={chargeDesc}
+   693→                onChange={(e) => setChargeDesc(e.target.value)}
+   694→              />
+   695→            </div>
+   696→            <div className="grid grid-cols-2 gap-3">
+   697→              <div className="space-y-1.5">
+   698→                <Label>Amount ({preferences.currency}) *</Label>
+   699→                <Input
+   700→                  type="number"
+   701→                  placeholder="0"
+   702→                  min={0}
+   703→                  step="0.01"
+   704→                  value={chargeAmount}
+   705→                  onChange={(e) => setChargeAmount(e.target.value)}
+   706→                />
+   707→              </div>
+   708→              <div className="space-y-1.5">
+   709→                <Label>Quantity</Label>
+   710→                <Input
+   711→                  type="number"
+   712→                  min={1}
+   713→                  value={chargeQty}
+   714→                  onChange={(e) => setChargeQty(e.target.value)}
+   715→                />
+   716→              </div>
+   717→            </div>
+   718→            {chargeAmountNum > 0 && (
+   719→              <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1">
+   720→                <div className="flex justify-between">
+   721→                  <span className="text-muted-foreground">Subtotal</span>
+   722→                  <span>{formatCurrency(chargeAmountNum)}</span>
+   723→                </div>
+   724→                <div className="flex justify-between">
+   725→                  <span className="text-muted-foreground">Tax ({settings.taxRate}%)</span>
+   726→                  <span>{formatCurrency(chargeTaxPreview)}</span>
+   727→                </div>
+   728→                <Separator className="my-1" />
+   729→                <div className="flex justify-between font-semibold">
+   730→                  <span>Total</span>
+   731→                  <span>{formatCurrency(chargeTotalPreview)}</span>
+   732→                </div>
+   733→              </div>
+   734→            )}
+   735→            <div className="grid grid-cols-2 gap-3">
+   736→              <div className="space-y-1.5">
+   737→                <Label>Outlet</Label>
+   738→                <Input
+   739→                  placeholder="Optional"
+   740→                  value={chargeOutlet}
+   741→                  onChange={(e) => setChargeOutlet(e.target.value)}
+   742→                />
+   743→              </div>
+   744→              <div className="space-y-1.5">
+   745→                <Label>Reference</Label>
+   746→                <Input
+   747→                  placeholder="Optional"
+   748→                  value={chargeRef}
+   749→                  onChange={(e) => setChargeRef(e.target.value)}
+   750→                />
+   751→              </div>
+   752→            </div>
+   753→          </div>
+   754→          <DialogFooter>
+   755→            <Button variant="outline" onClick={() => setChargeDialogOpen(false)}>Cancel</Button>
+   756→            <Button
+   757→              onClick={() => postChargeMutation.mutate()}
+   758→              disabled={!chargeDesc || chargeAmountNum <= 0 || postChargeMutation.isPending}
+   759→            >
+   760→              {postChargeMutation.isPending ? (
+   761→                <><div className="size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-1.5" /> Posting...</>
+   762→              ) : 'Post Charge'}
+   763→            </Button>
+   764→          </DialogFooter>
+   765→        </DialogContent>
+   766→      </Dialog>
+   767→
+   768→      {/* ─── 6. Record Payment Dialog ──────────────────────────── */}
+   769→      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+   770→        <DialogContent className="max-w-md">
+   771→          <DialogHeader>
+   772→            <DialogTitle className="flex items-center gap-2">
+   773→              <CreditCard className="size-5" />
+   774→              Record Payment
+   775→            </DialogTitle>
+   776→          </DialogHeader>
+   777→          <div className="space-y-4">
+   778→            <div className="space-y-1.5">
+   779→              <Label>Payment Method *</Label>
+   780→              <Select value={payMethod} onValueChange={setPayMethod}>
+   781→                <SelectTrigger><SelectValue /></SelectTrigger>
+   782→                <SelectContent>
+   783→                  {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
+   784→                    <SelectItem key={key} value={key}>{label}</SelectItem>
+   785→                  ))}
+   786→                </SelectContent>
+   787→              </Select>
+   788→            </div>
+   789→            <div className="space-y-1.5">
+   790→              <Label>Amount ({preferences.currency}) *</Label>
+   791→              <Input
+   792→                type="number"
+   793→                placeholder="0"
+   794→                min={0}
+   795→                step="0.01"
+   796→                value={payAmount}
+   797→                onChange={(e) => setPayAmount(e.target.value)}
+   798→              />
+   799→              {outstandingBalance > 0 && (
+   800→                <p className="text-xs text-muted-foreground">
+   801→                  Outstanding: {formatCurrency(outstandingBalance)}
+   802→                </p>
+   803→              )}
+   804→            </div>
+   805→            {payMethod === 'card' && (
+   806→              <div className="space-y-1.5">
+   807→                <Label>Card Type *</Label>
+   808→                <Select value={payCardType} onValueChange={setPayCardType}>
+   809→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   810→                  <SelectContent>
+   811→                    {Object.entries(CARD_TYPE_LABELS).map(([key, label]) => (
+   812→                      <SelectItem key={key} value={key}>{label}</SelectItem>
+   813→                    ))}
+   814→                  </SelectContent>
+   815→                </Select>
+   816→              </div>
+   817→            )}
+   818→            <div className="space-y-1.5">
+   819→              <Label>Reference</Label>
+   820→              <Input
+   821→                placeholder="Reference # (optional)"
+   822→                value={payReference}
+   823→                onChange={(e) => setPayReference(e.target.value)}
+   824→              />
+   825→            </div>
+   826→            <div className="space-y-1.5">
+   827→              <Label>Received By</Label>
+   828→              <Input
+   829→                value={payReceivedBy}
+   830→                onChange={(e) => setPayReceivedBy(e.target.value)}
+   831→              />
+   832→            </div>
+   833→          </div>
+   834→          <DialogFooter>
+   835→            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+   836→            <Button
+   837→              onClick={() => recordPaymentMutation.mutate()}
+   838→              disabled={!payAmount || parseFloat(payAmount) <= 0 || recordPaymentMutation.isPending}
+   839→            >
+   840→              {recordPaymentMutation.isPending ? (
+   841→                <><div className="size-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-1.5" /> Recording...</>
+   842→              ) : 'Record Payment'}
+   843→            </Button>
+   844→          </DialogFooter>
+   845→        </DialogContent>
+   846→      </Dialog>
+   847→
+   848→      {/* ─── 7. Void Transaction Dialog ─────────────────────────── */}
+   849→      <AlertDialog open={voidDialogOpen} onOpenChange={(open) => { setVoidDialogOpen(open); if (!open) { setVoidTarget(null); setVoidReason('') } }}>
+   850→        <AlertDialogContent className="max-w-md">
+   851→          <AlertDialogHeader>
+   852→            <AlertDialogTitle className="flex items-center gap-2">
+   853→              <Ban className="size-5 text-red-500" />
+   854→              Void {voidTarget?.type === 'transaction' ? 'Charge' : 'Payment'}
+   855→            </AlertDialogTitle>
+   856→            <AlertDialogDescription asChild>
+   857→              <div className="space-y-3">
+   858→                <p className="text-sm">
+   859→                  Are you sure you want to void this {voidTarget?.type === 'transaction' ? 'charge' : 'payment'}? This action cannot be undone.
+   860→                </p>
+   861→                {voidTarget && (
+   862→                  <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+   863→                    <div className="flex justify-between">
+   864→                      <span className="text-muted-foreground">Description</span>
+   865→                      <span className="font-medium">{voidTarget.description}</span>
+   866→                    </div>
+   867→                    <div className="flex justify-between">
+   868→                      <span className="text-muted-foreground">Amount</span>
+   869→                      <span className="font-medium">{formatCurrency(voidTarget.amount)}</span>
+   870→                    </div>
+   871→                  </div>
+   872→                )}
+   873→                <div className="space-y-1.5">
+   874→                  <Label className="text-sm">
+   875→                    Reason <span className="text-red-500">*</span>
+   876→                  </Label>
+   877→                  <Textarea
+   878→                    placeholder="Enter reason for voiding..."
+   879→                    value={voidReason}
+   880→                    onChange={(e) => setVoidReason(e.target.value)}
+   881→                    rows={3}
+   882→                  />
+   883→                </div>
+   884→              </div>
+   885→            </AlertDialogDescription>
+   886→          </AlertDialogHeader>
+   887→          <AlertDialogFooter>
+   888→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   889→            <AlertDialogAction
+   890→              onClick={() => voidMutation.mutate()}
+   891→              disabled={!voidReason.trim() || voidMutation.isPending}
+   892→              className="bg-red-600 hover:bg-red-700 text-white"
+   893→            >
+   894→              {voidMutation.isPending ? 'Voiding...' : 'Confirm Void'}
+   895→            </AlertDialogAction>
+   896→          </AlertDialogFooter>
+   897→        </AlertDialogContent>
+   898→      </AlertDialog>
+   899→    </div>
+   900→  )
+   901→}
+   902→
+   903→// ─── Folio List ─────────────────────────────────────────────────────────
+   904→
+   905→function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }: {
+   906→  folios: Folio[]
+   907→  loading: boolean
+   908→  sortField: SortField
+   909→  sortDir: SortDir
+   910→  handleSort: (f: SortField) => () => void
+   911→  onSelect: (id: string) => void
+   912→}) {
+   913→  if (loading) {
+   914→    return (
+   915→      <Card>
+   916→        <CardContent className="p-2 space-y-2">
+   917→          {Array.from({ length: 5 }).map((_, i) => (
+   918→            <Skeleton key={i} className="h-12 w-full" />
+   919→          ))}
+   920→        </CardContent>
+   921→      </Card>
+   922→    )
+   923→  }
+   924→
+   925→  if (!folios.length) {
+   926→    return (
+   927→      <Card>
+   928→        <CardContent className="py-16 flex flex-col items-center text-center text-muted-foreground">
+   929→          <Receipt className="size-12 mb-3 opacity-30" />
+   930→          <h3 className="text-lg font-semibold mb-1">No Folios Found</h3>
+   931→          <p className="text-sm max-w-sm">
+   932→            There are no guest folios yet. Folios are automatically created when guests check in.
+   933→          </p>
+   934→        </CardContent>
+   935→      </Card>
+   936→    )
+   937→  }
+   938→
+   939→  return (
+   940→    <>
+   941→      {/* Desktop Table */}
+   942→      <Card className="hidden md:block overflow-hidden">
+   943→        <Table>
+   944→          <TableHeader>
+   945→            <TableRow>
+   946→              <TableHead className="w-[40%]">
+   947→                <button onClick={handleSort('guestName')} className="flex items-center gap-1 hover:text-foreground transition-colors">
+   948→                  Guest Name
+   949→                  <ArrowUpDown className="size-3" />
+   950→                  {sortField === 'guestName' && (
+   951→                    <span className="text-xs text-muted-foreground">{sortDir === 'asc' ? '↑' : '↓'}</span>
+   952→                  )}
+   953→                </button>
+   954→              </TableHead>
+   955→              <TableHead>Room</TableHead>
+   956→              <TableHead>Confirmation #</TableHead>
+   957→              <TableHead>Type</TableHead>
+   958→              <TableHead>Status</TableHead>
+   959→              <TableHead className="text-right">Charges</TableHead>
+   960→              <TableHead className="text-right">Payments</TableHead>
+   961→              <TableHead className="text-right">
+   962→                <button onClick={handleSort('balance')} className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors">
+   963→                  Balance
+   964→                  <ArrowUpDown className="size-3" />
+   965→                  {sortField === 'balance' && (
+   966→                    <span className="text-xs text-muted-foreground">{sortDir === 'asc' ? '↑' : '↓'}</span>
+   967→                  )}
+   968→                </button>
+   969→              </TableHead>
+   970→            </TableRow>
+   971→          </TableHeader>
+   972→          <TableBody>
+   973→            {folios.map((f) => {
+   974→              const charges = folioCharges(f)
+   975→              const payments = folioPayments(f)
+   976→              const balance = charges - payments
+   977→              return (
+   978→                <TableRow
+   979→                  key={f.id}
+   980→                  className="cursor-pointer hover:bg-accent/50 transition-colors"
+   981→                  onClick={() => onSelect(f.id)}
+   982→                >
+   983→                  <TableCell className="font-medium">
+   984→                    <div className="flex items-center gap-2">
+   985→                      <span>{guestFullName(f.guest)}</span>
+   986→                      {f.guest.vipLevel !== 'none' && (
+   987→                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">VIP</Badge>
+   988→                      )}
+   989→                    </div>
+   990→                  </TableCell>
+   991→                  <TableCell className="text-xs">{f.reservation.room?.number || '—'}</TableCell>
+   992→                  <TableCell className="text-xs font-mono">{f.reservation.confirmationNo}</TableCell>
+   993→                  <TableCell>
+   994→                    <Badge variant="secondary" className="text-[10px]">
+   995→                      {FOLIO_TYPE_LABELS[f.folioType] || f.folioType}
+   996→                    </Badge>
+   997→                  </TableCell>
+   998→                  <TableCell><StatusBadge status={f.status} /></TableCell>
+   999→                  <TableCell className="text-right text-xs">{formatCurrency(charges)}</TableCell>
+  1000→                  <TableCell className="text-right text-xs text-emerald-600">{formatCurrency(payments)}</TableCell>
+  1001→                  <TableCell className={cn('text-right text-xs font-semibold', balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+  1002→                    {formatCurrency(balance)}
+  1003→                  </TableCell>
+  1004→                </TableRow>
+  1005→              )
+  1006→            })}
+  1007→          </TableBody>
+  1008→        </Table>
+  1009→      </Card>
+  1010→
+  1011→      {/* Mobile Cards */}
+  1012→      <div className="md:hidden space-y-3">
+  1013→        {folios.map((f) => {
+  1014→          const charges = folioCharges(f)
+  1015→          const payments = folioPayments(f)
+  1016→          const balance = charges - payments
+  1017→          return (
+  1018→            <Card
+  1019→              key={f.id}
+  1020→              className="cursor-pointer hover:shadow-md transition-shadow active:scale-[0.99]"
+  1021→              onClick={() => onSelect(f.id)}
+  1022→            >
+  1023→              <CardContent className="p-4">
+  1024→                <div className="flex items-start justify-between gap-2">
+  1025→                  <div className="min-w-0">
+  1026→                    <div className="flex items-center gap-1.5">
+  1027→                      <span className="font-semibold text-xs truncate">{guestFullName(f.guest)}</span>
+  1028→                      {f.guest.vipLevel !== 'none' && (
+  1029→                        <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">VIP</Badge>
+  1030→                      )}
+  1031→                    </div>
+  1032→                    <p className="text-xs text-muted-foreground mt-0.5">
+  1033→                      Room {f.reservation.room?.number || '—'} · {f.reservation.confirmationNo}
+  1034→                    </p>
+  1035→                  </div>
+  1036→                  <StatusBadge status={f.status} />
+  1037→                </div>
+  1038→                <div className="flex items-center justify-between mt-3 pt-3 border-t">
+  1039→                  <div className="flex gap-3 text-xs text-muted-foreground">
+  1040→                    <span>Charges: {formatCurrency(charges)}</span>
+  1041→                    <span>Paid: {formatCurrency(payments)}</span>
+  1042→                  </div>
+  1043→                  <span className={cn('text-xs font-bold', balance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+  1044→                    {formatCurrency(balance)}
+  1045→                  </span>
+  1046→                </div>
+  1047→              </CardContent>
+  1048→            </Card>
+  1049→          )
+  1050→        })}
+  1051→      </div>
+  1052→    </>
+  1053→  )
+  1054→}
+  1055→
+  1056→// ─── Folio Detail Panel ──────────────────────────────────────────────────
+  1057→
+  1058→function FolioDetailPanel({
+  1059→  folio, loading, totalCharges, totalPayments, outstandingBalance,
+  1060→  creditLimit, creditPct, currency, taxRate, activityTimeline,
+  1061→  onBack, onViewGuestLedger, onViewInHouse, onChargeClick, onPaymentClick,
+  1062→  onVoidTransaction, onVoidPayment, onNotesChange, folioNotes,
+  1063→}: {
+  1064→  folio: Folio
+  1065→  loading: boolean
+  1066→  totalCharges: number
+  1067→  totalPayments: number
+  1068→  outstandingBalance: number
+  1069→  creditLimit: number
+  1070→  creditPct: number
+  1071→  currency: string
+  1072→  taxRate: number
+  1073→  activityTimeline: Array<{ id: string; type: 'charge' | 'payment'; description: string; amount: number; date: string; meta?: string }>
+  1074→  onBack: () => void
+  1075→  onViewGuestLedger: (guestId: string, guestName: string) => void
+  1076→  onViewInHouse: (reservationId: string, guestId: string, guestName: string, roomNumber: string, confirmationNo: string, folioId: string) => void
+  1077→  onChargeClick: () => void
+  1078→  onPaymentClick: () => void
+  1079→  onVoidTransaction: (id: string, desc: string, amt: number) => void
+  1080→  onVoidPayment: (id: string, desc: string, amt: number) => void
+  1081→  onNotesChange: (v: string) => void
+  1082→  folioNotes: string
+  1083→}) {
+  1084→  const ratePerNight = folio.reservation.roomRate
+  1085→
+  1086→  return (
+  1087→    <div className="space-y-2">
+  1088→      {/* Guest & Stay Info */}
+  1089→      <Card>
+  1090→        <CardContent className="p-2.5 md:p-4">
+  1091→          {/* Back Button & Navigation */}
+  1092→          <div className="flex items-center gap-2 mb-3">
+  1093→            <button
+  1094→              onClick={onBack}
+  1095→              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+  1096→            >
+  1097→              <ArrowLeft className="size-4" />
+  1098→              <span>Back</span>
+  1099→            </button>
+  1100→            <div className="h-4 w-px bg-border" />
+  1101→            <Button
+  1102→              variant="outline"
+  1103→              size="sm"
+  1104→              className="h-7 text-xs"
+  1105→              onClick={() => onViewGuestLedger(folio.guest.id, guestFullName(folio.guest))}
+  1106→            >
+  1107→              <BookOpen className="h-3.5 w-3.5 mr-1" /> View Ledger
+  1108→            </Button>
+  1109→            <Button
+  1110→              variant="outline"
+  1111→              size="sm"
+  1112→              className="h-7 text-xs"
+  1113→              onClick={() => onViewInHouse(
+  1114→                folio.reservation.id,
+  1115→                folio.guest.id,
+  1116→                guestFullName(folio.guest),
+  1117→                folio.reservation.room?.number || '',
+  1118→                folio.reservation.confirmationNo,
+  1119→                folio.id,
+  1120→              )}
+  1121→            >
+  1122→              <BedDouble className="h-3.5 w-3.5 mr-1" /> In-House
+  1123→            </Button>
+  1124→          </div>
+  1125→
+  1126→          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+  1127→            <div className="space-y-2">
+  1128→              <div className="flex items-center gap-2 flex-wrap">
+  1129→                {loading ? (
+  1130→                  <Skeleton className="h-6 w-40" />
+  1131→                ) : (
+  1132→                  <h3 className="text-base font-bold">
+  1133→                    {guestFullName(folio.guest)}
+  1134→                  </h3>
+  1135→                )}
+  1136→                {folio.guest.vipLevel !== 'none' && (
+  1137→                  <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 gap-1">
+  1138→                    <Shield className="size-3" /> VIP
+  1139→                  </Badge>
+  1140→                )}
+  1141→                <StatusBadge status={folio.status} />
+  1142→                <Badge variant="secondary" className="text-[10px]">
+  1143→                  {FOLIO_TYPE_LABELS[folio.folioType] || folio.folioType} Folio
+  1144→                </Badge>
+  1145→              </div>
+  1146→
+  1147→              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+  1148→                {loading ? (
+  1149→                  <Skeleton className="h-4 w-72" />
+  1150→                ) : (
+  1151→                  <>
+  1152→                    <span className="flex items-center gap-1">
+  1153→                      <BedDouble className="size-3.5" />
+  1154→                      Room {folio.reservation.room?.number || '—'}
+  1155→                    </span>
+  1156→                    <Separator orientation="vertical" className="h-4" />
+  1157→                    <span className="flex items-center gap-1">
+  1158→                      <CalendarDays className="size-3.5" />
+  1159→                      {formatDate(folio.reservation.checkIn)} → {formatDate(folio.reservation.checkOut)}
+  1160→                    </span>
+  1161→                    <Separator orientation="vertical" className="h-4" />
+  1162→                    <span className="font-mono">{folio.reservation.confirmationNo}</span>
+  1163→                    {ratePerNight > 0 && (
+  1164→                      <>
+  1165→                        <Separator orientation="vertical" className="h-4" />
+  1166→                        <span>{formatCurrency(ratePerNight)}/night</span>
+  1167→                      </>
+  1168→                    )}
+  1169→                  </>
+  1170→                )}
+  1171→              </div>
+  1172→            </div>
+  1173→          </div>
+  1174→
+  1175→          {/* Balance Summary Cards */}
+  1176→          <div className="grid grid-cols-3 gap-3 mt-5">
+  1177→            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-800/30 p-3 text-center">
+  1178→              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium mb-1">Total Charges</p>
+  1179→              <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{formatCurrency(totalCharges)}</p>
+  1180→            </div>
+  1181→            <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/30 p-3 text-center">
+  1182→              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mb-1">Total Payments</p>
+  1183→              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(totalPayments)}</p>
+  1184→            </div>
+  1185→            <div className="rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/60 dark:border-red-800/30 p-3 text-center">
+  1186→              <p className="text-[11px] text-red-600 dark:text-red-400 font-medium mb-1">Outstanding</p>
+  1187→              <p className={cn('text-lg font-bold', outstandingBalance > 0 ? 'text-red-700 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-300')}>
+  1188→                {formatCurrency(outstandingBalance)}
+  1189→              </p>
+  1190→            </div>
+  1191→          </div>
+  1192→
+  1193→          {/* Credit Limit Progress */}
+  1194→          <div className="mt-3 space-y-1.5">
+  1195→            <div className="flex items-center justify-between text-xs text-muted-foreground">
+  1196→              <span>Credit Limit Usage</span>
+  1197→              <span className="font-medium">{Math.round(creditPct)}% of {formatCurrency(creditLimit)}</span>
+  1198→            </div>
+  1199→            <Progress
+  1200→              value={creditPct}
+  1201→              className={cn('h-2', creditPct > 80 ? '[&>div]:bg-red-500' : creditPct > 50 ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500')}
+  1202→            />
+  1203→          </div>
+  1204→
+  1205→          {/* Action Buttons */}
+  1206→          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
+  1207→            <TooltipProvider>
+  1208→              <Tooltip>
+  1209→                <TooltipTrigger asChild>
+  1210→                  <Button size="sm" onClick={onChargeClick}>
+  1211→                    <Plus className="size-4 mr-1.5" /> Post Charge
+  1212→                  </Button>
+  1213→                </TooltipTrigger>
+  1214→                <TooltipContent>Post a new charge to this folio</TooltipContent>
+  1215→              </Tooltip>
+  1216→            </TooltipProvider>
+  1217→
+  1218→            <TooltipProvider>
+  1219→              <Tooltip>
+  1220→                <TooltipTrigger asChild>
+  1221→                  <Button size="sm" variant="outline" onClick={onPaymentClick}>
+  1222→                    <CreditCard className="size-4 mr-1.5" /> Record Payment
+  1223→                  </Button>
+  1224→                </TooltipTrigger>
+  1225→                <TooltipContent>Record a payment against this folio</TooltipContent>
+  1226→              </Tooltip>
+  1227→            </TooltipProvider>
+  1228→
+  1229→            <Separator orientation="vertical" className="h-8 hidden sm:block" />
+  1230→
+  1231→            <TooltipProvider>
+  1232→              <Tooltip>
+  1233→                <TooltipTrigger asChild>
+  1234→                  <Button size="sm" variant="outline" onClick={() => toast.info('Post to Room — charges will be routed to the guest\'s room account')}>
+  1235→                    <BedDouble className="size-4 mr-1.5" /> <span className="hidden sm:inline">Post to Room</span>
+  1236→                  </Button>
+  1237→                </TooltipTrigger>
+  1238→                <TooltipContent>Route charges to room account</TooltipContent>
+  1239→              </Tooltip>
+  1240→            </TooltipProvider>
+  1241→
+  1242→            <TooltipProvider>
+  1243→              <Tooltip>
+  1244→                <TooltipTrigger asChild>
+  1245→                  <Button size="sm" variant="outline" onClick={() => toast.info('Split Folio — this feature allows distributing charges across multiple folios')}>
+  1246→                    <SplitIcon className="size-4 mr-1.5" /> <span className="hidden sm:inline">Split Folio</span>
+  1247→                  </Button>
+  1248→                </TooltipTrigger>
+  1249→                <TooltipContent>Split charges across folios</TooltipContent>
+  1250→              </Tooltip>
+  1251→            </TooltipProvider>
+  1252→
+  1253→            <Separator orientation="vertical" className="h-8 hidden sm:block" />
+  1254→
+  1255→            <TooltipProvider>
+  1256→              <Tooltip>
+  1257→                <TooltipTrigger asChild>
+  1258→                  <Button size="sm" variant="ghost" onClick={() => toast.info('Print — folio statement will be sent to the default printer')}>
+  1259→                    <Printer className="size-4 mr-1.5" /> <span className="hidden sm:inline">Print</span>
+  1260→                  </Button>
+  1261→                </TooltipTrigger>
+  1262→                <TooltipContent>Print folio statement</TooltipContent>
+  1263→              </Tooltip>
+  1264→            </TooltipProvider>
+  1265→
+  1266→            <TooltipProvider>
+  1267→              <Tooltip>
+  1268→                <TooltipTrigger asChild>
+  1269→                  <Button size="sm" variant="ghost" onClick={() => toast.info('Email — folio statement will be emailed to the guest')}>
+  1270→                    <Mail className="size-4 mr-1.5" /> <span className="hidden sm:inline">Email</span>
+  1271→                  </Button>
+  1272→                </TooltipTrigger>
+  1273→                <TooltipContent>Email folio to guest</TooltipContent>
+  1274→              </Tooltip>
+  1275→            </TooltipProvider>
+  1276→          </div>
+  1277→        </CardContent>
+  1278→      </Card>
+  1279→
+  1280→      {/* ─── Tabbed Sections ─────────────────────────────────── */}
+  1281→      <Card className="overflow-hidden">
+  1282→        <Tabs defaultValue="charges" className="w-full">
+  1283→          <div className="border-b px-4">
+  1284→            <TabsList className="bg-transparent p-0 h-auto">
+  1285→              <TabsTrigger
+  1286→                value="charges"
+  1287→                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5 text-sm"
+  1288→              >
+  1289→                <FileText className="size-4 mr-1.5" />
+  1290→                Charges ({folio.transactions.length})
+  1291→              </TabsTrigger>
+  1292→              <TabsTrigger
+  1293→                value="payments"
+  1294→                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5 text-sm"
+  1295→              >
+  1296→                <CreditCard className="size-4 mr-1.5" />
+  1297→                Payments ({folio.payments.length})
+  1298→              </TabsTrigger>
+  1299→              <TabsTrigger
+  1300→                value="activity"
+  1301→                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5 text-sm"
+  1302→              >
+  1303→                <Activity className="size-4 mr-1.5" />
+  1304→                Activity
+  1305→              </TabsTrigger>
+  1306→              <TabsTrigger
+  1307→                value="notes"
+  1308→                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-2.5 text-sm"
+  1309→              >
+  1310→                <StickyNote className="size-4 mr-1.5" />
+  1311→                Notes
+  1312→              </TabsTrigger>
+  1313→            </TabsList>
+  1314→          </div>
+  1315→
+  1316→          {/* Charges Tab */}
+  1317→          <TabsContent value="charges" className="m-0">
+  1318→            {loading ? (
+  1319→              <div className="p-4 space-y-2">
+  1320→                {Array.from({ length: 3 }).map((_, i) => (
+  1321→                  <Skeleton key={i} className="h-12 w-full" />
+  1322→                ))}
+  1323→              </div>
+  1324→            ) : !folio.transactions.length ? (
+  1325→              <div className="py-16 flex flex-col items-center text-center text-muted-foreground">
+  1326→                <Receipt className="size-10 mb-2 opacity-30" />
+  1327→                <p className="text-sm">No charges posted yet</p>
+  1328→              </div>
+  1329→            ) : (
+  1330→              <>
+  1331→                {/* Desktop Table */}
+  1332→                <div className="hidden md:block overflow-x-auto">
+  1333→                  <Table>
+  1334→                    <TableHeader>
+  1335→                      <TableRow>
+  1336→                        <TableHead className="w-[140px]">Date</TableHead>
+  1337→                        <TableHead>Description</TableHead>
+  1338→                        <TableHead>Type</TableHead>
+  1339→                        <TableHead className="text-center w-[60px]">Qty</TableHead>
+  1340→                        <TableHead className="text-right">Amount</TableHead>
+  1341→                        <TableHead className="text-right">Tax</TableHead>
+  1342→                        <TableHead className="text-right">Total</TableHead>
+  1343→                        <TableHead className="text-center w-[100px]">Posted By</TableHead>
+  1344→                        <TableHead className="text-center w-[60px]">Actions</TableHead>
+  1345→                      </TableRow>
+  1346→                    </TableHeader>
+  1347→                    <TableBody>
+  1348→                      {folio.transactions.map((txn) => {
+  1349→                        const voided = isVoidedTransaction(txn)
+  1350→                        return (
+  1351→                          <TableRow key={txn.id} className={voided ? 'opacity-40' : ''}>
+  1352→                            <TableCell className="text-xs whitespace-nowrap">{formatDateTime(txn.createdAt)}</TableCell>
+  1353→                            <TableCell className="text-sm max-w-[200px] truncate">
+  1354→                              <div className={voided ? 'line-through' : ''}>
+  1355→                                {txn.description}
+  1356→                              </div>
+  1357→                              {txn.reference && <p className="text-[10px] text-muted-foreground truncate">Ref: {txn.reference}</p>}
+  1358→                            </TableCell>
+  1359→                            <TableCell>
+  1360→                              <Badge variant="secondary" className="text-[10px]">
+  1361→                                {TRANSACTION_TYPE_LABELS[txn.transactionType] || txn.transactionType}
+  1362→                              </Badge>
+  1363→                            </TableCell>
+  1364→                            <TableCell className="text-center text-sm">{txn.quantity}</TableCell>
+  1365→                            <TableCell className="text-right text-sm">{formatCurrency(txn.amount)}</TableCell>
+  1366→                            <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(txn.taxAmount)}</TableCell>
+  1367→                            <TableCell className="text-right text-sm font-medium">{formatCurrency(txn.totalAmount)}</TableCell>
+  1368→                            <TableCell className="text-center text-xs text-muted-foreground">{txn.postedBy || '—'}</TableCell>
+  1369→                            <TableCell className="text-center">
+  1370→                              {!voided && (
+  1371→                                <Button
+  1372→                                  variant="ghost"
+  1373→                                  size="sm"
+  1374→                                  className="size-7 p-0 text-muted-foreground hover:text-red-600"
+  1375→                                  onClick={() => onVoidTransaction(txn.id, txn.description, txn.totalAmount)}
+  1376→                                >
+  1377→                                  <XCircle className="size-4" />
+  1378→                                </Button>
+  1379→                              )}
+  1380→                            </TableCell>
+  1381→                          </TableRow>
+  1382→                        )
+  1383→                      })}
+  1384→                    </TableBody>
+  1385→                  </Table>
+  1386→                </div>
+  1387→
+  1388→                {/* Mobile Cards */}
+  1389→                <div className="md:hidden divide-y max-h-96 overflow-y-auto">
+  1390→                  {folio.transactions.map((txn) => {
+  1391→                    const voided = isVoidedTransaction(txn)
+  1392→                    return (
+  1393→                      <div key={txn.id} className={cn('p-3 space-y-1.5', voided && 'opacity-40')}>
+  1394→                        <div className="flex items-start justify-between gap-2">
+  1395→                          <div className="min-w-0">
+  1396→                            <p className={cn('text-sm font-medium truncate', voided && 'line-through')}>{txn.description}</p>
+  1397→                            <div className="flex items-center gap-2 mt-0.5">
+  1398→                              <Badge variant="secondary" className="text-[10px]">
+  1399→                                {TRANSACTION_TYPE_LABELS[txn.transactionType] || txn.transactionType}
+  1400→                              </Badge>
+  1401→                              <span className="text-[10px] text-muted-foreground">{formatDateTime(txn.createdAt)}</span>
+  1402→                            </div>
+  1403→                          </div>
+  1404→                          <div className="text-right shrink-0">
+  1405→                            <p className="text-sm font-semibold">{formatCurrency(txn.totalAmount)}</p>
+  1406→                            {!voided && (
+  1407→                              <Button variant="ghost" size="sm" className="size-6 p-0 text-muted-foreground hover:text-red-600" onClick={() => onVoidTransaction(txn.id, txn.description, txn.totalAmount)}>
+  1408→                                <XCircle className="size-3.5" />
+  1409→                              </Button>
+  1410→                            )}
+  1411→                          </div>
+  1412→                        </div>
+  1413→                      </div>
+  1414→                    )
+  1415→                  })}
+  1416→                </div>
+  1417→              </>
+  1418→            )}
+  1419→          </TabsContent>
+  1420→
+  1421→          {/* Payments Tab */}
+  1422→          <TabsContent value="payments" className="m-0">
+  1423→            {loading ? (
+  1424→              <div className="p-4 space-y-2">
+  1425→                {Array.from({ length: 3 }).map((_, i) => (
+  1426→                  <Skeleton key={i} className="h-12 w-full" />
+  1427→                ))}
+  1428→              </div>
+  1429→            ) : !folio.payments.length ? (
+  1430→              <div className="py-16 flex flex-col items-center text-center text-muted-foreground">
+  1431→                <DollarSign className="size-10 mb-2 opacity-30" />
+  1432→                <p className="text-sm">No payments recorded yet</p>
+  1433→              </div>
+  1434→            ) : (
+  1435→              <>
+  1436→                {/* Desktop Table */}
+  1437→                <div className="hidden md:block overflow-x-auto">
+  1438→                  <Table>
+  1439→                    <TableHeader>
+  1440→                      <TableRow>
+  1441→                        <TableHead className="w-[140px]">Date</TableHead>
+  1442→                        <TableHead>Method</TableHead>
+  1443→                        <TableHead className="text-right">Amount</TableHead>
+  1444→                        <TableHead>Reference</TableHead>
+  1445→                        <TableHead>Card Type</TableHead>
+  1446→                        <TableHead>Received By</TableHead>
+  1447→                        <TableHead>Status</TableHead>
+  1448→                        <TableHead className="text-center w-[60px]">Actions</TableHead>
+  1449→                      </TableRow>
+  1450→                    </TableHeader>
+  1451→                    <TableBody>
+  1452→                      {folio.payments.map((pay) => {
+  1453→                        const voided = isVoidedPayment(pay)
+  1454→                        return (
+  1455→                          <TableRow key={pay.id} className={voided ? 'opacity-40' : ''}>
+  1456→                            <TableCell className="text-xs whitespace-nowrap">{formatDateTime(pay.createdAt)}</TableCell>
+  1457→                            <TableCell>
+  1458→                              <Badge variant="secondary" className="text-[10px]">
+  1459→                                {PAYMENT_METHOD_LABELS[pay.paymentMethod] || pay.paymentMethod}
+  1460→                              </Badge>
+  1461→                            </TableCell>
+  1462→                            <TableCell className="text-right text-sm font-medium text-emerald-600">{formatCurrency(pay.amount)}</TableCell>
+  1463→                            <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">{pay.reference || '—'}</TableCell>
+  1464→                            <TableCell className="text-xs text-muted-foreground">
+  1465→                              {pay.cardType ? (CARD_TYPE_LABELS[pay.cardType] || pay.cardType) : '—'}
+  1466→                            </TableCell>
+  1467→                            <TableCell className="text-xs text-muted-foreground">{pay.receivedBy || '—'}</TableCell>
+  1468→                            <TableCell>
+  1469→                              {pay.status ? <StatusBadge status={pay.status} /> : <span className="text-xs text-muted-foreground">—</span>}
+  1470→                            </TableCell>
+  1471→                            <TableCell className="text-center">
+  1472→                              {!voided && (
+  1473→                                <Button
+  1474→                                  variant="ghost"
+  1475→                                  size="sm"
+  1476→                                  className="size-7 p-0 text-muted-foreground hover:text-red-600"
+  1477→                                  onClick={() => onVoidPayment(pay.id, PAYMENT_METHOD_LABELS[pay.paymentMethod] || pay.paymentMethod, pay.amount)}
+  1478→                                >
+  1479→                                  <XCircle className="size-4" />
+  1480→                                </Button>
+  1481→                              )}
+  1482→                            </TableCell>
+  1483→                          </TableRow>
+  1484→                        )
+  1485→                      })}
+  1486→                    </TableBody>
+  1487→                  </Table>
+  1488→                </div>
+  1489→
+  1490→                {/* Mobile Cards */}
+  1491→                <div className="md:hidden divide-y max-h-96 overflow-y-auto">
+  1492→                  {folio.payments.map((pay) => {
+  1493→                    const voided = isVoidedPayment(pay)
+  1494→                    return (
+  1495→                      <div key={pay.id} className={cn('p-3 space-y-1.5', voided && 'opacity-40')}>
+  1496→                        <div className="flex items-start justify-between gap-2">
+  1497→                          <div className="min-w-0">
+  1498→                            <div className="flex items-center gap-2">
+  1499→                              <Badge variant="secondary" className="text-[10px]">
+  1500→                                {PAYMENT_METHOD_LABELS[pay.paymentMethod] || pay.paymentMethod}
+  1501→                              </Badge>
+  1502→                              {pay.status && <StatusBadge status={pay.status} />}
+  1503→                            </div>
+  1504→                            <p className="text-[10px] text-muted-foreground mt-0.5">
+  1505→                              {formatDateTime(pay.createdAt)} {pay.receivedBy ? `· ${pay.receivedBy}` : ''}
+  1506→                            </p>
+  1507→                            {pay.reference && <p className="text-[10px] text-muted-foreground truncate">Ref: {pay.reference}</p>}
+  1508→                          </div>
+  1509→                          <div className="text-right shrink-0 flex items-center gap-1">
+  1510→                            <span className="text-sm font-semibold text-emerald-600">{formatCurrency(pay.amount)}</span>
+  1511→                            {!voided && (
+  1512→                              <Button variant="ghost" size="sm" className="size-6 p-0 text-muted-foreground hover:text-red-600" onClick={() => onVoidPayment(pay.id, PAYMENT_METHOD_LABELS[pay.paymentMethod] || pay.paymentMethod, pay.amount)}>
+  1513→                                <XCircle className="size-3.5" />
+  1514→                              </Button>
+  1515→                            )}
+  1516→                          </div>
+  1517→                        </div>
+  1518→                      </div>
+  1519→                    )
+  1520→                  })}
+  1521→                </div>
+  1522→              </>
+  1523→            )}
+  1524→          </TabsContent>
+  1525→
+  1526→          {/* Activity Tab */}
+  1527→          <TabsContent value="activity" className="m-0">
+  1528→            {loading ? (
+  1529→              <div className="p-4 space-y-3">
+  1530→                {Array.from({ length: 4 }).map((_, i) => (
+  1531→                  <Skeleton key={i} className="h-14 w-full" />
+  1532→                ))}
+  1533→              </div>
+  1534→            ) : !activityTimeline.length ? (
+  1535→              <div className="py-16 flex flex-col items-center text-center text-muted-foreground">
+  1536→                <Activity className="size-10 mb-2 opacity-30" />
+  1537→                <p className="text-sm">No activity recorded yet</p>
+  1538→              </div>
+  1539→            ) : (
+  1540→              <div className="max-h-96 overflow-y-auto">
+  1541→                <div className="divide-y">
+  1542→                  {activityTimeline.map((item) => (
+  1543→                    <div key={item.id} className="flex items-start gap-3 px-4 py-3">
+  1544→                      <div className="mt-1 shrink-0">
+  1545→                        <div className={cn(
+  1546→                          'size-2.5 rounded-full',
+  1547→                          item.type === 'charge' ? 'bg-red-500' : 'bg-emerald-500'
+  1548→                        )} />
+  1549→                      </div>
+  1550→                      <div className="flex-1 min-w-0">
+  1551→                        <div className="flex items-center justify-between gap-2">
+  1552→                          <p className="text-sm font-medium truncate">
+  1553→                            {item.type === 'charge' ? item.description : item.description}
+  1554→                          </p>
+  1555→                          <span className={cn(
+  1556→                            'text-sm font-semibold shrink-0',
+  1557→                            item.type === 'charge' ? 'text-red-600' : 'text-emerald-600'
+  1558→                          )}>
+  1559→                            {item.type === 'charge' ? '+' : '−'}{formatCurrency(item.amount)}
+  1560→                          </span>
+  1561→                        </div>
+  1562→                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-muted-foreground">
+  1563→                          <span>{formatDateTime(item.date)}</span>
+  1564→                          {item.meta && (
+  1565→                            <>
+  1566→                              <span>·</span>
+  1567→                              <span>{item.meta}</span>
+  1568→                            </>
+  1569→                          )}
+  1570→                          <Badge variant="outline" className={cn(
+  1571→                            'text-[10px] px-1 py-0',
+  1572→                            item.type === 'charge'
+  1573→                              ? 'border-red-200 text-red-600 dark:border-red-800 dark:text-red-400'
+  1574→                              : 'border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400'
+  1575→                          )}>
+  1576→                            {item.type === 'charge' ? 'Charge' : 'Payment'}
+  1577→                          </Badge>
+  1578→                        </div>
+  1579→                      </div>
+  1580→                    </div>
+  1581→                  ))}
+  1582→                </div>
+  1583→              </div>
+  1584→            )}
+  1585→          </TabsContent>
+  1586→
+  1587→          {/* Notes Tab */}
+  1588→          <TabsContent value="notes" className="m-0">
+  1589→            <div className="p-4">
+  1590→              <div className="space-y-2">
+  1591→                <Label className="text-sm font-medium">Folio Notes</Label>
+  1592→                <Textarea
+  1593→                  placeholder="Add notes about this folio... (e.g., special billing arrangements, disputes, etc.)"
+  1594→                  value={folioNotes}
+  1595→                  onChange={(e) => onNotesChange(e.target.value)}
+  1596→                  rows={8}
+  1597→                  className="resize-y"
+  1598→                />
+  1599→                <div className="flex justify-end">
+  1600→                  <Button
+  1601→                    size="sm"
+  1602→                    variant="outline"
+  1603→                    onClick={() => toast.success('Notes saved')}
+  1604→                  >
+  1605→                    Save Notes
+  1606→                  </Button>
+  1607→                </div>
+  1608→              </div>
+  1609→            </div>
+  1610→          </TabsContent>
+  1611→        </Tabs>
+  1612→      </Card>
+  1613→    </div>
+  1614→  )
+  1615→}
+  1616→
+  1617→// ─── Split Icon (simple SVG) ───────────────────────────────────────────
+  1618→
+  1619→function SplitIcon({ className }: { className?: string }) {
+  1620→  return (
+  1621→    <svg
+  1622→      xmlns="http://www.w3.org/2000/svg"
+  1623→      viewBox="0 0 24 24"
+  1624→      fill="none"
+  1625→      stroke="currentColor"
+  1626→      strokeWidth="2"
+  1627→      strokeLinecap="round"
+  1628→      strokeLinejoin="round"
+  1629→      className={className}
+  1630→    >
+  1631→      <path d="M16 3h5v5" />
+  1632→      <path d="M8 3H3v5" />
+  1633→      <path d="M12 22v-8.3a4 4 0 0 0-1.2-2.86L3 4.5" />
+  1634→      <path d="M12 22v-8.3a4 4 0 0 1 1.2-2.86L21 4.5" />
+  1635→    </svg>
+  1636→  )
+  1637→}
+  1638→

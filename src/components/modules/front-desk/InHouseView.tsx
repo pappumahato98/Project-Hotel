@@ -1,13 +1,14 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import React, { useState, useMemo, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   BedDouble, CreditCard, AlertTriangle, Crown, Receipt, ArrowRightLeft, Plus,
   CalendarPlus, LogOut, StickyNote, ChevronRight, ChevronDown, Filter, UtensilsCrossed,
-  Wine, Shirt, Phone, Loader2, X, Maximize2, Bell, BellRing,
+  Wine, Shirt, Phone, Loader2, X, Maximize2, Bell, BellRing, BookOpen,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -39,9 +40,9 @@ import {
 } from '@/components/ui/alert-dialog'
 // ScrollArea removed — nested scrolling contexts break row click events
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatDate, formatCurrency } from '@/lib/format'
+import { formatDate, formatCurrency, toDateOnly, fromDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useSettingsStore, useFolioContextStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ function nightsBetween(start: string | Date, end: string | Date): number {
 }
 
 function formatDateValue(date: Date): string {
-  return date.toISOString().split('T')[0]
+  return toDateOnly(date)
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
@@ -233,6 +234,7 @@ export function InHouseView() {
       })
     },
     onSuccess: () => {
+      invalidate.afterFolioChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['in-house'] })
       setChargeDialogOpen(false)
       resetChargeForm()
@@ -254,8 +256,7 @@ export function InHouseView() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
-      queryClient.invalidateQueries({ queryKey: ['vacant-rooms'] })
+      invalidate.afterRoomTransfer(queryClient)
       setTransferDialogOpen(false)
       setSelectedNewRoomId('')
       toast.success('Room transfer completed successfully')
@@ -277,7 +278,7 @@ export function InHouseView() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      invalidate.afterReservationChange(queryClient)
       setExtendDialogOpen(false)
       setNewCheckOut(undefined)
       toast.success('Stay extended successfully')
@@ -300,7 +301,7 @@ export function InHouseView() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      invalidate.afterCheckout(queryClient)
       setEarlyCheckoutOpen(false)
       setEarlyCheckoutConfirmOpen(false)
       setEarlyCheckOutDate(undefined)
@@ -321,7 +322,7 @@ export function InHouseView() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
+      invalidate.afterReservationChange(queryClient)
       setNoteDialogOpen(false)
       setNoteText('')
       toast.success('Note added successfully')
@@ -473,6 +474,22 @@ export function InHouseView() {
       folioId: reservation.folios[0]?.id,
     })
     navigateTo('front-desk', 'folio')
+  }
+
+  function handleViewLedger(res: InHouseReservation) {
+    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+      guestId: res.guest?.id || res.guestId,
+      guestName: `${res.guest?.firstName || ''} ${res.guest?.lastName || ''}`.trim() || 'Guest',
+    })
+    navigateTo('front-desk', 'guest-ledger')
+  }
+
+  function handleViewReservation(res: InHouseReservation) {
+    useReservationContextStore.getState().setReservationContext({
+      reservationId: res.id,
+      confirmationNo: res.confirmationNo,
+    })
+    navigateTo('front-desk', 'reservations')
   }
 
   function handleWakeUpCall(reservation: InHouseReservation) {
@@ -874,6 +891,14 @@ export function InHouseView() {
                                   >
                                     <Receipt className="size-3" /> View Folio
                                   </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-[11px] h-7 gap-1"
+                                    onClick={(e) => { e.stopPropagation(); handleViewLedger(res) }}
+                                  >
+                                    <BookOpen className="size-3" /> View Ledger
+                                  </Button>
                                 </div>
                               </div>
                             </TableCell>
@@ -1043,6 +1068,14 @@ export function InHouseView() {
                       onClick={() => { setDetailDialogOpen(false); handleViewFolio(selectedReservation) }}
                     >
                       <Receipt className="size-3.5 mr-1.5" /> View Folio
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs h-9 justify-start"
+                      onClick={() => { setDetailDialogOpen(false); handleViewLedger(selectedReservation) }}
+                    >
+                      <BookOpen className="size-3.5 mr-1.5" /> View Ledger
                     </Button>
                   </div>
                 </div>

@@ -579,3 +579,503 @@ Stage Summary:
 - All real-time DB functions working (rooms, rates, calculations)
 - Full E2E flow verified: walk-in → guest verify → room select → payment → success
 
+---
+Task ID: 3
+Agent: Main Orchestrator
+Task: Fix date picker timezone, split Check-In into 2 pages, fix Express mode, fix search, widen inputs, reduce spacing
+
+Work Log:
+- Fixed `getTodayString()` in format.ts — changed from `toISOString().split('T')[0]` (UTC) to `toDateOnly(new Date())` (local timezone)
+- Added `toDateOnly(d: Date): string` helper — converts Date to YYYY-MM-DD using local timezone (critical for Nepal UTC+5:45)
+- Added `fromDateOnly(s: string): Date` helper — parses YYYY-MM-DD to local midnight Date (fixes Calendar selected prop)
+- Fixed `nightsBetween()` to use `fromDateOnly` for string inputs
+- Fixed all Calendar usages in CheckInWizard.tsx (4 calendars), NewReservationPage.tsx (2 calendars), CheckInPage.tsx, InHouseView.tsx
+- Split CheckInWizard into 2 separate components:
+  - `CheckInLookup.tsx` (717 lines) — Page 1: Search/Find reservation, Direct Walk-in, Express mode toggle
+  - `CheckInProcess.tsx` (1729 lines) — Page 2: 3-step wizard (Guest & Stay, Room & Rate, Payment) with sidebar
+- Updated FrontDeskModule.tsx to route: 'check-in' → CheckInLookup, 'check-in-process' → CheckInProcess
+- Fixed Express mode: Toggle in header, Express button on each arrival card, navigates to Page 2 at Step 2
+- Fixed search: Real-time debounced search (300ms) with clear button, loading spinner, result cards
+- Communication via Zustand store: `checkInSession` in `useFrontDeskContextStore`
+- Reduced card spacing: p-2.5 on cards, space-y-2 between cards, gap-2 in grids
+- Widened Adults/Children: grid-cols-2 with flex-1 NumberStepper components
+- Fixed missing import in CheckInLookup.tsx (useNavigationStore, useFrontDeskContextStore, CheckInSession type)
+- Verified with agent-browser: Page 1 loads, search returns results, detail panel shows, navigation to Page 2 works, date picker shows correct dates (15/06/2026), zero console errors, zero lint errors
+
+Stage Summary:
+- Date picker timezone bug fixed across all front-desk Calendar usages
+- Check-In split into 2 pages communicating via Zustand store
+- Express mode fully functional (toggle + per-card Express button)
+- Real-time search working with debounced API calls
+- All spacing reduced, Adults/Children widened
+- Files modified: format.ts, CheckInWizard.tsx, NewReservationPage.tsx, CheckInPage.tsx, InHouseView.tsx, FrontDeskModule.tsx
+- Files created: CheckInLookup.tsx, CheckInProcess.tsx
+---
+Task ID: 3
+Agent: full-stack-developer
+Task: Make front desk tab bar responsive + add enable/disable toggle
+
+Work Log:
+- Added useFrontDeskTabsStore to src/lib/store.ts with persisted disabledSubModules state
+- Rewrote FrontDeskModule.tsx tab bar with flex-wrap responsive layout
+- Added Lucide icons for each tab (LayoutDashboard, PlusCircle, CalendarDays, LogIn, PlaneLanding, Users, PlaneTakeoff, Receipt, CalendarRange, BarChart3, Clock, BellRing, AddressBook)
+- Added Popover with Switch toggles for enable/disable tab visibility
+- Disabled tabs shown dimmed (opacity-40) and non-interactive (pointer-events-none)
+- Added auto-fallback to 'dashboard' when active tab gets disabled
+- Gear icon (Settings2) at end of tab bar opens the customization popover
+- Popover includes scrollable checklist with icons and a "Reset All" button
+- Responsive text sizing: text-[10px] sm:text-xs md:text-sm
+- Responsive padding: px-1.5 py-1 sm:px-2 sm:py-1 md:px-3
+- Removed overflow-x-auto / flex-nowrap / max-w-full from TabsList
+- TabsList now uses flex flex-wrap gap-1 sm:gap-1.5
+- State persisted in localStorage via zustand persist middleware (meridian-fd-tabs)
+- Lint passes cleanly, dev server compiles successfully
+
+Stage Summary:
+- Tab bar now wraps responsively without hiding any tabs
+- Users can enable/disable tabs via gear icon popover
+- State persisted in localStorage
+- All existing functionality (full-page views, standard views, calendar, etc.) preserved
+
+---
+Task ID: 3
+Agent: Main Orchestrator
+Task: Make front desk tab bar responsive + add enable/disable toggle
+
+Work Log:
+- Added useFrontDeskTabsStore to src/lib/store.ts with persisted disabledSubModules state
+- Rewrote FrontDeskModule.tsx tab bar with flex-wrap responsive layout
+- Added Lucide icons for each tab (LayoutDashboard, PlusCircle, CalendarDays, LogIn, PlaneLanding, Users, PlaneTakeoff, Receipt, CalendarRange, BarChart3, Clock, BellRing, BookUser)
+- Added Popover with Switch toggles for enable/disable per tab
+- Fixed AddressBook → BookUser (not available in current lucide-react version)
+- Fixed TabsList height (h-auto) and TabsTrigger height (h-7/h-8) to support wrapping
+- Used flex-none on TabsTrigger instead of default flex-1
+- Disabled tabs shown with opacity-40 and pointer-events-none
+- Auto-fallback to dashboard if active tab is disabled
+- Added responsive text sizing: text-[10px] → sm:text-xs → md:text-sm
+- Added responsive icon sizing: h-3 → sm:h-3.5 → md:h-4
+
+Stage Summary:
+- Tab bar now wraps responsively without hiding any tabs (flex-wrap replaces overflow-x-auto)
+- Users can enable/disable tabs via gear icon (⚙️) popover with Switch toggles
+- State persisted in localStorage via zustand (meridian-fd-tabs)
+- Reset All button available to re-enable all tabs
+- Verified on desktop (1280px) and mobile (375px) viewports - all 13 tabs always visible
+
+---
+Task ID: 4
+Agent: full-stack-developer  
+Task: Build Guest Ledger API routes
+
+Work Log:
+- Created GET /api/guest-ledger — aggregates all folios/transactions/payments by guestId
+- Created POST /api/guest-ledger — post charge/payment to open folio
+- Created GET/DELETE /api/guest-ledger/[id] — get/void single transaction
+- Supports date range filtering, aging analysis, chronological sorting
+
+Stage Summary:
+- 2 new API route files created
+- Guest ledger data fully aggregatable across all stays per guest
+---
+Task ID: 5
+Agent: full-stack-developer
+Task: Build GuestLedgerView.tsx component
+
+Work Log:
+- Created comprehensive GuestLedgerView with guest search, summary cards, transaction table
+- Implemented Charges/Payments/Aging tabs
+- Post Charge and Record Payment dialogs
+- Void transaction with confirmation
+- Aging analysis with visual bars
+- Print support with @media print styles
+- Responsive design for mobile/desktop
+
+Stage Summary:
+- Single file: src/components/modules/front-desk/GuestLedgerView.tsx
+- Full-featured guest ledger UI with all CRUD operations
+
+---
+Task ID: 4
+Agent: full-stack-developer
+Task: Build Guest Ledger API routes
+
+Work Log:
+- Created GET /api/guest-ledger — aggregates all folios/transactions/payments by guestId
+- Created POST /api/guest-ledger — post charge/payment to open folio
+- Created GET/DELETE /api/guest-ledger/[id] — get/void single transaction
+- Supports date range filtering, aging analysis, chronological sorting
+
+Stage Summary:
+- 2 new API route files created
+- Guest ledger data fully aggregatable across all stays per guest
+
+---
+Task ID: 5
+Agent: full-stack-developer
+Task: Build GuestLedgerView.tsx component
+
+Work Log:
+- Created comprehensive GuestLedgerView with guest search, summary cards, transaction table
+- Implemented Charges/Payments/Aging tabs
+- Post Charge and Record Payment dialogs
+- Void transaction with confirmation
+- Aging analysis with visual bars
+- Print support with @media print styles
+- Responsive design for mobile/desktop
+- Fixed API response unwrapping (guests array, folios array)
+
+Stage Summary:
+- Single file: src/components/modules/front-desk/GuestLedgerView.tsx (~1615 lines)
+- Full-featured guest ledger UI with all CRUD operations
+
+---
+Task ID: 6
+Agent: Main Orchestrator
+Task: Register Guest Ledger tab and fix integration issues
+
+Work Log:
+- Added BookOpen icon import and GuestLedgerView import to FrontDeskModule.tsx
+- Added 'guest-ledger' to SUB_MODULES map with BookOpen icon
+- Added case 'guest-ledger' to StandardView switch
+- Fixed guest search query: API returns { guests: [...] } not plain array
+- Fixed folio options query: API returns { folios: [...] } not plain array
+- Verified in browser: search works, ledger loads, transaction table displays correctly
+
+Stage Summary:
+- Guest Ledger tab visible and functional in Front Desk module
+- All 14 tabs now available (including Guest Ledger)
+
+---
+Task ID: 7
+Agent: Main Orchestrator + 4 sub-agents
+Task: Link all Front Desk modules together via backend context passing
+
+Work Log:
+- Added useGuestLedgerContextStore (guestId, guestName) to src/lib/store.ts
+- Added useReservationContextStore (reservationId, confirmationNo) to src/lib/store.ts
+- InHouseView: Added "View Ledger" + "View Reservation" buttons in table rows and detail dialog
+- FolioView: Added "View Ledger" + "In-House" buttons in detail panel header
+- ReservationsView: Added "View Folio" + "View Guest Ledger" in dropdown menu, detail dialog; made folio balance clickable
+- GuestDirectoryView: Fixed broken Folio link (now sets FolioContext); added "Ledger" button
+- GuestLedgerView: Added auto-select from context, outbound "Folio" + "Reservation" buttons in Aging tab stays table
+- ArrivalsView: Added "Full Check-In" + "Ledger" buttons per arrival card
+- DeparturesView: Added "Full Folio" + "View Ledger" buttons alongside existing Review Folio
+
+Stage Summary:
+- All 7 Front Desk sub-modules now cross-linked via Zustand context stores
+- Full navigation chains verified: In-House → Ledger → Folio → In-House (round-trip)
+- 2 new context stores: GuestLedgerContext, ReservationContext
+- Fixed broken GuestDirectory → Folio navigation
+
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Fix Guest Ledger search to support guest name, company, contact number, and room number
+
+Work Log:
+- Analyzed existing `/api/guests` GET endpoint — only searched firstName, lastName, email, phone, nationality
+- Updated `/api/guests/route.ts` to add two new OR conditions:
+  - `reservations.some({ company: { contains: search } })` for company search
+  - `reservations.some({ room: { number: { contains: search } } })` for room number search
+- Extended the `include.reservations.select` to return `company` and `room.number`
+- Updated `GuestSearchResult` interface to include optional `company` and `roomNumber` fields
+- Updated search result mapping (`useMemo`) with smart reservation picker:
+  - When search matches a company or room number, prefers the matching reservation
+  - Falls back to status-based priority (checked_in > confirmed > others) for name/contact searches
+- Updated search dropdown rendering to show company (Building2 icon) and room (DoorOpen icon) in result items
+- Updated placeholder text: "Search by name, company, contact, or room no..."
+- Updated empty state description text to match
+- Added `Building2` and `DoorOpen` icon imports from lucide-react
+
+Stage Summary:
+- Guest Ledger search now works across 4 dimensions: guest name, company, contact number, room number
+- Backend joins through Reservation → Room for room search, Reservation for company search
+- Frontend smart-picks the most relevant reservation to display company/room info
+- Verified end-to-end with Agent Browser: name search ✓, phone search ✓, room search ✓, company search ✓, no-results state ✓
+
+---
+Task ID: 3
+Agent: Main Orchestrator
+Task: Enable real-time single character/number search in Guest Ledger
+
+Work Log:
+- Changed frontend minimum from `>= 2` to `>= 1` in 3 places (query enabled, onFocus gate, dropdown render gate)
+- Removed `looksLikeCompany`/`looksLikeRoomNumber` guards on backend — company and room search always included
+- Added `take: 20` limit on backend guest query when searching to prevent flooding on single-char queries
+- Removed unused `searchLower` variable
+- Verified: single number "1" returns rooms 100/101/110/111/125, single letter "W" returns Wei Chen + Emily Williams
+
+Stage Summary:
+- Guest Ledger search now triggers on the very first character typed
+- Backend caps results at 20 when search param is present
+- All 4 search dimensions (name, company, contact, room) work with single char/number
+---
+Task ID: 3c
+Agent: SubAgent
+Task: Fix CheckInView cross-module invalidation
+
+Work Log:
+- Added import for shared `invalidate` helpers
+- Replaced checkInMutation onSuccess manual invalidation → invalidate.afterCheckIn
+
+Stage Summary:
+- CheckInView now invalidates all cross-module keys on check-in
+---
+Task ID: 3e
+Agent: SubAgent
+Task: Fix DeparturesView cross-module invalidation
+
+Work Log:
+- Added import for shared `invalidate` helpers
+- checkoutMutation → invalidate.afterCheckout
+- paymentMutation → invalidate.afterFolioChange
+- lateCheckoutMutation → invalidate.afterReservationChange + invalidate.afterFolioChange
+- batchCheckoutMutation → invalidate.afterCheckout
+
+Stage Summary:
+- DeparturesView now invalidates rooms, dashboards, in-house, folios on checkout/payment
+---
+Task ID: 3a
+Agent: SubAgent
+Task: Fix ArrivalsView cross-module invalidation
+
+Work Log:
+- Added import for shared `invalidate` helpers
+- Replaced assignRoomMutation onSuccess: manual invalidation → invalidate.afterReservationChange
+- Replaced checkInMutation onSuccess: manual invalidation → invalidate.afterCheckIn
+- Replaced walkInMutation onSuccess: manual invalidation → invalidate.afterCheckIn
+
+Stage Summary:
+- ArrivalsView now invalidates rooms, dashboard, in-house, departures, guests, front-desk-dashboard on check-in/assignment/walk-in
+
+---
+Task ID: 3f
+Agent: SubAgent
+Task: Fix ReservationsView cross-module invalidation
+
+Work Log:
+- Added import for shared `invalidate` helpers
+- All 5 mutations (create, update, edit, note, delete) → invalidate.afterReservationChange
+
+Stage Summary:
+- ReservationsView CRUD now invalidates rooms, arrivals, departures, in-house, dashboards across all modules
+
+---
+Task ID: 3b
+Agent: SubAgent
+Task: Fix CheckInProcess + CheckInWizard cross-module invalidation
+
+Work Log:
+- Both files: Added import for shared `invalidate` helpers
+- Both files: Replaced checkInMutation onSuccess manual invalidation → invalidate.afterCheckIn
+- Kept component-specific invalidations (rooms-available)
+
+Stage Summary:
+- CheckInProcess and CheckInWizard now invalidate all cross-module keys on check-in
+---
+Task ID: 3d
+Agent: SubAgent
+Task: Fix InHouseView cross-module invalidation
+
+Work Log:
+- Added import for shared `invalidate` helpers
+- postChargeMutation → invalidate.afterFolioChange
+- transferRoomMutation → invalidate.afterRoomTransfer
+- extendStayMutation → invalidate.afterReservationChange
+- earlyCheckoutMutation → invalidate.afterCheckout
+- addNoteMutation → invalidate.afterReservationChange
+
+Stage Summary:
+- InHouseView now properly invalidates rooms, dashboards, folios, arrivals, departures on all mutations
+---
+Task ID: 3k
+Agent: SubAgent
+Task: Fix NightAudit/DayClose/Cashier cross-module invalidation
+
+Work Log:
+- All 3 files: Added import for shared `invalidate` helpers
+- NightAuditView auditMutation → invalidate.afterAudit
+- DayCloseView closeDayMutation → invalidate.afterAudit
+- CashierView closeShiftMutation → invalidate.afterAudit
+
+Stage Summary:
+- NightAudit, DayClose, and Cashier close now invalidate ALL cross-module keys (rooms, folios, reservations, dashboards, in-house, arrivals, departures, guests, operations)
+
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Fix cross-module real-time data linkage between Room modules and all other modules
+
+Work Log:
+- Conducted comprehensive audit of ALL 20 files with React Query usage across rooms, front-desk, dashboard, and operations modules
+- Identified massive invalidation gaps: 33 mutations across 15 files were only invalidating their own local keys
+- Created `/src/lib/queryKeys.ts` with:
+  - `qk` object: query-key factories for every entity (rooms, reservations, folios, guests, dashboards, operations)
+  - `invalidate` object: 6 context-aware helpers (afterCheckIn, afterCheckout, afterReservationChange, afterFolioChange, afterRoomTransfer, afterAudit)
+  - Each helper invalidates 10-16 cross-module keys covering rooms, reservations, arrivals, departures, in-house, folios, dashboards, guests, operations
+- Fixed 15 files, 33 mutations in parallel using subagents:
+  - ArrivalsView (3 mutations): assignRoom→afterReservationChange, checkIn→afterCheckIn, walkIn→afterCheckIn
+  - CheckInProcess (1): checkIn→afterCheckIn
+  - CheckInWizard (1): checkIn→afterCheckIn
+  - CheckInView (1): checkIn→afterCheckIn
+  - InHouseView (5): postCharge→afterFolioChange, transfer→afterRoomTransfer, extend→afterReservationChange, earlyCO→afterCheckout, note→afterReservationChange
+  - DeparturesView (5): checkout→afterCheckout, payment→afterFolioChange, lateCO→afterReservationChange+afterFolioChange, batchCO→afterCheckout
+  - ReservationsView (5): all CRUD→afterReservationChange
+  - NewReservationPage (1): create→afterReservationChange
+  - FolioView (3): charge/payment/void→afterFolioChange
+  - GuestLedgerView (2): post/void→afterFolioChange(guestId)
+  - RoomRatePostingDialog (2): postAll/postSingle→afterFolioChange
+  - NightAuditView (1): audit→afterAudit
+  - DayCloseView (1): dayClose→afterAudit
+  - CashierView (1): closeShift→afterAudit
+  - ReservationCalendarView (2): updateDates/create→afterReservationChange
+- Verified: `next build` compiles successfully, `bun run lint` passes clean
+
+Stage Summary:
+- All 15 modules now share a centralized invalidation system via `/src/lib/queryKeys.ts`
+- 33 mutations across 15 files now properly invalidate 10-16 cross-module keys each
+- Before: checking in a guest only refreshed Arrivals list; now it refreshes Rooms, In-House, Departures, Dashboard, Folios, Guests, etc.
+- Before: posting a folio charge only refreshed that folio; now it refreshes In-House, Departures, Dashboard, Guest Ledger, etc.
+- Before: running night audit only refreshed operations; now it refreshes ALL modules
+- CalendarView was already the "gold standard" and was left unchanged
+
+---
+Task ID: calendar-drag-day-highlight
+Agent: Code Editor
+Task: Add per-day-cell drag highlighting to CalendarView
+
+Work Log:
+- Added `dragOverDayIndex` state (`useState<number | null>(null)`) alongside existing `dragOverRoomId`
+- Updated inline `onDragOver` handler (room row): already computes `dayIndex` from mouse X position, now also calls `setDragOverDayIndex(dayIndex)` to track the target column
+- Updated inline `onDragLeave` handler: clears `dragOverDayIndex(null)` when leaving the room row
+- Updated inline `onDrop` handler: clears `dragOverDayIndex(null)` immediately on drop
+- Updated `handleDragLeave` callback: clears `dragOverDayIndex(null)`
+- Updated `handleDragEnd` callback: clears `dragOverDayIndex(null)` for cleanup
+- Changed date cell blue tint from whole-row (`dragOverRoomId === room.id`) to specific-cell-only (`dragOverRoomId === room.id && dragOverDayIndex === dayIdx`) with `bg-blue-50/50 dark:bg-blue-950/20 border-l-2 border-blue-500` classes
+- Added a right-edge blue indicator line on the exact target cell for visual precision
+- Added a subtle blue underline indicator on the header date cell when `dragOverDayIndex === i` (active for any room row), showing which column is being targeted
+- Removed accidentally added unused `setDragOverDay` callback
+- Lint passes clean
+
+Stage Summary:
+- During drag-and-drop, users can now see exactly which (room, day) cell they are targeting
+- Blue tint + left border highlights the specific cell, not the entire room row
+- Header date cells show a blue underline on the target day column for column-level orientation
+- All drag cleanup paths (dragLeave, dragEnd, drop) properly clear the day index state
+
+---
+Task ID: fix-calendar-dnd-bug
+Agent: Code Editor
+Task: Fix drag-and-drop reservation disappearing bug in CalendarView
+
+Work Log:
+- Read CalendarView.tsx (2426 lines) — identified `moveReservationMutation` (lines 707-752) and reservations query (line 475)
+- Root cause: No `onMutate` optimistic update on `moveReservationMutation`. After API success, `invalidateQueries` triggers background refetch. During refetch, `reservationsRaw` momentarily becomes undefined, causing all reservation blocks to vanish until refetch completes. Additionally, `staleTime: 15_000` delayed visible updates after invalidation.
+- Fix 1: Changed reservations query `staleTime` from `15_000` to `0` (line 475) so refetches happen immediately after invalidation
+- Fix 2: Added `onMutate` handler to `moveReservationMutation` that:
+  - Cancels outgoing refetches via `queryClient.cancelQueries`
+  - Snapshots current reservations data for rollback
+  - Optimistically updates cache: finds the moved reservation by ID, updates `roomId`, `checkIn`, `checkOut`, and rebuilds the `room` object from the rooms cache
+  - Returns `{ previousReservations }` context for rollback
+- Fix 3: Replaced `onError` handler to perform rollback from snapshot on failure and show error toast
+- Existing `onSuccess` handler kept unchanged (already invalidates all required keys)
+- Ran `bun run lint` — passes clean with no errors
+
+Stage Summary:
+- Drag-and-drop now uses optimistic updates: reservation block moves instantly in the UI without disappearing during refetch
+- On failure, the block snaps back to its original position with an error toast
+- staleTime: 0 ensures background refetches are never delayed after invalidation
+
+---
+Task ID: calendar-header-compact
+Agent: Main
+Task: Fix calendar date column headers to show compact "Sat 06" / "Sat 06 Jun" format
+
+Work Log:
+- Read worklog.md for project context
+- Read CalendarView.tsx lines 1490–1594 (date header rendering section)
+- Identified current 3-line layout: day abbreviation (line 1), date number with blue circle for today (line 2), month/BS label (line 3)
+- Changed outer div from `flex-col` to `flex-row gap-1` for horizontal compact layout
+- Replaced 3-line header with single-line compact format:
+  - Non-today: `"Sat 06"` text (3-letter day + space + 2-digit zero-padded date), `"Sat 06 Jun"` on first-of-month
+  - Today: `"Sat"` text (blue) + blue circle with `"06"` + optional `"Jun"` (blue)
+  - Uses `DAY_ABBR_THREE` (3-letter) always, removed `isCompact` check for day abbreviation
+  - Date numbers zero-padded with `String(n).padStart(2, '0')`
+  - BS mode: shows BS day number; first-of-month shows BS month via `getNepaliMonthShortEnglish`
+  - Weekend/holiday text colors preserved
+  - Holiday dot indicator and tooltip unchanged
+- Removed unused `monthLabel` variable (was only used in old 3-line header)
+- Verified `isCompact` still used elsewhere in reservation block rendering
+- Ran `bun run lint` — passes clean with no errors
+
+Stage Summary:
+- Calendar date column headers now show compact single-line format: "Sat 06" (regular) / "Sat 06 Jun" (first of month)
+- Today retains blue circle on date number; BS date toggle fully supported
+- No changes to drag-and-drop, mutations, or other sections
+
+---
+Task ID: reservation-availability-check
+Agent: Main
+Task: Add server-side room availability validation on PATCH in reservations/[id]/route.ts
+
+Work Log:
+- Read worklog.md and existing PATCH handler in `/src/app/api/reservations/[id]/route.ts`
+- Identified insertion point: after room-existence and date-validations, before room-status side-effects and the actual `db.reservation.update`
+- Added availability check that only triggers when `roomId`, `checkIn`, or `checkOut` are present in the request body
+- Check fetches the current reservation to resolve effective roomId/checkIn/checkOut (merging new values with existing)
+- Queries for conflicting reservations using overlap logic: `newCheckIn < existingCheckOut AND newCheckOut > existingCheckIn`
+- Excludes the current reservation via `id: { not: id }`
+- Filters out inactive statuses: `cancelled`, `no_show`, `checked_out`
+- Includes `room` (for `number`) and `guest` (for `firstName`/`lastName`) relations in the conflict query
+- Returns HTTP 409 with message: `"Room {roomNumber} is not available for {dateRange}. It conflicts with reservation {confirmationNo} ({guestName})."`
+- Skipped for non-room/date updates (notes, status, etc.) as required
+
+Stage Summary:
+- Room availability validation added to PATCH handler, returning 409 on double-booking
+- No changes to GET, DELETE, or other handlers
+
+---
+Task ID: 15
+Agent: UI Consistency Fix
+Task: Replace native date inputs with shadcn Calendar popovers in ReservationsView
+
+Work Log:
+- Audited ReservationsView.tsx for `<input type="date">` elements
+- Found 6 instances total, all in dialogs (filter bar already uses Calendar popover):
+  1. Create dialog — checkIn (line ~738)
+  2. Create dialog — checkOut (line ~746)
+  3. Edit dialog — checkIn (line ~1383)
+  4. Edit dialog — checkOut (line ~1391)
+  5. Duplicate dialog — checkIn (line ~1561)
+  6. Duplicate dialog — checkOut (line ~1570)
+- Added `import { format } from 'date-fns'` (Calendar, Popover, CalendarIcon were already imported)
+- Replaced all 6 native date inputs with shadcn `Calendar` in `Popover` pattern
+- Display format: `dd MMM yyyy` (e.g., "15 Jun 2025")
+- State management unchanged — same `form`/`editForm`/`duplicateForm` setters with ISO date strings
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- All native `<input type="date">` replaced with consistent shadcn Calendar popovers
+- ReservationsView now uses Calendar popover uniformly across filter bar, create, edit, and duplicate dialogs
+
+---
+Task ID: 4
+Agent: Main Orchestrator
+Task: Fix calendar issues (date format, drag, scroll, 409) + date picker consistency
+
+Work Log:
+- **Calendar date headers**: Changed from 3-line layout (day abbr / date num / month label on boundary) to single-line compact "Sat 06" format. First-of-month shows "Sat 06 Jun". BS dates preserved.
+- **Calendar drag per-day highlight**: Added `dragOverDayIndex` state. Now only the exact (room, day) cell gets blue tint + left border. Header shows blue underline on target day column.
+- **Calendar drag disappearing**: Added optimistic `onMutate` to `moveReservationMutation` — cancels in-flight fetches, snapshots cache, patches roomId/checkIn/checkOut optimistically. Added `onError` rollback. Reduced `staleTime` from 15s to 0.
+- **Calendar scroll**: Fixed content width from `width: '100%'` to `width: actualGridWidth + minWidth: 100%`. Changed auto-scroll to use `scrollTo({ behavior: 'smooth' })`.
+- **HTTP 409 on calendar move**: Added server-side room availability check in PATCH /api/reservations/[id] — queries for overlapping non-cancelled reservations before applying update. Returns 409 with descriptive conflict message.
+- **Calendar 409 error UX**: Enhanced `onError` to show conflict details in toast (6s duration) and roll back optimistic update.
+- **Date picker consistency**: Replaced 6 native `<input type="date">` in ReservationsView (create/edit/duplicate dialogs) with shadcn Calendar popovers using `dd MMM yyyy` format.
+
+Stage Summary:
+- Calendar headers now show "Sat 06 Jun" format with month context on every column
+- Drag-and-drop now highlights exact target cell with border indicator + header underline
+- Reservation blocks no longer disappear during move (optimistic update + immediate rollback on error)
+- Calendar scroll works correctly with proper content width and smooth scrolling
+- Server prevents double-booking with 409 conflict detection
+- ReservationsView date pickers now consistent with rest of the app

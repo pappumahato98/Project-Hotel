@@ -1,12 +1,13 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
   ArrowLeft, ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
-  StickyNote, XCircle, Activity, CircleAlert, Ban, X,
+  StickyNote, XCircle, Activity, CircleAlert, Ban, X, BookOpen,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -33,7 +34,7 @@ import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useSettingsStore, usePreferencesStore, useFolioContextStore } from '@/lib/store'
+import { useSettingsStore, usePreferencesStore, useFolioContextStore, useNavigationStore, useGuestLedgerContextStore } from '@/lib/store'
 import { toast } from 'sonner'
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -200,6 +201,7 @@ export function FolioView() {
   const { settings } = useSettingsStore()
   const { preferences } = usePreferencesStore()
   const { folioContext, clearFolioContext } = useFolioContextStore()
+  const { navigateTo } = useNavigationStore()
 
   // State
   const [searchQuery, setSearchQuery] = useState('')
@@ -460,8 +462,8 @@ export function FolioView() {
       return res.json() as Promise<{ folio: Folio }>
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['folios'] })
-      queryClient.invalidateQueries({ queryKey: ['folio-detail'] })
+      invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)
+      queryClient.invalidateQueries({ queryKey: ['folio-detail', data.folio.id] })
       setSelectedFolioId(data.folio.id)
       setChargeDialogOpen(false)
       setChargeDesc('')
@@ -494,8 +496,8 @@ export function FolioView() {
       return res.json() as Promise<{ folio: Folio }>
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['folios'] })
-      queryClient.invalidateQueries({ queryKey: ['folio-detail'] })
+      invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)
+      queryClient.invalidateQueries({ queryKey: ['folio-detail', data.folio.id] })
       setSelectedFolioId(data.folio.id)
       setPaymentDialogOpen(false)
       setPayAmount('')
@@ -525,8 +527,8 @@ export function FolioView() {
       return res.json() as Promise<{ folio: Folio }>
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folios'] })
-      queryClient.invalidateQueries({ queryKey: ['folio-detail'] })
+      invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)
+      queryClient.invalidateQueries({ queryKey: ['folio-detail', selectedFolioId] })
       setVoidDialogOpen(false)
       setVoidTarget(null)
       setVoidReason('')
@@ -539,6 +541,18 @@ export function FolioView() {
     setVoidTarget(target)
     setVoidReason('')
     setVoidDialogOpen(true)
+  }
+
+  const handleViewGuestLedger = (guestId: string, guestName: string) => {
+    useGuestLedgerContextStore.getState().setGuestLedgerContext({ guestId, guestName })
+    navigateTo('front-desk', 'guest-ledger')
+  }
+
+  const handleViewInHouse = (reservationId: string, guestId: string, guestName: string, roomNumber: string, confirmationNo: string, folioId: string) => {
+    useFolioContextStore.getState().setFolioContext({
+      reservationId, guestId, guestName, roomNumber, confirmationNo, folioId,
+    })
+    navigateTo('front-desk', 'in-house')
   }
 
   const handleOpenPaymentDialog = () => {
@@ -637,6 +651,8 @@ export function FolioView() {
                 taxRate={settings.taxRate}
                 activityTimeline={activityTimeline}
                 onBack={handleBackToList}
+                onViewGuestLedger={handleViewGuestLedger}
+                onViewInHouse={handleViewInHouse}
                 onChargeClick={() => setChargeDialogOpen(true)}
                 onPaymentClick={handleOpenPaymentDialog}
                 onVoidTransaction={(id, desc, amt) => handleOpenVoidDialog({ type: 'transaction', id, description: desc, amount: amt })}
@@ -1043,7 +1059,7 @@ function FolioList({ folios, loading, sortField, sortDir, handleSort, onSelect }
 function FolioDetailPanel({
   folio, loading, totalCharges, totalPayments, outstandingBalance,
   creditLimit, creditPct, currency, taxRate, activityTimeline,
-  onBack, onChargeClick, onPaymentClick,
+  onBack, onViewGuestLedger, onViewInHouse, onChargeClick, onPaymentClick,
   onVoidTransaction, onVoidPayment, onNotesChange, folioNotes,
 }: {
   folio: Folio
@@ -1057,6 +1073,8 @@ function FolioDetailPanel({
   taxRate: number
   activityTimeline: Array<{ id: string; type: 'charge' | 'payment'; description: string; amount: number; date: string; meta?: string }>
   onBack: () => void
+  onViewGuestLedger: (guestId: string, guestName: string) => void
+  onViewInHouse: (reservationId: string, guestId: string, guestName: string, roomNumber: string, confirmationNo: string, folioId: string) => void
   onChargeClick: () => void
   onPaymentClick: () => void
   onVoidTransaction: (id: string, desc: string, amt: number) => void
@@ -1071,14 +1089,40 @@ function FolioDetailPanel({
       {/* Guest & Stay Info */}
       <Card>
         <CardContent className="p-2.5 md:p-4">
-          {/* Back Button */}
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Back</span>
-          </button>
+          {/* Back Button & Navigation */}
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={onBack}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="size-4" />
+              <span>Back</span>
+            </button>
+            <div className="h-4 w-px bg-border" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => onViewGuestLedger(folio.guest.id, guestFullName(folio.guest))}
+            >
+              <BookOpen className="h-3.5 w-3.5 mr-1" /> View Ledger
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => onViewInHouse(
+                folio.reservation.id,
+                folio.guest.id,
+                guestFullName(folio.guest),
+                folio.reservation.room?.number || '',
+                folio.reservation.confirmationNo,
+                folio.id,
+              )}
+            >
+              <BedDouble className="h-3.5 w-3.5 mr-1" /> In-House
+            </Button>
+          </div>
 
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
             <div className="space-y-2">

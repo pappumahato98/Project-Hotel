@@ -27,7 +27,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { formatDate, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
+import { formatDate, formatCurrency, getTodayString, nightsBetween, toDateOnly, fromDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useSettingsStore, useAuthStore } from '@/lib/store'
 import { RoomRatePostingDialog } from './RoomRatePostingDialog'
@@ -269,11 +269,11 @@ export function CheckInPage() {
             if (r.ratePlanId) setRatePlan(r.ratePlanId)
             if (r.checkIn) {
               const ci = new Date(r.checkIn)
-              setCheckInDate(ci.toISOString().split('T')[0])
+              setCheckInDate(toDateOnly(ci))
             }
             if (r.checkOut) {
               const co = new Date(r.checkOut)
-              setCheckOutDate(co.toISOString().split('T')[0])
+              setCheckOutDate(toDateOnly(co))
             }
 
             // Fetch existing docs

@@ -3,6 +3,7 @@
 import { apiFetch } from '@/lib/api'
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidate } from '@/lib/queryKeys'
 import {
   ChevronLeft,
   ChevronRight,
@@ -372,8 +373,8 @@ export function ReservationCalendarView() {
       return res.json()
     },
     onSuccess: () => {
+      invalidate.afterReservationChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['reservations-calendar'] })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
       toast.success('Reservation dates updated')
     },
     onError: () => {
@@ -465,8 +466,8 @@ export function ReservationCalendarView() {
       return res.json()
     },
     onSuccess: () => {
+      invalidate.afterReservationChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['reservations-calendar'] })
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
       setNewResOpen(false)
       toast.success('Reservation created successfully')
     },

@@ -497,11 +497,35 @@ export const useFolioContextStore = create<FolioContextState>((set) => ({
 
 // ─── Front Desk Context State ──────────────────────
 // Used to pass context for New Reservation / Check-In flows
+
+export interface CheckInSession {
+  reservationId: string | null
+  reservationData: Record<string, unknown> | null
+  isDirectWalkIn: boolean
+  walkInGuest: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+    nationality: string
+  } | null
+  walkInDates: {
+    checkIn: string
+    checkOut: string
+    adults: number
+    children: number
+  } | null
+  startAtStep: number  // 1 for normal, 2 for express
+}
+
 interface FrontDeskContextState {
   prefillReservationId: string | null  // reservation ID to prefill in check-in
   setPrefillReservationId: (id: string | null) => void
   showNewReservation: boolean
   setShowNewReservation: (show: boolean) => void
+  checkInSession: CheckInSession | null
+  setCheckInSession: (session: CheckInSession | null) => void
+  clearCheckInSession: () => void
 }
 
 export const useFrontDeskContextStore = create<FrontDeskContextState>((set) => ({
@@ -509,4 +533,70 @@ export const useFrontDeskContextStore = create<FrontDeskContextState>((set) => (
   setPrefillReservationId: (id) => set({ prefillReservationId: id }),
   showNewReservation: false,
   setShowNewReservation: (show) => set({ showNewReservation: show }),
+  checkInSession: null,
+  setCheckInSession: (session) => set({ checkInSession: session }),
+  clearCheckInSession: () => set({ checkInSession: null, prefillReservationId: null }),
 }))
+
+// ─── Guest Ledger Context State ──────────────────────
+// Used to pass guest context from any module → Guest Ledger view
+export interface GuestLedgerContext {
+  guestId: string
+  guestName: string
+}
+
+interface GuestLedgerContextState {
+  guestLedgerContext: GuestLedgerContext | null
+  setGuestLedgerContext: (ctx: GuestLedgerContext | null) => void
+  clearGuestLedgerContext: () => void
+}
+
+export const useGuestLedgerContextStore = create<GuestLedgerContextState>((set) => ({
+  guestLedgerContext: null,
+  setGuestLedgerContext: (ctx) => set({ guestLedgerContext: ctx }),
+  clearGuestLedgerContext: () => set({ guestLedgerContext: null }),
+}))
+
+// ─── Reservation Context State ──────────────────────
+// Used to pass reservation context from any module → Reservations view
+export interface ReservationContext {
+  reservationId: string
+  confirmationNo?: string
+}
+
+interface ReservationContextState {
+  reservationContext: ReservationContext | null
+  setReservationContext: (ctx: ReservationContext | null) => void
+  clearReservationContext: () => void
+}
+
+export const useReservationContextStore = create<ReservationContextState>((set) => ({
+  reservationContext: null,
+  setReservationContext: (ctx) => set({ reservationContext: ctx }),
+  clearReservationContext: () => set({ reservationContext: null }),
+}))
+
+// ─── Front Desk Tabs State (persisted) ──────────────────────
+interface FrontDeskTabsState {
+  disabledSubModules: string[]
+  toggleSubModule: (key: string) => void
+  resetSubModules: () => void
+}
+
+export const useFrontDeskTabsStore = create<FrontDeskTabsState>()(
+  persist(
+    (set) => ({
+      disabledSubModules: [],
+      toggleSubModule: (key) =>
+        set((state) => ({
+          disabledSubModules: state.disabledSubModules.includes(key)
+            ? state.disabledSubModules.filter((k) => k !== key)
+            : [...state.disabledSubModules, key],
+        })),
+      resetSubModules: () => set({ disabledSubModules: [] }),
+    }),
+    {
+      name: 'meridian-fd-tabs',
+    }
+  )
+)

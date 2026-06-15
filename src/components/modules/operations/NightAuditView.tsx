@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import {
   MoonStar, CheckCircle2, Circle, AlertTriangle, Play, Loader2,
   BedDouble, UtensilsCrossed, Wallet, DollarSign, Receipt,
@@ -147,7 +148,7 @@ export function NightAuditView() {
     },
     onSuccess: () => {
       toast.success('Night audit started successfully')
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidate.afterAudit(queryClient)
     },
     onError: () => {
       toast.error('Failed to start night audit')

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import {
   Banknote, Clock, User, ArrowDownRight, ArrowUpRight, FileText,
   Loader2, AlertTriangle, CreditCard, Building, Wallet,
@@ -133,7 +134,7 @@ export function CashierView() {
     },
     onSuccess: () => {
       toast.success('Shift closed successfully')
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidate.afterAudit(queryClient)
       setCloseDialogOpen(false)
     },
     onError: () => {

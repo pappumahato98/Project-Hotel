@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import {
   Search, Phone, MessageSquare, Receipt, Bell, Users, Crown,
   Star, Globe, Mail, CalendarDays, BedDouble, Building,
-  Sparkles, UserCheck, X,
+  Sparkles, UserCheck, X, BookOpen,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select'
 import { formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -324,10 +324,22 @@ export function GuestDirectoryView() {
   }
 
   function handleViewFolio(guest: Guest) {
-    setActiveSubModule('folio')
-    toast.info(`Navigated to Folio`, {
-      description: `Room ${guest.roomNumber} — ${guest.firstName} ${guest.lastName}`,
+    useFolioContextStore.getState().setFolioContext({
+      reservationId: '',
+      guestId: guest.id,
+      guestName: `${guest.firstName} ${guest.lastName}`.trim(),
+      roomNumber: guest.roomNumber,
+      confirmationNo: '',
     })
+    setActiveSubModule('folio')
+  }
+
+  function handleViewLedger(guest: Guest) {
+    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+      guestId: guest.id,
+      guestName: `${guest.firstName} ${guest.lastName}`.trim(),
+    })
+    setActiveSubModule('guest-ledger')
   }
 
   function handleWakeUpCall(guest: Guest) {
@@ -576,6 +588,16 @@ export function GuestDirectoryView() {
                     >
                       <Receipt className="size-3" />
                       <span className="hidden sm:inline">Folio</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-[11px] h-7 gap-1 px-2"
+                      onClick={() => handleViewLedger(guest)}
+                      title="View ledger"
+                    >
+                      <BookOpen className="size-3" />
+                      <span className="hidden sm:inline">Ledger</span>
                     </Button>
                     <Button
                       size="sm"

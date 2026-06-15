@@ -32,7 +32,8 @@ import {
 } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/components/shared/step-indicator'
-import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort } from '@/lib/format'
+import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
+import { invalidate } from '@/lib/queryKeys'
 import { cn } from '@/lib/utils'
 import { useAuthStore, useSettingsStore } from '@/lib/store'
 import { RoomRatePostingDialog } from './RoomRatePostingDialog'
@@ -201,7 +202,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
   const [walkInCheckOut, setWalkInCheckOut] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
+    return toDateOnly(d)
   })
   const [walkInAdults, setWalkInAdults] = useState(2)
   const [walkInChildren, setWalkInChildren] = useState(0)
@@ -226,7 +227,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
   const [checkOutDate, setCheckOutDate] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + 1)
-    return d.toISOString().split('T')[0]
+    return toDateOnly(d)
   })
   const [adults, setAdults] = useState(2)
   const [children, setChildren] = useState(0)
@@ -349,10 +350,8 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
       setPhase('details')
       setCurrentStep(4) // success screen marker
       toast.success('Guest checked in successfully!')
-      queryClient.invalidateQueries({ queryKey: ['reservations'] })
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      invalidate.afterCheckIn(queryClient)
       queryClient.invalidateQueries({ queryKey: ['rooms-available'] })
-      queryClient.invalidateQueries({ queryKey: ['front-desk-dashboard'] })
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Check-in failed')
@@ -438,8 +437,8 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
 
   // Nights display
   const nightsDisplay = useMemo(() => {
-    const ci = new Date(checkInDate)
-    const co = new Date(checkOutDate)
+    const ci = fromDateOnly(checkInDate)
+    const co = fromDateOnly(checkOutDate)
     const ciDay = DAY_NAMES[ci.getDay()]
     const coDay = DAY_NAMES[co.getDay()]
     return `${nights} night${nights > 1 ? 's' : ''} (${ciDay} ${formatDateShort(checkInDate)} → ${coDay} ${formatDateShort(checkOutDate)})`
@@ -1133,7 +1132,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={new Date(walkInDate)} onSelect={d => d && setWalkInDate(d.toISOString().split('T')[0])} initialFocus />
+                            <Calendar mode="single" selected={fromDateOnly(walkInDate)} onSelect={d => d && setWalkInDate(toDateOnly(d))} initialFocus />
                           </PopoverContent>
                         </Popover>
                       </div>
@@ -1147,7 +1146,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={new Date(walkInCheckOut)} onSelect={d => d && setWalkInCheckOut(d.toISOString().split('T')[0])} initialFocus />
+                            <Calendar mode="single" selected={fromDateOnly(walkInCheckOut)} onSelect={d => d && setWalkInCheckOut(toDateOnly(d))} initialFocus />
                           </PopoverContent>
                         </Popover>
                       </div>
@@ -1427,7 +1426,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={new Date(checkInDate)} onSelect={d => d && setCheckInDate(d.toISOString().split('T')[0])} initialFocus />
+                    <Calendar mode="single" selected={fromDateOnly(checkInDate)} onSelect={d => d && setCheckInDate(toDateOnly(d))} initialFocus />
                   </PopoverContent>
                 </Popover>
               </div>
@@ -1441,7 +1440,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={new Date(checkOutDate)} onSelect={d => d && setCheckOutDate(d.toISOString().split('T')[0])} initialFocus />
+                    <Calendar mode="single" selected={fromDateOnly(checkOutDate)} onSelect={d => d && setCheckOutDate(toDateOnly(d))} initialFocus />
                   </PopoverContent>
                 </Popover>
               </div>

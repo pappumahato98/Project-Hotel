@@ -23,6 +23,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { invalidate } from '@/lib/queryKeys'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -178,6 +179,7 @@ export function RoomRatePostingDialog({
     },
     onSuccess: () => {
       toast.success(`${summary.pendingCount} room charges posted to guest folio`)
+      invalidate.afterFolioChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['room-rate-postings', reservationId] })
       onPosted?.()
     },
@@ -197,6 +199,7 @@ export function RoomRatePostingDialog({
     },
     onSuccess: (_data, variables) => {
       toast.success('Room charge posted for ' + formatDate(variables))
+      invalidate.afterFolioChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['room-rate-postings', reservationId] })
       onPosted?.()
     },

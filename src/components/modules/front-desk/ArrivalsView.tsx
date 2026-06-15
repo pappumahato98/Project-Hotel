@@ -4,9 +4,10 @@ import { useState, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import {
   LogIn, BedDouble, Bell, Clock, Star, AlertTriangle, Users, CheckCircle2,
-  UserCheck, Crown, Footprints, KeyRound, Mail, Sparkles,
+  UserCheck, Crown, Footprints, KeyRound, Mail, Sparkles, BookOpen, Wand2,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
@@ -31,7 +32,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useSettingsStore } from '@/lib/store'
+import { useSettingsStore, useNavigationStore, useFrontDeskContextStore, useGuestLedgerContextStore } from '@/lib/store'
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ const initialWalkInForm: WalkInForm = {
 export function ArrivalsView() {
   const queryClient = useQueryClient()
   const { settings } = useSettingsStore()
+  const { navigateTo } = useNavigationStore()
   const today = getTodayString()
 
   // Dialog states
@@ -242,8 +244,7 @@ export function ArrivalsView() {
       })
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      invalidate.afterReservationChange(queryClient)
       setRoomPickerOpen(false)
       setCheckInDialogOpen(false)
 
@@ -267,7 +268,7 @@ export function ArrivalsView() {
       })
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
+      invalidate.afterCheckIn(queryClient)
       setCheckInDialogOpen(false)
 
       const roomNumber = selectedArrival?.room?.number || ''
@@ -323,9 +324,7 @@ export function ArrivalsView() {
       return { roomNumber: vacantRoom.number, reservation: resData.reservation }
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['arrivals'] })
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
-      queryClient.invalidateQueries({ queryKey: ['guests'] })
+      invalidate.afterCheckIn(queryClient)
       setWalkInDialogOpen(false)
       setWalkInForm(initialWalkInForm)
 
@@ -360,6 +359,19 @@ export function ArrivalsView() {
   const handleOpenWalkIn = () => {
     setWalkInForm(initialWalkInForm)
     setWalkInDialogOpen(true)
+  }
+
+  const handleNavigateToCheckIn = (arrival: Arrival) => {
+    useFrontDeskContextStore.getState().setPrefillReservationId(arrival.id)
+    navigateTo('front-desk', 'check-in')
+  }
+
+  const handleViewLedger = (arrival: Arrival) => {
+    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+      guestId: arrival.guest?.id || '',
+      guestName: `${arrival.guest?.firstName || ''} ${arrival.guest?.lastName || ''}`.trim(),
+    })
+    navigateTo('front-desk', 'guest-ledger')
   }
 
   const buildSpecialRequests = (arrival: Arrival): string => {
@@ -566,6 +578,26 @@ export function ArrivalsView() {
                         >
                           <UserCheck className="size-3.5 mr-1" />
                           Check In
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs"
+                          onClick={() => handleNavigateToCheckIn(arrival)}
+                          title="Full 4-step check-in wizard"
+                        >
+                          <Wand2 className="size-3.5 mr-1" />
+                          <span className="hidden sm:inline">Full Check-In</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-xs"
+                          onClick={() => handleViewLedger(arrival)}
+                          title="View guest ledger"
+                        >
+                          <BookOpen className="size-3.5 mr-1" />
+                          <span className="hidden sm:inline">Ledger</span>
                         </Button>
                         <Button size="sm" variant="ghost" className="size-7 p-0">
                           <Bell className="size-3.5" />

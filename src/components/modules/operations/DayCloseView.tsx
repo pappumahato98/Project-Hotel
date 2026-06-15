@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { invalidate } from '@/lib/queryKeys'
 import {
   CalendarClock, CheckCircle2, Circle, Lock, Loader2,
   BedDouble, Users, ArrowRightLeft, DollarSign, AlertTriangle, TrendingUp,
@@ -111,7 +112,7 @@ export function DayCloseView() {
     },
     onSuccess: () => {
       toast.success('Business day closed successfully')
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidate.afterAudit(queryClient)
       setConfirmDialogOpen(false)
     },
     onError: () => {
