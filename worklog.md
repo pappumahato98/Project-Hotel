@@ -516,3 +516,66 @@ Stage Summary:
 - InHouseView crash → Fixed by filtering reservations with null room and adding optional chaining
 - All date formatting now returns "—" for invalid dates instead of throwing
 
+---
+Task ID: 3
+Agent: full-stack-developer
+Task: Rewrite CheckInWizard with 2-phase architecture
+
+Work Log:
+- Read existing code and APIs (CheckInWizard.tsx 2118 lines, check-in route, step-indicator, format helpers)
+- Rewrote CheckInWizard.tsx with 2-phase design (~1750 lines)
+- Phase 1 (`phase === 'lookup'`): Full-page reservation search/selection with no step indicator
+  - Real-time debounced search (300ms debounce using useState+useEffect)
+  - Today's expected arrivals list loaded from /api/reservations?date=today&status=confirmed
+  - Direct Walk-in toggle with minimal guest form (first/last name, email, phone, nationality, dates, adults/children)
+  - Express mode toggle in header — when ON, each arrival card shows green "Express" button that auto-advances to Step 2
+- Phase 2 (`phase === 'details'`): 3-step wizard with StepIndicator and compact w-[300px] sidebar
+  - Steps: [{label:'Guest & Stay', icon:User}, {label:'Room & Rate', icon:BedDouble}, {label:'Payment', icon:CreditCard}]
+  - Express mode skips Step 1 and jumps directly to Step 2 when coming from a reservation
+  - Compact sidebar: Guest card, Room card, Stay info, Cost summary — all with p-3
+- Express Mode: functional one-click check-in from arrivals list
+- Real-Time Search: 300ms debounce, search results as compact cards with confirmation#, guest name, room#, dates, rate
+- Compact Card Spacing: ALL cards use p-3, space-y-3, gap-3
+- Wider Adults/Children Boxes: grid grid-cols-2 sm:grid-cols-3 with NumberStepper component (full-width h-10 with +/- buttons)
+- Real-time database calls for rooms, rate plans, cost calculations (useMemo)
+- Guest stay history fetch from /api/guests/${guestId}/stays
+- Room amenity icons parsed from JSON amenities string
+- Occupancy warning if exceeded
+- Document collection toggle (moved from separate step to inline in Payment step)
+- Fixed lint error: removed useEffect setState for prefillReservationId
+- Preserved all TypeScript interfaces, checkInMutation API call format, RoomRatePostingDialog integration
+
+Stage Summary:
+- CheckInWizard.tsx completely rewritten (~1750 lines, 2-phase architecture)
+- Express mode functional (one-click from arrivals)
+- Real-time search with 300ms debounce
+- Compact UI with p-3 spacing throughout
+- Wide occupancy stepper boxes
+- All existing interfaces and API payloads preserved
+---
+Task ID: 3
+Agent: Main (with full-stack-developer subagent)
+Task: Rewrite CheckInWizard with 2-phase architecture, fix all 6 user issues
+
+Work Log:
+- Analyzed user screenshot and identified 6 issues
+- Read existing CheckInWizard.tsx (2118 lines) and all related APIs
+- Delegated full rewrite to full-stack-developer subagent
+- Verified 2-phase architecture: Phase 1 (lookup) → Phase 2 (3-step wizard)
+- Phase 1: Real-time debounced search (300ms), today arrivals list, walk-in form, express toggle
+- Phase 2: Guest & Stay (step 1), Room & Rate (step 2), Payment (step 3)
+- NumberStepper component for adults/children with +/- buttons (wider boxes)
+- Express mode: one-click from arrivals → skip to Room & Rate step
+- Compact card spacing (p-3, space-y-3, gap-3) throughout
+- Real-time DB calls: rooms, rate plans, cost calculations, search
+- Browser-verified full flow: walk-in → 3 steps → success screen
+
+Stage Summary:
+- CheckInWizard.tsx completely rewritten (2167 lines)
+- Express mode functional with one-click check-in from arrivals
+- Real-time search with 300ms debounce working
+- Compact UI with minimal spacing throughout
+- Wider adults/children boxes with +/- steppers
+- All real-time DB functions working (rooms, rates, calculations)
+- Full E2E flow verified: walk-in → guest verify → room select → payment → success
+
