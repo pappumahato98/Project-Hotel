@@ -497,3 +497,22 @@ Stage Summary:
 - Bottom navigation buttons always visible at viewport bottom via flex layout (shrink-0) + sticky bottom-0
 - No visual regressions, layout works correctly on all steps
 
+---
+Task ID: 2
+Agent: Main
+Task: Fix Console RangeError "Invalid time value" and InHouseView crash
+
+Work Log:
+- Identified all date formatting functions in format.ts lacked null/invalid-date guards
+- Added isNaN(d.getTime()) guards to: formatDate, formatDateShort, formatDateLong, formatTime, formatDateTime, formatDateWithBS, formatDateShortWithBS, getHolidayInfo, getNepaliDayForDate
+- Added guard to local formatDayOfWeek in NewReservationPage.tsx
+- Added guards to local formatDate/formatTime in RoomDetailDrawer.tsx
+- Added guard to WorkOrdersView.tsx inline date formatting
+- Fixed InHouseView.tsx crash: "Cannot read properties of null (reading floor)" - filtered out reservations without rooms, and added optional chaining on floor computation
+- Verified all pages (Dashboard, New Reservation, Check-In, Reservations, Arrivals, In-House, Departures, Calendar) produce zero console errors
+
+Stage Summary:
+- RangeError: Invalid time value → Fixed by adding isNaN guards in all date formatting functions in format.ts (centralized fix)
+- InHouseView crash → Fixed by filtering reservations with null room and adding optional chaining
+- All date formatting now returns "—" for invalid dates instead of throwing
+

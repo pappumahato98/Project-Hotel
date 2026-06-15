@@ -165,7 +165,7 @@ export function InHouseView() {
     refetchInterval: 30000,
   })
 
-  const reservations: InHouseReservation[] = data?.reservations || []
+  const reservations: InHouseReservation[] = (data?.reservations || []).filter((r: any) => r.room)
 
   // ── Fetch vacant clean rooms for transfer ──────────────────
   const { data: vacantRoomsData } = useQuery({
@@ -179,7 +179,7 @@ export function InHouseView() {
 
   // ── Compute unique floors for filter ────────────────────────
   const floors = useMemo(() => {
-    const floorSet = new Set(reservations.map((r) => r.room.floor))
+    const floorSet = new Set(reservations.map((r) => r.room?.floor).filter((f): f is number => f != null))
     return Array.from(floorSet).sort((a, b) => a - b)
   }, [reservations])
 

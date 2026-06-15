@@ -278,7 +278,7 @@ export function WorkOrdersView() {
                           {wo.assignedTo ?? '—'}
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-sm text-muted-foreground">
-                          {new Date(wo.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                          {new Date(wo.createdAt).getTime() ? new Date(wo.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—'}
                         </TableCell>
                       </TableRow>
                     )

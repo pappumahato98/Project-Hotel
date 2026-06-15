@@ -50,44 +50,54 @@ export function formatCurrencyDecimal(amount: number): string {
  * Uses en-GB locale which naturally produces DD/MM/YYYY.
  */
 export function formatDate(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat(getLocale(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 /**
  * Format date as DD-Mon-YYYY (e.g., 15-Jul-2025) for compact display.
  */
 export function formatDateShort(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 /**
  * Format date as "DD MMM YYYY" with month name (e.g., 15 July 2025).
  */
 export function formatDateLong(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function formatTime(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function formatDateTime(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: '2-digit',
@@ -95,7 +105,7 @@ export function formatDateTime(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
-  }).format(new Date(date))
+  }).format(d)
 }
 
 export function getTodayString(): string {
@@ -117,6 +127,7 @@ export function nightsBetween(checkIn: string | Date, checkOut: string | Date): 
  */
 export function formatDateWithBS(date: string | Date): string {
   const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   const ad = formatDate(d)
   if (!isNepaliEnabled()) return ad
   const bs = adToBS(d)
@@ -131,6 +142,7 @@ export function formatDateWithBS(date: string | Date): string {
  */
 export function formatDateShortWithBS(date: string | Date): string {
   const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
   const ad = formatDateShort(d)
   if (!isNepaliEnabled()) return ad
   const bs = adToBS(d)
@@ -142,6 +154,7 @@ export function formatDateShortWithBS(date: string | Date): string {
  */
 export function getHolidayInfo(date: string | Date): { isHoliday: boolean; name?: string; nameEn?: string } | null {
   const d = new Date(date)
+  if (isNaN(d.getTime())) return null
   const holiday = isNepaliHoliday(d)
   return holiday.isHoliday ? holiday : null
 }
@@ -150,5 +163,7 @@ export function getHolidayInfo(date: string | Date): { isHoliday: boolean; name?
  * Get Nepali day name for a date (e.g., "सोम" for Monday)
  */
 export function getNepaliDayForDate(date: string | Date): string {
-  return getNepaliDayNameShort(new Date(date))
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return ''
+  return getNepaliDayNameShort(d)
 }
