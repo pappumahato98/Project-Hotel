@@ -1230,3 +1230,54 @@ Stage Summary:
 - File modified: src/components/modules/front-desk/RoomRatePostingPage.tsx (rewritten ~1500 lines)
 - New features: 6 stat cards, Quick Actions menu, CSV Export, batch select/post, room filter, sort, rate override, bulk post confirm dialog, enhanced expanded rows, tooltips
 - All features verified working via Agent Browser
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Fix Room Rate Posting page — broken dropdowns, add action dropdowns, remove bottom table, fix search/calendar layout
+
+Work Log:
+- Read and analyzed the full 1521-line RoomRatePostingPage.tsx
+- Identified issues: dropdowns using Radix Select/Popover needed proper event propagation handling
+- Identified the bottom table (ALL/POSTED/VOIDED tabs) that needed removal
+- Identified search/calendar layout needed proper card boxing
+- Rewrote RoomRatePostingPage.tsx (~650 lines → clean structure):
+  1. **Fixed all dropdowns**: Sort, Room Status, Status filter (Select components) — all working via Agent Browser verification
+  2. **Added row action dropdown**: Each pending row now has a MoreHorizontal dropdown with:
+     - Post Charges (with night count)
+     - View Folio → navigates to front-desk/folio
+     - View Reservation → navigates to front-desk/reservations
+     - View Guest Profile → navigates to crm/profiles
+     - Contact Guest (disabled placeholder)
+     - Print Folio (disabled placeholder)
+  3. **Enhanced Quick Actions dropdown** with navigation actions:
+     - Post All Pending
+     - Post Selected (N)
+     - Navigate To: In-House Guests, Guest Folio, Reservation Calendar, Reports, Accounting Ledger
+  4. **Removed bottom table**: Eliminated ALL/POSTED/VOIDED tabs and the posting list table (Tabs, pagination, posting rows)
+  5. **Fixed filter layout**: Wrapped all filters in a Card with proper p-3 padding, added:
+     - Search input (200px) with search icon
+     - Room # filter (90px) with bed icon
+     - Sort dropdown (Room ↑/↓, Guest A→Z, Amount ↓, Most Pending)
+     - Room Status dropdown (All Types, No Room, Has Room)
+     - Status dropdown (All Pending, No Room Only, Urgent 3+ nights)
+     - Date Range popover with From/To date inputs in proper labeled boxes
+     - Clear Filters button (shows when any filter is active)
+- Removed unused imports (Tabs, Table for posting list, void dialog, Progress, etc.)
+- Navigation uses useNavigationStore and useFolioContextStore for cross-module linking
+- Ran `bun run lint` — clean, no errors
+- Verified via Agent Browser:
+  - All 4 filter dropdowns open and show correct options
+  - Quick Actions dropdown shows posting actions + navigation actions
+  - Row action dropdown shows all 6 menu items
+  - "View Reservation" navigation correctly switches to Reservations tab
+  - Table renders with correct columns, checkboxes, expand arrows, action buttons
+  - No bottom table exists
+  - No console/runtime errors
+
+Stage Summary:
+- RoomRatePostingPage.tsx completely rewritten with working dropdowns
+- Bottom posting list table removed
+- Filter area now in proper bordered card layout
+- Row-level action dropdowns link to Folio, Reservations, Guest Profile
+- Quick Actions dropdown includes cross-module navigation
+- Date range filter implemented as Popover with From/To date inputs
