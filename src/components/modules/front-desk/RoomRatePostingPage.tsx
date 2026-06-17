@@ -575,136 +575,127 @@ export function RoomRatePostingPage() {
       </div>
 
       {/* ═══════════════ FILTER BAR ═══════════════ */}
-      <Card>
-        <CardContent className="p-3">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-            {/* Row 1: Main search + room filter + sort */}
-            <div className="flex items-center gap-2 flex-1 flex-wrap">
-              <div className="relative flex-shrink-0">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Search guest, conf#, room..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="h-8 w-[200px] pl-8 text-xs border-border/60"
-                />
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search guest, conf#, room..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="h-8 w-[200px] pl-8 text-xs"
+          />
+        </div>
+
+        <div className="relative">
+          <BedDouble className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Room #"
+            value={roomFilter}
+            onChange={(e) => setRoomFilter(e.target.value)}
+            className="h-8 w-[80px] pl-8 text-xs"
+          />
+        </div>
+
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="h-8 w-[120px] text-xs">
+            <ArrowUpDown className="size-3 mr-1 text-muted-foreground" />
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            {SORT_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
+          <SelectTrigger className="h-8 w-[120px] text-xs">
+            <Filter className="size-3 mr-1 text-muted-foreground" />
+            <SelectValue placeholder="Room Status" />
+          </SelectTrigger>
+          <SelectContent>
+            {ROOM_TYPE_FILTERS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-8 w-[120px] text-xs">
+            <ClipboardList className="size-3 mr-1 text-muted-foreground" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all-pending" className="text-xs">All Pending</SelectItem>
+            <SelectItem value="has-no-room" className="text-xs">No Room Only</SelectItem>
+            <SelectItem value="urgent" className="text-xs">Urgent (3+ nights)</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Popover open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "h-8 text-xs gap-1.5",
+                (dateFrom || dateTo) && "border-emerald-300 bg-emerald-50/50 text-emerald-700"
+              )}
+            >
+              <CalendarDays className="size-3" />
+              {dateFrom || dateTo ? (
+                <span>{dateFrom ? formatDate(dateFrom) : '...'} — {dateTo ? formatDate(dateTo) : '...'}</span>
+              ) : (
+                <span>Date Range</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3" align="start">
+            <div className="space-y-2.5">
+              <p className="text-xs font-medium text-muted-foreground">Filter by pending night dates</p>
+              <div className="flex items-center gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">From</Label>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="h-8 w-[145px] text-xs"
+                  />
+                </div>
+                <span className="text-muted-foreground text-xs mt-4">→</span>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">To</Label>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="h-8 w-[145px] text-xs"
+                  />
+                </div>
               </div>
-
-              <div className="relative flex-shrink-0">
-                <BedDouble className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-                <Input
-                  placeholder="Room #"
-                  value={roomFilter}
-                  onChange={(e) => setRoomFilter(e.target.value)}
-                  className="h-8 w-[90px] pl-8 text-xs border-border/60"
-                />
-              </div>
-
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-8 w-[130px] text-xs border-border/60">
-                  <ArrowUpDown className="size-3 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SORT_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
-                <SelectTrigger className="h-8 w-[120px] text-xs border-border/60">
-                  <Filter className="size-3 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="Room Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROOM_TYPE_FILTERS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-8 w-[120px] text-xs border-border/60">
-                  <ClipboardList className="size-3 mr-1 text-muted-foreground" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all-pending" className="text-xs">All Pending</SelectItem>
-                  <SelectItem value="has-no-room" className="text-xs">No Room Only</SelectItem>
-                  <SelectItem value="urgent" className="text-xs">Urgent (3+ nights)</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Date range picker */}
-              <Popover open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      "h-8 text-xs gap-1.5 border-border/60",
-                      (dateFrom || dateTo) && "border-emerald-300 bg-emerald-50/50 text-emerald-700"
-                    )}
-                  >
-                    <CalendarDays className="size-3" />
-                    {dateFrom || dateTo ? (
-                      <span>{dateFrom ? formatDate(dateFrom) : '...'} — {dateTo ? formatDate(dateTo) : '...'}</span>
-                    ) : (
-                      <span>Date Range</span>
-                    )}
+              <div className="flex items-center justify-between">
+                {(dateFrom || dateTo) && (
+                  <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => { setDateFrom(''); setDateTo('') }}>
+                    Clear dates
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-3" align="start">
-                  <div className="space-y-2.5">
-                    <p className="text-xs font-medium text-muted-foreground">Filter by pending night dates</p>
-                    <div className="flex items-center gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground">From</Label>
-                        <Input
-                          type="date"
-                          value={dateFrom}
-                          onChange={(e) => setDateFrom(e.target.value)}
-                          className="h-8 w-[145px] text-xs"
-                        />
-                      </div>
-                      <span className="text-muted-foreground text-xs mt-4">→</span>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground">To</Label>
-                        <Input
-                          type="date"
-                          value={dateTo}
-                          onChange={(e) => setDateTo(e.target.value)}
-                          className="h-8 w-[145px] text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      {(dateFrom || dateTo) && (
-                        <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => { setDateFrom(''); setDateTo('') }}>
-                          Clear dates
-                        </Button>
-                      )}
-                      <Button size="sm" className="h-7 text-xs ml-auto" onClick={() => setDateRangeOpen(false)}>
-                        Apply
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+                )}
+                <Button size="sm" className="h-7 text-xs ml-auto" onClick={() => setDateRangeOpen(false)}>
+                  Apply
+                </Button>
+              </div>
             </div>
+          </PopoverContent>
+        </Popover>
 
-            {/* Clear filters */}
-            {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-muted-foreground gap-1 flex-shrink-0">
-                <X className="size-3" />
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-muted-foreground gap-1">
+            <X className="size-3" />
+            Clear Filters
+          </Button>
+        )}
+      </div>
 
       {/* ═══════════════ BATCH ACTIONS BAR ═══════════════ */}
       {!isLoading && filteredPendingReservations.length > 0 && (
