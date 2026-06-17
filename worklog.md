@@ -1099,3 +1099,22 @@ Stage Summary:
 - All form inputs and selects now have identical widths per row on every viewport
 - Verified via programmatic width checks: desktop (184px), tablet (279px), mobile (309px)
 - Lint passes clean, no runtime errors
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Room Rate Posting dialog not showing actual data
+
+Work Log:
+- Analyzed user screenshot showing "No nights found", "NPRNaN" rate, and 0 nights in Room Rate Posting dialog
+- Identified root cause: API `/api/reservations/[id]` returns `{ reservation: {...} }` (wrapped), but RoomRatePostingDialog's useQuery expected the flat ReservationDetail object directly
+- This caused `reservation.checkIn`, `reservation.roomRate`, `reservation.guest` to all be `undefined`
+- `new Date(undefined)` → Invalid Date → while loop produces 0 iterations → empty nights array
+- Fixed RoomRatePostingDialog.tsx: Changed queryFn to unwrap `raw.reservation ?? null`
+- Also changed null check from `!reservation` to `!reservation?.id` for more robust guard
+- Fixed secondary bug in `/api/reservations/[id]/check-in/route.ts`: Removed invalid Prisma fields (`checkInTime`, `checkedInBy`, `documentSkipped`) that don't exist in the schema, causing all check-ins to fail with 500 error
+
+Stage Summary:
+- Root cause: API response wrapping mismatch (1-line queryFn fix)
+- Secondary fix: check-in API had 3 non-existent Prisma fields causing 500 errors
+- Verified fix via API: old code gets checkIn=MISSING, roomRate=MISSING; new code gets all fields correctly
+- Lint passes clean, no runtime errors

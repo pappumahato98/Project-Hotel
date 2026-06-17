@@ -93,9 +93,13 @@ export function RoomRatePostingDialog({
   const queryClient = useQueryClient()
 
   // ── Fetch reservation details ────────────────────────────────────────
+  // API returns { reservation: {...} } — unwrap it
   const { data: reservation, isLoading: isLoadingReservation } = useQuery({
     queryKey: ['reservation', reservationId],
-    queryFn: () => apiFetch(`/api/reservations/${reservationId}`) as Promise<ReservationDetail>,
+    queryFn: async () => {
+      const raw = await apiFetch<{ reservation: ReservationDetail }>(`/api/reservations/${reservationId}`)
+      return raw?.reservation ?? null
+    },
     enabled: open && !!reservationId,
   })
 
@@ -247,7 +251,7 @@ export function RoomRatePostingDialog({
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {isLoading ? (
             <LoadingSkeleton />
-          ) : !reservation ? (
+          ) : !reservation?.id ? (
             <ErrorState />
           ) : (
             <>

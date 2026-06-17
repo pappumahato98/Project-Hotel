@@ -65,9 +65,6 @@ export async function POST(
     // 2. Build update data
     const updateData: Record<string, unknown> = {
       status: 'checked_in',
-      checkInTime: new Date(),
-      checkedInBy: checkedInBy || null,
-      documentSkipped: documentSkipped ?? false,
     }
 
     // Handle advance amount
