@@ -149,6 +149,7 @@ export async function POST(request: Request) {
     }
 
     if (!reservationId) {
+      console.log('[RatePosting POST] Missing reservationId')
       return NextResponse.json(
         { error: 'reservationId is required' },
         { status: 400 },
@@ -166,6 +167,7 @@ export async function POST(request: Request) {
     })
 
     if (!reservation) {
+      console.log(`[RatePosting POST] Reservation not found: ${reservationId}`)
       return NextResponse.json(
         { error: 'Reservation not found' },
         { status: 404 },
@@ -173,6 +175,7 @@ export async function POST(request: Request) {
     }
 
     if (!reservation.room) {
+      console.log(`[RatePosting POST] No room assigned for reservation: ${reservationId}`)
       return NextResponse.json(
         { error: 'Reservation has no room assigned' },
         { status: 400 },
@@ -180,6 +183,7 @@ export async function POST(request: Request) {
     }
 
     if (reservation.folios.length === 0) {
+      console.log(`[RatePosting POST] No folio for reservation: ${reservationId}`)
       return NextResponse.json(
         { error: 'No folio found for this reservation. Create a folio first.' },
         { status: 400 },

@@ -187,7 +187,11 @@ export function RoomRatePostingPage() {
       setPostConfirmOpen(false)
       setPostTarget(null)
     },
-    onError: (error) => toast.error(error.message || 'Failed to post charges'),
+    onError: (error) => {
+      toast.error(error.message || 'Failed to post charges')
+      setPostConfirmOpen(false)
+      setPostTarget(null)
+    },
   })
 
   // ── Bulk post all pending ───────────────────────────────────────────

@@ -18,13 +18,16 @@ export async function apiFetch<T = unknown>(
     if (contentType.includes('text/html')) {
       throw new Error('Server unavailable. Please try again.')
     }
+    let errData: Record<string, unknown> | null = null
     try {
-      const errData = await res.json()
-      throw new Error(errData.error || `Request failed (HTTP ${res.status})`)
-    } catch (e) {
-      if (e instanceof Error && e.message.includes('Server unavailable')) throw e
-      throw new Error(`Request failed (HTTP ${res.status})`)
+      errData = await res.json()
+    } catch {
+      // JSON parse failed — fall through to generic message
     }
+    if (errData?.error && typeof errData.error === 'string') {
+      throw new Error(errData.error)
+    }
+    throw new Error(`Request failed (HTTP ${res.status})`)
   }
   return res.json() as Promise<T>
 }
