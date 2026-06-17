@@ -3,14 +3,15 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { format, parseISO } from 'date-fns'
 import {
   DollarSign, Clock, AlertCircle, CheckCircle, Loader2, X,
   Search, RefreshCw, ChevronDown, ChevronRight,
   Zap, CalendarDays, Users, BarChart3, BedDouble,
-  ArrowUpDown, MoreHorizontal, Download, FileSpreadsheet,
+  MoreHorizontal, Download, FileSpreadsheet,
   ListChecks, Wallet, Moon, ArrowRight, ShieldCheck,
   Building2, FileText, UserCircle, Receipt, CreditCard,
-  Eye, Filter,
+  Eye, Filter, CalendarIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -31,15 +32,14 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -66,14 +66,6 @@ interface PendingResponse {
 
 // ─── Constants ──────────────────────────────────────────────────────────
 
-const SORT_OPTIONS = [
-  { value: 'room-asc', label: 'Room ↑' },
-  { value: 'room-desc', label: 'Room ↓' },
-  { value: 'guest-asc', label: 'Guest A→Z' },
-  { value: 'amount-desc', label: 'Amount ↓' },
-  { value: 'pending-desc', label: 'Most Pending' },
-] as const
-
 type PostingType = 'all' | 'no-room' | 'urgent'
 
 const POSTING_TYPE_OPTIONS: { value: PostingType; label: string }[] = [
@@ -93,8 +85,8 @@ export function RoomRatePostingPage() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [postingType, setPostingType] = useState<PostingType>('all')
-  const [sortBy, setSortBy] = useState('room-asc')
   const [dateFilter, setDateFilter] = useState('')
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
@@ -218,22 +210,10 @@ export function RoomRatePostingPage() {
       list = list.filter((r) => r.pendingNights.includes(dateFilter))
     }
 
-    // Sort
-    list.sort((a, b) => {
-      switch (sortBy) {
-        case 'room-desc': return (b.room?.number || '').localeCompare(a.room?.number || '', undefined, { numeric: true })
-        case 'guest-asc': {
-          const ga = a.guest ? `${a.guest.firstName} ${a.guest.lastName}` : ''
-          const gb = b.guest ? `${b.guest.firstName} ${b.guest.lastName}` : ''
-          return ga.localeCompare(gb)
-        }
-        case 'amount-desc': return b.pendingAmount - a.pendingAmount
-        case 'pending-desc': return b.pendingNights.length - a.pendingNights.length
-        default: return (a.room?.number || '').localeCompare(b.room?.number || '', undefined, { numeric: true })
-      }
-    })
+    // Sort by room number ascending
+    list.sort((a, b) => (a.room?.number || '').localeCompare(b.room?.number || '', undefined, { numeric: true }))
     return list
-  }, [pendingReservations, search, sortBy, postingType, dateFilter])
+  }, [pendingReservations, search, postingType, dateFilter])
 
   const pendingStats = useMemo(() => {
     const noRoom = filteredPendingReservations.filter((r) => !r.room).length
@@ -253,7 +233,7 @@ export function RoomRatePostingPage() {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSearch() }, [handleSearch])
 
   const clearFilters = useCallback(() => {
-    setSearchInput(''); setSearch(''); setPostingType('all'); setDateFilter('')
+    setSearchInput(''); setSearch(''); setPostingType('all'); setDateFilter(''); setCalendarOpen(false)
   }, [])
 
   const handlePostReservation = useCallback(() => {
@@ -429,25 +409,20 @@ export function RoomRatePostingPage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="h-8 w-[200px] pl-8 text-xs"
+            className="h-9 w-[330px] pl-8 pr-8 text-sm bg-background border-border/80"
           />
+          {search && (
+            <button
+              onClick={() => { setSearchInput(''); setSearch('') }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Sort dropdown */}
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="h-8 w-[120px] text-xs">
-            <ArrowUpDown className="size-3 mr-1 text-muted-foreground" />
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         {/* Posting type toggle buttons */}
-        <div className="flex items-center rounded-md border bg-muted/50 p-0.5 gap-0.5">
+        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 gap-0.5">
           {POSTING_TYPE_OPTIONS.map((opt) => (
             <Button
               key={opt.value}
@@ -455,32 +430,71 @@ export function RoomRatePostingPage() {
               size="sm"
               onClick={() => setPostingType(opt.value)}
               className={cn(
-                'h-7 text-xs px-2.5 rounded-sm',
+                'h-8 text-xs px-3 rounded-md transition-all',
                 postingType === opt.value
-                  ? 'bg-background shadow-sm font-medium'
+                  ? 'bg-background shadow-sm font-medium text-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <Filter className="size-3 mr-1" />
+              <Filter className="size-3 mr-1.5" />
               {opt.label}
             </Button>
           ))}
         </div>
 
-        {/* Date picker button */}
-        <div className="relative">
-          <CalendarDays className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground pointer-events-none z-10" />
-          <Input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="h-8 w-[145px] pl-7 text-xs"
-          />
-        </div>
+        {/* Calendar date picker */}
+        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                'h-9 gap-2 text-sm font-normal justify-start border-border/80',
+                dateFilter ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              <CalendarIcon className="size-4 text-muted-foreground" />
+              {dateFilter ? (
+                <span className="font-medium">{format(parseISO(dateFilter), 'dd MMM yyyy')}</span>
+              ) : (
+                <span>Pick a date</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dateFilter ? parseISO(dateFilter) : undefined}
+              onSelect={(day) => {
+                if (day) {
+                  const y = day.getFullYear()
+                  const m = String(day.getMonth() + 1).padStart(2, '0')
+                  const d = String(day.getDate()).padStart(2, '0')
+                  setDateFilter(`${y}-${m}-${d}`)
+                } else {
+                  setDateFilter('')
+                }
+                setCalendarOpen(false)
+              }}
+              initialFocus
+            />
+            {dateFilter && (
+              <div className="border-t px-3 py-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => { setDateFilter(''); setCalendarOpen(false) }}
+                >
+                  <X className="size-3" /> Clear date
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
 
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-muted-foreground gap-1">
-            <X className="size-3" /> Clear
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs text-muted-foreground gap-1.5 hover:text-foreground">
+            <X className="size-3.5" /> Clear All
           </Button>
         )}
       </div>

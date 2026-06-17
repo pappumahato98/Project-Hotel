@@ -1281,3 +1281,28 @@ Stage Summary:
 - Row-level action dropdowns link to Folio, Reservations, Guest Profile
 - Quick Actions dropdown includes cross-module navigation
 - Date range filter implemented as Popover with From/To date inputs
+---
+Task ID: 1
+Agent: Main Agent
+Task: Remove second filter (Sort dropdown), match search box width to posting type buttons, enhance calendar UI
+
+Work Log:
+- Removed the Sort dropdown (second filter) from the filter bar
+- Removed SORT_OPTIONS constant and sortBy state
+- Simplified sort logic to default room-ascending sort
+- Set search box width to w-[330px] to match the posting type buttons group (~335px)
+- Replaced raw `<Input type="date">` with a proper Popover + Calendar component
+- Calendar shows formatted date (e.g. "01 Jun 2026") after selection
+- Added "Clear date" button inside the calendar popover when a date is selected
+- Added clear (X) button inside search box when search is active
+- Enhanced filter button styling: rounded-lg, better spacing, transition-all
+- Increased filter element height from h-8 to h-9 for better touch targets
+- Removed unused imports (Select components, ArrowUpDown icon)
+- Added new imports (Popover, Calendar, format, parseISO from date-fns, CalendarIcon)
+
+Stage Summary:
+- Filter bar now has: Search box (330px) | Posting type buttons (335px) | Calendar popover button | Clear All button
+- Sort dropdown removed as requested
+- Search box width matches posting type buttons group width
+- Calendar UI improved with proper date picker popover instead of raw date input
+- Lint passes clean, no runtime errors
