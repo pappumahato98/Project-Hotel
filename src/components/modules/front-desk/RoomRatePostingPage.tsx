@@ -5,12 +5,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import {
   DollarSign, Clock, AlertCircle, CheckCircle, Loader2, X,
-  Search, Filter, RefreshCw, ChevronDown, ChevronRight,
-  Ban, Zap, CalendarDays, Users, TrendingUp, BedDouble,
+  Search, RefreshCw, ChevronDown, ChevronRight,
+  Zap, CalendarDays, Users, BarChart3, BedDouble,
   ArrowUpDown, MoreHorizontal, Download, FileSpreadsheet,
-  ListChecks, Wallet, Moon, ArrowRight, ShieldCheck, BarChart3,
-  Building2, FileText, UserCircle, Receipt, Printer,
-  CreditCard, LogOut, Eye, ClipboardList, Phone,
+  ListChecks, Wallet, Moon, ArrowRight, ShieldCheck,
+  Building2, FileText, UserCircle, Receipt, CreditCard,
+  Eye, Filter,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -36,12 +36,10 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
-  DropdownMenuGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -76,11 +74,13 @@ const SORT_OPTIONS = [
   { value: 'pending-desc', label: 'Most Pending' },
 ] as const
 
-const ROOM_TYPE_FILTERS = [
-  { value: 'all', label: 'All Types' },
+type PostingType = 'all' | 'no-room' | 'urgent'
+
+const POSTING_TYPE_OPTIONS: { value: PostingType; label: string }[] = [
+  { value: 'all', label: 'All Pending' },
   { value: 'no-room', label: 'No Room' },
-  { value: 'has-room', label: 'Has Room' },
-] as const
+  { value: 'urgent', label: 'Urgent (3+)' },
+]
 
 // ─── Component ──────────────────────────────────────────────────────────
 
@@ -92,12 +92,11 @@ export function RoomRatePostingPage() {
   // State
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
-  const [roomFilter, setRoomFilter] = useState('')
-  const [roomTypeFilter, setRoomTypeFilter] = useState('all')
+  const [postingType, setPostingType] = useState<PostingType>('all')
   const [sortBy, setSortBy] = useState('room-asc')
+  const [dateFilter, setDateFilter] = useState('')
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [statusFilter, setStatusFilter] = useState('all-pending') // 'all-pending' | 'has-no-room' | 'urgent'
 
   // Dialogs
   const [postConfirmOpen, setPostConfirmOpen] = useState(false)
@@ -105,9 +104,6 @@ export function RoomRatePostingPage() {
   const [bulkPostOpen, setBulkPostOpen] = useState(false)
   const [rateOverride, setRateOverride] = useState('')
   const [showQuickActions, setShowQuickActions] = useState(false)
-  const [dateRangeOpen, setDateRangeOpen] = useState(false)
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
 
   // ── Fetch pending reservations ───────────────────────────────────
   const { data: pendingData, isLoading, refetch } = useQuery({
@@ -164,11 +160,8 @@ export function RoomRatePostingPage() {
     onSuccess: (results) => {
       const ok = results.filter((r) => r.success).length
       const fail = results.filter((r) => !r.success).length
-      if (fail > 0) {
-        toast.warning(`${ok} posted, ${fail} failed`)
-      } else {
-        toast.success(`${ok} reservation(s) posted successfully`)
-      }
+      if (fail > 0) toast.warning(`${ok} posted, ${fail} failed`)
+      else toast.success(`${ok} reservation(s) posted successfully`)
       invalidate.afterFolioChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['rate-posting-pending'] })
       setSelectedIds(new Set())
@@ -202,30 +195,14 @@ export function RoomRatePostingPage() {
   const pendingSummary = pendingData?.summary
   const pendingReservations = pendingData?.pendingReservations || []
 
-  // Filter + sort pending
   const filteredPendingReservations = useMemo(() => {
     let list = [...pendingReservations]
 
-    // Status filter
-    if (statusFilter === 'has-no-room') {
-      list = list.filter((r) => !r.room)
-    } else if (statusFilter === 'urgent') {
-      list = list.filter((r) => r.pendingNights.length >= 3)
-    }
+    // Posting type filter
+    if (postingType === 'no-room') list = list.filter((r) => !r.room)
+    else if (postingType === 'urgent') list = list.filter((r) => r.pendingNights.length >= 3)
 
-    // Room type filter
-    if (roomTypeFilter === 'no-room') {
-      list = list.filter((r) => !r.room)
-    } else if (roomTypeFilter === 'has-room') {
-      list = list.filter((r) => !!r.room)
-    }
-
-    // Room filter
-    if (roomFilter) {
-      list = list.filter((r) => r.room?.number?.toLowerCase().includes(roomFilter.toLowerCase()))
-    }
-
-    // Search
+    // Search (name, room, conf#)
     if (search) {
       const s = search.toLowerCase()
       list = list.filter((r) =>
@@ -236,16 +213,9 @@ export function RoomRatePostingPage() {
       )
     }
 
-    // Date range filter
-    if (dateFrom || dateTo) {
-      list = list.filter((r) => {
-        const hasPendingInRange = r.pendingNights.some((night) => {
-          if (dateFrom && night < dateFrom) return false
-          if (dateTo && night > dateTo) return false
-          return true
-        })
-        return hasPendingInRange
-      })
+    // Date filter
+    if (dateFilter) {
+      list = list.filter((r) => r.pendingNights.includes(dateFilter))
     }
 
     // Sort
@@ -263,9 +233,8 @@ export function RoomRatePostingPage() {
       }
     })
     return list
-  }, [pendingReservations, roomFilter, search, sortBy, statusFilter, roomTypeFilter, dateFrom, dateTo])
+  }, [pendingReservations, search, sortBy, postingType, dateFilter])
 
-  // Calculated stats
   const pendingStats = useMemo(() => {
     const noRoom = filteredPendingReservations.filter((r) => !r.room).length
     const avgRate = filteredPendingReservations.length > 0
@@ -274,29 +243,17 @@ export function RoomRatePostingPage() {
     const totalFolioBalance = filteredPendingReservations.reduce((s, r) => s + (r.folio?.balance || 0), 0)
     const totalPendingNights = filteredPendingReservations.reduce((s, r) => s + r.pendingNights.length, 0)
     const totalPendingAmount = filteredPendingReservations.reduce((s, r) => s + r.pendingAmount, 0)
-    const urgentCount = filteredPendingReservations.filter((r) => r.pendingNights.length >= 3).length
-    return { noRoom, avgRate, totalFolioBalance, totalPendingNights, totalPendingAmount, urgentCount }
+    return { noRoom, avgRate, totalFolioBalance, totalPendingNights, totalPendingAmount }
   }, [filteredPendingReservations])
 
   const isWorking = postMutation.isPending || bulkPostMutation.isPending || postSelectedMutation.isPending
 
   // ── Handlers ─────────────────────────────────────────────────────
-  const handleSearch = useCallback(() => {
-    setSearch(searchInput)
-  }, [searchInput])
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSearch()
-  }, [handleSearch])
+  const handleSearch = useCallback(() => setSearch(searchInput), [searchInput])
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSearch() }, [handleSearch])
 
   const clearFilters = useCallback(() => {
-    setSearchInput('')
-    setSearch('')
-    setRoomFilter('')
-    setRoomTypeFilter('all')
-    setStatusFilter('all-pending')
-    setDateFrom('')
-    setDateTo('')
+    setSearchInput(''); setSearch(''); setPostingType('all'); setDateFilter('')
   }, [])
 
   const handlePostReservation = useCallback(() => {
@@ -305,9 +262,7 @@ export function RoomRatePostingPage() {
     postMutation.mutate({ reservationId: postTarget.reservationId, dates: postTarget.pendingNights, customRate })
   }, [postTarget, rateOverride, postMutation])
 
-  const handleBulkPost = useCallback(() => {
-    bulkPostMutation.mutate()
-  }, [bulkPostMutation])
+  const handleBulkPost = useCallback(() => bulkPostMutation.mutate(), [bulkPostMutation])
 
   const handlePostSelected = useCallback(() => {
     const items = filteredPendingReservations
@@ -322,37 +277,24 @@ export function RoomRatePostingPage() {
   }, [])
 
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === filteredPendingReservations.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(filteredPendingReservations.map((r) => r.reservationId)))
-    }
+    if (selectedIds.size === filteredPendingReservations.length) setSelectedIds(new Set())
+    else setSelectedIds(new Set(filteredPendingReservations.map((r) => r.reservationId)))
   }, [selectedIds.size, filteredPendingReservations])
 
   const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
   }, [])
 
   // ── Navigation actions ───────────────────────────────────────────
   const handleViewFolio = useCallback((res: PendingReservation) => {
     if (res.guest && res.room && res.folio) {
       setFolioContext({
-        reservationId: res.reservationId,
-        guestId: res.guest.id,
+        reservationId: res.reservationId, guestId: res.guest.id,
         guestName: `${res.guest.firstName} ${res.guest.lastName}`,
-        roomNumber: res.room.number,
-        confirmationNo: res.confirmationNo,
-        folioId: res.folio.id,
+        roomNumber: res.room.number, confirmationNo: res.confirmationNo, folioId: res.folio.id,
       })
       navigateTo('front-desk', 'folio')
-    } else {
-      toast.error('Cannot open folio — missing guest, room, or folio data')
-    }
+    } else { toast.error('Cannot open folio — missing guest, room, or folio data') }
   }, [navigateTo, setFolioContext])
 
   const handleViewReservation = useCallback((res: PendingReservation) => {
@@ -362,59 +304,29 @@ export function RoomRatePostingPage() {
 
   const handleViewGuest = useCallback((res: PendingReservation) => {
     navigateTo('crm', 'profiles')
-    toast.info(`Viewing guest profile`)
-  }, [navigateTo])
-
-  const handleViewCalendar = useCallback(() => {
-    navigateTo('front-desk', 'calendar')
-  }, [navigateTo])
-
-  const handleViewInHouse = useCallback(() => {
-    navigateTo('front-desk', 'in-house')
-  }, [navigateTo])
-
-  const handleViewReports = useCallback(() => {
-    navigateTo('front-desk', 'reports')
+    toast.info('Viewing guest profile')
   }, [navigateTo])
 
   // ── Export CSV ──────────────────────────────────────────────────
   const handleExport = useCallback(() => {
     const rows = filteredPendingReservations.map((r) => ({
-      Room: r.room?.number || '',
-      Guest: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '',
-      'Check-In': formatDate(r.checkIn),
-      'Check-Out': formatDate(r.checkOut),
-      'Rate/Night': r.roomRate,
-      'Pending Nights': r.pendingNights.length,
-      'Posted Nights': r.postedNights.length,
-      'Future Nights': r.futureNights.length,
-      'Pending Amount': r.pendingAmount,
-      'Folio Balance': r.folio?.balance || 0,
+      Room: r.room?.number || '', Guest: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '',
+      'Check-In': formatDate(r.checkIn), 'Check-Out': formatDate(r.checkOut),
+      'Rate/Night': r.roomRate, 'Pending Nights': r.pendingNights.length,
+      'Posted Nights': r.postedNights.length, 'Future Nights': r.futureNights.length,
+      'Pending Amount': r.pendingAmount, 'Folio Balance': r.folio?.balance || 0,
       'Confirmation #': r.confirmationNo,
     }))
-
-    if (rows.length === 0) {
-      toast.info('No data to export')
-      return
-    }
-
+    if (rows.length === 0) { toast.info('No data to export'); return }
     const headers = Object.keys(rows[0])
-    const csv = [
-      headers.join(','),
-      ...rows.map((r) => headers.map((h) => `"${(r as Record<string, unknown>)[h]}"`).join(',')),
-    ].join('\n')
-
+    const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => `"${(r as Record<string, unknown>)[h]}"`).join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `rate-posting-pending-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success(`Exported ${rows.length} records`)
+    const a = document.createElement('a'); a.href = url; a.download = `rate-posting-${new Date().toISOString().split('T')[0]}.csv`
+    a.click(); URL.revokeObjectURL(url); toast.success(`Exported ${rows.length} records`)
   }, [filteredPendingReservations])
 
-  const hasActiveFilters = search || roomFilter || dateFrom || dateTo || statusFilter !== 'all-pending' || roomTypeFilter !== 'all'
+  const hasActiveFilters = search || postingType !== 'all' || dateFilter
 
   // ── Render ───────────────────────────────────────────────────────
   return (
@@ -432,30 +344,16 @@ export function RoomRatePostingPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            className="gap-1.5"
-          >
-            <RefreshCw className="size-3.5" />
-            Refresh
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
+            <RefreshCw className="size-3.5" /> Refresh
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            className="gap-1.5"
-          >
-            <Download className="size-3.5" />
-            Export
+          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+            <Download className="size-3.5" /> Export
           </Button>
           <DropdownMenu open={showQuickActions} onOpenChange={setShowQuickActions}>
             <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
-                <Zap className="size-3.5" />
-                Quick Actions
-                <ChevronDown className="size-3" />
+                <Zap className="size-3.5" /> Quick Actions <ChevronDown className="size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
@@ -463,8 +361,7 @@ export function RoomRatePostingPage() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => { setShowQuickActions(false); setBulkPostOpen(true) }}
-                disabled={isWorking || pendingReservations.length === 0}
-                className="gap-2.5 py-2"
+                disabled={isWorking || pendingReservations.length === 0} className="gap-2.5 py-2"
               >
                 <Zap className="size-4 text-emerald-600" />
                 <div className="flex-1">
@@ -475,8 +372,7 @@ export function RoomRatePostingPage() {
               {selectedIds.size > 0 && (
                 <DropdownMenuItem
                   onClick={() => { setShowQuickActions(false); handlePostSelected() }}
-                  disabled={isWorking}
-                  className="gap-2.5 py-2"
+                  disabled={isWorking} className="gap-2.5 py-2"
                 >
                   <ListChecks className="size-4 text-blue-600" />
                   <div className="flex-1">
@@ -488,40 +384,25 @@ export function RoomRatePostingPage() {
               <DropdownMenuSeparator />
               <DropdownMenuLabel className="text-xs">Navigate To</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { setShowQuickActions(false); handleViewInHouse() }} className="gap-2.5 py-2">
+              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'in-house') }} className="gap-2.5 py-2">
                 <BedDouble className="size-4 text-teal-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">In-House Guests</p>
-                  <p className="text-[10px] text-muted-foreground">View all current in-house guests</p>
-                </div>
+                <div className="flex-1"><p className="font-medium text-sm">In-House Guests</p></div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'folio') }} className="gap-2.5 py-2">
                 <Receipt className="size-4 text-violet-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Guest Folio</p>
-                  <p className="text-[10px] text-muted-foreground">Manage guest folio &amp; billing</p>
-                </div>
+                <div className="flex-1"><p className="font-medium text-sm">Guest Folio</p></div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setShowQuickActions(false); handleViewCalendar() }} className="gap-2.5 py-2">
+              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'calendar') }} className="gap-2.5 py-2">
                 <CalendarDays className="size-4 text-sky-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Reservation Calendar</p>
-                  <p className="text-[10px] text-muted-foreground">View reservation calendar</p>
-                </div>
+                <div className="flex-1"><p className="font-medium text-sm">Reservation Calendar</p></div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { setShowQuickActions(false); handleViewReports() }} className="gap-2.5 py-2">
+              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'reports') }} className="gap-2.5 py-2">
                 <FileSpreadsheet className="size-4 text-amber-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Reports</p>
-                  <p className="text-[10px] text-muted-foreground">View front desk reports</p>
-                </div>
+                <div className="flex-1"><p className="font-medium text-sm">Reports</p></div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('accounting', 'ledger') }} className="gap-2.5 py-2">
                 <CreditCard className="size-4 text-purple-600" />
-                <div className="flex-1">
-                  <p className="font-medium text-sm">Accounting Ledger</p>
-                  <p className="text-[10px] text-muted-foreground">View general ledger</p>
-                </div>
+                <div className="flex-1"><p className="font-medium text-sm">Accounting Ledger</p></div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -530,56 +411,21 @@ export function RoomRatePostingPage() {
 
       {/* ═══════════════ STAT CARDS ═══════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard
-          icon={<Clock className="size-4 text-amber-600" />}
-          label="Pending"
-          value={String(pendingSummary?.totalReservations ?? 0)}
-          sublabel={`${pendingSummary?.totalPendingNights ?? 0} nights`}
-          bgClass="bg-amber-50 border-amber-200"
-        />
-        <StatCard
-          icon={<Wallet className="size-4 text-emerald-600" />}
-          label="Pending Amount"
-          value={pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'}
-          sublabel="Total charges"
-          bgClass="bg-emerald-50 border-emerald-200"
-        />
-        <StatCard
-          icon={<Users className="size-4 text-blue-600" />}
-          label="In-House"
-          value={String(pendingStats.urgentCount + filteredPendingReservations.filter(r => r.pendingNights.length > 0).length)}
-          sublabel="With pending"
-          bgClass="bg-blue-50 border-blue-200"
-        />
-        <StatCard
-          icon={<BarChart3 className="size-4 text-violet-600" />}
-          label="Avg Rate/Night"
-          value={pendingStats.avgRate > 0 ? formatCurrency(pendingStats.avgRate) : 'NPR 0'}
-          sublabel="Of pending reservations"
-          bgClass="bg-violet-50 border-violet-200"
-        />
-        <StatCard
-          icon={<Building2 className="size-4 text-sky-600" />}
-          label="Folio Balance"
-          value={pendingStats.totalFolioBalance > 0 ? formatCurrency(pendingStats.totalFolioBalance) : 'NPR 0'}
-          sublabel="Combined balance"
-          bgClass="bg-sky-50 border-sky-200"
-        />
-        <StatCard
-          icon={<AlertCircle className="size-4 text-red-600" />}
-          label="Issues"
-          value={String(pendingStats.noRoom)}
-          sublabel={pendingStats.noRoom > 0 ? 'No room assigned' : 'All assigned'}
-          bgClass="bg-red-50 border-red-200"
-        />
+        <StatCard icon={<Clock className="size-4 text-amber-600" />} label="Pending" value={String(pendingSummary?.totalReservations ?? 0)} sublabel={`${pendingSummary?.totalPendingNights ?? 0} nights`} bgClass="bg-amber-50 border-amber-200" />
+        <StatCard icon={<Wallet className="size-4 text-emerald-600" />} label="Pending Amount" value={pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'} sublabel="Total charges" bgClass="bg-emerald-50 border-emerald-200" />
+        <StatCard icon={<Users className="size-4 text-blue-600" />} label="In-House" value={String(filteredPendingReservations.length)} sublabel="With pending" bgClass="bg-blue-50 border-blue-200" />
+        <StatCard icon={<BarChart3 className="size-4 text-violet-600" />} label="Avg Rate/Night" value={pendingStats.avgRate > 0 ? formatCurrency(pendingStats.avgRate) : 'NPR 0'} sublabel="Of pending" bgClass="bg-violet-50 border-violet-200" />
+        <StatCard icon={<Building2 className="size-4 text-sky-600" />} label="Folio Balance" value={pendingStats.totalFolioBalance > 0 ? formatCurrency(pendingStats.totalFolioBalance) : 'NPR 0'} sublabel="Combined balance" bgClass="bg-sky-50 border-sky-200" />
+        <StatCard icon={<AlertCircle className="size-4 text-red-600" />} label="Issues" value={String(pendingStats.noRoom)} sublabel={pendingStats.noRoom > 0 ? 'No room assigned' : 'All assigned'} bgClass="bg-red-50 border-red-200" />
       </div>
 
       {/* ═══════════════ FILTER BAR ═══════════════ */}
       <div className="flex items-center gap-2 flex-wrap">
+        {/* Search box — searches by name, room, conf# */}
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search guest, conf#, room..."
+            placeholder="Search guest, room, conf#..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -587,16 +433,7 @@ export function RoomRatePostingPage() {
           />
         </div>
 
-        <div className="relative">
-          <BedDouble className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Room #"
-            value={roomFilter}
-            onChange={(e) => setRoomFilter(e.target.value)}
-            className="h-8 w-[80px] pl-8 text-xs"
-          />
-        </div>
-
+        {/* Sort dropdown */}
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger className="h-8 w-[120px] text-xs">
             <ArrowUpDown className="size-3 mr-1 text-muted-foreground" />
@@ -609,90 +446,41 @@ export function RoomRatePostingPage() {
           </SelectContent>
         </Select>
 
-        <Select value={roomTypeFilter} onValueChange={setRoomTypeFilter}>
-          <SelectTrigger className="h-8 w-[120px] text-xs">
-            <Filter className="size-3 mr-1 text-muted-foreground" />
-            <SelectValue placeholder="Room Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {ROOM_TYPE_FILTERS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-8 w-[120px] text-xs">
-            <ClipboardList className="size-3 mr-1 text-muted-foreground" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all-pending" className="text-xs">All Pending</SelectItem>
-            <SelectItem value="has-no-room" className="text-xs">No Room Only</SelectItem>
-            <SelectItem value="urgent" className="text-xs">Urgent (3+ nights)</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Popover open={dateRangeOpen} onOpenChange={setDateRangeOpen}>
-          <PopoverTrigger asChild>
+        {/* Posting type toggle buttons */}
+        <div className="flex items-center rounded-md border bg-muted/50 p-0.5 gap-0.5">
+          {POSTING_TYPE_OPTIONS.map((opt) => (
             <Button
-              variant="outline"
+              key={opt.value}
+              variant="ghost"
               size="sm"
+              onClick={() => setPostingType(opt.value)}
               className={cn(
-                "h-8 text-xs gap-1.5",
-                (dateFrom || dateTo) && "border-emerald-300 bg-emerald-50/50 text-emerald-700"
+                'h-7 text-xs px-2.5 rounded-sm',
+                postingType === opt.value
+                  ? 'bg-background shadow-sm font-medium'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <CalendarDays className="size-3" />
-              {dateFrom || dateTo ? (
-                <span>{dateFrom ? formatDate(dateFrom) : '...'} — {dateTo ? formatDate(dateTo) : '...'}</span>
-              ) : (
-                <span>Date Range</span>
-              )}
+              <Filter className="size-3 mr-1" />
+              {opt.label}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start">
-            <div className="space-y-2.5">
-              <p className="text-xs font-medium text-muted-foreground">Filter by pending night dates</p>
-              <div className="flex items-center gap-2">
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">From</Label>
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="h-8 w-[145px] text-xs"
-                  />
-                </div>
-                <span className="text-muted-foreground text-xs mt-4">→</span>
-                <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">To</Label>
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="h-8 w-[145px] text-xs"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                {(dateFrom || dateTo) && (
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px] text-muted-foreground" onClick={() => { setDateFrom(''); setDateTo('') }}>
-                    Clear dates
-                  </Button>
-                )}
-                <Button size="sm" className="h-7 text-xs ml-auto" onClick={() => setDateRangeOpen(false)}>
-                  Apply
-                </Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+          ))}
+        </div>
+
+        {/* Date picker button */}
+        <div className="relative">
+          <CalendarDays className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground pointer-events-none z-10" />
+          <Input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="h-8 w-[145px] pl-7 text-xs"
+          />
+        </div>
 
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs text-muted-foreground gap-1">
-            <X className="size-3" />
-            Clear Filters
+            <X className="size-3" /> Clear
           </Button>
         )}
       </div>
@@ -703,45 +491,21 @@ export function RoomRatePostingPage() {
           <div className="flex items-center justify-between text-xs gap-3 flex-wrap">
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <Checkbox
-                  checked={selectedIds.size === filteredPendingReservations.length && filteredPendingReservations.length > 0}
-                  onCheckedChange={toggleSelectAll}
-                  className="size-3.5"
-                />
-                <span className="text-muted-foreground">
-                  <span className="font-semibold text-foreground">{filteredPendingReservations.length}</span> reservations
-                </span>
+                <Checkbox checked={selectedIds.size === filteredPendingReservations.length && filteredPendingReservations.length > 0} onCheckedChange={toggleSelectAll} className="size-3.5" />
+                <span className="text-muted-foreground"><span className="font-semibold text-foreground">{filteredPendingReservations.length}</span> reservations</span>
               </label>
               <Separator orientation="vertical" className="h-4" />
-              <span className="text-muted-foreground">
-                <span className="font-semibold text-amber-600">{pendingStats.totalPendingNights}</span> pending nights
-              </span>
-              <span className="font-semibold tabular-nums">
-                {formatCurrency(pendingStats.totalPendingAmount)}
-              </span>
+              <span className="text-muted-foreground"><span className="font-semibold text-amber-600">{pendingStats.totalPendingNights}</span> pending nights</span>
+              <span className="font-semibold tabular-nums">{formatCurrency(pendingStats.totalPendingAmount)}</span>
             </div>
             <div className="flex items-center gap-2">
               {selectedIds.size > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handlePostSelected}
-                  disabled={isWorking}
-                  className="h-7 text-xs gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                >
-                  <ListChecks className="size-3" />
-                  Post {selectedIds.size} Selected
+                <Button size="sm" variant="outline" onClick={handlePostSelected} disabled={isWorking} className="h-7 text-xs gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                  <ListChecks className="size-3" /> Post {selectedIds.size} Selected
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setBulkPostOpen(true)}
-                disabled={isWorking || pendingReservations.length === 0}
-                className="h-7 text-xs gap-1.5"
-              >
-                {bulkPostMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />}
-                Post All
+              <Button size="sm" variant="outline" onClick={() => setBulkPostOpen(true)} disabled={isWorking || pendingReservations.length === 0} className="h-7 text-xs gap-1.5">
+                {bulkPostMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />} Post All
               </Button>
             </div>
           </div>
@@ -750,18 +514,12 @@ export function RoomRatePostingPage() {
 
       {/* ═══════════════ PENDING TABLE ═══════════════ */}
       {isLoading ? (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
-          </CardContent>
-        </Card>
+        <Card><CardContent className="p-4 space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</CardContent></Card>
       ) : filteredPendingReservations.length === 0 ? (
         <EmptyState
           icon={<CheckCircle className="size-12 text-emerald-400" />}
-          title={hasActiveFilters ? "No Matches Found" : "All Caught Up!"}
-          description={hasActiveFilters ? "No pending room charges match your current filters. Try adjusting your search criteria." : "No pending room charges to post. All in-house guests are up to date."}
+          title={hasActiveFilters ? 'No Matches Found' : 'All Caught Up!'}
+          description={hasActiveFilters ? 'No pending room charges match your current filters.' : 'No pending room charges to post. All in-house guests are up to date.'}
         />
       ) : (
         <Card className="overflow-hidden">
@@ -770,11 +528,7 @@ export function RoomRatePostingPage() {
               <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm">
                 <TableRow>
                   <TableHead className="text-xs w-[36px] p-1.5">
-                    <Checkbox
-                      checked={selectedIds.size === filteredPendingReservations.length && filteredPendingReservations.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                      className="size-3.5"
-                    />
+                    <Checkbox checked={selectedIds.size === filteredPendingReservations.length && filteredPendingReservations.length > 0} onCheckedChange={toggleSelectAll} className="size-3.5" />
                   </TableHead>
                   <TableHead className="text-xs w-[32px]"></TableHead>
                   <TableHead className="text-xs">Room</TableHead>
@@ -791,7 +545,7 @@ export function RoomRatePostingPage() {
               </TableHeader>
               <TableBody>
                 {filteredPendingReservations.map((res) => (
-                  <EnhancedPendingRow
+                  <PendingRow
                     key={res.reservationId}
                     reservation={res}
                     isExpanded={expandedRow === res.reservationId}
@@ -815,13 +569,8 @@ export function RoomRatePostingPage() {
       <Dialog open={postConfirmOpen} onOpenChange={setPostConfirmOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Zap className="size-5 text-emerald-600" />
-              Post Pending Charges
-            </DialogTitle>
-            <DialogDescription>
-              Post all pending room charges for this reservation to the guest folio.
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Zap className="size-5 text-emerald-600" /> Reserve Posting</DialogTitle>
+            <DialogDescription>Post all pending room charges for this reservation to the guest folio.</DialogDescription>
           </DialogHeader>
           {postTarget && (
             <div className="space-y-4 py-2">
@@ -848,52 +597,27 @@ export function RoomRatePostingPage() {
                   </div>
                 </div>
               </div>
-
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Total Amount</span>
                 <span className="text-base font-bold tabular-nums">{formatCurrency(postTarget.pendingAmount)}</span>
               </div>
-
               <div>
-                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                  <ShieldCheck className="size-3" />
-                  Override Rate (optional)
-                </Label>
-                <Input
-                  type="number"
-                  value={rateOverride}
-                  onChange={(e) => setRateOverride(e.target.value)}
-                  placeholder={`Default: ${formatCurrency(postTarget.roomRate)}`}
-                  className="mt-1.5 h-9 text-sm"
-                  min={0}
-                />
+                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><ShieldCheck className="size-3" /> Override Rate (optional)</Label>
+                <Input type="number" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} placeholder={`Default: ${formatCurrency(postTarget.roomRate)}`} className="mt-1.5 h-9 text-sm" min={0} />
                 <p className="text-[10px] text-muted-foreground mt-1">Leave empty to use the default room rate</p>
               </div>
-
-              <div className="text-[10px] text-muted-foreground">
-                Nights to post: <span className="font-mono">{postTarget.pendingNights.join(', ')}</span>
-              </div>
-
+              <div className="text-[10px] text-muted-foreground">Nights to post: <span className="font-mono">{postTarget.pendingNights.join(', ')}</span></div>
               {!postTarget.room && (
                 <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <AlertCircle className="size-4 shrink-0" />
-                  <span>No room assigned. Charges cannot be posted.</span>
+                  <AlertCircle className="size-4 shrink-0" /> <span>No room assigned. Charges cannot be posted.</span>
                 </div>
               )}
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => { setPostConfirmOpen(false); setRateOverride('') }} className="gap-1.5">
-              <X className="size-3.5" />
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePostReservation}
-              disabled={postMutation.isPending || !postTarget?.room}
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-            >
-              {postMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle className="size-3.5" />}
-              Post Charges
+            <Button variant="outline" onClick={() => { setPostConfirmOpen(false); setRateOverride('') }} className="gap-1.5"><X className="size-3.5" /> Cancel</Button>
+            <Button onClick={handlePostReservation} disabled={postMutation.isPending || !postTarget?.room} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
+              {postMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle className="size-3.5" />} Post Charges
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -903,13 +627,8 @@ export function RoomRatePostingPage() {
       <Dialog open={bulkPostOpen} onOpenChange={setBulkPostOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Zap className="size-5 text-amber-500" />
-              Post All Pending Charges
-            </DialogTitle>
-            <DialogDescription>
-              Post pending room charges for ALL in-house reservations at once.
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Zap className="size-5 text-amber-500" /> Post All Pending Charges</DialogTitle>
+            <DialogDescription>Post pending room charges for ALL in-house reservations at once.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="grid grid-cols-3 gap-3">
@@ -922,20 +641,15 @@ export function RoomRatePostingPage() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">Nights</p>
               </div>
               <div className="rounded-md border bg-emerald-50 p-3 text-center">
-                <p className="text-2xl font-bold text-emerald-700">
-                  {pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'}
-                </p>
+                <p className="text-2xl font-bold text-emerald-700">{pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Total</p>
               </div>
             </div>
-
             {pendingStats.noRoom > 0 && (
               <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                <AlertCircle className="size-4 shrink-0" />
-                <span><strong>{pendingStats.noRoom}</strong> reservation(s) have no room assigned and will be skipped.</span>
+                <AlertCircle className="size-4 shrink-0" /> <span><strong>{pendingStats.noRoom}</strong> reservation(s) have no room assigned and will be skipped.</span>
               </div>
             )}
-
             <div className="rounded-lg bg-muted/50 border p-3 text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-foreground">What will happen:</p>
               <ul className="list-disc list-inside space-y-0.5 ml-1">
@@ -947,17 +661,9 @@ export function RoomRatePostingPage() {
             </div>
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setBulkPostOpen(false)} className="gap-1.5">
-              <X className="size-3.5" />
-              Cancel
-            </Button>
-            <Button
-              onClick={handleBulkPost}
-              disabled={bulkPostMutation.isPending || (pendingSummary?.totalReservations ?? 0) === 0}
-              className="gap-1.5 bg-amber-600 hover:bg-amber-700"
-            >
-              {bulkPostMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />}
-              Confirm Post All
+            <Button variant="outline" onClick={() => setBulkPostOpen(false)} className="gap-1.5"><X className="size-3.5" /> Cancel</Button>
+            <Button onClick={handleBulkPost} disabled={bulkPostMutation.isPending || (pendingSummary?.totalReservations ?? 0) === 0} className="gap-1.5 bg-amber-600 hover:bg-amber-700">
+              {bulkPostMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />} Confirm Post All
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -969,15 +675,7 @@ export function RoomRatePostingPage() {
 
 // ─── Sub-components ─────────────────────────────────────────────────────
 
-function StatCard({
-  icon, label, value, sublabel, bgClass,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  sublabel: string
-  bgClass: string
-}) {
+function StatCard({ icon, label, value, sublabel, bgClass }: { icon: React.ReactNode; label: string; value: string; sublabel: string; bgClass: string }) {
   return (
     <Card className={cn('py-3', bgClass)}>
       <CardContent className="px-4">
@@ -1003,214 +701,102 @@ function DetailItem({ label, value, className }: { label: string; value: string;
   )
 }
 
-function EmptyState({
-  icon, title, description,
-}: {
-  icon: React.ReactNode
-  title: string
-  description: string
-}) {
+function EmptyState({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
     <Card className="py-12">
-      <CardContent className="px-6 text-center space-y-3">
-        {icon}
-        <div>
-          <p className="font-medium text-sm">{title}</p>
-          <p className="text-xs text-muted-foreground mt-1">{description}</p>
-        </div>
-      </CardContent>
+      <CardContent className="px-6 text-center space-y-3">{icon}<div><p className="font-medium text-sm">{title}</p><p className="text-xs text-muted-foreground mt-1">{description}</p></div></CardContent>
     </Card>
   )
 }
 
-function EnhancedPendingRow({
-  reservation: res,
-  isExpanded,
-  isSelected,
-  onToggle,
-  onSelect,
-  onPost,
-  onViewFolio,
-  onViewReservation,
-  onViewGuest,
-  isPosting,
+function PendingRow({
+  reservation: res, isExpanded, isSelected, onToggle, onSelect, onPost,
+  onViewFolio, onViewReservation, onViewGuest, isPosting,
 }: {
-  reservation: PendingReservation
-  isExpanded: boolean
-  isSelected: boolean
-  onToggle: () => void
-  onSelect: () => void
-  onPost: () => void
-  onViewFolio: () => void
-  onViewReservation: () => void
-  onViewGuest: () => void
+  reservation: PendingReservation; isExpanded: boolean; isSelected: boolean
+  onToggle: () => void; onSelect: () => void; onPost: () => void
+  onViewFolio: () => void; onViewReservation: () => void; onViewGuest: () => void
   isPosting: boolean
 }) {
+  const [dropdownOpen, setDropdownOpen] = useState(false)
   const guestName = res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : '—'
   const hasRoom = !!res.room
+
+  const handleShowDetails = useCallback(() => {
+    setDropdownOpen(false)
+    onToggle()
+  }, [onToggle])
 
   return (
     <>
       <TableRow
-        className={cn(
-          'cursor-pointer hover:bg-muted/50 transition-colors',
-          isExpanded && 'bg-muted/30',
-          !hasRoom && 'opacity-60',
-          isSelected && 'bg-emerald-50/50',
-        )}
+        className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isExpanded && 'bg-muted/30', !hasRoom && 'opacity-60', isSelected && 'bg-emerald-50/50')}
         onClick={onToggle}
       >
-        {/* Checkbox */}
         <TableCell className="p-1.5" onClick={(e) => e.stopPropagation()}>
           <Checkbox checked={isSelected} onCheckedChange={onSelect} className="size-3.5" />
         </TableCell>
-        {/* Expand */}
         <TableCell className="p-1.5" onClick={(e) => e.stopPropagation()}>
           {isExpanded ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
         </TableCell>
-        {/* Room */}
         <TableCell className="text-xs font-semibold" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-1">
-            {hasRoom ? (
-              <>
-                <BedDouble className="size-3 text-muted-foreground" />
-                {res.room.number}
-              </>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-amber-600 flex items-center gap-1">
-                    <AlertCircle className="size-3" />
-                    —
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>No room assigned</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
+          {hasRoom ? (
+            <span className="flex items-center gap-1"><BedDouble className="size-3 text-muted-foreground" />{res.room.number}</span>
+          ) : (
+            <Tooltip><TooltipTrigger asChild><span className="text-amber-600 flex items-center gap-1"><AlertCircle className="size-3" />—</span></TooltipTrigger><TooltipContent>No room assigned</TooltipContent></Tooltip>
+          )}
         </TableCell>
-        {/* Guest */}
-        <TableCell className="text-xs font-medium truncate max-w-[120px]" title={guestName} onClick={(e) => e.stopPropagation()}>
-          {guestName}
-        </TableCell>
-        {/* Stay */}
+        <TableCell className="text-xs font-medium truncate max-w-[120px]" title={guestName} onClick={(e) => e.stopPropagation()}>{guestName}</TableCell>
         <TableCell className="text-xs text-muted-foreground whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
           <span className="hidden sm:inline">{formatDate(res.checkIn)} <ArrowRight className="size-2.5 inline" /> {formatDate(res.checkOut)}</span>
           <span className="sm:hidden">{formatDate(res.checkIn)}</span>
         </TableCell>
-        {/* Rate/Night */}
-        <TableCell className="text-xs text-right font-mono tabular-nums" onClick={(e) => e.stopPropagation()}>
-          {formatCurrency(res.roomRate)}
-        </TableCell>
-        {/* Pending */}
+        <TableCell className="text-xs text-right font-mono tabular-nums" onClick={(e) => e.stopPropagation()}>{formatCurrency(res.roomRate)}</TableCell>
         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-          <Badge variant="destructive" className="h-5 text-[10px] font-semibold px-1.5">
-            {res.pendingNights.length}
-          </Badge>
+          <Badge variant="destructive" className="h-5 text-[10px] font-semibold px-1.5">{res.pendingNights.length}</Badge>
         </TableCell>
-        {/* Posted */}
         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-          <Badge variant="secondary" className="h-5 text-[10px] px-1.5">
-            {res.postedNights.length}
-          </Badge>
+          <Badge variant="secondary" className="h-5 text-[10px] px-1.5">{res.postedNights.length}</Badge>
         </TableCell>
-        {/* Future */}
         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-          {res.futureNights.length > 0 ? (
-            <Badge variant="outline" className="h-5 text-[10px] px-1.5 text-muted-foreground">
-              {res.futureNights.length}
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground">0</span>
-          )}
+          {res.futureNights.length > 0 ? <Badge variant="outline" className="h-5 text-[10px] px-1.5 text-muted-foreground">{res.futureNights.length}</Badge> : <span className="text-muted-foreground">0</span>}
         </TableCell>
-        {/* Pending Amt */}
-        <TableCell className="text-xs text-right font-semibold tabular-nums text-amber-600" onClick={(e) => e.stopPropagation()}>
-          {formatCurrency(res.pendingAmount)}
-        </TableCell>
-        {/* Folio Balance */}
+        <TableCell className="text-xs text-right font-semibold tabular-nums text-amber-600" onClick={(e) => e.stopPropagation()}>{formatCurrency(res.pendingAmount)}</TableCell>
         <TableCell className="text-center text-[10px] tabular-nums" onClick={(e) => e.stopPropagation()}>
           {res.folio ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className={cn(
-                  'font-medium',
-                  (res.folio.balance ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600',
-                )}>
-                  {formatCurrency(res.folio.balance)}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Folio Balance</TooltipContent>
-            </Tooltip>
-          ) : (
-            <span className="text-muted-foreground">—</span>
-          )}
+            <Tooltip><TooltipTrigger asChild>
+              <span className={cn('font-medium', (res.folio.balance ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600')}>{formatCurrency(res.folio.balance)}</span>
+            </TooltipTrigger><TooltipContent>Folio Balance</TooltipContent></Tooltip>
+          ) : <span className="text-muted-foreground">—</span>}
         </TableCell>
-        {/* Actions dropdown */}
         <TableCell className="text-right p-1.5" onClick={(e) => e.stopPropagation()}>
-          <DropdownMenu>
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7"
-                disabled={isPosting}
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={isPosting}><MoreHorizontal className="size-4" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel className="text-xs">Room {res.room?.number || '—'} — {guestName}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={onPost}
-                disabled={!hasRoom || isPosting}
-                className="gap-2.5 py-2 text-emerald-700 focus:text-emerald-700"
-              >
+              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onPost() }} disabled={!hasRoom || isPosting} className="gap-2.5 py-2 text-emerald-700 focus:text-emerald-700">
                 {isPosting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
-                <div>
-                  <p className="font-medium text-sm">Post Charges</p>
-                  <p className="text-[10px] text-muted-foreground">Post {res.pendingNights.length} pending night(s)</p>
-                </div>
+                <div><p className="font-medium text-sm">Reserve Posting</p><p className="text-[10px] text-muted-foreground">Post {res.pendingNights.length} pending night(s) to folio</p></div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShowDetails} className="gap-2.5 py-2">
+                <Eye className="size-4 text-blue-600" />
+                <div><p className="text-sm">{isExpanded ? 'Hide Details' : 'Show Details'}</p><p className="text-[10px] text-muted-foreground">View night breakdown &amp; info</p></div>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs text-muted-foreground">View Details</DropdownMenuLabel>
-              <DropdownMenuItem onClick={onViewFolio} className="gap-2.5 py-2">
+              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onViewFolio() }} className="gap-2.5 py-2">
                 <Receipt className="size-4 text-violet-600" />
-                <div>
-                  <p className="text-sm">View Folio</p>
-                  <p className="text-[10px] text-muted-foreground">Guest billing &amp; transactions</p>
-                </div>
+                <div><p className="text-sm">View Folio</p><p className="text-[10px] text-muted-foreground">Guest billing &amp; transactions</p></div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onViewReservation} className="gap-2.5 py-2">
+              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onViewReservation() }} className="gap-2.5 py-2">
                 <FileText className="size-4 text-blue-600" />
-                <div>
-                  <p className="text-sm">View Reservation</p>
-                  <p className="text-[10px] text-muted-foreground">Reservation details &amp; history</p>
-                </div>
+                <div><p className="text-sm">View Reservation</p><p className="text-[10px] text-muted-foreground">Reservation details &amp; history</p></div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onViewGuest} className="gap-2.5 py-2">
+              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onViewGuest() }} className="gap-2.5 py-2">
                 <UserCircle className="size-4 text-rose-600" />
-                <div>
-                  <p className="text-sm">View Guest Profile</p>
-                  <p className="text-[10px] text-muted-foreground">Guest information &amp; stay history</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Quick Info</DropdownMenuLabel>
-              <DropdownMenuItem className="gap-2.5 py-2" disabled>
-                <Phone className="size-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Contact Guest</p>
-                  <p className="text-[10px] text-muted-foreground">Send notification or call</p>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="gap-2.5 py-2" disabled>
-                <Printer className="size-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Print Folio</p>
-                  <p className="text-[10px] text-muted-foreground">Print guest bill summary</p>
-                </div>
+                <div><p className="text-sm">View Guest Profile</p><p className="text-[10px] text-muted-foreground">Guest information &amp; stay history</p></div>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1222,85 +808,46 @@ function EnhancedPendingRow({
         <TableRow>
           <TableCell colSpan={12} className="bg-muted/20 p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-              {/* Night breakdown */}
               <div className="sm:col-span-2 lg:col-span-3">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <p className="font-semibold mb-1.5 text-amber-600 uppercase tracking-wider text-[10px] flex items-center gap-1">
-                      <Clock className="size-3" /> Pending Nights ({res.pendingNights.length})
-                    </p>
+                    <p className="font-semibold mb-1.5 text-amber-600 uppercase tracking-wider text-[10px] flex items-center gap-1"><Clock className="size-3" /> Pending Nights ({res.pendingNights.length})</p>
                     <div className="flex flex-wrap gap-1">
                       {res.pendingNights.length > 0 ? res.pendingNights.map((d) => (
-                        <Badge key={d} variant="destructive" className="h-5 text-[10px] px-1.5">
-                          {formatDate(d)}
-                        </Badge>
+                        <Badge key={d} variant="destructive" className="h-5 text-[10px] px-1.5">{formatDate(d)}</Badge>
                       )) : <span className="text-muted-foreground">None</span>}
                     </div>
                   </div>
                   <div>
-                    <p className="font-semibold mb-1.5 text-emerald-600 uppercase tracking-wider text-[10px] flex items-center gap-1">
-                      <CheckCircle className="size-3" /> Posted ({res.postedNights.length})
-                    </p>
+                    <p className="font-semibold mb-1.5 text-emerald-600 uppercase tracking-wider text-[10px] flex items-center gap-1"><CheckCircle className="size-3" /> Posted ({res.postedNights.length})</p>
                     <div className="flex flex-wrap gap-1">
                       {res.postedNights.length > 0 ? res.postedNights.map((d) => (
-                        <Badge key={d} variant="secondary" className="h-5 text-[10px] px-1.5">
-                          {formatDate(d)}
-                        </Badge>
+                        <Badge key={d} variant="secondary" className="h-5 text-[10px] px-1.5">{formatDate(d)}</Badge>
                       )) : <span className="text-muted-foreground">None</span>}
                     </div>
                   </div>
                   <div>
-                    <p className="font-semibold mb-1.5 text-muted-foreground uppercase tracking-wider text-[10px] flex items-center gap-1">
-                      <Moon className="size-3" /> Future ({res.futureNights.length})
-                    </p>
+                    <p className="font-semibold mb-1.5 text-muted-foreground uppercase tracking-wider text-[10px] flex items-center gap-1"><Moon className="size-3" /> Future ({res.futureNights.length})</p>
                     <div className="flex flex-wrap gap-1">
                       {res.futureNights.length > 0 ? res.futureNights.map((d) => (
-                        <Badge key={d} variant="outline" className="h-5 text-[10px] px-1.5 text-muted-foreground">
-                          {formatDate(d)}
-                        </Badge>
+                        <Badge key={d} variant="outline" className="h-5 text-[10px] px-1.5 text-muted-foreground">{formatDate(d)}</Badge>
                       )) : <span className="text-muted-foreground">None</span>}
                     </div>
                   </div>
                 </div>
               </div>
-
-              {/* Summary info */}
               <div className="space-y-2">
                 <p className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">Details</p>
                 <div className="space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Confirmation</span>
-                    <span className="font-mono font-medium">{res.confirmationNo}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Room Type</span>
-                    <span className="font-medium">{res.room?.type?.name || '—'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Nights</span>
-                    <span className="font-medium">{res.totalNights}</span>
-                  </div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Confirmation</span><span className="font-mono font-medium">{res.confirmationNo}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Room Type</span><span className="font-medium">{res.room?.type?.name || '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Total Nights</span><span className="font-medium">{res.totalNights}</span></div>
                   <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Folio Balance</span>
-                    <span className={cn('font-semibold tabular-nums', (res.folio?.balance ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600')}>
-                      {res.folio ? formatCurrency(res.folio.balance) : '—'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Pending Amount</span>
-                    <span className="font-semibold tabular-nums text-amber-600">{formatCurrency(res.pendingAmount)}</span>
-                  </div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Folio Balance</span><span className={cn('font-semibold tabular-nums', (res.folio?.balance ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600')}>{res.folio ? formatCurrency(res.folio.balance) : '—'}</span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Pending Amount</span><span className="font-semibold tabular-nums text-amber-600">{formatCurrency(res.pendingAmount)}</span></div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[10px] gap-1 mt-2"
-                  onClick={onPost}
-                  disabled={isPosting || !hasRoom}
-                >
-                  {isPosting ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />}
-                  Post {res.pendingNights.length} Night(s)
+                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1 mt-2" onClick={onPost} disabled={isPosting || !hasRoom}>
+                  {isPosting ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />} Post {res.pendingNights.length} Night(s)
                 </Button>
               </div>
             </div>
