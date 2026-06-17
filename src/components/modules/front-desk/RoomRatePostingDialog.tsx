@@ -115,10 +115,26 @@ export function RoomRatePostingDialog({
   const nights: NightRow[] = useMemo(() => {
     if (!reservation) return []
 
+    // Use local-date-string comparison to avoid timezone issues
+    const toLocalDateStr = (d: Date) => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+
+    const today = new Date()
+    const todayStr = toLocalDateStr(today)
+
     const checkInDate = new Date(reservation.checkIn)
     const checkOutDate = new Date(reservation.checkOut)
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+
+    // Build set of already-posted date strings (YYYY-MM-DD)
+    const postedDateSet = new Set(
+      postings
+        .filter((p) => p.status === 'posted')
+        .map((p) => toLocalDateStr(new Date(p.postingDate))),
+    )
 
     const roomRate = reservation.roomRate || 0
     const rows: NightRow[] = []
@@ -127,12 +143,9 @@ export function RoomRatePostingDialog({
     current.setHours(0, 0, 0, 0)
 
     while (current < checkOutDate) {
-      const isFuture = current > today
-      const isPosted = postings.some((p) => {
-        const pDate = new Date(p.postingDate)
-        pDate.setHours(0, 0, 0, 0)
-        return pDate.getTime() === current.getTime() && p.status === 'posted'
-      })
+      const currentStr = toLocalDateStr(current)
+      const isFuture = currentStr > todayStr
+      const isPosted = postedDateSet.has(currentStr)
 
       const tax = Math.round(roomRate * TAX_RATE)
       const serviceCharge = Math.round(roomRate * SERVICE_CHARGE_RATE)
@@ -446,8 +459,8 @@ function ReservationSummaryCard({
   return (
     <Card className="py-3 bg-muted/30 border-dashed">
       <CardContent className="px-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-          {/* Reservation No */}
+        {/* Row 1: Key identifiers */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-xs">
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Reservation No.</span>
             <span className="font-semibold mt-0.5 flex items-center gap-1.5">
@@ -455,14 +468,10 @@ function ReservationSummaryCard({
               {reservation.confirmationNo}
             </span>
           </div>
-
-          {/* Guest Name */}
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Guest</span>
-            <span className="font-semibold mt-0.5 truncate">{guestName}</span>
+            <span className="font-semibold mt-0.5 truncate" title={guestName}>{guestName}</span>
           </div>
-
-          {/* Room */}
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Room</span>
             <span className="font-semibold mt-0.5 flex items-center gap-1.5">
@@ -470,32 +479,22 @@ function ReservationSummaryCard({
               {roomNumber}
             </span>
           </div>
-
-          {/* Dates */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Stay Dates</span>
-            <span className="font-medium mt-0.5 flex items-center gap-1">
-              {formatDate(reservation.checkIn)}
-              <ArrowRight className="size-3 text-muted-foreground shrink-0" />
-              {formatDate(reservation.checkOut)}
-            </span>
-          </div>
-
-          {/* Nights */}
-          <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Nights</span>
-            <span className="font-semibold mt-0.5">
-              <Badge variant="secondary" className="h-5 text-[10px] font-semibold px-1.5">
-                {nights}
-              </Badge>
-            </span>
-          </div>
-
-          {/* Rate */}
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Rate / Night</span>
             <span className="font-semibold mt-0.5 tabular-nums">{formatCurrency(reservation.roomRate)}</span>
           </div>
+        </div>
+        {/* Row 2: Stay info */}
+        <div className="flex items-center gap-6 mt-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium">Stay:</span>
+            <span>{formatDate(reservation.checkIn)}</span>
+            <ArrowRight className="size-3 shrink-0" />
+            <span>{formatDate(reservation.checkOut)}</span>
+          </span>
+          <Badge variant="secondary" className="h-5 text-[10px] font-semibold px-1.5">
+            {nights} Night{nights !== 1 ? 's' : ''}
+          </Badge>
         </div>
       </CardContent>
     </Card>

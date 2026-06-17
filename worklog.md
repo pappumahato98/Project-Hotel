@@ -1142,3 +1142,36 @@ Stage Summary:
 - Lint: clean, no errors
 - Dev server: compiles successfully
 
+---
+Task ID: 1
+Agent: main
+Task: Fix Room Rate Posting dialog layout + date logic + build standalone page
+
+Work Log:
+- Analyzed screenshot: identified truncated top card layout, date logic mismatch between posted transactions and table status
+- Fixed dialog top card: changed from cramped 6-col grid to 2-row layout (4-col grid for key fields + stay info bar below)
+- Fixed date logic: replaced timestamp-based comparison (getTime() === getTime()) with timezone-safe YYYY-MM-DD string comparison via local toLocalDateStr() helper
+- Fixed date future detection: changed from Date object comparison to string comparison (currentStr > todayStr)
+- Built 3 new API routes:
+  - /api/room-rate-posting/list (GET) - paginated, filterable listing of all postings with stats
+  - /api/room-rate-posting/pending (GET) - in-house reservations with unposted nights analysis
+  - /api/room-rate-posting/bulk-post (POST) - bulk post all pending charges
+- Built standalone RoomRatePostingPage.tsx (630+ lines):
+  - 4 stat cards (Today Posting, Total Posted, In-House, Voided)
+  - 4 tabs: Pending, All, Posted, Voided
+  - Pending tab: shows reservations needing posting with night-by-night breakdown, individual and bulk post
+  - All/Posted/Voided tabs: searchable, date-filterable table with expandable rows, void action
+  - Void confirmation dialog with reason field
+  - Post confirmation dialog with pending nights summary
+  - Pagination support
+- Fixed Prisma field name mismatches: Room.type (not roomType), Guest has no company field
+- Fixed reservation status: checked in reservations use status "checked_in" not "in-house"
+- Added "Rate Posting" tab to FrontDeskModule SUB_MODULES with DollarSign icon
+
+Stage Summary:
+- Dialog: layout balanced, date logic timezone-safe
+- New page: fully functional with real data verified via browser
+- APIs: all returning 200 with correct data
+- Files modified: RoomRatePostingDialog.tsx, FrontDeskModule.tsx
+- Files created: RoomRatePostingPage.tsx, api/room-rate-posting/list/route.ts, api/room-rate-posting/pending/route.ts, api/room-rate-posting/bulk-post/route.ts
+
