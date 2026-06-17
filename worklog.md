@@ -1118,3 +1118,27 @@ Stage Summary:
 - Secondary fix: check-in API had 3 non-existent Prisma fields causing 500 errors
 - Verified fix via API: old code gets checkIn=MISSING, roomRate=MISSING; new code gets all fields correctly
 - Lint passes clean, no runtime errors
+---
+Task ID: 1
+Agent: main
+Task: Fix Room Rate Posting dialog page layout
+
+Work Log:
+- Analyzed screenshot using VLM: identified truncated Grand Total, cramped 6-col summary grid, misaligned columns
+- Rewrote summary section: changed from cramped `grid-cols-6` with Grand Total in same row → clean `grid-cols-4` + full-width Grand Total row below separator
+- Grand Total now uses `flex justify-between` with `text-lg font-bold` — no truncation possible
+- Reservation Summary Card: replaced `flex-wrap` with inline separators → clean `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6` card layout with label-above-value structure
+- Removed unused `InfoItem` component and all inline `Separator` elements from summary card
+- Table Date column: reduced from `w-[180px]` to `w-[150px]`, removed CalendarDays icon from cells, removed day name parentheses from formatted date
+- Table Status column: added explicit `w-[80px]`, Action column `w-[64px]`
+- Dialog width: increased from `max-w-3xl` (768px) to `max-w-4xl` (896px) for better table fit
+- SummaryItem component: added `align` prop for right-aligned currency values
+- Added tax/service rate percentages to summary labels ("Total Tax (13%)", "Total Service (10%)")
+
+Stage Summary:
+- Key fix: Grand Total truncation resolved by moving to separate full-width row
+- Layout: 3 structural improvements (summary grid, reservation card grid, table column widths)
+- File modified: /src/components/modules/front-desk/RoomRatePostingDialog.tsx
+- Lint: clean, no errors
+- Dev server: compiles successfully
+

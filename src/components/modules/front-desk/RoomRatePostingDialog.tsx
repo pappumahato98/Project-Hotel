@@ -143,7 +143,7 @@ export function RoomRatePostingDialog({
       rows.push({
         date: new Date(current),
         dayName,
-        formattedDate: `${formattedDate} (${dayName})`,
+        formattedDate,
         roomRate,
         tax,
         serviceCharge,
@@ -233,7 +233,7 @@ export function RoomRatePostingDialog({
   // ── Render ───────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="px-6 pt-6 pb-0">
           <DialogHeader>
@@ -264,13 +264,13 @@ export function RoomRatePostingDialog({
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm">
                       <TableRow>
-                        <TableHead className="text-xs font-semibold w-[180px]">Date</TableHead>
+                        <TableHead className="text-xs font-semibold w-[150px]">Date</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Room Rate</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Tax (13%)</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Svc (10%)</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Total</TableHead>
-                        <TableHead className="text-xs font-semibold text-center">Status</TableHead>
-                        <TableHead className="text-xs font-semibold text-right w-[70px]">Action</TableHead>
+                        <TableHead className="text-xs font-semibold text-center w-[80px]">Status</TableHead>
+                        <TableHead className="text-xs font-semibold text-right w-[64px]">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -292,11 +292,8 @@ export function RoomRatePostingDialog({
                             )}
                           >
                             {/* Date */}
-                            <TableCell className="font-medium text-xs">
-                              <div className="flex items-center gap-1.5">
-                                <CalendarDays className="size-3 text-muted-foreground shrink-0" />
-                                <span className="whitespace-nowrap">{night.formattedDate}</span>
-                              </div>
+                            <TableCell className="font-medium text-xs whitespace-nowrap">
+                              {night.formattedDate}
                             </TableCell>
 
                             {/* Room Rate */}
@@ -358,32 +355,35 @@ export function RoomRatePostingDialog({
                 </div>
               </div>
 
-              {/* Summary Row */}
+              {/* Summary Section */}
               <Card className="py-3">
                 <CardContent className="px-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-xs">
                     <SummaryItem label="Total Nights" value={String(summary.totalNights)} />
                     <SummaryItem
                       label="Total Room Charges"
                       value={formatCurrency(summary.totalRoomCharges)}
+                      align="right"
                     />
                     <SummaryItem
-                      label="Total Tax"
+                      label="Total Tax (13%)"
                       value={formatCurrency(summary.totalTax)}
+                      align="right"
                     />
                     <SummaryItem
-                      label="Total Service Charge"
+                      label="Total Service (10%)"
                       value={formatCurrency(summary.totalServiceCharge)}
+                      align="right"
                     />
-                    <Separator orientation="vertical" className="hidden lg:block col-span-0" />
-                    <div className="col-span-2 lg:col-span-1 flex flex-col justify-center rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2">
-                      <span className="text-[10px] text-emerald-600 font-medium uppercase tracking-wider">
-                        Grand Total
-                      </span>
-                      <span className="text-sm font-bold text-emerald-700 tabular-nums">
-                        {formatCurrency(summary.grandTotal)}
-                      </span>
-                    </div>
+                  </div>
+                  <Separator className="my-3" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                      Grand Total
+                    </span>
+                    <span className="text-lg font-bold text-emerald-700 tabular-nums">
+                      {formatCurrency(summary.grandTotal)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -446,67 +446,59 @@ function ReservationSummaryCard({
   return (
     <Card className="py-3 bg-muted/30 border-dashed">
       <CardContent className="px-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
           {/* Reservation No */}
-          <InfoItem icon={<CalendarDays className="size-3.5" />} label="Reservation No." value={reservation.confirmationNo} />
-
-          <Separator orientation="vertical" className="hidden sm:block h-5" />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Reservation No.</span>
+            <span className="font-semibold mt-0.5 flex items-center gap-1.5">
+              <CalendarDays className="size-3 text-muted-foreground shrink-0" />
+              {reservation.confirmationNo}
+            </span>
+          </div>
 
           {/* Guest Name */}
-          <InfoItem label="Guest" value={guestName} />
-
-          <Separator orientation="vertical" className="hidden sm:block h-5" />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Guest</span>
+            <span className="font-semibold mt-0.5 truncate">{guestName}</span>
+          </div>
 
           {/* Room */}
-          <InfoItem icon={<BedDouble className="size-3.5" />} label="Room" value={roomNumber} />
-
-          <Separator orientation="vertical" className="hidden sm:block h-5" />
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Room</span>
+            <span className="font-semibold mt-0.5 flex items-center gap-1.5">
+              <BedDouble className="size-3 text-muted-foreground shrink-0" />
+              {roomNumber}
+            </span>
+          </div>
 
           {/* Dates */}
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <span className="font-medium">{formatDate(reservation.checkIn)}</span>
-            <ArrowRight className="size-3" />
-            <span className="font-medium">{formatDate(reservation.checkOut)}</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Stay Dates</span>
+            <span className="font-medium mt-0.5 flex items-center gap-1">
+              {formatDate(reservation.checkIn)}
+              <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+              {formatDate(reservation.checkOut)}
+            </span>
           </div>
-
-          <Separator orientation="vertical" className="hidden sm:block h-5" />
 
           {/* Nights */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Nights:</span>
-            <Badge variant="secondary" className="h-5 text-[10px] font-semibold px-1.5">
-              {nights}
-            </Badge>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Nights</span>
+            <span className="font-semibold mt-0.5">
+              <Badge variant="secondary" className="h-5 text-[10px] font-semibold px-1.5">
+                {nights}
+              </Badge>
+            </span>
           </div>
 
-          <Separator orientation="vertical" className="hidden sm:block h-5" />
-
           {/* Rate */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Rate/night:</span>
-            <span className="font-semibold tabular-nums">{formatCurrency(reservation.roomRate)}</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Rate / Night</span>
+            <span className="font-semibold mt-0.5 tabular-nums">{formatCurrency(reservation.roomRate)}</span>
           </div>
         </div>
       </CardContent>
     </Card>
-  )
-}
-
-function InfoItem({
-  icon,
-  label,
-  value,
-}: {
-  icon?: React.ReactNode
-  label: string
-  value: string
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {icon && <span className="text-muted-foreground">{icon}</span>}
-      <span className="text-muted-foreground">{label}:</span>
-      <span className="font-medium">{value}</span>
-    </div>
   )
 }
 
@@ -536,13 +528,15 @@ function StatusBadge({ status }: { status: 'posted' | 'pending' | 'future' }) {
   }
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value, align = 'left' }: { label: string; value: string; align?: 'left' | 'right' }) {
   return (
     <div className="flex flex-col">
       <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
         {label}
       </span>
-      <span className="text-xs font-semibold tabular-nums mt-0.5">{value}</span>
+      <span className={cn('text-xs font-semibold tabular-nums mt-0.5', align === 'right' && 'text-right')}>
+        {value}
+      </span>
     </div>
   )
 }
