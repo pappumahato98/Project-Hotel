@@ -1079,3 +1079,23 @@ Stage Summary:
 - Calendar scroll works correctly with proper content width and smooth scrolling
 - Server prevents double-booking with 409 conflict detection
 - ReservationsView date pickers now consistent with rest of the app
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix input box size balance in New Reservation's Booking Contact & Guest Information across all screen devices
+
+Work Log:
+- Analyzed uploaded screenshot to identify layout mismatches
+- Discovered root cause: SelectTrigger component had `w-fit` default while Input had `w-full`, causing selects to not fill grid columns
+- Changed SelectTrigger default from `w-fit` to `w-full` in `/src/components/ui/select.tsx`
+- Wrapped Guest Information form grid in consistent bordered container (`rounded-xl border p-4 sm:p-5`) matching Booking Contact and Rate & Source steps
+- Unified grid breakpoints from `lg:grid-cols-3` to `xl:grid-cols-3` across all 3 form steps for better tablet/desktop balance
+- Updated VIP Level col-span from `lg:col-span-3` to `xl:col-span-3`
+- Fixed Travel Agent 5-field orphan layout with `sm:col-span-2 xl:col-span-1` on IATA Number field
+- Standardized all section containers to `rounded-xl` and `p-4 sm:p-5` padding
+
+Stage Summary:
+- Key fix: `w-fit` → `w-full` in SelectTrigger component (affects all 329 usages across 43 files)
+- All form inputs and selects now have identical widths per row on every viewport
+- Verified via programmatic width checks: desktop (184px), tablet (279px), mobile (309px)
+- Lint passes clean, no runtime errors

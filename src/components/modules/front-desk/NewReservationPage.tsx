@@ -942,7 +942,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
 
           {/* Person Fields */}
           {bookingContactType === 'person' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-600">Salutation</Label>
                 <Select
@@ -1015,7 +1015,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
 
           {/* Company Fields */}
           {bookingContactType === 'company' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-600">Company Name</Label>
                 <Input
@@ -1111,7 +1111,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
 
           {/* Travel Agent Fields */}
           {bookingContactType === 'travel_agent' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-600">Agent Name</Label>
                 <Input
@@ -1153,7 +1153,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
                   placeholder="+977-..."
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2 xl:col-span-1">
                 <Label className="text-xs font-medium text-slate-600 flex items-center gap-1">
                   <Hash className="h-3 w-3" /> IATA Number
                 </Label>
@@ -1323,7 +1323,9 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
         <Separator />
 
         {/* Guest Details Form */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
+          <div className="p-4 sm:p-5 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-slate-600">Title</Label>
             <Select value={guestFields.title} onValueChange={(v) => updateGuestField('title', v)}>
@@ -1441,7 +1443,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
           </div>
 
           {/* VIP Level Visual Selector */}
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+          <div className="space-y-1.5 sm:col-span-2 xl:col-span-3">
             <Label className="text-xs font-medium text-slate-600 flex items-center gap-1">
               <Crown className="h-3 w-3" /> VIP Level
             </Label>
@@ -1467,8 +1469,10 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
               })}
             </div>
           </div>
+          </div>
         </div>
       </div>
+    </div>
     </StepContent>
   )
 
@@ -1488,7 +1492,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
             </div>
             <h4 className="text-sm font-semibold text-slate-700">Dates & Guests</h4>
           </div>
-          <div className="rounded-lg border border-slate-200 p-4 space-y-3">
+          <div className="rounded-xl border border-slate-200 p-4 sm:p-5 space-y-3">
             {/* Date pickers row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
@@ -1618,7 +1622,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
             </div>
             <h4 className="text-sm font-semibold text-slate-700">Room Selection</h4>
           </div>
-          <div className="rounded-lg border border-slate-200 overflow-hidden">
+          <div className="rounded-xl border border-slate-200 overflow-hidden">
             {/* Filter Bar */}
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-slate-50 border-b">
               <Select value={roomFilterType} onValueChange={setRoomFilterType}>
@@ -1739,8 +1743,8 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
             </div>
             <h4 className="text-sm font-semibold text-slate-700">Rate & Source</h4>
           </div>
-          <div className="rounded-lg border border-slate-200 p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="rounded-xl border border-slate-200 p-4 sm:p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {/* Room Type */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-600">Room Type</Label>
@@ -1828,7 +1832,7 @@ export function NewReservationPage({ onBack, onCreated }: NewReservationPageProp
             </div>
             <h4 className="text-sm font-semibold text-slate-700">Special Requests</h4>
           </div>
-          <div className="rounded-lg border border-slate-200 p-4 space-y-3">
+          <div className="rounded-xl border border-slate-200 p-4 sm:p-5 space-y-3">
             <Textarea
               className="text-sm min-h-[70px] resize-y"
               value={specialRequests}
