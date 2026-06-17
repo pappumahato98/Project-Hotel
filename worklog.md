@@ -1200,3 +1200,33 @@ Stage Summary:
 - Files modified: src/components/modules/front-desk/RoomRatePostingDialog.tsx, src/components/modules/front-desk/RoomRatePostingPage.tsx
 - Key fixes: (1) Enhanced 3-column card layout with posting stats, (2) Corrected API payload to send `dates` array, (3) Real error messages in toasts, (4) No-room safety checks
 - All fixes verified working via Agent Browser
+
+---
+Task ID: 2
+Agent: Main Orchestrator
+Task: Enhance Room Rate Posting page with more layout, options, and functions
+
+Work Log:
+- Completely rewrote RoomRatePostingPage.tsx with significantly enhanced features
+- Added 6 stat cards for Pending tab: Pending count, Pending Amount, In-House, Avg Rate/Night, Folio Balance, No Room count
+- Added Quick Actions dropdown menu with: Post All Pending, Post Selected, View Posted History, View Voided
+- Added CSV Export functionality (downloads filtered data as .csv file)
+- Added checkbox selection system: per-row checkboxes + header select-all checkbox
+- Added "Post Selected" batch action button in summary bar
+- Added postSelectedMutation for batch posting multiple reservations
+- Added Room number filter input for pending tab
+- Added Sort dropdown (Room ↑/↓, Guest A→Z, Amount ↓, Most Pending)
+- Added Rate Override option in Post Confirmation dialog
+- Added Bulk Post All confirmation dialog with summary stats and warnings
+- Added enhanced void dialog with more detail fields (tax, service charge)
+- Enhanced PendingRow with: Folio Balance column, room type in expanded view, confirmation# in details, inline Post button in expanded area
+- Enhanced PostingListRow with: Actions dropdown menu label, more detail fields in expanded view
+- Added tooltips for no-room indicators and folio balances
+- Fixed lucide-react import error (SelectAll doesn't exist → replaced with ListChecks)
+- Fixed React hooks ordering (derived data before callbacks to satisfy eslint)
+- Verified all features via Agent Browser
+
+Stage Summary:
+- File modified: src/components/modules/front-desk/RoomRatePostingPage.tsx (rewritten ~1500 lines)
+- New features: 6 stat cards, Quick Actions menu, CSV Export, batch select/post, room filter, sort, rate override, bulk post confirm dialog, enhanced expanded rows, tooltips
+- All features verified working via Agent Browser
