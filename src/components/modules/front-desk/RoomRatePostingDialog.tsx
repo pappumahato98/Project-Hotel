@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import {
   CheckCircle, Clock, AlertCircle, CalendarDays, BedDouble,
-  DollarSign, Loader2, X, ArrowRight,
+  DollarSign, Loader2, X, ArrowRight, User, Moon, Wallet,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -64,6 +64,7 @@ interface RatePosting {
 
 interface NightRow {
   date: Date
+  dateStr: string
   dayName: string
   formattedDate: string
   roomRate: number
@@ -82,6 +83,15 @@ const SERVICE_CHARGE_RATE = 0.10
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// ─── Helper: local date string (YYYY-MM-DD) ────────────────────────────
+
+function toLocalDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 // ─── Component ──────────────────────────────────────────────────────────
 
 export function RoomRatePostingDialog({
@@ -93,7 +103,6 @@ export function RoomRatePostingDialog({
   const queryClient = useQueryClient()
 
   // ── Fetch reservation details ────────────────────────────────────────
-  // API returns { reservation: {...} } — unwrap it
   const { data: reservation, isLoading: isLoadingReservation } = useQuery({
     queryKey: ['reservation', reservationId],
     queryFn: async () => {
@@ -115,21 +124,14 @@ export function RoomRatePostingDialog({
   const nights: NightRow[] = useMemo(() => {
     if (!reservation) return []
 
-    // Use local-date-string comparison to avoid timezone issues
-    const toLocalDateStr = (d: Date) => {
-      const y = d.getFullYear()
-      const m = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${y}-${m}-${day}`
-    }
-
     const today = new Date()
     const todayStr = toLocalDateStr(today)
 
     const checkInDate = new Date(reservation.checkIn)
+    checkInDate.setHours(0, 0, 0, 0)
     const checkOutDate = new Date(reservation.checkOut)
+    checkOutDate.setHours(0, 0, 0, 0)
 
-    // Build set of already-posted date strings (YYYY-MM-DD)
     const postedDateSet = new Set(
       postings
         .filter((p) => p.status === 'posted')
@@ -140,8 +142,6 @@ export function RoomRatePostingDialog({
     const rows: NightRow[] = []
 
     let current = new Date(checkInDate)
-    current.setHours(0, 0, 0, 0)
-
     while (current < checkOutDate) {
       const currentStr = toLocalDateStr(current)
       const isFuture = currentStr > todayStr
@@ -155,6 +155,7 @@ export function RoomRatePostingDialog({
 
       rows.push({
         date: new Date(current),
+        dateStr: currentStr,
         dayName,
         formattedDate,
         roomRate,
@@ -179,49 +180,66 @@ export function RoomRatePostingDialog({
     const totalTax = nights.reduce((sum, n) => sum + n.tax, 0)
     const totalServiceCharge = nights.reduce((sum, n) => sum + n.serviceCharge, 0)
     const grandTotal = totalRoomCharges + totalTax + totalServiceCharge
-    const pendingCount = nights.filter((n) => n.isPending).length
+    const pendingNights = nights.filter((n) => n.isPending)
+    const pendingCount = pendingNights.length
+    const pendingAmount = pendingNights.reduce((sum, n) => sum + n.total, 0)
+    const postedCount = nights.filter((n) => n.isPosted).length
+    const futureCount = nights.filter((n) => n.isFuture).length
     const allPosted = pendingCount === 0
 
-    return { totalNights, totalRoomCharges, totalTax, totalServiceCharge, grandTotal, pendingCount, allPosted }
+    return { totalNights, totalRoomCharges, totalTax, totalServiceCharge, grandTotal, pendingCount, pendingAmount, postedCount, futureCount, allPosted }
   }, [nights])
 
   // ── Post all pending mutation ─────────────────────────────────────────
   const postAllMutation = useMutation({
     mutationFn: async () => {
-      return apiFetch('/api/room-rate-posting', {
+      // Send only pending dates to the backend
+      const pendingDates = nights
+        .filter((n) => n.isPending)
+        .map((n) => n.dateStr)
+
+      if (pendingDates.length === 0) return null
+
+      return apiFetch<{ message: string; newCount: number }>('/api/room-rate-posting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservationId }),
+        body: JSON.stringify({ reservationId, dates: pendingDates }),
       })
     },
-    onSuccess: () => {
-      toast.success(`${summary.pendingCount} room charges posted to guest folio`)
+    onSuccess: (data) => {
+      if (data?.newCount === 0) {
+        toast.info('All nights already posted. No new charges created.')
+      } else {
+        toast.success(`${summary.pendingCount} room charge(s) posted to guest folio`)
+      }
       invalidate.afterFolioChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['room-rate-postings', reservationId] })
+      queryClient.invalidateQueries({ queryKey: ['reservation', reservationId] })
       onPosted?.()
     },
-    onError: () => {
-      toast.error('Failed to post room charges. Please try again.')
+    onError: (error) => {
+      toast.error(error.message || 'Failed to post room charges. Please try again.')
     },
   })
 
   // ── Post single night mutation ────────────────────────────────────────
   const postSingleMutation = useMutation({
-    mutationFn: async (postingDate: string) => {
-      return apiFetch('/api/room-rate-posting', {
+    mutationFn: async (dateStr: string) => {
+      return apiFetch<{ message: string }>('/api/room-rate-posting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservationId, postingDate }),
+        body: JSON.stringify({ reservationId, dates: [dateStr] }),
       })
     },
     onSuccess: (_data, variables) => {
       toast.success('Room charge posted for ' + formatDate(variables))
       invalidate.afterFolioChange(queryClient)
       queryClient.invalidateQueries({ queryKey: ['room-rate-postings', reservationId] })
+      queryClient.invalidateQueries({ queryKey: ['reservation', reservationId] })
       onPosted?.()
     },
-    onError: () => {
-      toast.error('Failed to post room charge. Please try again.')
+    onError: (error) => {
+      toast.error(error.message || 'Failed to post room charge. Please try again.')
     },
   })
 
@@ -231,8 +249,7 @@ export function RoomRatePostingDialog({
   }
 
   const handlePostSingle = (night: NightRow) => {
-    const dateStr = night.date.toISOString().split('T')[0]
-    postSingleMutation.mutate(dateStr)
+    postSingleMutation.mutate(night.dateStr)
   }
 
   const handleClose = () => {
@@ -242,6 +259,7 @@ export function RoomRatePostingDialog({
   // ── Computed ─────────────────────────────────────────────────────────
   const isLoading = isLoadingReservation || isLoadingPostings
   const isPosting = postAllMutation.isPending || postSingleMutation.isPending
+  const hasRoom = !!reservation?.room
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
@@ -268,8 +286,23 @@ export function RoomRatePostingDialog({
             <ErrorState />
           ) : (
             <>
-              {/* Reservation Summary Card */}
-              <ReservationSummaryCard reservation={reservation} nights={summary.totalNights} />
+              {/* Reservation Summary Card — Enhanced */}
+              <ReservationSummaryCard
+                reservation={reservation}
+                totalNights={summary.totalNights}
+                pendingCount={summary.pendingCount}
+                pendingAmount={summary.pendingAmount}
+                postedCount={summary.postedCount}
+                futureCount={summary.futureCount}
+              />
+
+              {/* No room warning */}
+              {!hasRoom && (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>No room assigned to this reservation. Room charges cannot be posted without a room.</span>
+                </div>
+              )}
 
               {/* Posting Schedule Table */}
               <div className="rounded-lg border overflow-hidden">
@@ -296,7 +329,7 @@ export function RoomRatePostingDialog({
                       ) : (
                         nights.map((night) => (
                           <TableRow
-                            key={night.date.toISOString()}
+                            key={night.dateStr}
                             className={cn(
                               'text-xs',
                               night.isPosted && 'bg-emerald-50/70 hover:bg-emerald-50',
@@ -344,10 +377,10 @@ export function RoomRatePostingDialog({
                                   size="sm"
                                   className="h-6 text-[10px] px-2"
                                   onClick={() => handlePostSingle(night)}
-                                  disabled={isPosting}
+                                  disabled={isPosting || !hasRoom}
                                 >
                                   {postSingleMutation.isPending &&
-                                  postSingleMutation.variables === night.date.toISOString().split('T')[0] ? (
+                                  postSingleMutation.variables === night.dateStr ? (
                                     <Loader2 className="size-3 animate-spin" />
                                   ) : (
                                     <CheckCircle className="size-3" />
@@ -413,9 +446,9 @@ export function RoomRatePostingDialog({
           </Button>
           <Button
             onClick={handlePostAll}
-            disabled={summary.allPosted || isPosting || nights.length === 0}
+            disabled={summary.allPosted || isPosting || nights.length === 0 || !hasRoom}
             className={cn(
-              'gap-1.5 min-w-[160px]',
+              'gap-1.5 min-w-[180px]',
               summary.allPosted && 'bg-emerald-600 hover:bg-emerald-600',
             )}
           >
@@ -446,55 +479,94 @@ export function RoomRatePostingDialog({
 
 function ReservationSummaryCard({
   reservation,
-  nights,
+  totalNights,
+  pendingCount,
+  pendingAmount,
+  postedCount,
+  futureCount,
 }: {
   reservation: ReservationDetail
-  nights: number
+  totalNights: number
+  pendingCount: number
+  pendingAmount: number
+  postedCount: number
+  futureCount: number
 }) {
   const guestName = reservation.guest
     ? `${reservation.guest.firstName} ${reservation.guest.lastName}`
     : '—'
-  const roomNumber = reservation.room?.number ?? '—'
+  const roomNumber = reservation.room?.number ?? 'Unassigned'
 
   return (
-    <Card className="py-3 bg-muted/30 border-dashed">
-      <CardContent className="px-4">
-        {/* Row 1: Key identifiers */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-xs">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Reservation No.</span>
-            <span className="font-semibold mt-0.5 flex items-center gap-1.5">
-              <CalendarDays className="size-3 text-muted-foreground shrink-0" />
-              {reservation.confirmationNo}
-            </span>
+    <Card className="bg-muted/30 border-dashed overflow-hidden">
+      <CardContent className="p-0">
+        {/* Top row: Guest + Room + Confirmation — 3 equal columns */}
+        <div className="grid grid-cols-3 divide-x divide-border/60">
+          {/* Guest */}
+          <div className="px-4 py-3 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 mb-1">
+              <User className="size-3 text-muted-foreground shrink-0" />
+              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Guest</span>
+            </div>
+            <span className="text-sm font-semibold truncate" title={guestName}>{guestName}</span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Guest</span>
-            <span className="font-semibold mt-0.5 truncate" title={guestName}>{guestName}</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Room</span>
-            <span className="font-semibold mt-0.5 flex items-center gap-1.5">
+
+          {/* Room */}
+          <div className="px-4 py-3 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 mb-1">
               <BedDouble className="size-3 text-muted-foreground shrink-0" />
+              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Room</span>
+            </div>
+            <span className={cn(
+              'text-sm font-semibold',
+              !reservation.room && 'text-amber-600',
+            )}>
               {roomNumber}
             </span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Rate / Night</span>
-            <span className="font-semibold mt-0.5 tabular-nums">{formatCurrency(reservation.roomRate)}</span>
+
+          {/* Confirmation No */}
+          <div className="px-4 py-3 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 mb-1">
+              <CalendarDays className="size-3 text-muted-foreground shrink-0" />
+              <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Confirmation</span>
+            </div>
+            <span className="text-sm font-semibold font-mono">{reservation.confirmationNo}</span>
           </div>
         </div>
-        {/* Row 2: Stay info */}
-        <div className="flex items-center gap-6 mt-3 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="font-medium">Stay:</span>
-            <span>{formatDate(reservation.checkIn)}</span>
-            <ArrowRight className="size-3 shrink-0" />
-            <span>{formatDate(reservation.checkOut)}</span>
-          </span>
-          <Badge variant="secondary" className="h-5 text-[10px] font-semibold px-1.5">
-            {nights} Night{nights !== 1 ? 's' : ''}
-          </Badge>
+
+        {/* Bottom row: Stay dates + Rate/Night + Posting stats */}
+        <div className="border-t border-border/60 grid grid-cols-3 divide-x divide-border/60">
+          {/* Stay Period */}
+          <div className="px-4 py-2.5 flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Stay:</span>
+            <span className="font-medium">{formatDate(reservation.checkIn)}</span>
+            <ArrowRight className="size-3 text-muted-foreground shrink-0" />
+            <span className="font-medium">{formatDate(reservation.checkOut)}</span>
+            <Badge variant="secondary" className="h-5 text-[10px] font-semibold px-1.5 ml-auto shrink-0">
+              <Moon className="size-2.5 mr-0.5" />
+              {totalNights}
+            </Badge>
+          </div>
+
+          {/* Rate per Night */}
+          <div className="px-4 py-2.5 flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Rate / Night</span>
+            <span className="font-semibold tabular-nums text-sm">{formatCurrency(reservation.roomRate)}</span>
+          </div>
+
+          {/* Posting Status Summary */}
+          <div className="px-4 py-2.5 flex items-center gap-2 text-xs">
+            <Wallet className="size-3 text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground shrink-0">Pending:</span>
+            <Badge variant="outline" className="h-5 text-[10px] font-semibold px-1.5 bg-amber-50 text-amber-700 border-amber-200">
+              {pendingCount} · {formatCurrency(pendingAmount)}
+            </Badge>
+            <span className="text-muted-foreground shrink-0">Posted:</span>
+            <Badge variant="outline" className="h-5 text-[10px] font-semibold px-1.5 bg-emerald-50 text-emerald-700 border-emerald-200">
+              {postedCount}
+            </Badge>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -544,13 +616,22 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-4">
       {/* Summary card skeleton */}
-      <Card className="py-3">
-        <CardContent className="px-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-5 w-40" />
+      <Card className="bg-muted/30 border-dashed">
+        <CardContent className="p-0">
+          <div className="grid grid-cols-3 divide-x divide-border/60">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="px-4 py-3 space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-5 w-24" />
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-border/60 grid grid-cols-3 divide-x divide-border/60">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="px-4 py-2.5">
+                <Skeleton className="h-4 w-full" />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

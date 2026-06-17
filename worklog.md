@@ -1175,3 +1175,28 @@ Stage Summary:
 - Files modified: RoomRatePostingDialog.tsx, FrontDeskModule.tsx
 - Files created: RoomRatePostingPage.tsx, api/room-rate-posting/list/route.ts, api/room-rate-posting/pending/route.ts, api/room-rate-posting/bulk-post/route.ts
 
+
+---
+Task ID: 1
+Agent: Main Orchestrator
+Task: Fix Room Rate Posting dialog - enhance top layout + fix posting error
+
+Work Log:
+- Analyzed uploaded screenshot via VLM - identified two issues: (1) unbalanced top layout in ReservationSummaryCard, (2) "Failed to post charges" error when clicking Post
+- Checked dev.log: confirmed POST /api/room-rate-posting returning 400 errors
+- Root cause analysis: postAllMutation sent `{ reservationId }` without `dates`, and postSingleMutation sent wrong field name `postingDate` instead of `dates: [dateStr]`. Backend expects `dates: string[]` to know which dates to post.
+- Enhanced ReservationSummaryCard: redesigned from 2x4 grid to clean 3-column layout with divide-x borders. Top row: Guest/Room/Confirmation. Bottom row: Stay period + Rate/Night + Posting status summary (pending count+amount, posted count).
+- Fixed postAllMutation: now sends only pending dates (filtered from nights array) as `dates: pendingDates`
+- Fixed postSingleMutation: now sends `dates: [dateStr]` instead of `postingDate: dateStr`
+- Added actual backend error message display in all onError handlers (was showing generic message before)
+- Added "no room assigned" warning banner when reservation.room is null
+- Disabled Post buttons when no room is assigned
+- Fixed same bug in RoomRatePostingPage.tsx: postMutation now sends `{ reservationId, dates: postTarget.pendingNights }` instead of just `{ reservationId }`
+- Fixed voidMutation error handler to show actual error message
+- Updated isPosting check for new mutation variable type
+- Verified with Agent Browser: room 110 posted successfully (POST 200, pending count 16→15), no-room reservation returns proper error (POST 400)
+
+Stage Summary:
+- Files modified: src/components/modules/front-desk/RoomRatePostingDialog.tsx, src/components/modules/front-desk/RoomRatePostingPage.tsx
+- Key fixes: (1) Enhanced 3-column card layout with posting stats, (2) Corrected API payload to send `dates` array, (3) Real error messages in toasts, (4) No-room safety checks
+- All fixes verified working via Agent Browser

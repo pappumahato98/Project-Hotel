@@ -167,16 +167,16 @@ export function RoomRatePostingPage() {
       setVoidTarget(null)
       setVoidReason('')
     },
-    onError: () => toast.error('Failed to void posting'),
+    onError: (error) => toast.error(error.message || 'Failed to void posting'),
   })
 
   // ── Post single reservation's pending nights ────────────────────────
   const postMutation = useMutation({
-    mutationFn: async (reservationId: string) => {
+    mutationFn: async ({ reservationId, dates }: { reservationId: string; dates: string[] }) => {
       return apiFetch('/api/room-rate-posting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservationId }),
+        body: JSON.stringify({ reservationId, dates }),
       })
     },
     onSuccess: () => {
@@ -187,7 +187,7 @@ export function RoomRatePostingPage() {
       setPostConfirmOpen(false)
       setPostTarget(null)
     },
-    onError: () => toast.error('Failed to post charges'),
+    onError: (error) => toast.error(error.message || 'Failed to post charges'),
   })
 
   // ── Bulk post all pending ───────────────────────────────────────────
@@ -235,7 +235,7 @@ export function RoomRatePostingPage() {
 
   const handlePostReservation = useCallback(() => {
     if (!postTarget) return
-    postMutation.mutate(postTarget.reservationId)
+    postMutation.mutate({ reservationId: postTarget.reservationId, dates: postTarget.pendingNights })
   }, [postTarget, postMutation])
 
   const handleBulkPost = useCallback(() => {
@@ -468,7 +468,7 @@ export function RoomRatePostingPage() {
                           isExpanded={expandedRow === res.reservationId}
                           onToggle={() => toggleExpand(res.reservationId)}
                           onPost={() => { setPostTarget(res); setPostConfirmOpen(true) }}
-                          isPosting={postMutation.isPending && postMutation.variables === res.reservationId}
+                          isPosting={postMutation.isPending && postMutation.variables?.reservationId === res.reservationId}
                         />
                       ))}
                     </TableBody>
