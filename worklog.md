@@ -1379,3 +1379,30 @@ Stage Summary:
   2. Handler: added `handleArrivalClick` function right after `useNavigationStore` destructure
   3. Table row: added `onClick` and hover/cursor classes to `<TableRow>`
 - Lint passes cleanly
+---
+Task ID: verify-r1-r5
+Agent: Main Orchestrator
+Task: End-to-end browser verification of R1-R5 features
+
+Work Log:
+- Opened app in Agent Browser, signed in as Staff (Sunita Thapa)
+- Verified R4 (sidebar hover toggle): No toggle in global header; hover-only button near sidebar logo with `opacity-0 group-hover/sidebar-header:opacity-100` confirmed via class inspection
+- Navigated to Front Desk → Arrivals tab
+- Verified R1 (sticky Go Check-in): Split-screen layout confirmed via VLM screenshot analysis; arrival list (left) + guest detail panel (right); "Go Check-in" button present in DOM action bar
+- Clicked arrival row to select, then clicked "Go Check-in"
+- Verified prefill race condition fix: Successfully navigated to CheckInLookup in prefill mode showing "Reservation Found" badge, reservation details card (Confirmation #, Status, Guest, Room, Stay dates, Rate), and "Go Check-in" button
+- Clicked Back from prefill → navigated to Reservations tab (correct `handleBackFromSubPage` behavior)
+- Navigated to Check-In tab directly
+- Verified R3 (Back/Express on same line): VLM confirmed single horizontal row with Back button, Find Reservation tab, Direct Walk-in tab, and Express toggle switch all on the same line
+- Toggled Express mode on → arrival cards now show "Express" button
+- Selected arrival in search results → "Reservation Details" panel appeared with both "Go Check-in" and "Express Check-In" buttons
+- Clicked "Go Check-in" from search results → successfully navigated to check-in process page (Step 1: Guest & Stay Verification) with correct reservation data
+- Verified R2 (rename): Grep confirms zero instances of "Use Reservation" remaining; "Go Check-in" present in ArrivalsView, CheckInLookup, and CheckInWizard
+- Verified R5 (breadcrumb): Header shows "Front Desk" breadcrumb on module, "Front Desk > Arrivals" on sub-module navigation
+- Ran lint: clean, no errors
+- Dev log: no runtime errors; minor 404 for `/api/guests/[id]/stays` (missing route, handled gracefully by try/catch)
+
+Stage Summary:
+- All 5 features (R1-R5) verified working end-to-end via Agent Browser + VLM screenshot analysis
+- Prefill race condition fix confirmed: setPrefillReservationId + navigateTo sequence works without premature clearing
+- No code changes needed — all verification passed

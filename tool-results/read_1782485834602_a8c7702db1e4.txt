@@ -602,7 +602,7 @@
    602→
    603→        {/* ─── Right Panel: Arrival Detail ─── */}
    604→        <div className={cn(
-   605→          'flex flex-col min-h-0 border rounded-lg bg-card overflow-hidden',
+   605→          'flex flex-col min-h-0 border rounded-lg bg-card',
    606→          'w-full lg:flex-1',
    607→          (!selectedArrival || !mobileShowDetail) && 'hidden lg:flex',
    608→        )}>
