@@ -1325,3 +1325,34 @@ Stage Summary:
 - All 5 features implemented on current codebase version
 - ESLint clean, dev server no errors
 - Browser verified: breadcrumb "Front Desk > Check-In" in header, no header toggle, Back+tabs+Express on one line, "Go Check-in" button text confirmed, sidebar hover toggle works (collapse/expand)
+
+---
+Task ID: R5-fix
+Agent: Main Orchestrator
+Task: Fix page name breadcrumb logic — make navigation tracking work across all pages
+
+Work Log:
+- Analyzed the existing breadcrumb code in header.tsx — UI was present but logic was incomplete
+- Identified the core issue: sidebar collapsible trigger in expanded mode only toggled expand/collapse, did NOT call navigateTo() — so activeModule never updated when clicking module headers
+- Added `EXTRA_SUB_MODULE_LABELS` map to navigation.ts for internal sub-modules (check-in-process, guest-ledger) that exist in the app but not in NAV_ITEMS children
+- Added `getSubModuleLabel()` and `getDefaultSubModule()` helper functions in navigation.ts
+- Created dedicated `PageBreadcrumb` component in header.tsx with:
+  - Proper label resolution using getSubModuleLabel() (covers both NAV_ITEMS children and extra sub-modules)
+  - Clickable module name that navigates back to the module's default sub-module
+  - Disabled state when already on the default sub-module
+  - Semantic `<nav>` element with aria-label="Page breadcrumb"
+  - Proper styling with module color, chevron separator, and truncated text
+- Fixed sidebar-nav.tsx: added `handleCollapsibleChange` that calls both `toggleExpanded()` AND `navigateTo()` when the module is not yet active
+- Verified all scenarios via Agent Browser:
+  1. ✅ Default Dashboard breadcrumb shows correctly
+  2. ✅ Clicking sidebar module (expanded) navigates and updates breadcrumb
+  3. ✅ Clicking sidebar sub-module updates breadcrumb (e.g., "Front Desk > Check-In")
+  4. ✅ Breadcrumb module name is clickable — navigates back to default sub-module
+  5. ✅ Simple modules (Settings, Profile) show breadcrumb without sub-item
+  6. ✅ Collapsed sidebar click navigates and updates breadcrumb
+  7. ✅ VLM visual verification confirmed correct rendering
+
+Stage Summary:
+- The missing "logic function" was that the sidebar's CollapsibleTrigger (expanded mode) never called navigateTo(), so the navigation store stayed stale
+- Three files modified: navigation.ts (helpers), sidebar-nav.tsx (navigation fix), header.tsx (PageBreadcrumb component)
+- All breadcrumb navigation now works correctly across the entire app

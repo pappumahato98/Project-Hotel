@@ -14,7 +14,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore, usePreferencesStore } from '@/lib/store'
 import { DualCalendarDisplay } from '@/components/shared/dual-calendar'
-import { NAV_ITEMS } from '@/lib/navigation'
+import { NAV_ITEMS, getSubModuleLabel, getDefaultSubModule } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -562,6 +562,61 @@ function UserMenu() {
   )
 }
 
+// ─── Page Breadcrumb ──────────────────────────────────────────────
+function PageBreadcrumb({ activeModule, activeSubModule }: { activeModule: string; activeSubModule: string | null }) {
+  const navigateTo = useNavigationStore((s) => s.navigateTo)
+  const navItem = NAV_ITEMS.find(n => n.id === activeModule)
+
+  if (!navItem) return null
+
+  const hasChildren = navItem.children && navItem.children.length > 0
+  const subLabel = activeSubModule ? getSubModuleLabel(activeModule, activeSubModule) : null
+
+  // Clicking the module name navigates to its default sub-module (or just the module for no-children items)
+  const handleModuleClick = () => {
+    if (hasChildren) {
+      const defaultSub = getDefaultSubModule(activeModule)
+      if (defaultSub && activeSubModule !== defaultSub) {
+        navigateTo(activeModule, defaultSub)
+      }
+    }
+  }
+
+  // For items with children, clicking the sub-module name could navigate to the parent
+  // But since the sub-module IS the current page, we leave it as display-only text
+
+  return (
+    <nav aria-label="Page breadcrumb" className="flex items-center gap-1.5 text-sm min-w-0">
+      <navItem.icon className={cn('size-4 shrink-0', navItem.color)} />
+      {hasChildren && subLabel ? (
+        <>
+          <button
+            type="button"
+            onClick={handleModuleClick}
+            className={cn(
+              'font-semibold truncate hover:underline underline-offset-2 transition-colors',
+              navItem.color,
+              activeSubModule !== getDefaultSubModule(activeModule) ? 'cursor-pointer' : 'cursor-default'
+            )}
+            tabIndex={activeSubModule !== getDefaultSubModule(activeModule) ? 0 : -1}
+            disabled={activeSubModule === getDefaultSubModule(activeModule)}
+          >
+            {navItem.label}
+          </button>
+          <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
+          <span className="text-foreground font-medium truncate">
+            {subLabel}
+          </span>
+        </>
+      ) : (
+        <span className={cn('font-semibold truncate', navItem.color)}>
+          {navItem.label}
+        </span>
+      )}
+    </nav>
+  )
+}
+
 // ─── AppHeader ────────────────────────────────────────────────────────
 export function AppHeader() {
   const { setSearchOpen, activeModule, activeSubModule } = useNavigationStore()
@@ -576,27 +631,7 @@ export function AppHeader() {
     <>
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6">
         {/* Page Name / Breadcrumb Navigation */}
-        {(() => {
-          const navItem = NAV_ITEMS.find(n => n.id === activeModule)
-          const subItem = navItem?.children?.find(c => c.id === activeSubModule)
-          if (!navItem) return null
-          return (
-            <div className="flex items-center gap-1.5 text-sm min-w-0">
-              <navItem.icon className={cn('size-4 shrink-0', navItem.color)} />
-              <span className={cn('font-semibold truncate', navItem.color)}>
-                {navItem.label}
-              </span>
-              {subItem && (
-                <>
-                  <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-muted-foreground font-medium truncate">
-                    {subItem.label}
-                  </span>
-                </>
-              )}
-            </div>
-          )
-        })()}
+        <PageBreadcrumb activeModule={activeModule} activeSubModule={activeSubModule} />
 
         {/* Dual Calendar Date (hidden on small screens) */}
         {showDualCalendar && (

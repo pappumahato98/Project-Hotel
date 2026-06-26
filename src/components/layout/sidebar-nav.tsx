@@ -96,10 +96,19 @@ function NavGroup({ item }: { item: NavItem }) {
   }
 
   // Items with children — collapsible (expanded mode only)
+  const handleCollapsibleChange = (open: boolean) => {
+    toggleExpanded(item.id)
+    // If the module is not yet active, also navigate to it
+    if (!isActive && open) {
+      const firstChild = item.children[0]
+      navigateTo(item.id, firstChild?.id)
+    }
+  }
+
   return (
     <Collapsible
       open={isExpanded}
-      onOpenChange={() => toggleExpanded(item.id)}
+      onOpenChange={handleCollapsibleChange}
       className="group/collapsible"
     >
       <SidebarMenuItem>

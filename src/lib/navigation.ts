@@ -207,3 +207,32 @@ export const NAV_ITEMS: NavItem[] = [
     color: 'text-slate-600',
   },
 ]
+
+// ─── Extra Sub-Module Labels ─────────────────────────────────
+// Internal sub-modules that exist in the app but aren't in the sidebar NAV_ITEMS children
+export const EXTRA_SUB_MODULE_LABELS: Record<string, Record<string, string>> = {
+  'front-desk': {
+    'check-in-process': 'Check-In Process',
+    'guest-ledger': 'Guest Ledger',
+  },
+}
+
+/**
+ * Resolve the display label for a sub-module within a given module.
+ * Checks NAV_ITEMS children first, then falls back to EXTRA_SUB_MODULE_LABELS.
+ */
+export function getSubModuleLabel(moduleId: string, subModuleId: string): string | null {
+  const navItem = NAV_ITEMS.find(n => n.id === moduleId)
+  const fromNav = navItem?.children?.find(c => c.id === subModuleId)
+  if (fromNav) return fromNav.label
+  const fromExtra = EXTRA_SUB_MODULE_LABELS[moduleId]?.[subModuleId]
+  return fromExtra ?? null
+}
+
+/**
+ * Get the default sub-module for a given module (first child or null).
+ */
+export function getDefaultSubModule(moduleId: string): string | null {
+  const navItem = NAV_ITEMS.find(n => n.id === moduleId)
+  return navItem?.children?.[0]?.id ?? null
+}
