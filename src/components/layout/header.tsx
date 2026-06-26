@@ -57,7 +57,6 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command'
-import { SidebarTrigger } from '@/components/ui/sidebar'
 import { toast } from 'sonner'
 
 // ─── Quick Search Dialog ────────────────────────────────────────────
@@ -576,16 +575,28 @@ export function AppHeader() {
   return (
     <>
       <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6">
-        {/* Mobile menu toggle */}
-        <SidebarTrigger className="-ml-1" />
-
-        <Separator orientation="vertical" className="mr-2 h-4" />
-
-        {/* Property Name (left side) */}
-        <div className="flex items-center gap-2">
-          <Building2 className="size-4 text-amber-600 hidden sm:block" />
-          <span className="text-sm font-semibold hidden sm:block">{activeProperty.name}</span>
-        </div>
+        {/* Page Name / Breadcrumb Navigation */}
+        {(() => {
+          const navItem = NAV_ITEMS.find(n => n.id === activeModule)
+          const subItem = navItem?.children?.find(c => c.id === activeSubModule)
+          if (!navItem) return null
+          return (
+            <div className="flex items-center gap-1.5 text-sm min-w-0">
+              <navItem.icon className={cn('size-4 shrink-0', navItem.color)} />
+              <span className={cn('font-semibold truncate', navItem.color)}>
+                {navItem.label}
+              </span>
+              {subItem && (
+                <>
+                  <ChevronRight className="size-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-muted-foreground font-medium truncate">
+                    {subItem.label}
+                  </span>
+                </>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Dual Calendar Date (hidden on small screens) */}
         {showDualCalendar && (

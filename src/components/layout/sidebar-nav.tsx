@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { useTheme } from 'next-themes'
 import {
-  Building2, ChevronRight, Settings, Sun, Moon, LogOut, Star,
+  Building2, ChevronRight, ChevronLeft, Settings, Sun, Moon, LogOut, Star,
   LayoutDashboard, User, Shield,
 } from 'lucide-react'
 
@@ -261,11 +261,12 @@ function UserProfileFooter() {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { activeProperty } = usePropertyStore()
   const { user } = useAuthStore()
+  const { toggleSidebar, state: sidebarState } = useSidebar()
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      {/* Header — Property Name & Logo */}
-      <SidebarHeader className="border-b border-sidebar-border">
+      {/* Header — Property Name & Logo with hover toggle */}
+      <SidebarHeader className="border-b border-sidebar-border relative group/sidebar-header">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
@@ -291,6 +292,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+        {/* Sidebar toggle — visible on hover near logo */}
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className={cn(
+            'absolute -right-2.5 top-1/2 -translate-y-1/2 z-50',
+            'flex items-center justify-center size-5 rounded-full',
+            'bg-background border border-border shadow-sm',
+            'opacity-0 group-hover/sidebar-header:opacity-100 transition-opacity duration-200',
+            'hover:bg-muted hover:scale-110',
+          )}
+          aria-label="Toggle sidebar"
+        >
+          {sidebarState === 'collapsed' ? (
+            <ChevronRight className="size-3 text-foreground" />
+          ) : (
+            <ChevronLeft className="size-3 text-foreground" />
+          )}
+        </button>
       </SidebarHeader>
 
       {/* Navigation Items */}

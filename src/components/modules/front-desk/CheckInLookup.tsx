@@ -367,38 +367,27 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
   // Render ──────────────────────────────────────────────────────────-----------------------------------------------
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header */}
-      <div className="shrink-0 border-b bg-card">
-        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5">
-          <button
-            type="button"
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back</span>
-          </button>
-          <h1 className="text-base sm:text-lg font-semibold text-foreground">Guest Check-In</h1>
-          <div className="flex items-center gap-2">
-            <Zap className={cn('w-3.5 h-3.5', expressMode ? 'text-amber-500' : 'text-muted-foreground')} />
-            <span className="text-xs text-muted-foreground hidden sm:inline">Express</span>
-            <Switch
-              id="express-mode"
-              checked={expressMode}
-              onCheckedChange={setExpressMode}
-              className="scale-90"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-        <div className="max-w-2xl mx-auto space-y-2">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto space-y-2 p-3 sm:p-4">
 
           {/* Prefilled reservation mode */}
           {prefillReservationId ? (
             <>
+              {/* Header for prefill mode */}
+              <div className="shrink-0 -mx-3 sm:-mx-4 -mt-3 sm:-mt-4 mb-2 px-3 sm:px-4 py-2.5 border-b bg-card">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Back</span>
+                  </button>
+                  <Separator orientation="vertical" className="h-5" />
+                  <h1 className="text-base sm:text-lg font-semibold text-foreground">Guest Check-In</h1>
+                </div>
+              </div>
               {reservationLoading && (
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-3/4" />
@@ -460,7 +449,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                   <div className="flex gap-2">
                     <Button onClick={handleUseReservation} className="flex-1">
                       <Check className="w-4 h-4 mr-2" />
-                      Use Reservation
+                      Go Check-in
                     </Button>
                     {expressMode && (
                       <Button variant="outline" className="flex-1" onClick={() => handleExpressCheckIn(reservationData)}>
@@ -474,34 +463,57 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
             </>
           ) : (
             <>
-              {/* Mode Toggle */}
-              <div className="flex items-center bg-muted/60 rounded-lg p-1 gap-1">
-                <button
-                  type="button"
-                  onClick={() => setIsDirectWalkIn(false)}
-                  className={cn(
-                    'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all text-center',
-                    !isDirectWalkIn
-                      ? 'bg-white dark:bg-card shadow-sm text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <Search className="w-3.5 h-3.5 inline mr-1.5" />
-                  Find Reservation
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsDirectWalkIn(true)}
-                  className={cn(
-                    'flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all text-center',
-                    isDirectWalkIn
-                      ? 'bg-white dark:bg-card shadow-sm text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <User className="w-3.5 h-3.5 inline mr-1.5" />
-                  Direct Walk-in
-                </button>
+              {/* Combined Header: Back + Mode Toggle + Express */}
+              <div className="shrink-0 -mx-3 sm:-mx-4 -mt-3 sm:-mt-4 mb-2 px-3 sm:px-4 py-2 border-b bg-card">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onBack}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span className="hidden sm:inline">Back</span>
+                  </button>
+                  <Separator orientation="vertical" className="h-5 hidden sm:block" />
+                  <div className="flex-1 flex items-center bg-muted/60 rounded-lg p-0.5 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsDirectWalkIn(false)}
+                      className={cn(
+                        'flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all text-center',
+                        !isDirectWalkIn
+                          ? 'bg-white dark:bg-card shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <Search className="w-3.5 h-3.5 inline mr-1.5" />
+                      Find Reservation
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsDirectWalkIn(true)}
+                      className={cn(
+                        'flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all text-center',
+                        isDirectWalkIn
+                          ? 'bg-white dark:bg-card shadow-sm text-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <User className="w-3.5 h-3.5 inline mr-1.5" />
+                      Direct Walk-in
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-auto">
+                    <Zap className={cn('w-3.5 h-3.5', expressMode ? 'text-amber-500' : 'text-muted-foreground')} />
+                    <span className="text-xs text-muted-foreground hidden sm:inline">Express</span>
+                    <Switch
+                      id="express-mode"
+                      checked={expressMode}
+                      onCheckedChange={setExpressMode}
+                      className="scale-90"
+                    />
+                  </div>
+                </div>
               </div>
 
               {!isDirectWalkIn ? (
@@ -605,7 +617,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                       <div className="flex gap-2 mt-2">
                         <Button onClick={handleUseReservation} className="flex-1">
                           <Check className="w-4 h-4 mr-2" />
-                          Use Reservation
+                          Go Check-in
                         </Button>
                         {expressMode && (
                           <Button variant="outline" className="flex-1" onClick={() => handleExpressCheckIn(reservationData)}>

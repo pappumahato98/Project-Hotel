@@ -1306,3 +1306,22 @@ Stage Summary:
 - Search box width matches posting type buttons group width
 - Calendar UI improved with proper date picker popover instead of raw date input
 - Lint passes clean, no runtime errors
+---
+Task ID: 2
+Agent: Main Agent
+Task: Re-apply all 5 UI changes after file reversion
+
+Work Log:
+- Discovered all 3 files (CheckInLookup.tsx, header.tsx, sidebar-nav.tsx) reverted to earlier versions
+- Re-read current CheckInLookup.tsx (717 lines, simpler layout without split panels)
+- Applied "Use Reservation" → "Go Check-in" rename (2 instances: prefill mode + find reservation detail)
+- Restructured CheckInLookup header: removed separate title bar, combined Back + Find/Direct toggle + Express into one inline row with negative margin to span full width
+- Prefill mode gets its own Back + separator + "Guest Check-In" title header
+- Re-applied header.tsx: removed SidebarTrigger import and usage, replaced property name with page breadcrumb (icon + module > sub-module)
+- Re-applied sidebar-nav.tsx: added ChevronLeft import, useSidebar() hook, hover toggle button with group/sidebar-header CSS pattern
+- Fixed JSX nesting issues (fragment closing) in CheckInLookup prefill mode
+
+Stage Summary:
+- All 5 features implemented on current codebase version
+- ESLint clean, dev server no errors
+- Browser verified: breadcrumb "Front Desk > Check-In" in header, no header toggle, Back+tabs+Express on one line, "Go Check-in" button text confirmed, sidebar hover toggle works (collapse/expand)
