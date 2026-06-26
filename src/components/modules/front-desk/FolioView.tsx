@@ -272,22 +272,13 @@ export function FolioView() {
   // Fetch all folios + stats (list view)
   const { data: foliosData, isLoading: foliosLoading } = useQuery({
     queryKey: ['folios'],
-    queryFn: async () => {
-      const res = await fetch('/api/folio')
-      if (!res.ok) throw new Error('Failed to fetch folios')
-      return res.json() as Promise<{ folios: Folio[]; stats: FolioStats | null; settings: Record<string, unknown> }>
-    },
+    queryFn: () => apiFetch<{ folios: Folio[]; stats: FolioStats | null; settings: Record<string, unknown> }>('/api/folio'),
   })
 
   // Search folios
   const { data: searchData, isLoading: searchLoading } = useQuery({
     queryKey: ['folio-search', debouncedSearch],
-    queryFn: async () => {
-      if (debouncedSearch.length < 2) return null
-      const res = await fetch(`/api/folio?search=${encodeURIComponent(debouncedSearch)}`)
-      if (!res.ok) throw new Error('Search failed')
-      return res.json() as Promise<{ folios: Folio[] }>
-    },
+    queryFn: () => apiFetch<{ folios: Folio[] }>(`/api/folio?search=${encodeURIComponent(debouncedSearch)}`),
     enabled: debouncedSearch.length >= 2,
   })
 
@@ -317,20 +308,16 @@ export function FolioView() {
       if (folio) {
         // If folio has transactions/payments, use it; otherwise fetch with reservationId
         if (folio.transactions.length > 0 || folio.payments.length > 0) return folio
-        const res = await fetch(`/api/folio?reservationId=${folio.reservation.id}`)
-        if (res.ok) {
-          const data = await res.json() as { folios: Folio[] }
+        try {
+          const data = await apiFetch<{ folios: Folio[] }>(`/api/folio?reservationId=${folio.reservation.id}`)
           return data.folios?.[0] || folio
-        }
-        return folio
+        } catch { return folio }
       }
       // Fallback: fetch all and find
-      const res = await fetch('/api/folio')
-      if (res.ok) {
-        const data = await res.json() as { folios: Folio[] }
+      try {
+        const data = await apiFetch<{ folios: Folio[] }>('/api/folio')
         return data.folios?.find((f) => f.id === selectedFolioId) || null
-      }
-      return null
+      } catch { return null }
     },
     enabled: !!selectedFolioId,
   })
@@ -443,7 +430,7 @@ export function FolioView() {
       const taxAmount = baseAmount * (settings.taxRate / 100)
       const totalAmount = (baseAmount + taxAmount) * qty
 
-      const res = await fetch(`/api/folio/${activeFolio.id}`, {
+      return apiFetch<{ folio: Folio }>(`/api/folio/${activeFolio.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -458,8 +445,6 @@ export function FolioView() {
           reference: chargeRef || undefined,
         }),
       })
-      if (!res.ok) throw new Error('Failed to post charge')
-      return res.json() as Promise<{ folio: Folio }>
     },
     onSuccess: (data) => {
       invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)
@@ -480,7 +465,7 @@ export function FolioView() {
   const recordPaymentMutation = useMutation({
     mutationFn: async () => {
       if (!activeFolio) throw new Error('No folio selected')
-      const res = await fetch(`/api/folio/${activeFolio.id}`, {
+      return apiFetch<{ folio: Folio }>(`/api/folio/${activeFolio.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -492,8 +477,6 @@ export function FolioView() {
           receivedBy: payReceivedBy,
         }),
       })
-      if (!res.ok) throw new Error('Failed to record payment')
-      return res.json() as Promise<{ folio: Folio }>
     },
     onSuccess: (data) => {
       invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)
@@ -513,7 +496,7 @@ export function FolioView() {
   const voidMutation = useMutation({
     mutationFn: async () => {
       if (!activeFolio || !voidTarget) throw new Error('Missing data')
-      const res = await fetch(`/api/folio/${activeFolio.id}`, {
+      return apiFetch<{ folio: Folio }>(`/api/folio/${activeFolio.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -523,8 +506,6 @@ export function FolioView() {
           reason: voidReason,
         }),
       })
-      if (!res.ok) throw new Error('Failed to void')
-      return res.json() as Promise<{ folio: Folio }>
     },
     onSuccess: () => {
       invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)

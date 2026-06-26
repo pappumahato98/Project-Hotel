@@ -535,7 +535,7 @@ export const useFrontDeskContextStore = create<FrontDeskContextState>((set) => (
   setShowNewReservation: (show) => set({ showNewReservation: show }),
   checkInSession: null,
   setCheckInSession: (session) => set({ checkInSession: session }),
-  clearCheckInSession: () => set({ checkInSession: null, prefillReservationId: null }),
+  clearCheckInSession: () => set({ checkInSession: null }),
 }))
 
 // ─── Guest Ledger Context State ──────────────────────

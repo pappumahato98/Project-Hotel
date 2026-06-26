@@ -72,7 +72,7 @@ const SUB_MODULES: Record<string, TabDef> = {
 const TAB_KEYS = Object.keys(SUB_MODULES)
 
 export function FrontDeskModule() {
-  const { activeSubModule, setActiveSubModule } = useNavigationStore()
+  const { activeModule, activeSubModule, setActiveSubModule } = useNavigationStore()
   const { prefillReservationId, setPrefillReservationId, showNewReservation, setShowNewReservation, clearCheckInSession } = useFrontDeskContextStore()
   const { disabledSubModules, toggleSubModule, resetSubModules } = useFrontDeskTabsStore()
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -108,18 +108,21 @@ export function FrontDeskModule() {
     scrollRef.current?.scrollTo({ top: 0 })
   }, [currentSubModule])
 
-  // Clear prefill when leaving check-in
+  // Clear prefill when navigating away from front-desk module entirely
+  // (not when switching between sub-modules, to avoid race condition with setPrefill + navigateTo)
   useEffect(() => {
-    if (currentSubModule !== 'check-in' && prefillReservationId) {
+    if (activeModule !== 'front-desk' && prefillReservationId) {
       setPrefillReservationId(null)
     }
-  }, [currentSubModule, prefillReservationId, setPrefillReservationId])
+  }, [activeModule, prefillReservationId, setPrefillReservationId])
 
-  // Clear check-in session when navigating away from check-in-process
+  // Clear check-in session when leaving check-in-process
+  const prevSubModule = useRef(currentSubModule)
   useEffect(() => {
-    if (currentSubModule !== 'check-in-process') {
+    if (prevSubModule.current === 'check-in-process' && currentSubModule !== 'check-in-process') {
       clearCheckInSession()
     }
+    prevSubModule.current = currentSubModule
   }, [currentSubModule, clearCheckInSession])
 
   const handleBackFromSubPage = useCallback(() => {

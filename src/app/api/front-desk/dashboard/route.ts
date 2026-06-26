@@ -48,18 +48,19 @@ export async function GET() {
     const occupancyPct = totalRooms > 0 ? Math.round((inHouse / totalRooms) * 100) : 0
 
     // ─── Overbooking detection ────────────────────────────────
-    // Find rooms with overlapping checked_in reservations (same room, multiple active reservations)
-    const occupiedRooms = await db.reservation.findMany({
+    // Find rooms with multiple checked_in reservations (SQLite doesn't support groupBy on findMany)
+    const checkedInRoomIds = await db.reservation.findMany({
       where: { status: 'checked_in', roomId: { not: null } },
       select: { roomId: true },
-      groupBy: ['roomId'],
+      distinct: ['roomId'],
     })
     const doubleBookedRoomIds: string[] = []
-    for (const occ of occupiedRooms) {
+    for (const occ of checkedInRoomIds) {
+      if (!occ.roomId) continue
       const count = await db.reservation.count({
         where: { status: 'checked_in', roomId: occ.roomId },
       })
-      if (count > 1 && occ.roomId) {
+      if (count > 1) {
         doubleBookedRoomIds.push(occ.roomId)
       }
     }

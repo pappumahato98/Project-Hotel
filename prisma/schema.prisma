@@ -750,6 +750,50 @@ model ActivityLog {
   @@index([createdAt])
 }
 
+// ─── WAITLIST ────────────────────────────────────────
+model WaitlistEntry {
+  id             String   @id @default(cuid())
+  guestName      String
+  contactPhone   String?
+  contactEmail   String?
+  roomPreference String?
+  roomTypeId     String?
+  checkInDate    String   // YYYY-MM-DD
+  checkOutDate   String   // YYYY-MM-DD
+  adults         Int      @default(2)
+  children       Int      @default(0)
+  priority       String   @default("Normal") // High, Normal, Low
+  status         String   @default("Waiting") // Waiting, Assigned, Cancelled
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([status])
+  @@index([priority])
+  @@index([checkInDate])
+}
+
+// ─── WAKE-UP CALLS ──────────────────────────────────
+model WakeUpCall {
+  id             String   @id @default(cuid())
+  reservationId  String?
+  roomId         String?
+  roomNumber     String
+  guestName      String
+  scheduledTime  String   // HH:mm format
+  status         String   @default("Pending") // Pending, Called, Snoozed, Missed, Completed
+  phoneExtension String?
+  notes          String?
+  snoozeCount    Int      @default(0)
+  calledAt       DateTime?
+  completedAt    DateTime?
+  date           String   // YYYY-MM-DD — which day this call is for
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([date])
+  @@index([status])
+  @@index([scheduledTime])
+}
+
 // ─── SYSTEM SETTINGS ────────────────────────────────────────
 model SystemSetting {
   id          String   @id @default(cuid())

@@ -453,25 +453,17 @@ export function CalendarView() {
   // ─── Fetch rooms ─────────────────────────────────────────────────────
   const { data: roomsRaw, isLoading: roomsLoading } = useQuery({
     queryKey: ['rooms'],
-    queryFn: async () => {
-      const res = await fetch('/api/rooms')
-      if (!res.ok) throw new Error('Failed to fetch rooms')
-      return res.json()
-    },
+    queryFn: () => apiFetch('/api/rooms'),
   })
 
   // ─── Fetch reservations overlapping the full date range ──────────────
   const { data: reservationsRaw, isLoading: resLoading } = useQuery({
     queryKey: ['reservations', startDateStr, endDateStr],
-    queryFn: async () => {
+    queryFn: () => {
       const params = new URLSearchParams()
-      // Use dateFrom/dateTo to fetch ALL reservations overlapping the visible range
-      // This ensures moved reservations remain visible after drag-drop
       params.set('dateFrom', startDateStr)
       params.set('dateTo', endDateStr)
-      const res = await fetch(`/api/reservations?${params.toString()}`)
-      if (!res.ok) throw new Error('Failed to fetch reservations')
-      return res.json()
+      return apiFetch(`/api/reservations?${params.toString()}`)
     },
     staleTime: 0,
   })
@@ -479,11 +471,7 @@ export function CalendarView() {
   // ─── Fetch guests for new reservation dialog ──────────────────────────
   const { data: guestsRaw } = useQuery({
     queryKey: ['guests'],
-    queryFn: async () => {
-      const res = await fetch('/api/guests')
-      if (!res.ok) throw new Error('Failed to fetch guests')
-      return res.json()
-    },
+    queryFn: () => apiFetch('/api/guests'),
   })
 
   // ─── Process data ────────────────────────────────────────────────────
@@ -598,15 +586,13 @@ export function CalendarView() {
   // ─── Mutations ───────────────────────────────────────────────────────
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await fetch(`/api/reservations/${id}`, {
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
-      })
-      if (!res.ok) throw new Error('Failed to update reservation')
-      return res.json()
-    },
+      }),
+    
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
@@ -627,7 +613,7 @@ export function CalendarView() {
     mutationFn: async (formData: NewReservationForm) => {
       let guestId = formData.guestId
       if (!guestId && formData.firstName && formData.lastName) {
-        const guestRes = await fetch('/api/guests', {
+        const gd = await apiFetch<{ guest?: { id: string }; id?: string }>('/api/guests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -637,12 +623,9 @@ export function CalendarView() {
             email: formData.email || undefined,
           }),
         })
-        if (guestRes.ok) {
-          const guestData = await guestRes.json()
-          guestId = guestData.guest?.id || guestData.id
-        }
+        guestId = gd.guest?.id || gd.id
       }
-      const res = await fetch('/api/reservations', {
+      return apiFetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -659,11 +642,6 @@ export function CalendarView() {
           notes: formData.notes || undefined,
         }),
       })
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Failed to create reservation')
-      }
-      return res.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
@@ -682,15 +660,13 @@ export function CalendarView() {
   })
 
   const addNoteMutation = useMutation({
-    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
-      const res = await fetch(`/api/reservations/${id}`, {
+    mutationFn: ({ id, notes }: { id: string; notes: string }) =>
+      apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes }),
-      })
-      if (!res.ok) throw new Error('Failed to add note')
-      return res.json()
-    },
+      }),
+    
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
       queryClient.invalidateQueries({ queryKey: ['calendar'] })
@@ -719,16 +695,11 @@ export function CalendarView() {
       if (data.toCheckIn) patchBody.checkIn = data.toCheckIn
       if (data.toCheckOut) patchBody.checkOut = data.toCheckOut
 
-      const res = await fetch(`/api/reservations/${data.reservationId}`, {
+      return apiFetch(`/api/reservations/${data.reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patchBody),
       })
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Failed to move reservation')
-      }
-      return res.json()
     },
     onMutate: async (data) => {
       // Cancel any outgoing refetches so they don't overwrite our optimistic update
@@ -819,13 +790,11 @@ export function CalendarView() {
       reason: string
       changedByName: string
     }) => {
-      const res = await fetch('/api/room-moves', {
+      return apiFetch('/api/room-moves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-      if (!res.ok) throw new Error('Failed to log room move')
-      return res.json()
     },
     onError: () => {
       // Non-critical — don't block the move

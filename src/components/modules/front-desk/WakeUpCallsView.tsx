@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
+import { qk } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import {
   Bell, BellRing, Clock, Plus, Search, CheckCircle2, AlertTriangle,
-  RefreshCw, AlarmClock, XCircle, Phone, BedDouble, User,
+  RefreshCw, AlarmClock, XCircle, Phone, BedDouble, User, Loader2,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -13,6 +16,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
@@ -28,136 +32,30 @@ type CallStatus = 'Pending' | 'Called' | 'Snoozed' | 'Missed' | 'Completed'
 
 interface WakeUpCall {
   id: string
+  reservationId: string | null
+  roomId: string | null
   roomNumber: string
   guestName: string
-  scheduledTime: string // HH:mm format
+  scheduledTime: string // HH:mm
   status: CallStatus
-  phoneExtension: string
-  notes: string
+  phoneExtension: string | null
+  notes: string | null
   snoozeCount: number
+  calledAt: string | null
+  completedAt: string | null
+  date: string
+  createdAt: string
 }
 
-// ─── Static Mock Data ───────────────────────────────────────────────────
-
-const INITIAL_CALLS: WakeUpCall[] = [
-  {
-    id: 'wuc-1',
-    roomNumber: '201',
-    guestName: 'Rajesh Sharma',
-    scheduledTime: '05:00',
-    status: 'Completed',
-    phoneExtension: '201',
-    notes: 'Early airport departure flight to Delhi at 8:00 AM',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-2',
-    roomNumber: '305',
-    guestName: 'Sarah Mitchell',
-    scheduledTime: '06:00',
-    status: 'Completed',
-    phoneExtension: '305',
-    notes: 'Honeymoon couple — sunrise tour at Nagarkot',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-3',
-    roomNumber: '102',
-    guestName: 'Bikash Thapa',
-    scheduledTime: '06:30',
-    status: 'Called',
-    phoneExtension: '102',
-    notes: 'Business meeting at 9 AM',
-    snoozeCount: 1,
-  },
-  {
-    id: 'wuc-4',
-    roomNumber: '401',
-    guestName: 'Emily Johnson',
-    scheduledTime: '07:00',
-    status: 'Pending',
-    phoneExtension: '401',
-    notes: 'Conference registration at 9 AM',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-5',
-    roomNumber: '210',
-    guestName: 'Aarav Poudel',
-    scheduledTime: '07:00',
-    status: 'Pending',
-    phoneExtension: '210',
-    notes: 'Trekking departure at 8 AM',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-6',
-    roomNumber: '308',
-    guestName: 'David Chen',
-    scheduledTime: '07:30',
-    status: 'Pending',
-    phoneExtension: '308',
-    notes: 'Photography tour at 8:30 AM',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-7',
-    roomNumber: '115',
-    guestName: 'Priya Koirala',
-    scheduledTime: '06:00',
-    status: 'Missed',
-    phoneExtension: '115',
-    notes: 'No answer after 3 attempts — sent SMS',
-    snoozeCount: 2,
-  },
-  {
-    id: 'wuc-8',
-    roomNumber: '203',
-    guestName: 'Suman Lama',
-    scheduledTime: '08:00',
-    status: 'Pending',
-    phoneExtension: '203',
-    notes: 'Anniversary breakfast at 9 AM',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-9',
-    roomNumber: '410',
-    guestName: 'Anita Gurung',
-    scheduledTime: '05:30',
-    status: 'Completed',
-    phoneExtension: '410',
-    notes: 'Mountain flight at 6:30 AM',
-    snoozeCount: 0,
-  },
-  {
-    id: 'wuc-10',
-    roomNumber: '106',
-    guestName: 'Deepak Maharjan',
-    scheduledTime: '07:30',
-    status: 'Snoozed',
-    phoneExtension: '106',
-    notes: 'Requested snooze — moved to 07:45',
-    snoozeCount: 1,
-  },
-]
-
-const ROOM_OPTIONS = [
-  { number: '102', guestName: 'Bikash Thapa' },
-  { number: '106', guestName: 'Deepak Maharjan' },
-  { number: '115', guestName: 'Priya Koirala' },
-  { number: '201', guestName: 'Rajesh Sharma' },
-  { number: '203', guestName: 'Suman Lama' },
-  { number: '210', guestName: 'Aarav Poudel' },
-  { number: '305', guestName: 'Sarah Mitchell' },
-  { number: '308', guestName: 'David Chen' },
-  { number: '401', guestName: 'Emily Johnson' },
-  { number: '410', guestName: 'Anita Gurung' },
-]
+interface InHouseRoom {
+  id: string
+  number: string
+  guestName: string
+}
 
 // ─── Status Helpers ────────────────────────────────────────────────────
 
-function getStatusStyles(status: CallStatus): { bg: string; border: string; text: string } {
+function getStatusStyles(status: CallStatus) {
   const map: Record<CallStatus, { bg: string; border: string; text: string }> = {
     Pending: { bg: 'bg-sky-100 dark:bg-sky-950', border: 'border-sky-300 dark:border-sky-700', text: 'text-sky-700 dark:text-sky-300' },
     Called: { bg: 'bg-emerald-100 dark:bg-emerald-950', border: 'border-emerald-300 dark:border-emerald-700', text: 'text-emerald-700 dark:text-emerald-300' },
@@ -192,8 +90,6 @@ function CardBorderByStatus(status: CallStatus): string {
   }
 }
 
-// ─── Time Comparison Helper ─────────────────────────────────────────────
-
 function parseTime(timeStr: string): number {
   const [h, m] = timeStr.split(':').map(Number)
   return h * 60 + m
@@ -211,17 +107,52 @@ function isUpcoming(timeStr: string, nowMinutes: number, windowMinutes: number =
   return callMinutes > nowMinutes && callMinutes <= nowMinutes + windowMinutes
 }
 
+function getTodayStr(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
 // ─── Main Component ────────────────────────────────────────────────────
 
 export function WakeUpCallsView() {
-  const [calls, setCalls] = useState<WakeUpCall[]>(INITIAL_CALLS)
+  const queryClient = useQueryClient()
+
+  // ─── Queries ────────────────────────────────────────────────
+  const todayStr = getTodayStr()
+
+  const { data: callsData, isLoading, error, refetch } = useQuery<{ calls: WakeUpCall[] }>({
+    queryKey: qk.wakeUpCalls(todayStr),
+    queryFn: () => apiFetch(`/api/wake-up-calls?date=${todayStr}`),
+  })
+
+  // Fetch in-house rooms for the "add" dialog
+  const { data: inHouseData } = useQuery<{ reservations: Array<{ id: string; room: { id: string; number: string }; guest: { firstName: string; lastName: string } }> }>({
+    queryKey: qk.inHouse(),
+    queryFn: () => apiFetch(`/api/reservations?status=checked_in&checkOutDate=${todayStr}`),
+  })
+
+  const calls = callsData?.calls ?? []
+
+  // Build room options from in-house guests
+  const roomOptions: InHouseRoom[] = useMemo(() => {
+    if (!inHouseData?.reservations) return []
+    return inHouseData.reservations
+      .filter(r => r.room?.number && r.guest)
+      .map(r => ({
+        id: r.room.id,
+        number: r.room.number,
+        guestName: `${r.guest.firstName || ''} ${r.guest.lastName || ''}`.trim(),
+      }))
+      .sort((a, b) => a.number.localeCompare(b.number))
+  }, [inHouseData])
+
+  // ─── Local state ────────────────────────────────────────────
   const [filterTab, setFilterTab] = useState<string>('all')
   const [currentTime, setCurrentTime] = useState(new Date())
   const [searchQuery, setSearchQuery] = useState('')
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false)
-  const [formRoom, setFormRoom] = useState('')
+  const [formRoomId, setFormRoomId] = useState('')
   const [formTime, setFormTime] = useState('')
   const [formNotes, setFormNotes] = useState('')
 
@@ -235,8 +166,112 @@ export function WakeUpCallsView() {
     `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`,
   )
 
-  // ─── Computed values ──────────────────────────────────────────
+  // ─── Mutations ──────────────────────────────────────────────
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) =>
+      apiFetch(`/api/wake-up-calls/${id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.wakeUpCalls(todayStr) })
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
 
+  const createMutation = useMutation({
+    mutationFn: (data: Record<string, unknown>) => apiFetch('/api/wake-up-calls', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk.wakeUpCalls(todayStr) })
+      toast.success('Wake-up call scheduled')
+      setAddDialogOpen(false)
+      setFormRoomId(''); setFormTime(''); setFormNotes('')
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
+
+  // ─── Handlers ────────────────────────────────────────────────
+  function handleMarkCalled(call: WakeUpCall) {
+    updateMutation.mutate({
+      id: call.id,
+      data: { status: 'Called' },
+    })
+    toast.success(`Called Room ${call.roomNumber} — ${call.guestName}`, {
+      description: `Wake-up call at ${formatTimeDisplay(call.scheduledTime)}`,
+    })
+  }
+
+  function handleMarkCompleted(call: WakeUpCall) {
+    updateMutation.mutate({
+      id: call.id,
+      data: { status: 'Completed' },
+    })
+    toast.success(`Wake-up call completed for ${call.guestName}`, {
+      description: `Room ${call.roomNumber}`,
+    })
+  }
+
+  function handleSnooze(call: WakeUpCall) {
+    const [h, m] = call.scheduledTime.split(':').map(Number)
+    const newMinutes = h * 60 + m + 15
+    const newH = Math.floor(newMinutes / 60) % 24
+    const newM = newMinutes % 60
+    const newTime = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`
+
+    updateMutation.mutate({
+      id: call.id,
+      data: {
+        scheduledTime: newTime,
+        status: 'Snoozed',
+        snoozeCount: call.snoozeCount + 1,
+      },
+    })
+    toast.info(`Snoozed wake-up call for ${call.guestName}`, {
+      description: `Moved to ${formatTimeDisplay(newTime)} (+15 min)`,
+    })
+  }
+
+  function handleMarkMissed(call: WakeUpCall) {
+    updateMutation.mutate({
+      id: call.id,
+      data: { status: 'Missed' },
+    })
+    toast.error(`Missed wake-up call for ${call.guestName}`, {
+      description: `Room ${call.roomNumber} — ${formatTimeDisplay(call.scheduledTime)}`,
+    })
+  }
+
+  function handleRetry(call: WakeUpCall) {
+    updateMutation.mutate({
+      id: call.id,
+      data: { status: 'Pending' },
+    })
+    toast.info(`Retry scheduled for ${call.guestName}`, {
+      description: `Room ${call.roomNumber}`,
+    })
+  }
+
+  function handleAddCall() {
+    if (!formRoomId || !formTime) {
+      toast.error('Please select a room and time')
+      return
+    }
+    const roomInfo = roomOptions.find(r => r.id === formRoomId)
+    if (!roomInfo) return
+
+    createMutation.mutate({
+      roomId: roomInfo.id,
+      roomNumber: roomInfo.number,
+      guestName: roomInfo.guestName,
+      scheduledTime: formTime,
+      phoneExtension: roomInfo.number,
+      notes: formNotes || undefined,
+      date: todayStr,
+    })
+  }
+
+  // ─── Computed values ────────────────────────────────────────
   const filteredCalls = useMemo(() => {
     let filtered = calls
     if (filterTab === 'pending') {
@@ -252,10 +287,9 @@ export function WakeUpCallsView() {
         (c) =>
           c.guestName.toLowerCase().includes(q) ||
           c.roomNumber.includes(q) ||
-          c.notes.toLowerCase().includes(q),
+          (c.notes || '').toLowerCase().includes(q),
       )
     }
-    // Sort: upcoming pending first, then by time
     return [...filtered].sort((a, b) => {
       const statusOrder: Record<CallStatus, number> = {
         Pending: 0, Snoozed: 1, Called: 2, Missed: 3, Completed: 4,
@@ -271,78 +305,30 @@ export function WakeUpCallsView() {
   const pendingCount = calls.filter((c) => c.status === 'Pending' || c.status === 'Snoozed' || c.status === 'Called').length
   const missedCount = calls.filter((c) => c.status === 'Missed').length
 
-  // ─── Handlers ────────────────────────────────────────────────
-
-  function handleMarkCalled(call: WakeUpCall) {
-    setCalls((prev) =>
-      prev.map((c) => (c.id === call.id ? { ...c, status: 'Called' as CallStatus } : c)),
+  // ─── Loading / Error states ─────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-6 w-48" />
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 rounded-lg" />)}
+        </div>
+      </div>
     )
-    toast.success(`Called Room ${call.roomNumber} — ${call.guestName}`, {
-      description: `Wake-up call at ${formatTimeDisplay(call.scheduledTime)}`,
-    })
   }
 
-  function handleMarkCompleted(call: WakeUpCall) {
-    setCalls((prev) =>
-      prev.map((c) => (c.id === call.id ? { ...c, status: 'Completed' as CallStatus } : c)),
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <AlertTriangle className="size-8 mb-2" />
+          <p className="text-sm font-medium">Failed to load wake-up calls</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+            <RefreshCw className="size-3.5 mr-1.5" />Retry
+          </Button>
+        </CardContent>
+      </Card>
     )
-    toast.success(`Wake-up call completed for ${call.guestName}`, {
-      description: `Room ${call.roomNumber}`,
-    })
-  }
-
-  function handleAlarmClock(call: WakeUpCall) {
-    const [h, m] = call.scheduledTime.split(':').map(Number)
-    const newMinutes = h * 60 + m + 15
-    const newH = Math.floor(newMinutes / 60) % 24
-    const newM = newMinutes % 60
-    const newTime = `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`
-
-    setCalls((prev) =>
-      prev.map((c) =>
-        c.id === call.id
-          ? { ...c, scheduledTime: newTime, status: 'Snoozed' as CallStatus, snoozeCount: c.snoozeCount + 1 }
-          : c,
-      ),
-    )
-    toast.info(`Snoozed wake-up call for ${call.guestName}`, {
-      description: `Moved to ${formatTimeDisplay(newTime)} (+15 min)`,
-    })
-  }
-
-  function handleMarkMissed(call: WakeUpCall) {
-    setCalls((prev) =>
-      prev.map((c) => (c.id === call.id ? { ...c, status: 'Missed' as CallStatus } : c)),
-    )
-    toast.error(`Missed wake-up call for ${call.guestName}`, {
-      description: `Room ${call.roomNumber} — ${formatTimeDisplay(call.scheduledTime)}`,
-    })
-  }
-
-  function handleAddCall() {
-    if (!formRoom || !formTime) {
-      toast.error('Please select a room and time')
-      return
-    }
-    const roomInfo = ROOM_OPTIONS.find((r) => r.number === formRoom)
-    const newCall: WakeUpCall = {
-      id: `wuc-${Date.now()}`,
-      roomNumber: formRoom,
-      guestName: roomInfo?.guestName || 'Guest',
-      scheduledTime: formTime,
-      status: 'Pending',
-      phoneExtension: formRoom,
-      notes: formNotes || '',
-      snoozeCount: 0,
-    }
-    setCalls((prev) => [...prev, newCall])
-    setAddDialogOpen(false)
-    setFormRoom('')
-    setFormTime('')
-    setFormNotes('')
-    toast.success(`Wake-up call added for ${newCall.guestName}`, {
-      description: `Room ${newCall.roomNumber} at ${formatTimeDisplay(newCall.scheduledTime)}`,
-    })
   }
 
   // ─── Render ──────────────────────────────────────────────────
@@ -361,7 +347,7 @@ export function WakeUpCallsView() {
             </span>
           </p>
         </div>
-        <Button onClick={() => { setFormRoom(''); setFormTime(''); setFormNotes(''); setAddDialogOpen(true) }} className="gap-2 shrink-0">
+        <Button onClick={() => { setFormRoomId(''); setFormTime(''); setFormNotes(''); setAddDialogOpen(true) }} className="gap-2 shrink-0">
           <Plus className="size-3.5" />
           New Wake-up Call
         </Button>
@@ -460,7 +446,7 @@ export function WakeUpCallsView() {
                   <div className="space-y-1 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <Phone className="size-3" />
-                      <span className="font-mono">Ext. {call.phoneExtension}</span>
+                      <span className="font-mono">Ext. {call.phoneExtension || call.roomNumber}</span>
                     </div>
                     {call.notes && (
                       <p className="italic truncate">{call.notes}</p>
@@ -476,32 +462,35 @@ export function WakeUpCallsView() {
                   {/* Action Buttons */}
                   {(call.status === 'Pending' || call.status === 'Snoozed' || call.status === 'Called') && (
                     <div className="flex items-center gap-1.5 pt-1 border-t">
-                      {call.status === 'Pending' || call.status === 'Snoozed' ? (
+                      {(call.status === 'Pending' || call.status === 'Snoozed') && (
                         <Button
                           size="sm"
                           className="flex-1 text-xs h-7 gap-1"
                           onClick={() => handleMarkCalled(call)}
+                          disabled={updateMutation.isPending}
                         >
                           <Phone className="size-3" />
                           Call
                         </Button>
-                      ) : null}
+                      )}
                       {(call.status === 'Pending' || call.status === 'Snoozed') && (
                         <>
                           <Button
                             size="sm"
                             variant="outline"
                             className="flex-1 text-xs h-7 gap-1"
-                            onClick={() => handleAlarmClock(call)}
+                            onClick={() => handleSnooze(call)}
+                            disabled={updateMutation.isPending}
                           >
                             <AlarmClock className="size-3" />
-                            AlarmClock
+                            Snooze
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             className="text-xs h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
                             onClick={() => handleMarkMissed(call)}
+                            disabled={updateMutation.isPending}
                           >
                             <XCircle className="size-3" />
                           </Button>
@@ -513,6 +502,7 @@ export function WakeUpCallsView() {
                           variant="outline"
                           className="flex-1 text-xs h-7 gap-1"
                           onClick={() => handleMarkCompleted(call)}
+                          disabled={updateMutation.isPending}
                         >
                           <CheckCircle2 className="size-3" />
                           Complete
@@ -528,14 +518,8 @@ export function WakeUpCallsView() {
                         size="sm"
                         variant="outline"
                         className="flex-1 text-xs h-7 gap-1"
-                        onClick={() => {
-                          setCalls((prev) =>
-                            prev.map((c) => (c.id === call.id ? { ...c, status: 'Pending' as CallStatus } : c)),
-                          )
-                          toast.info(`Retry scheduled for ${call.guestName}`, {
-                            description: `Room ${call.roomNumber}`,
-                          })
-                        }}
+                        onClick={() => handleRetry(call)}
+                        disabled={updateMutation.isPending}
                       >
                         <RefreshCw className="size-3" />
                         Retry
@@ -564,13 +548,13 @@ export function WakeUpCallsView() {
           <div className="space-y-4">
             <div className="grid gap-1.5">
               <Label className="text-xs">Room *</Label>
-              <Select value={formRoom} onValueChange={setFormRoom}>
+              <Select value={formRoomId} onValueChange={setFormRoomId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select room" />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROOM_OPTIONS.map((room) => (
-                    <SelectItem key={room.number} value={room.number}>
+                  {roomOptions.map((room) => (
+                    <SelectItem key={room.id} value={room.id}>
                       <span className="flex items-center justify-between gap-4 w-full">
                         <span className="flex items-center gap-2">
                           <BedDouble className="size-3.5" />
@@ -603,7 +587,8 @@ export function WakeUpCallsView() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddCall} disabled={!formRoom || !formTime}>
+            <Button onClick={handleAddCall} disabled={!formRoomId || !formTime || createMutation.isPending}>
+              {createMutation.isPending && <Loader2 className="size-4 mr-1.5 animate-spin" />}
               <BellRing className="size-4 mr-1.5" />
               Schedule Call
             </Button>

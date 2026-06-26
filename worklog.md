@@ -1356,3 +1356,26 @@ Stage Summary:
 - The missing "logic function" was that the sidebar's CollapsibleTrigger (expanded mode) never called navigateTo(), so the navigation store stayed stale
 - Three files modified: navigation.ts (helpers), sidebar-nav.tsx (navigation fix), header.tsx (PageBreadcrumb component)
 - All breadcrumb navigation now works correctly across the entire app
+
+---
+Task ID: 2
+Agent: general-purpose
+Task: Fix dashboard clickable rows — make upcoming arrivals table rows navigate to check-in
+
+Work Log:
+- Read FrontDeskDashboard.tsx to understand current code structure
+- Verified `useNavigationStore` was already imported and `navigateTo` already destructured
+- Confirmed `useFrontDeskContextStore` was NOT imported — added it to the existing import from `@/lib/store`
+- Confirmed `setPrefillReservationId` exists on `useFrontDeskContextStore` (accepts `string | null`)
+- Added `handleArrivalClick` function inside the component that:
+  - Calls `useFrontDeskContextStore.getState().setPrefillReservationId(arrival.id)`
+  - Calls `navigateTo('front-desk', 'check-in')`
+- Made the `<TableRow>` for each upcoming arrival clickable by adding `onClick` and `className="cursor-pointer hover:bg-muted/50 transition-colors"`
+- Ran `bun run lint` — passed with zero errors
+
+Stage Summary:
+- 3 surgical edits to FrontDeskDashboard.tsx:
+  1. Import line: added `useFrontDeskContextStore` to existing store import
+  2. Handler: added `handleArrivalClick` function right after `useNavigationStore` destructure
+  3. Table row: added `onClick` and hover/cursor classes to `<TableRow>`
+- Lint passes cleanly

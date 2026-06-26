@@ -1,0 +1,1289 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { useQuery } from '@tanstack/react-query'
+     6→import { apiFetch } from '@/lib/api'
+     7→import { invalidate } from '@/lib/queryKeys'
+     8→import {
+     9→  LogIn, BedDouble, Bell, Clock, Star, AlertTriangle, Users, CheckCircle2,
+    10→  UserCheck, Crown, Footprints, KeyRound, Mail, Sparkles, BookOpen, Wand2,
+    11→  ArrowLeft, Shield, Phone,
+    12→} from 'lucide-react'
+    13→import { format } from 'date-fns'
+    14→import { toast } from 'sonner'
+    15→
+    16→import { Button } from '@/components/ui/button'
+    17→import { Badge } from '@/components/ui/badge'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import { Separator } from '@/components/ui/separator'
+    20→import { Input } from '@/components/ui/input'
+    21→import { Label } from '@/components/ui/label'
+    22→import { Checkbox } from '@/components/ui/checkbox'
+    23→import { Textarea } from '@/components/ui/textarea'
+    24→import {
+    25→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    26→} from '@/components/ui/dialog'
+    27→import {
+    28→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    29→} from '@/components/ui/select'
+    30→import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+    31→import { Calendar } from '@/components/ui/calendar'
+    32→import { StatusBadge } from '@/components/shared/status-badge'
+    33→import { formatDate, formatTime, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
+    34→import { cn } from '@/lib/utils'
+    35→import { useSettingsStore, useNavigationStore, useFrontDeskContextStore, useGuestLedgerContextStore } from '@/lib/store'
+    36→
+    37→// ─── Constants ──────────────────────────────────────────────────────────
+    38→
+    39→const ROOM_TYPES = [
+    40→  { id: 'rt-1', name: 'Deluxe Room', code: 'DLX', baseRate: 8000 },
+    41→  { id: 'rt-2', name: 'Standard Room', code: 'STD', baseRate: 5000 },
+    42→  { id: 'rt-3', name: 'Suite', code: 'STE', baseRate: 15000 },
+    43→  { id: 'rt-4', name: 'Superior Room', code: 'SPR', baseRate: 6500 },
+    44→  { id: 'rt-5', name: 'Premium Suite', code: 'PRS', baseRate: 25000 },
+    45→  { id: 'rt-6', name: 'Twin Room', code: 'TWN', baseRate: 5500 },
+    46→]
+    47→
+    48→const NATIONALITIES = [
+    49→  'Nepal', 'India', 'China', 'USA', 'UK', 'Japan', 'South Korea',
+    50→  'Germany', 'France', 'Australia', 'Canada', 'Singapore', 'Malaysia',
+    51→  'Thailand', 'Sri Lanka', 'Bangladesh', 'Pakistan', 'UAE', 'Saudi Arabia',
+    52→  'Other',
+    53→]
+    54→
+    55→const ID_TYPES = [
+    56→  { value: 'passport', label: 'Passport' },
+    57→  { value: 'national_id', label: 'National ID' },
+    58→  { value: 'drivers_license', label: "Driver's License" },
+    59→]
+    60→
+    61→const CHECKOUT_TIME_OPTIONS = [
+    62→  { value: '12:00', label: 'Default (12:00 PM)' },
+    63→  { value: '14:00', label: 'Late (2:00 PM)' },
+    64→  { value: '16:00', label: 'Late (4:00 PM)' },
+    65→]
+    66→
+    67→const ROOM_PREFERENCES = [
+    68→  { value: 'high_floor', label: 'High Floor' },
+    69→  { value: 'low_floor', label: 'Low Floor' },
+    70→  { value: 'quiet', label: 'Quiet Room' },
+    71→  { value: 'away_elevator', label: 'Away from Elevator' },
+    72→  { value: 'city_view', label: 'City View' },
+    73→  { value: 'garden_view', label: 'Garden View' },
+    74→]
+    75→
+    76→const PILLOW_TYPES = [
+    77→  { value: 'soft', label: 'Soft' },
+    78→  { value: 'firm', label: 'Firm' },
+    79→  { value: 'hypoallergenic', label: 'Hypoallergenic' },
+    80→]
+    81→
+    82→// ─── Types ──────────────────────────────────────────────────────────────
+    83→
+    84→interface ArrivalGuest {
+    85→  id: string
+    86→  firstName: string
+    87→  lastName: string
+    88→  email: string | null
+    89→  phone: string | null
+    90→  vipLevel: string
+    91→}
+    92→
+    93→interface ArrivalRoom {
+    94→  id: string
+    95→  number: string
+    96→  floor: number
+    97→  wing: string | null
+    98→  type: { name: string; code: string }
+    99→}
+   100→
+   101→interface Arrival {
+   102→  id: string
+   103→  confirmationNo: string
+   104→  status: string
+   105→  adults: number
+   106→  children: number
+   107→  checkIn: string
+   108→  checkOut: string
+   109→  roomRate: number
+   110→  totalAmount: number
+   111→  specialRequests: string | null
+   112→  source: string | null
+   113→  guaranteed: boolean
+   114→  guest: ArrivalGuest | null
+   115→  room: ArrivalRoom | null
+   116→}
+   117→
+   118→interface AvailableRoom {
+   119→  id: string
+   120→  number: string
+   121→  floor: number
+   122→  wing: string | null
+   123→  status: string
+   124→  type: { name: string; code: string }
+   125→}
+   126→
+   127→interface WalkInForm {
+   128→  firstName: string
+   129→  lastName: string
+   130→  phone: string
+   131→  email: string
+   132→  nationality: string
+   133→  idType: string
+   134→  idNumber: string
+   135→  roomTypeId: string
+   136→  roomRate: number
+   137→  checkOutDate: Date | undefined
+   138→  adults: number
+   139→  children: number
+   140→}
+   141→
+   142→const initialWalkInForm: WalkInForm = {
+   143→  firstName: '',
+   144→  lastName: '',
+   145→  phone: '',
+   146→  email: '',
+   147→  nationality: '',
+   148→  idType: 'passport',
+   149→  idNumber: '',
+   150→  roomTypeId: '',
+   151→  roomRate: 0,
+   152→  checkOutDate: undefined,
+   153→  adults: 1,
+   154→  children: 0,
+   155→}
+   156→
+   157→// ─── Component ──────────────────────────────────────────────────────────
+   158→
+   159→export function ArrivalsView() {
+   160→  const queryClient = useQueryClient()
+   161→  const { settings } = useSettingsStore()
+   162→  const { navigateTo } = useNavigationStore()
+   163→  const today = getTodayString()
+   164→
+   165→  // Dialog states
+   166→  const [roomPickerOpen, setRoomPickerOpen] = useState(false)
+   167→  const [checkInDialogOpen, setCheckInDialogOpen] = useState(false)
+   168→  const [walkInDialogOpen, setWalkInDialogOpen] = useState(false)
+   169→  const [keyCardDialogOpen, setKeyCardDialogOpen] = useState(false)
+   170→
+   171→  // Selection states
+   172→  const [selectedArrival, setSelectedArrival] = useState<Arrival | null>(null)
+   173→  const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+   174→
+   175→  // Check-in form states
+   176→  const [earlyCheckIn, setEarlyCheckIn] = useState(false)
+   177→  const [checkOutTime, setCheckOutTime] = useState(settings.defaultCheckOut)
+   178→  const [roomPreference, setRoomPreference] = useState('')
+   179→  const [pillowType, setPillowType] = useState('')
+   180→  const [wakeupCall, setWakeupCall] = useState('')
+   181→
+   182→  // Key card states
+   183→  const [keyCardRoomNumber, setKeyCardRoomNumber] = useState('')
+   184→  const [keyCardIssued, setKeyCardIssued] = useState(false)
+   185→  const [keyCardProcessed, setKeyCardProcessed] = useState(false)
+   186→
+   187→  // Mobile detail view state
+   188→  const [mobileShowDetail, setMobileShowDetail] = useState(false)
+   189→
+   190→  // Walk-in form state
+   191→  const [walkInForm, setWalkInForm] = useState<WalkInForm>(initialWalkInForm)
+   192→  const [walkInCheckOutOpen, setWalkInCheckOutOpen] = useState(false)
+   193→
+   194→  // ─── Queries ────────────────────────────────────────────────────────
+   195→
+   196→  const { data, isLoading } = useQuery({
+   197→    queryKey: ['arrivals', today],
+   198→    queryFn: async () => {
+   199→      const params = new URLSearchParams({ status: 'confirmed', checkInDate: today })
+   200→      return apiFetch(`/api/reservations?${params.toString()}`)
+   201→    },
+   202→    refetchInterval: 30000,
+   203→  })
+   204→
+   205→  const { data: roomsData } = useQuery({
+   206→    queryKey: ['rooms', 'vacant'],
+   207→    queryFn: () => apiFetch('/api/rooms'),
+   208→  })
+   209→
+   210→  const arrivals: Arrival[] = data?.reservations || []
+   211→  const allRooms: AvailableRoom[] = roomsData?.rooms || []
+   212→  const availableRooms = allRooms.filter(
+   213→    (r) => r.number && r.type && (r.status === 'vacant_clean' || r.status === 'inspected')
+   214→  )
+   215→
+   216→  // ─── VIP Priority Sorting ───────────────────────────────────────────
+   217→
+   218→  const sortedArrivals = useMemo(() => {
+   219→    return [...arrivals].sort((a, b) => {
+   220→      const aVip = a.guest?.vipLevel && a.guest.vipLevel !== 'none'
+   221→      const bVip = b.guest?.vipLevel && b.guest.vipLevel !== 'none'
+   222→      if (aVip && !bVip) return -1
+   223→      if (!aVip && bVip) return 1
+   224→      return 0
+   225→    })
+   226→  }, [arrivals])
+   227→
+   228→  // ─── Stats ──────────────────────────────────────────────────────────
+   229→
+   230→  const totalArrivals = arrivals.length
+   231→  const vipArrivals = arrivals.filter((a) => a.guest?.vipLevel && a.guest.vipLevel !== 'none').length
+   232→  const unassignedArrivals = arrivals.filter((a) => !a.room).length
+   233→  const pendingArrivals = arrivals.filter((a) => a.status === 'confirmed').length
+   234→
+   235→  // ─── Mutations ──────────────────────────────────────────────────────
+   236→
+   237→  const assignRoomMutation = useMutation({
+   238→    mutationFn: async ({ reservationId, roomId, specialRequests }: { reservationId: string; roomId: string; specialRequests?: string }) => {
+   239→      const payload: Record<string, unknown> = { roomId, status: 'checked_in' }
+   240→      if (specialRequests !== undefined) {
+   241→        payload.specialRequests = specialRequests
+   242→      }
+   243→      return apiFetch(`/api/reservations/${reservationId}`, {
+   244→        method: 'PATCH',
+   245→        headers: { 'Content-Type': 'application/json' },
+   246→        body: JSON.stringify(payload),
+   247→      })
+   248→    },
+   249→    onSuccess: (_data, variables) => {
+   250→      invalidate.afterReservationChange(queryClient)
+   251→      setRoomPickerOpen(false)
+   252→      setCheckInDialogOpen(false)
+   253→
+   254→      // Find the room number for key card dialog
+   255→      const room = availableRooms.find((r) => r.id === variables.roomId)
+   256→      const roomNumber = room?.number || selectedArrival?.room?.number || ''
+   257→      openKeyCardDialog(roomNumber)
+   258→    },
+   259→  })
+   260→
+   261→  const checkInMutation = useMutation({
+   262→    mutationFn: async ({ reservationId, specialRequests }: { reservationId: string; specialRequests?: string }) => {
+   263→      const payload: Record<string, unknown> = { status: 'checked_in' }
+   264→      if (specialRequests !== undefined) {
+   265→        payload.specialRequests = specialRequests
+   266→      }
+   267→      return apiFetch(`/api/reservations/${reservationId}`, {
+   268→        method: 'PATCH',
+   269→        headers: { 'Content-Type': 'application/json' },
+   270→        body: JSON.stringify(payload),
+   271→      })
+   272→    },
+   273→    onSuccess: (_data, variables) => {
+   274→      invalidate.afterCheckIn(queryClient)
+   275→      setCheckInDialogOpen(false)
+   276→
+   277→      const roomNumber = selectedArrival?.room?.number || ''
+   278→      openKeyCardDialog(roomNumber)
+   279→    },
+   280→  })
+   281→
+   282→  const walkInMutation = useMutation({
+   283→    mutationFn: async (form: WalkInForm) => {
+   284→      // 1. Create guest
+   285→      const guestData = await apiFetch('/api/guests', {
+   286→        method: 'POST',
+   287→        headers: { 'Content-Type': 'application/json' },
+   288→        body: JSON.stringify({
+   289→          firstName: form.firstName,
+   290→          lastName: form.lastName,
+   291→          phone: form.phone || null,
+   292→          email: form.email || null,
+   293→          nationality: form.nationality || null,
+   294→          idType: form.idType || null,
+   295→          idNumber: form.idNumber || null,
+   296→        }),
+   297→      })
+   298→      const guestId = guestData.guest.id
+   299→
+   300→      // 2. Find a vacant room
+   301→      const vacantRoom = availableRooms[0]
+   302→      if (!vacantRoom) throw new Error('No available rooms')
+   303→
+   304→      // 3. Create reservation as checked_in (walk-in)
+   305→      const checkOutDate = form.checkOutDate || (() => {
+   306→        const d = new Date()
+   307→        d.setDate(d.getDate() + 1)
+   308→        return d
+   309→      })()
+   310→
+   311→      const resData = await apiFetch('/api/reservations', {
+   312→        method: 'POST',
+   313→        headers: { 'Content-Type': 'application/json' },
+   314→        body: JSON.stringify({
+   315→          guestId,
+   316→          roomId: vacantRoom.id,
+   317→          adults: form.adults,
+   318→          children: form.children,
+   319→          checkIn: new Date().toISOString(),
+   320→          checkOut: checkOutDate.toISOString(),
+   321→          roomRate: form.roomRate,
+   322→          source: 'walk_in',
+   323→          reservationType: 'walk_in',
+   324→          guaranteed: false,
+   325→        }),
+   326→      })
+   327→      return { roomNumber: vacantRoom.number, reservation: resData.reservation }
+   328→    },
+   329→    onSuccess: (result) => {
+   330→      invalidate.afterCheckIn(queryClient)
+   331→      setWalkInDialogOpen(false)
+   332→      setWalkInForm(initialWalkInForm)
+   333→
+   334→      // Open key card dialog
+   335→      openKeyCardDialog(result.roomNumber)
+   336→    },
+   337→    onError: (error) => {
+   338→      toast.error('Walk-in check-in failed', {
+   339→        description: error instanceof Error ? error.message : 'Unknown error',
+   340→      })
+   341→    },
+   342→  })
+   343→
+   344→  // ─── Handlers ──────────────────────────────────────────────────────
+   345→
+   346→  const handleAssignRoom = (arrival: Arrival) => {
+   347→    setSelectedArrival(arrival)
+   348→    setRoomPickerOpen(true)
+   349→  }
+   350→
+   351→  const handleQuickCheckIn = (arrival: Arrival) => {
+   352→    if (!arrival.room) {
+   353→      setSelectedArrival(arrival)
+   354→      setRoomPickerOpen(true)
+   355→      return
+   356→    }
+   357→    setSelectedArrival(arrival)
+   358→    resetCheckInForm()
+   359→    setCheckInDialogOpen(true)
+   360→  }
+   361→
+   362→  const handleOpenWalkIn = () => {
+   363→    setWalkInForm(initialWalkInForm)
+   364→    setWalkInDialogOpen(true)
+   365→  }
+   366→
+   367→  const handleNavigateToCheckIn = (arrival: Arrival) => {
+   368→    useFrontDeskContextStore.getState().setPrefillReservationId(arrival.id)
+   369→    navigateTo('front-desk', 'check-in')
+   370→  }
+   371→
+   372→  const handleViewLedger = (arrival: Arrival) => {
+   373→    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+   374→      guestId: arrival.guest?.id || '',
+   375→      guestName: `${arrival.guest?.firstName || ''} ${arrival.guest?.lastName || ''}`.trim(),
+   376→    })
+   377→    navigateTo('front-desk', 'guest-ledger')
+   378→  }
+   379→
+   380→  const buildSpecialRequests = (arrival: Arrival): string => {
+   381→    const parts: string[] = []
+   382→
+   383→    // Preserve existing requests
+   384→    if (arrival.specialRequests) {
+   385→      parts.push(arrival.specialRequests)
+   386→    }
+   387→
+   388→    // Early check-in note
+   389→    if (earlyCheckIn) {
+   390→      parts.push(`[EARLY CHECK-IN] Checked in before ${settings.defaultCheckIn}`)
+   391→    }
+   392→
+   393→    // Check-out time override
+   394→    if (checkOutTime !== settings.defaultCheckOut) {
+   395→      parts.push(`[CHECK-OUT OVERRIDE] Preferred check-out: ${checkOutTime}`)
+   396→    }
+   397→
+   398→    // Room preference
+   399→    if (roomPreference) {
+   400→      const prefLabel = ROOM_PREFERENCES.find((p) => p.value === roomPreference)?.label || roomPreference
+   401→      parts.push(`[PREFERENCE] Room: ${prefLabel}`)
+   402→    }
+   403→
+   404→    // Pillow type
+   405→    if (pillowType) {
+   406→      const pillowLabel = PILLOW_TYPES.find((p) => p.value === pillowType)?.label || pillowType
+   407→      parts.push(`[PREFERENCE] Pillow: ${pillowLabel}`)
+   408→    }
+   409→
+   410→    // Wake-up call
+   411→    if (wakeupCall) {
+   412→      parts.push(`[SERVICE] Wake-up call requested at ${wakeupCall}`)
+   413→    }
+   414→
+   415→    return parts.join(' | ')
+   416→  }
+   417→
+   418→  const confirmCheckIn = () => {
+   419→    if (!selectedArrival) return
+   420→
+   421→    const updatedRequests = buildSpecialRequests(selectedArrival)
+   422→
+   423→    if (selectedRoomId) {
+   424→      assignRoomMutation.mutate({
+   425→        reservationId: selectedArrival.id,
+   426→        roomId: selectedRoomId,
+   427→        specialRequests: updatedRequests,
+   428→      })
+   429→    } else if (selectedArrival.room) {
+   430→      checkInMutation.mutate({
+   431→        reservationId: selectedArrival.id,
+   432→        specialRequests: updatedRequests,
+   433→      })
+   434→    }
+   435→  }
+   436→
+   437→  const openKeyCardDialog = (roomNumber: string) => {
+   438→    setKeyCardRoomNumber(roomNumber)
+   439→    setKeyCardIssued(false)
+   440→    setKeyCardProcessed(false)
+   441→    setKeyCardDialogOpen(true)
+   442→  }
+   443→
+   444→  const handleKeyCardConfirm = () => {
+   445→    setKeyCardProcessed(true)
+   446→    setKeyCardDialogOpen(false)
+   447→    toast.success(`Check-in complete! Welcome letter sent to Room ${keyCardRoomNumber}`, {
+   448→      duration: 5000,
+   449→      icon: <Mail className="size-4" />,
+   450→    })
+   451→    setSelectedArrival(null)
+   452→    setSelectedRoomId('')
+   453→  }
+   454→
+   455→  const resetCheckInForm = () => {
+   456→    setEarlyCheckIn(false)
+   457→    setCheckOutTime(settings.defaultCheckOut)
+   458→    setRoomPreference('')
+   459→    setPillowType('')
+   460→    setWakeupCall('')
+   461→  }
+   462→
+   463→  const handleWalkInRoomTypeChange = (roomTypeId: string) => {
+   464→    const roomType = ROOM_TYPES.find((rt) => rt.id === roomTypeId)
+   465→    setWalkInForm((prev) => ({
+   466→      ...prev,
+   467→      roomTypeId,
+   468→      roomRate: roomType?.baseRate || 0,
+   469→    }))
+   470→  }
+   471→
+   472→  const handleSelectArrival = (arrival: Arrival) => {
+   473→    setSelectedArrival(arrival)
+   474→    setSelectedRoomId('')
+   475→    setMobileShowDetail(true)
+   476→  }
+   477→
+   478→  const handleBackToList = () => {
+   479→    setMobileShowDetail(false)
+   480→  }
+   481→
+   482→  // ─── Render ─────────────────────────────────────────────────────────
+   483→
+   484→  return (
+   485→    <div className="flex flex-col gap-3">
+   486→      {/* Header */}
+   487→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
+   488→        <div>
+   489→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Today&apos;s Arrivals</h2>
+   490→          <p className="text-xs text-muted-foreground">
+   491→            Guest check-ins scheduled for {formatDate(today)}
+   492→          </p>
+   493→        </div>
+   494→        <div className="flex items-center gap-2 shrink-0">
+   495→          <Badge variant="secondary" className="text-[10px]">
+   496→            {totalArrivals} expected
+   497→          </Badge>
+   498→          {vipArrivals > 0 && (
+   499→            <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 dark:text-amber-400">
+   500→              <Crown className="size-3 mr-0.5" />
+   501→              {vipArrivals} VIP
+   502→            </Badge>
+   503→          )}
+   504→          {unassignedArrivals > 0 && (
+   505→            <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400">
+   506→              <AlertTriangle className="size-3 mr-0.5" />
+   507→              {unassignedArrivals} unassigned
+   508→            </Badge>
+   509→          )}
+   510→          <Button onClick={handleOpenWalkIn} size="sm" className="gap-1.5">
+   511→            <Footprints className="size-3.5" />
+   512→            <span className="hidden sm:inline">Walk-in</span>
+   513→          </Button>
+   514→        </div>
+   515→      </div>
+   516→
+   517→      {/* ─── Split Screen Body ─── */}
+   518→      <div className="h-[calc(100vh-14rem)] min-h-[400px] flex flex-col lg:flex-row gap-3 overflow-hidden">
+   519→
+   520→        {/* ─── Left Panel: Arrivals List ─── */}
+   521→        <div className={cn(
+   522→          'flex flex-col min-h-0 border rounded-lg bg-card overflow-hidden',
+   523→          'w-full lg:w-[42%] xl:w-[38%]',
+   524→          mobileShowDetail && selectedArrival && 'hidden lg:flex',
+   525→        )}>
+   526→          {/* List header */}
+   527→          <div className="px-3 py-2 border-b shrink-0 flex items-center justify-between bg-muted/30">
+   528→            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+   529→              Expected Arrivals
+   530→            </span>
+   531→            <span className="text-[10px] text-muted-foreground">{sortedArrivals.length} guests</span>
+   532→          </div>
+   533→          {/* List body */}
+   534→          <div className="flex-1 overflow-y-auto">
+   535→            {isLoading ? (
+   536→              <div className="p-2 space-y-2">
+   537→                {Array.from({ length: 4 }).map((_, i) => (
+   538→                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+   539→                ))}
+   540→              </div>
+   541→            ) : sortedArrivals.length === 0 ? (
+   542→              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   543→                <LogIn className="size-8 mb-2 opacity-50" />
+   544→                <p className="text-sm">No arrivals scheduled for today</p>
+   545→              </div>
+   546→            ) : (
+   547→              <div className="divide-y">
+   548→                {sortedArrivals.map((arrival) => {
+   549→                  const isUnassigned = !arrival.room
+   550→                  const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
+   551→                  const isSelected = selectedArrival?.id === arrival.id
+   552→                  return (
+   553→                    <button
+   554→                      key={arrival.id}
+   555→                      type="button"
+   556→                      onClick={() => handleSelectArrival(arrival)}
+   557→                      className={cn(
+   558→                        'w-full text-left p-2.5 transition-colors hover:bg-muted/50',
+   559→                        isSelected && 'bg-muted/80',
+   560→                        isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20',
+   561→                        isVip && !isUnassigned && 'border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10',
+   562→                        isVip && isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/30',
+   563→                      )}
+   564→                    >
+   565→                      <div className="flex items-center gap-2 flex-wrap">
+   566→                        <span className="font-semibold text-sm truncate">
+   567→                          {arrival.guest ? `${arrival.guest.firstName} ${arrival.guest.lastName}` : 'Unknown Guest'}
+   568→                        </span>
+   569→                        {isVip && (
+   570→                          <Badge className="text-[9px] px-1 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   571→                            <Star className="size-2.5 fill-amber-500 text-amber-500" />
+   572→                            VIP
+   573→                          </Badge>
+   574→                        )}
+   575→                        {isUnassigned && (
+   576→                          <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
+   577→                            <AlertTriangle className="size-2.5 mr-0.5" />
+   578→                            Unassigned
+   579→                          </Badge>
+   580→                        )}
+   581→                        {isSelected && <CheckCircle2 className="size-4 text-teal-600 ml-auto shrink-0" />}
+   582→                      </div>
+   583→                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+   584→                        <span className="font-mono">{arrival.confirmationNo}</span>
+   585→                        <span>·</span>
+   586→                        <span>Room {arrival.room?.number || '---'}</span>
+   587→                        <span>·</span>
+   588→                        <span>{arrival.adults}A{arrival.children > 0 ? ` ${arrival.children}Ch` : ''}</span>
+   589→                      </div>
+   590→                      {arrival.specialRequests && (
+   591→                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+   592→                          📋 {arrival.specialRequests}
+   593→                        </p>
+   594→                      )}
+   595→                    </button>
+   596→                  )
+   597→                })}
+   598→              </div>
+   599→            )}
+   600→          </div>
+   601→        </div>
+   602→
+   603→        {/* ─── Right Panel: Arrival Detail ─── */}
+   604→        <div className={cn(
+   605→          'flex flex-col min-h-0 border rounded-lg bg-card overflow-hidden',
+   606→          'w-full lg:flex-1',
+   607→          (!selectedArrival || !mobileShowDetail) && 'hidden lg:flex',
+   608→        )}>
+   609→          {selectedArrival ? (
+   610→            <>
+   611→              {/* Mobile back button */}
+   612→              <div className="lg:hidden border-b px-3 py-2 shrink-0">
+   613→                <button
+   614→                  type="button"
+   615→                  onClick={handleBackToList}
+   616→                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+   617→                >
+   618→                  <ArrowLeft className="w-4 h-4" />
+   619→                  <span>Back to Arrivals</span>
+   620→                </button>
+   621→              </div>
+   622→
+   623→              {/* Scrollable detail content */}
+   624→              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+   625→                {/* Guest & Room Header */}
+   626→                <div>
+   627→                  <div className="flex items-center gap-2 flex-wrap">
+   628→                    <span className="text-lg font-semibold">
+   629→                      {selectedArrival.guest ? `${selectedArrival.guest.firstName} ${selectedArrival.guest.lastName}` : 'Unknown Guest'}
+   630→                    </span>
+   631→                    {selectedArrival.guest?.vipLevel && selectedArrival.guest.vipLevel !== 'none' && (
+   632→                      <Badge className="text-[10px] px-1.5 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   633→                        <Crown className="size-3" />
+   634→                        {selectedArrival.guest.vipLevel.toUpperCase()}
+   635→                      </Badge>
+   636→                    )}
+   637→                    {selectedArrival.guaranteed && (
+   638→                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-700 dark:text-emerald-400">
+   639→                        <Shield className="size-3 mr-0.5" />
+   640→                        Guaranteed
+   641→                      </Badge>
+   642→                    )}
+   643→                  </div>
+   644→                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+   645→                    <span className="font-mono">{selectedArrival.confirmationNo}</span>
+   646→                    <span>·</span>
+   647→                    <span className="capitalize">{selectedArrival.source?.replace('_', ' ') || 'Direct'}</span>
+   648→                    <span>·</span>
+   649→                    <StatusBadge status={selectedArrival.status} />
+   650→                  </div>
+   651→                </div>
+   652→
+   653→                <Separator />
+   654→
+   655→                {/* Room & Rate Info */}
+   656→                <div className="grid grid-cols-2 gap-3">
+   657→                  <div>
+   658→                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Room</span>
+   659→                    <p className="text-sm font-medium mt-0.5">
+   660→                      {selectedArrival.room ? (
+   661→                        <>
+   662→                          {selectedArrival.room.number} — {selectedArrival.room.type.name}
+   663→                          <span className="text-muted-foreground text-xs ml-1">({selectedArrival.room.type.code})</span>
+   664→                        </>
+   665→                      ) : (
+   666→                        <span className="text-amber-600 dark:text-amber-400">Unassigned</span>
+   667→                      )}
+   668→                    </p>
+   669→                    {selectedArrival.room && (
+   670→                      <p className="text-xs text-muted-foreground">
+   671→                        Floor {selectedArrival.room.floor}{selectedArrival.room.wing ? ` · Wing ${selectedArrival.room.wing}` : ''}
+   672→                      </p>
+   673→                    )}
+   674→                  </div>
+   675→                  <div>
+   676→                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Rate</span>
+   677→                    <p className="text-sm font-medium mt-0.5">{formatCurrency(selectedArrival.roomRate)}<span className="text-xs text-muted-foreground">/night</span></p>
+   678→                    <p className="text-xs text-muted-foreground">
+   679→                      {nightsBetween(selectedArrival.checkIn, selectedArrival.checkOut)} nights · Total: {formatCurrency(selectedArrival.totalAmount || 0)}
+   680→                    </p>
+   681→                  </div>
+   682→                </div>
+   683→
+   684→                {/* Stay Dates */}
+   685→                <div>
+   686→                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Stay Duration</span>
+   687→                  <p className="text-sm mt-0.5 font-medium">
+   688→                    {formatDate(selectedArrival.checkIn)} → {formatDate(selectedArrival.checkOut)}
+   689→                  </p>
+   690→                </div>
+   691→
+   692→                {/* Guest Contact */}
+   693→                {selectedArrival.guest && (selectedArrival.guest.email || selectedArrival.guest.phone) && (
+   694→                  <div>
+   695→                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Contact</span>
+   696→                    <div className="mt-1 space-y-0.5 text-sm">
+   697→                      {selectedArrival.guest.email && (
+   698→                        <p className="flex items-center gap-1.5 text-muted-foreground">
+   699→                          <Mail className="size-3 shrink-0" />
+   700→                          {selectedArrival.guest.email}
+   701→                        </p>
+   702→                      )}
+   703→                      {selectedArrival.guest.phone && (
+   704→                        <p className="flex items-center gap-1.5 text-muted-foreground">
+   705→                          <Phone className="size-3 shrink-0" />
+   706→                          {selectedArrival.guest.phone}
+   707→                        </p>
+   708→                      )}
+   709→                    </div>
+   710→                  </div>
+   711→                )}
+   712→
+   713→                {/* Occupancy */}
+   714→                <div className="flex items-center gap-2 text-sm">
+   715→                  <Users className="size-4 text-muted-foreground shrink-0" />
+   716→                  <span>{selectedArrival.adults} adults</span>
+   717→                  {selectedArrival.children > 0 && <span>· {selectedArrival.children} children</span>}
+   718→                </div>
+   719→
+   720→                {/* Special Requests */}
+   721→                {selectedArrival.specialRequests && (
+   722→                  <div>
+   723→                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Special Requests</span>
+   724→                    <p className="text-sm mt-0.5 bg-muted/50 rounded-md p-2.5">{selectedArrival.specialRequests}</p>
+   725→                  </div>
+   726→                )}
+   727→              </div>
+   728→
+   729→              {/* ─── Sticky Action Bar ─── */}
+   730→              <div className="shrink-0 border-t bg-background p-3">
+   731→                <div className="flex flex-wrap gap-2">
+   732→                  <Button
+   733→                    onClick={() => handleNavigateToCheckIn(selectedArrival)}
+   734→                    className="flex-1 min-w-[130px]"
+   735→                  >
+   736→                    <Wand2 className="size-4 mr-1.5" />
+   737→                    Go Check-in
+   738→                  </Button>
+   739→                  <Button
+   740→                    variant="outline"
+   741→                    onClick={() => {
+   742→                      resetCheckInForm()
+   743→                      setCheckInDialogOpen(true)
+   744→                    }}
+   745→                  >
+   746→                    <UserCheck className="size-3.5 mr-1.5" />
+   747→                    Quick Check-In
+   748→                  </Button>
+   749→                  <Button
+   750→                    variant="outline"
+   751→                    onClick={() => handleAssignRoom(selectedArrival)}
+   752→                  >
+   753→                    <BedDouble className="size-3.5 mr-1.5" />
+   754→                    Room
+   755→                  </Button>
+   756→                  <Button
+   757→                    variant="ghost"
+   758→                    onClick={() => handleViewLedger(selectedArrival)}
+   759→                  >
+   760→                    <BookOpen className="size-3.5 mr-1.5" />
+   761→                    Ledger
+   762→                  </Button>
+   763→                  <Button
+   764→                    variant="ghost"
+   765→                    size="icon"
+   766→                    className="size-9"
+   767→                    title="Wake-up call / Service bell"
+   768→                  >
+   769→                    <Bell className="size-3.5" />
+   770→                  </Button>
+   771→                </div>
+   772→              </div>
+   773→            </>
+   774→          ) : (
+   775→            /* Empty state */
+   776→            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6">
+   777→              <LogIn className="size-10 mb-3 opacity-30" />
+   778→              <p className="text-sm font-medium">No arrival selected</p>
+   779→              <p className="text-xs mt-1 text-center max-w-[200px]">Click an arrival from the list to view details and process check-in</p>
+   780→            </div>
+   781→          )}
+   782→        </div>
+   783→      </div>
+   784→
+   785→      {/* ─── Room Picker Dialog ──────────────────────────────────────── */}
+   786→      <Dialog open={roomPickerOpen} onOpenChange={setRoomPickerOpen}>
+   787→        <DialogContent className="max-w-md">
+   788→          <DialogHeader>
+   789→            <DialogTitle>
+   790→              Assign Room — {selectedArrival?.guest ? `${selectedArrival.guest.firstName} ${selectedArrival.guest.lastName}` : 'Guest'}
+   791→            </DialogTitle>
+   792→            <DialogDescription>Select a vacant room to assign and check in this guest.</DialogDescription>
+   793→          </DialogHeader>
+   794→          <div className="max-h-72 overflow-y-auto">
+   795→            <div className="space-y-1">
+   796→              {availableRooms.length === 0 ? (
+   797→                <p className="text-sm text-muted-foreground text-center py-6">No available rooms</p>
+   798→              ) : (
+   799→                availableRooms.map((room) => (
+   800→                  <button
+   801→                    key={room.id}
+   802→                    onClick={() => setSelectedRoomId(room.id)}
+   803→                    className={cn(
+   804→                      'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors',
+   805→                      selectedRoomId === room.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'
+   806→                    )}
+   807→                  >
+   808→                    <BedDouble className="size-4 shrink-0" />
+   809→                    <div className="flex-1">
+   810→                      <span className="font-medium">Room {room.number}</span>
+   811→                      <span className="text-xs opacity-70 ml-2">{room.type.name}</span>
+   812→                    </div>
+   813→                    <span className="text-xs opacity-70">Floor {room.floor}</span>
+   814→                  </button>
+   815→                ))
+   816→              )}
+   817→            </div>
+   818→          </div>
+   819→          <DialogFooter>
+   820→            <Button variant="outline" onClick={() => setRoomPickerOpen(false)}>Cancel</Button>
+   821→            <Button
+   822→              onClick={() => {
+   823→                setRoomPickerOpen(false)
+   824→                resetCheckInForm()
+   825→                setCheckInDialogOpen(true)
+   826→              }}
+   827→              disabled={!selectedRoomId || assignRoomMutation.isPending}
+   828→            >
+   829→              {assignRoomMutation.isPending ? 'Assigning...' : 'Assign & Check In'}
+   830→            </Button>
+   831→          </DialogFooter>
+   832→        </DialogContent>
+   833→      </Dialog>
+   834→
+   835→      {/* ─── Check-in Confirmation Dialog ──────────────────────────── */}
+   836→      <Dialog open={checkInDialogOpen} onOpenChange={(open) => {
+   837→        if (!open) setCheckInDialogOpen(false)
+   838→      }}>
+   839→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   840→          <DialogHeader>
+   841→            <DialogTitle>Confirm Check-In</DialogTitle>
+   842→            <DialogDescription>Review guest details and capture preferences before check-in.</DialogDescription>
+   843→          </DialogHeader>
+   844→          {selectedArrival && (
+   845→            <div className="space-y-4">
+   846→              {/* Guest & Room Summary */}
+   847→              <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+   848→                <p className="font-semibold">
+   849→                  {selectedArrival.guest ? `${selectedArrival.guest.firstName} ${selectedArrival.guest.lastName}` : 'Guest'}
+   850→                </p>
+   851→                <p className="text-muted-foreground">
+   852→                  Room {selectedArrival.room?.number || selectedRoomId ? selectedArrival.room?.number : 'To be assigned'} • {selectedArrival.room?.type.name}
+   853→                </p>
+   854→                <p className="text-muted-foreground">
+   855→                  {formatDate(selectedArrival.checkIn)} → {formatDate(selectedArrival.checkOut)}
+   856→                </p>
+   857→                {selectedArrival.specialRequests && (
+   858→                  <p className="text-xs text-muted-foreground italic mt-1">
+   859→                    Existing requests: {selectedArrival.specialRequests}
+   860→                  </p>
+   861→                )}
+   862→              </div>
+   863→
+   864→              <Separator />
+   865→
+   866→              {/* Early Check-in Option */}
+   867→              <div className="flex items-start gap-2">
+   868→                <Checkbox
+   869→                  id="early-checkin"
+   870→                  checked={earlyCheckIn}
+   871→                  onCheckedChange={(checked) => setEarlyCheckIn(checked === true)}
+   872→                  className="mt-0.5"
+   873→                />
+   874→                <div className="grid gap-0.5 leading-none">
+   875→                  <Label htmlFor="early-checkin" className="text-sm font-medium cursor-pointer">
+   876→                    Early Check-in
+   877→                  </Label>
+   878→                  <p className="text-xs text-muted-foreground">
+   879→                    Check-in before 2:00 PM — will be noted on the reservation
+   880→                  </p>
+   881→                </div>
+   882→              </div>
+   883→
+   884→              {/* Check-out Time Override */}
+   885→              <div className="grid gap-1.5">
+   886→                <Label className="text-sm font-medium">Check-out Time</Label>
+   887→                <Select value={checkOutTime} onValueChange={setCheckOutTime}>
+   888→                  <SelectTrigger className="w-full">
+   889→                    <SelectValue placeholder="Select check-out time" />
+   890→                  </SelectTrigger>
+   891→                  <SelectContent>
+   892→                    {CHECKOUT_TIME_OPTIONS.map((opt) => (
+   893→                      <SelectItem key={opt.value} value={opt.value}>
+   894→                        {opt.label}
+   895→                      </SelectItem>
+   896→                    ))}
+   897→                  </SelectContent>
+   898→                </Select>
+   899→              </div>
+   900→
+   901→              <Separator />
+   902→
+   903→              {/* Guest Preferences */}
+   904→              <div>
+   905→                <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
+   906→                  <Sparkles className="size-3.5 text-muted-foreground" />
+   907→                  Guest Preferences
+   908→                </p>
+   909→                <div className="grid gap-3">
+   910→                  {/* Room Preference */}
+   911→                  <div className="grid gap-1.5">
+   912→                    <Label className="text-xs text-muted-foreground">Room Preference</Label>
+   913→                    <Select value={roomPreference} onValueChange={setRoomPreference}>
+   914→                      <SelectTrigger className="w-full">
+   915→                        <SelectValue placeholder="Select preference (optional)" />
+   916→                      </SelectTrigger>
+   917→                      <SelectContent>
+   918→                        <SelectItem value="none">None</SelectItem>
+   919→                        {ROOM_PREFERENCES.map((opt) => (
+   920→                          <SelectItem key={opt.value} value={opt.value}>
+   921→                            {opt.label}
+   922→                          </SelectItem>
+   923→                        ))}
+   924→                      </SelectContent>
+   925→                    </Select>
+   926→                  </div>
+   927→
+   928→                  {/* Pillow Type */}
+   929→                  <div className="grid gap-1.5">
+   930→                    <Label className="text-xs text-muted-foreground">Pillow Type</Label>
+   931→                    <Select value={pillowType} onValueChange={setPillowType}>
+   932→                      <SelectTrigger className="w-full">
+   933→                        <SelectValue placeholder="Select pillow type (optional)" />
+   934→                      </SelectTrigger>
+   935→                      <SelectContent>
+   936→                        <SelectItem value="none">None</SelectItem>
+   937→                        {PILLOW_TYPES.map((opt) => (
+   938→                          <SelectItem key={opt.value} value={opt.value}>
+   939→                            {opt.label}
+   940→                          </SelectItem>
+   941→                        ))}
+   942→                      </SelectContent>
+   943→                    </Select>
+   944→                  </div>
+   945→
+   946→                  {/* Wake-up Call */}
+   947→                  <div className="grid gap-1.5">
+   948→                    <Label className="text-xs text-muted-foreground">Wake-up Call Time</Label>
+   949→                    <Input
+   950→                      type="time"
+   951→                      value={wakeupCall}
+   952→                      onChange={(e) => setWakeupCall(e.target.value)}
+   953→                      placeholder="e.g. 07:00"
+   954→                    />
+   955→                  </div>
+   956→                </div>
+   957→              </div>
+   958→
+   959→              <Separator />
+   960→
+   961→              <p className="text-xs text-muted-foreground">
+   962→                This will change the reservation status to <strong>Checked In</strong> and update the room status to <strong>Occupied</strong>.
+   963→              </p>
+   964→            </div>
+   965→          )}
+   966→          <DialogFooter>
+   967→            <Button variant="outline" onClick={() => setCheckInDialogOpen(false)}>Cancel</Button>
+   968→            <Button
+   969→              onClick={confirmCheckIn}
+   970→              disabled={checkInMutation.isPending || assignRoomMutation.isPending}
+   971→            >
+   972→              <UserCheck className="size-4 mr-1.5" />
+   973→              {(checkInMutation.isPending || assignRoomMutation.isPending) ? 'Checking in...' : 'Confirm Check-In'}
+   974→            </Button>
+   975→          </DialogFooter>
+   976→        </DialogContent>
+   977→      </Dialog>
+   978→
+   979→      {/* ─── Walk-in Quick Registration Dialog ──────────────────────── */}
+   980→      <Dialog open={walkInDialogOpen} onOpenChange={setWalkInDialogOpen}>
+   981→        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+   982→          <DialogHeader>
+   983→            <DialogTitle className="flex items-center gap-2">
+   984→              <Footprints className="size-5" />
+   985→              Walk-in Quick Registration
+   986→            </DialogTitle>
+   987→            <DialogDescription>
+   988→              Register a walk-in guest and complete check-in immediately.
+   989→            </DialogDescription>
+   990→          </DialogHeader>
+   991→
+   992→          <div className="space-y-5">
+   993→            {/* Guest Information */}
+   994→            <div>
+   995→              <p className="text-sm font-medium mb-3">Guest Information</p>
+   996→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   997→                <div className="grid gap-1.5">
+   998→                  <Label htmlFor="wi-firstName" className="text-xs">First Name *</Label>
+   999→                  <Input
+  1000→                    id="wi-firstName"
+  1001→                    value={walkInForm.firstName}
+  1002→                    onChange={(e) => setWalkInForm((p) => ({ ...p, firstName: e.target.value }))}
+  1003→                    placeholder="First name"
+  1004→                  />
+  1005→                </div>
+  1006→                <div className="grid gap-1.5">
+  1007→                  <Label htmlFor="wi-lastName" className="text-xs">Last Name *</Label>
+  1008→                  <Input
+  1009→                    id="wi-lastName"
+  1010→                    value={walkInForm.lastName}
+  1011→                    onChange={(e) => setWalkInForm((p) => ({ ...p, lastName: e.target.value }))}
+  1012→                    placeholder="Last name"
+  1013→                  />
+  1014→                </div>
+  1015→                <div className="grid gap-1.5">
+  1016→                  <Label htmlFor="wi-phone" className="text-xs">Phone</Label>
+  1017→                  <Input
+  1018→                    id="wi-phone"
+  1019→                    value={walkInForm.phone}
+  1020→                    onChange={(e) => setWalkInForm((p) => ({ ...p, phone: e.target.value }))}
+  1021→                    placeholder="+977-98XX-XXXXXX"
+  1022→                  />
+  1023→                </div>
+  1024→                <div className="grid gap-1.5">
+  1025→                  <Label htmlFor="wi-email" className="text-xs">Email</Label>
+  1026→                  <Input
+  1027→                    id="wi-email"
+  1028→                    type="email"
+  1029→                    value={walkInForm.email}
+  1030→                    onChange={(e) => setWalkInForm((p) => ({ ...p, email: e.target.value }))}
+  1031→                    placeholder="guest@email.com"
+  1032→                  />
+  1033→                </div>
+  1034→                <div className="grid gap-1.5">
+  1035→                  <Label className="text-xs">Nationality</Label>
+  1036→                  <Select
+  1037→                    value={walkInForm.nationality}
+  1038→                    onValueChange={(v) => setWalkInForm((p) => ({ ...p, nationality: v }))}
+  1039→                  >
+  1040→                    <SelectTrigger className="w-full">
+  1041→                      <SelectValue placeholder="Select nationality" />
+  1042→                    </SelectTrigger>
+  1043→                    <SelectContent className="max-h-48 overflow-y-auto">
+  1044→                      {NATIONALITIES.map((n) => (
+  1045→                        <SelectItem key={n} value={n}>{n}</SelectItem>
+  1046→                      ))}
+  1047→                    </SelectContent>
+  1048→                  </Select>
+  1049→                </div>
+  1050→                <div className="grid gap-1.5">
+  1051→                  <Label className="text-xs">ID Type</Label>
+  1052→                  <Select
+  1053→                    value={walkInForm.idType}
+  1054→                    onValueChange={(v) => setWalkInForm((p) => ({ ...p, idType: v }))}
+  1055→                  >
+  1056→                    <SelectTrigger className="w-full">
+  1057→                      <SelectValue />
+  1058→                    </SelectTrigger>
+  1059→                    <SelectContent>
+  1060→                      {ID_TYPES.map((t) => (
+  1061→                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+  1062→                      ))}
+  1063→                    </SelectContent>
+  1064→                  </Select>
+  1065→                </div>
+  1066→                <div className="grid gap-1.5 sm:col-span-2">
+  1067→                  <Label htmlFor="wi-idNumber" className="text-xs">ID Number</Label>
+  1068→                  <Input
+  1069→                    id="wi-idNumber"
+  1070→                    value={walkInForm.idNumber}
+  1071→                    onChange={(e) => setWalkInForm((p) => ({ ...p, idNumber: e.target.value }))}
+  1072→                    placeholder="ID / Passport number"
+  1073→                  />
+  1074→                </div>
+  1075→              </div>
+  1076→            </div>
+  1077→
+  1078→            <Separator />
+  1079→
+  1080→            {/* Stay Details */}
+  1081→            <div>
+  1082→              <p className="text-sm font-medium mb-3">Stay Details</p>
+  1083→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1084→                {/* Room Type */}
+  1085→                <div className="grid gap-1.5">
+  1086→                  <Label className="text-xs">Room Type *</Label>
+  1087→                  <Select
+  1088→                    value={walkInForm.roomTypeId}
+  1089→                    onValueChange={handleWalkInRoomTypeChange}
+  1090→                  >
+  1091→                    <SelectTrigger className="w-full">
+  1092→                      <SelectValue placeholder="Select room type" />
+  1093→                    </SelectTrigger>
+  1094→                    <SelectContent>
+  1095→                      {ROOM_TYPES.map((rt) => (
+  1096→                        <SelectItem key={rt.id} value={rt.id}>
+  1097→                          <span className="flex items-center justify-between gap-4 w-full">
+  1098→                            <span>{rt.name}</span>
+  1099→                            <span className="text-xs opacity-60">{formatCurrency(rt.baseRate)}/night</span>
+  1100→                          </span>
+  1101→                        </SelectItem>
+  1102→                      ))}
+  1103→                    </SelectContent>
+  1104→                  </Select>
+  1105→                </div>
+  1106→
+  1107→                {/* Rate (auto-filled) */}
+  1108→                <div className="grid gap-1.5">
+  1109→                  <Label htmlFor="wi-rate" className="text-xs">Rate per Night (NPR)</Label>
+  1110→                  <Input
+  1111→                    id="wi-rate"
+  1112→                    type="number"
+  1113→                    value={walkInForm.roomRate || ''}
+  1114→                    onChange={(e) => setWalkInForm((p) => ({ ...p, roomRate: Number(e.target.value) }))}
+  1115→                    placeholder="Auto-filled from room type"
+  1116→                  />
+  1117→                </div>
+  1118→
+  1119→                {/* Check-in (today, readonly) */}
+  1120→                <div className="grid gap-1.5">
+  1121→                  <Label className="text-xs">Check-in</Label>
+  1122→                  <Input
+  1123→                    value={format(new Date(), 'MMM dd, yyyy')}
+  1124→                    readOnly
+  1125→                    className="bg-muted"
+  1126→                  />
+  1127→                </div>
+  1128→
+  1129→                {/* Check-out date picker */}
+  1130→                <div className="grid gap-1.5">
+  1131→                  <Label className="text-xs">Check-out *</Label>
+  1132→                  <Popover open={walkInCheckOutOpen} onOpenChange={setWalkInCheckOutOpen}>
+  1133→                    <PopoverTrigger asChild>
+  1134→                      <Button
+  1135→                        variant="outline"
+  1136→                        className={cn(
+  1137→                          'w-full justify-start text-left font-normal',
+  1138→                          !walkInForm.checkOutDate && 'text-muted-foreground'
+  1139→                        )}
+  1140→                      >
+  1141→                        <Clock className="size-3.5 mr-2" />
+  1142→                        {walkInForm.checkOutDate
+  1143→                          ? format(walkInForm.checkOutDate, 'MMM dd, yyyy')
+  1144→                          : 'Pick a date'}
+  1145→                      </Button>
+  1146→                    </PopoverTrigger>
+  1147→                    <PopoverContent className="w-auto p-0" align="start">
+  1148→                      <Calendar
+  1149→                        mode="single"
+  1150→                        selected={walkInForm.checkOutDate}
+  1151→                        onSelect={(date) => {
+  1152→                          setWalkInForm((p) => ({ ...p, checkOutDate: date || undefined }))
+  1153→                          setWalkInCheckOutOpen(false)
+  1154→                        }}
+  1155→                        disabled={(date) => date <= new Date(new Date().setHours(0, 0, 0, 0))}
+  1156→                        defaultMonth={(() => {
+  1157→                          const d = new Date()
+  1158→                          d.setDate(d.getDate() + 1)
+  1159→                          return d
+  1160→                        })()}
+  1161→                        initialFocus
+  1162→                      />
+  1163→                    </PopoverContent>
+  1164→                  </Popover>
+  1165→                </div>
+  1166→
+  1167→                {/* Adults */}
+  1168→                <div className="grid gap-1.5">
+  1169→                  <Label className="text-xs">Adults</Label>
+  1170→                  <Select
+  1171→                    value={String(walkInForm.adults)}
+  1172→                    onValueChange={(v) => setWalkInForm((p) => ({ ...p, adults: Number(v) }))}
+  1173→                  >
+  1174→                    <SelectTrigger className="w-full">
+  1175→                      <SelectValue />
+  1176→                    </SelectTrigger>
+  1177→                    <SelectContent>
+  1178→                      {[1, 2, 3, 4].map((n) => (
+  1179→                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+  1180→                      ))}
+  1181→                    </SelectContent>
+  1182→                  </Select>
+  1183→                </div>
+  1184→
+  1185→                {/* Children */}
+  1186→                <div className="grid gap-1.5">
+  1187→                  <Label className="text-xs">Children</Label>
+  1188→                  <Select
+  1189→                    value={String(walkInForm.children)}
+  1190→                    onValueChange={(v) => setWalkInForm((p) => ({ ...p, children: Number(v) }))}
+  1191→                  >
+  1192→                    <SelectTrigger className="w-full">
+  1193→                      <SelectValue />
+  1194→                    </SelectTrigger>
+  1195→                    <SelectContent>
+  1196→                      {[0, 1, 2, 3].map((n) => (
+  1197→                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+  1198→                      ))}
+  1199→                    </SelectContent>
+  1200→                  </Select>
+  1201→                </div>
+  1202→              </div>
+  1203→
+  1204→              {/* Available Rooms Info */}
+  1205→              <div className="mt-3 rounded-md bg-muted/50 p-2.5 text-xs text-muted-foreground">
+  1206→                <p className="flex items-center gap-1">
+  1207→                  <BedDouble className="size-3" />
+  1208→                  {availableRooms.length > 0
+  1209→                    ? `${availableRooms.length} vacant room(s) available — a room will be auto-assigned upon check-in.`
+  1210→                    : '⚠️ No vacant rooms currently available!'}
+  1211→                </p>
+  1212→              </div>
+  1213→            </div>
+  1214→          </div>
+  1215→
+  1216→          <DialogFooter>
+  1217→            <Button variant="outline" onClick={() => setWalkInDialogOpen(false)}>Cancel</Button>
+  1218→            <Button
+  1219→              onClick={() => walkInMutation.mutate(walkInForm)}
+  1220→              disabled={
+  1221→                walkInMutation.isPending ||
+  1222→                !walkInForm.firstName.trim() ||
+  1223→                !walkInForm.lastName.trim() ||
+  1224→                !walkInForm.roomTypeId ||
+  1225→                !walkInForm.checkOutDate
+  1226→              }
+  1227→            >
+  1228→              <Footprints className="size-4 mr-1.5" />
+  1229→              {walkInMutation.isPending ? 'Registering...' : 'Register & Check In'}
+  1230→            </Button>
+  1231→          </DialogFooter>
+  1232→        </DialogContent>
+  1233→      </Dialog>
+  1234→
+  1235→      {/* ─── Key Card Issuance Dialog ────────────────────────────────── */}
+  1236→      <Dialog open={keyCardDialogOpen} onOpenChange={setKeyCardDialogOpen}>
+  1237→        <DialogContent className="max-w-sm">
+  1238→          <DialogHeader>
+  1239→            <DialogTitle className="flex items-center gap-2">
+  1240→              <KeyRound className="size-5" />
+  1241→              Key Card Issuance
+  1242→            </DialogTitle>
+  1243→            <DialogDescription>
+  1244→              Issue a key card for the guest&apos;s room.
+  1245→            </DialogDescription>
+  1246→          </DialogHeader>
+  1247→
+  1248→          <div className="space-y-4">
+  1249→            {/* Room Number Prominent Display */}
+  1250→            <div className="flex flex-col items-center justify-center rounded-lg bg-primary/10 border border-primary/20 p-6">
+  1251→              <p className="text-xs text-muted-foreground mb-1">Room</p>
+  1252→              <p className="text-4xl font-bold tracking-wider text-primary">{keyCardRoomNumber}</p>
+  1253→            </div>
+  1254→
+  1255→            {/* Key Card Issued Checkbox */}
+  1256→            <div className="flex items-start gap-3 p-3 rounded-lg border">
+  1257→              <Checkbox
+  1258→                id="key-card-issued"
+  1259→                checked={keyCardIssued}
+  1260→                onCheckedChange={(checked) => setKeyCardIssued(checked === true)}
+  1261→                className="mt-0.5"
+  1262→              />
+  1263→              <div className="grid gap-0.5 leading-none">
+  1264→                <Label htmlFor="key-card-issued" className="text-sm font-medium cursor-pointer">
+  1265→                  Key Card Issued
+  1266→                </Label>
+  1267→                <p className="text-xs text-muted-foreground">
+  1268→                  Confirm that the physical key card has been programmed and handed to the guest.
+  1269→                </p>
+  1270→              </div>
+  1271→            </div>
+  1272→          </div>
+  1273→
+  1274→          <DialogFooter>
+  1275→            <Button
+  1276→              onClick={handleKeyCardConfirm}
+  1277→              disabled={keyCardProcessed}
+  1278→              className="gap-2"
+  1279→            >
+  1280→              <KeyRound className="size-4" />
+  1281→              {keyCardProcessed ? 'Done' : 'Complete Check-in'}
+  1282→            </Button>
+  1283→          </DialogFooter>
+  1284→        </DialogContent>
+  1285→      </Dialog>
+  1286→    </div>
+  1287→  )
+  1288→}
+  1289→

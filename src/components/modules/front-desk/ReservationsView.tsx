@@ -314,9 +314,7 @@ export function ReservationsView() {
       if (debouncedSearch) params.set('search', debouncedSearch)
       if (dateFrom) params.set('dateFrom', dateFrom)
       if (dateTo) params.set('dateTo', dateTo)
-      const res = await fetch(`/api/reservations?${params.toString()}`)
-      if (!res.ok) throw new Error('Failed to fetch reservations')
-      return res.json()
+      return apiFetch(`/api/reservations?${params.toString()}`)
     },
   })
 
@@ -355,7 +353,7 @@ export function ReservationsView() {
     mutationFn: async (formData: NewReservationForm) => {
       let guestId = formData.guestId
       if (formData.newGuest) {
-        const guestRes = await fetch('/api/guests', {
+        const gd = await apiFetch<{ guest: { id: string } }>('/api/guests', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -365,13 +363,10 @@ export function ReservationsView() {
             email: formData.email,
           }),
         })
-        if (guestRes.ok) {
-          const guestData = await guestRes.json()
-          guestId = guestData.guest.id
-        }
+        guestId = gd.guest.id
       }
       const roomType = ROOM_TYPES.find((rt) => rt.id === formData.roomTypeId)
-      const res = await fetch('/api/reservations', {
+      return apiFetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -388,11 +383,6 @@ export function ReservationsView() {
           notes: formData.notes || undefined,
         }),
       })
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || 'Failed to create reservation')
-      }
-      return res.json()
     },
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
@@ -407,15 +397,13 @@ export function ReservationsView() {
 
   // Update reservation status mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, ...body }: { id: string; status?: string; roomId?: string }) => {
-      const res = await fetch(`/api/reservations/${id}`, {
+    mutationFn: ({ id, ...body }: { id: string; status?: string; roomId?: string }) =>
+      apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      })
-      if (!res.ok) throw new Error('Failed to update reservation')
-      return res.json()
-    },
+      }),
+    
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
     },
@@ -423,15 +411,13 @@ export function ReservationsView() {
 
   // Edit reservation mutation
   const editMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<EditReservationForm> & { totalAmount: number } }) => {
-      const res = await fetch(`/api/reservations/${id}`, {
+    mutationFn: ({ id, data }: { id: string; data: Partial<EditReservationForm> & { totalAmount: number } }) =>
+      apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      })
-      if (!res.ok) throw new Error('Failed to update reservation')
-      return res.json()
-    },
+      }),
+    
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
       setEditOpen(false)
@@ -444,15 +430,13 @@ export function ReservationsView() {
 
   // Add note mutation
   const noteMutation = useMutation({
-    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
-      const res = await fetch(`/api/reservations/${id}`, {
+    mutationFn: ({ id, notes }: { id: string; notes: string }) =>
+      apiFetch(`/api/reservations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes }),
-      })
-      if (!res.ok) throw new Error('Failed to add note')
-      return res.json()
-    },
+      }),
+    
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
       setNoteOpen(false)
@@ -466,13 +450,9 @@ export function ReservationsView() {
 
   // Delete reservation mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/reservations/${id}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) throw new Error('Failed to delete reservation')
-      return res.json()
-    },
+    mutationFn: (id: string) =>
+      apiFetch(`/api/reservations/${id}`, { method: 'DELETE' }),
+    
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
       setDeleteOpen(false)

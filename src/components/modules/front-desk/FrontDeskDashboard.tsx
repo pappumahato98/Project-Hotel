@@ -36,7 +36,7 @@ import {
   TableCell,
 } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useFrontDeskContextStore } from '@/lib/store'
 import { formatDate, formatTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -259,6 +259,11 @@ function UpcomingArrivalsSkeleton() {
 
 export function FrontDeskDashboard() {
   const { navigateTo, setActiveSubModule } = useNavigationStore()
+
+  const handleArrivalClick = (arrival: UpcomingArrival) => {
+    useFrontDeskContextStore.getState().setPrefillReservationId(arrival.id)
+    navigateTo('front-desk', 'check-in')
+  }
 
   // ─── Dashboard data query ────────────────────────────────────
   const {
@@ -594,7 +599,7 @@ export function FrontDeskDashboard() {
                         const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
 
                         return (
-                          <TableRow key={arrival.id}>
+                          <TableRow key={arrival.id} onClick={() => handleArrivalClick(arrival)} className="cursor-pointer hover:bg-muted/50 transition-colors">
                             <TableCell>
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-sm font-medium">{guestName}</span>

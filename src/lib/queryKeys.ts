@@ -59,6 +59,12 @@ export const qk = {
 
   // Calendar
   calendar:        ()               => ['calendar'] as const,
+
+  // Waitlist
+  waitlist:        ()               => ['waitlist'] as const,
+
+  // Wake-up Calls
+  wakeUpCalls:     (d?: string)     => ['wake-up-calls', d] as const,
 } as const
 
 // ─── Cross-module invalidation helpers ─────────────────────────────────

@@ -1,0 +1,719 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { toast } from 'sonner'
+     5→import {
+     6→  Clock, AlertTriangle, Crown, Phone, Plus, Search, Trash2,
+     7→  BedDouble, UserPlus, Users, CheckCircle2, Filter, X,
+     8→} from 'lucide-react'
+     9→
+    10→import { Button } from '@/components/ui/button'
+    11→import { Badge } from '@/components/ui/badge'
+    12→import { Card, CardContent } from '@/components/ui/card'
+    13→import { Input } from '@/components/ui/input'
+    14→import { Label } from '@/components/ui/label'
+    15→import { Textarea } from '@/components/ui/textarea'
+    16→import {
+    17→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    18→} from '@/components/ui/dialog'
+    19→import {
+    20→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    21→} from '@/components/ui/select'
+    22→import {
+    23→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    24→} from '@/components/ui/table'
+    25→import { formatDate } from '@/lib/format'
+    26→import { cn } from '@/lib/utils'
+    27→
+    28→// ─── Types ──────────────────────────────────────────────────────────────
+    29→
+    30→type Priority = 'High' | 'Normal' | 'Low'
+    31→type WaitlistStatus = 'Waiting' | 'Assigned' | 'Cancelled'
+    32→
+    33→interface WaitlistEntry {
+    34→  id: string
+    35→  position: number
+    36→  guestName: string
+    37→  roomPreference: string
+    38→  checkInDate: string
+    39→  checkOutDate: string
+    40→  guestsCount: number
+    41→  priority: Priority
+    42→  status: WaitlistStatus
+    43→  contactPhone: string
+    44→  notes: string
+    45→  addedDate: string
+    46→}
+    47→
+    48→// ─── Static Mock Data ───────────────────────────────────────────────────
+    49→
+    50→const INITIAL_WAITLIST: WaitlistEntry[] = [
+    51→  {
+    52→    id: 'wl-1',
+    53→    position: 1,
+    54→    guestName: 'Rajesh Sharma',
+    55→    roomPreference: 'Deluxe King',
+    56→    checkInDate: '2025-07-20',
+    57→    checkOutDate: '2025-07-23',
+    58→    guestsCount: 2,
+    59→    priority: 'High',
+    60→    status: 'Waiting',
+    61→    contactPhone: '+977-9841-234567',
+    62→    notes: 'Returning guest, corporate account with Nepal Telecom',
+    63→    addedDate: '2025-07-18',
+    64→  },
+    65→  {
+    66→    id: 'wl-2',
+    67→    position: 2,
+    68→    guestName: 'Sarah Mitchell',
+    69→    roomPreference: 'Suite',
+    70→    checkInDate: '2025-07-20',
+    71→    checkOutDate: '2025-07-25',
+    72→    guestsCount: 2,
+    73→    priority: 'High',
+    74→    status: 'Waiting',
+    75→    contactPhone: '+1-555-012-3456',
+    76→    notes: 'Honeymoon couple, wants mountain view',
+    77→    addedDate: '2025-07-17',
+    78→  },
+    79→  {
+    80→    id: 'wl-3',
+    81→    position: 3,
+    82→    guestName: 'Bikash Thapa',
+    83→    roomPreference: 'Standard Double',
+    84→    checkInDate: '2025-07-21',
+    85→    checkOutDate: '2025-07-22',
+    86→    guestsCount: 1,
+    87→    priority: 'Normal',
+    88→    status: 'Waiting',
+    89→    contactPhone: '+977-9851-345678',
+    90→    notes: 'Business traveler, needs early check-in',
+    91→    addedDate: '2025-07-19',
+    92→  },
+    93→  {
+    94→    id: 'wl-4',
+    95→    position: 4,
+    96→    guestName: 'Priya Koirala',
+    97→    roomPreference: 'Deluxe Twin',
+    98→    checkInDate: '2025-07-20',
+    99→    checkOutDate: '2025-07-24',
+   100→    guestsCount: 3,
+   101→    priority: 'Normal',
+   102→    status: 'Assigned',
+   103→    contactPhone: '+977-9861-456789',
+   104→    notes: 'Family with one child, needs extra bed',
+   105→    addedDate: '2025-07-16',
+   106→  },
+   107→  {
+   108→    id: 'wl-5',
+   109→    position: 5,
+   110→    guestName: 'David Chen',
+   111→    roomPreference: 'Superior King',
+   112→    checkInDate: '2025-07-21',
+   113→    checkOutDate: '2025-07-23',
+   114→    guestsCount: 1,
+   115→    priority: 'Low',
+   116→    status: 'Waiting',
+   117→    contactPhone: '+86-138-0012-3456',
+   118→    notes: 'Tourist, flexible on dates',
+   119→    addedDate: '2025-07-19',
+   120→  },
+   121→  {
+   122→    id: 'wl-6',
+   123→    position: 6,
+   124→    guestName: 'Aarav Poudel',
+   125→    roomPreference: 'Standard Single',
+   126→    checkInDate: '2025-07-22',
+   127→    checkOutDate: '2025-07-24',
+   128→    guestsCount: 1,
+   129→    priority: 'Low',
+   130→    status: 'Cancelled',
+   131→    contactPhone: '+977-9842-567890',
+   132→    notes: 'Cancelled — found alternative hotel',
+   133→    addedDate: '2025-07-15',
+   134→  },
+   135→  {
+   136→    id: 'wl-7',
+   137→    position: 7,
+   138→    guestName: 'Emily Johnson',
+   139→    roomPreference: 'Premium Suite',
+   140→    checkInDate: '2025-07-21',
+   141→    checkOutDate: '2025-07-26',
+   142→    guestsCount: 2,
+   143→    priority: 'High',
+   144→    status: 'Waiting',
+   145→    contactPhone: '+44-7700-900123',
+   146→    notes: 'Conference attendee, booking.com reservation',
+   147→    addedDate: '2025-07-18',
+   148→  },
+   149→  {
+   150→    id: 'wl-8',
+   151→    position: 8,
+   152→    guestName: 'Suman Lama',
+   153→    roomPreference: 'Deluxe King',
+   154→    checkInDate: '2025-07-22',
+   155→    checkOutDate: '2025-07-23',
+   156→    guestsCount: 2,
+   157→    priority: 'Normal',
+   158→    status: 'Assigned',
+   159→    contactPhone: '+977-9852-678901',
+   160→    notes: 'Anniversary celebration, requested fruit basket',
+   161→    addedDate: '2025-07-17',
+   162→  },
+   163→]
+   164→
+   165→const AVAILABLE_ROOMS = [
+   166→  { id: 'room-101', number: '101', type: 'Standard Double', floor: 1 },
+   167→  { id: 'room-205', number: '205', type: 'Deluxe King', floor: 2 },
+   168→  { id: 'room-301', number: '301', type: 'Suite', floor: 3 },
+   169→  { id: 'room-310', number: '310', type: 'Premium Suite', floor: 3 },
+   170→  { id: 'room-108', number: '108', type: 'Deluxe Twin', floor: 1 },
+   171→]
+   172→
+   173→// ─── Priority Badge Component ──────────────────────────────────────────
+   174→
+   175→function PriorityBadge({ priority }: { priority: Priority }) {
+   176→  const styles: Record<Priority, string> = {
+   177→    High: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border-red-300 dark:border-red-700',
+   178→    Normal: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+   179→    Low: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   180→  }
+   181→  return (
+   182→    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', styles[priority])}>
+   183→      {priority === 'High' && <AlertTriangle className="size-3 mr-0.5" />}
+   184→      {priority}
+   185→    </Badge>
+   186→  )
+   187→}
+   188→
+   189→function StatusBadge({ status }: { status: WaitlistStatus }) {
+   190→  const styles: Record<WaitlistStatus, string> = {
+   191→    Waiting: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+   192→    Assigned: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700',
+   193→    Cancelled: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-300 dark:border-slate-600',
+   194→  }
+   195→  const icons: Record<WaitlistStatus, React.ReactNode> = {
+   196→    Waiting: <Clock className="size-3 mr-0.5" />,
+   197→    Assigned: <CheckCircle2 className="size-3 mr-0.5" />,
+   198→    Cancelled: <Trash2 className="size-3 mr-0.5" />,
+   199→  }
+   200→  return (
+   201→    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', styles[status])}>
+   202→      {icons[status]}
+   203→      {status}
+   204→    </Badge>
+   205→  )
+   206→}
+   207→
+   208→// ─── Main Component ────────────────────────────────────────────────────
+   209→
+   210→export function WaitlistView() {
+   211→  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>(INITIAL_WAITLIST)
+   212→  const [searchQuery, setSearchQuery] = useState('')
+   213→  const [priorityFilter, setPriorityFilter] = useState<string>('all')
+   214→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   215→
+   216→  // Dialog states
+   217→  const [addDialogOpen, setAddDialogOpen] = useState(false)
+   218→  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+   219→  const [selectedEntry, setSelectedEntry] = useState<WaitlistEntry | null>(null)
+   220→  const [selectedRoomId, setSelectedRoomId] = useState('')
+   221→
+   222→  // Add form state
+   223→  const [formGuestName, setFormGuestName] = useState('')
+   224→  const [formRoomPref, setFormRoomPref] = useState('')
+   225→  const [formCheckIn, setFormCheckIn] = useState('')
+   226→  const [formCheckOut, setFormCheckOut] = useState('')
+   227→  const [formGuestsCount, setFormGuestsCount] = useState('1')
+   228→  const [formPriority, setFormPriority] = useState<Priority>('Normal')
+   229→  const [formPhone, setFormPhone] = useState('')
+   230→  const [formNotes, setFormNotes] = useState('')
+   231→
+   232→  // ─── Computed values ──────────────────────────────────────────
+   233→
+   234→  const filteredWaitlist = useMemo(() => {
+   235→    let filtered = waitlist
+   236→    if (searchQuery.trim()) {
+   237→      const q = searchQuery.toLowerCase()
+   238→      filtered = filtered.filter(
+   239→        (e) =>
+   240→          e.guestName.toLowerCase().includes(q) ||
+   241→          e.contactPhone.includes(q) ||
+   242→          e.roomPreference.toLowerCase().includes(q),
+   243→      )
+   244→    }
+   245→    if (priorityFilter !== 'all') {
+   246→      filtered = filtered.filter((e) => e.priority === priorityFilter)
+   247→    }
+   248→    if (statusFilter !== 'all') {
+   249→      filtered = filtered.filter((e) => e.status === statusFilter)
+   250→    }
+   251→    return filtered
+   252→  }, [waitlist, searchQuery, priorityFilter, statusFilter])
+   253→
+   254→  const totalWaitlisted = waitlist.filter((e) => e.status === 'Waiting').length
+   255→  const avgWaitDays = useMemo(() => {
+   256→    const waiting = waitlist.filter((e) => e.status === 'Waiting')
+   257→    if (waiting.length === 0) return 0
+   258→    const totalDays = waiting.reduce((sum, e) => {
+   259→      const added = new Date(e.addedDate)
+   260→      const now = new Date()
+   261→      return sum + Math.max(1, Math.ceil((now.getTime() - added.getTime()) / (1000 * 60 * 60 * 24)))
+   262→    }, 0)
+   263→    return (totalDays / waiting.length).toFixed(1)
+   264→  }, [waitlist])
+   265→  const highPriorityCount = waitlist.filter((e) => e.priority === 'High' && e.status === 'Waiting').length
+   266→  const assignedToday = waitlist.filter((e) => e.status === 'Assigned').length
+   267→
+   268→  // ─── Handlers ────────────────────────────────────────────────
+   269→
+   270→  function handleAddToWaitlist() {
+   271→    if (!formGuestName.trim() || !formCheckIn || !formCheckOut) {
+   272→      toast.error('Please fill in guest name and dates')
+   273→      return
+   274→    }
+   275→    const newEntry: WaitlistEntry = {
+   276→      id: `wl-${Date.now()}`,
+   277→      position: waitlist.length + 1,
+   278→      guestName: formGuestName.trim(),
+   279→      roomPreference: formRoomPref || 'No preference',
+   280→      checkInDate: formCheckIn,
+   281→      checkOutDate: formCheckOut,
+   282→      guestsCount: parseInt(formGuestsCount) || 1,
+   283→      priority: formPriority,
+   284→      status: 'Waiting',
+   285→      contactPhone: formPhone || 'N/A',
+   286→      notes: formNotes || '',
+   287→      addedDate: new Date().toISOString().split('T')[0],
+   288→    }
+   289→    setWaitlist((prev) => [...prev, newEntry])
+   290→    setAddDialogOpen(false)
+   291→    resetAddForm()
+   292→    toast.success(`${newEntry.guestName} added to waitlist`, {
+   293→      description: `Position #${newEntry.position}`,
+   294→    })
+   295→  }
+   296→
+   297→  function resetAddForm() {
+   298→    setFormGuestName('')
+   299→    setFormRoomPref('')
+   300→    setFormCheckIn('')
+   301→    setFormCheckOut('')
+   302→    setFormGuestsCount('1')
+   303→    setFormPriority('Normal')
+   304→    setFormPhone('')
+   305→    setFormNotes('')
+   306→  }
+   307→
+   308→  function handleAssignRoom() {
+   309→    if (!selectedEntry || !selectedRoomId) return
+   310→    const room = AVAILABLE_ROOMS.find((r) => r.id === selectedRoomId)
+   311→    setWaitlist((prev) =>
+   312→      prev.map((e) => (e.id === selectedEntry.id ? { ...e, status: 'Assigned' as WaitlistStatus } : e)),
+   313→    )
+   314→    setAssignDialogOpen(false)
+   315→    setSelectedRoomId('')
+   316→    setSelectedEntry(null)
+   317→    toast.success(`Room ${room?.number || selectedRoomId} assigned to ${selectedEntry.guestName}`, {
+   318→      description: `${selectedEntry.roomPreference} → Room ${room?.number || ''}`,
+   319→    })
+   320→  }
+   321→
+   322→  function handleRemoveFromWaitlist(entry: WaitlistEntry) {
+   323→    setWaitlist((prev) =>
+   324→      prev.map((e) => (e.id === entry.id ? { ...e, status: 'Cancelled' as WaitlistStatus } : e)),
+   325→    )
+   326→    toast.info(`${entry.guestName} removed from waitlist`, {
+   327→      description: 'Status set to Cancelled',
+   328→    })
+   329→  }
+   330→
+   331→  function handleCallGuest(entry: WaitlistEntry) {
+   332→    toast.success(`Calling ${entry.guestName}...`, {
+   333→      description: entry.contactPhone,
+   334→      duration: 4000,
+   335→    })
+   336→  }
+   337→
+   338→  function openAssignDialog(entry: WaitlistEntry) {
+   339→    setSelectedEntry(entry)
+   340→    setSelectedRoomId('')
+   341→    setAssignDialogOpen(true)
+   342→  }
+   343→
+   344→  // ─── Render ──────────────────────────────────────────────────
+   345→  return (
+   346→    <div className="flex flex-col gap-2">
+   347→      {/* Header */}
+   348→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+   349→        <div>
+   350→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Waitlist Management</h2>
+   351→          <p className="text-xs text-muted-foreground">
+   352→            Manage guests waiting for room availability
+   353→          </p>
+   354→        </div>
+   355→        <Button onClick={() => { resetAddForm(); setAddDialogOpen(true) }} className="gap-2 shrink-0">
+   356→          <UserPlus className="size-3.5" />
+   357→          Add to Waitlist
+   358→        </Button>
+   359→      </div>
+   360→
+   361→      {/* Filters */}
+   362→      <Card className="py-0">
+   363→        <CardContent className="p-2">
+   364→          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+   365→            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+   366→              <Filter className="size-3.5" />
+   367→              Filters
+   368→            </div>
+   369→            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1">
+   370→              <div className="relative flex-1 max-w-xs">
+   371→                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+   372→                <Input
+   373→                  placeholder="Search by guest name..."
+   374→                  value={searchQuery}
+   375→                  onChange={(e) => setSearchQuery(e.target.value)}
+   376→                  className={cn('pl-8 h-7 text-xs', searchQuery && 'pr-7')}
+   377→                />
+   378→                {searchQuery && (
+   379→                  <button
+   380→                    type="button"
+   381→                    className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+   382→                    onClick={() => setSearchQuery('')}
+   383→                  >
+   384→                    <X className="size-3" strokeWidth={2.5} />
+   385→                  </button>
+   386→                )}
+   387→              </div>
+   388→              <div className="relative">
+   389→                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+   390→                  <SelectTrigger className={cn('w-[110px] h-7 data-[size=default]:h-7 text-xs', priorityFilter !== 'all' && 'pr-8')}>
+   391→                    <SelectValue placeholder="Priority" />
+   392→                  </SelectTrigger>
+   393→                  <SelectContent>
+   394→                    <SelectItem value="all">All Priority</SelectItem>
+   395→                    <SelectItem value="High">High</SelectItem>
+   396→                    <SelectItem value="Normal">Normal</SelectItem>
+   397→                    <SelectItem value="Low">Low</SelectItem>
+   398→                  </SelectContent>
+   399→                </Select>
+   400→                {priorityFilter !== 'all' && (
+   401→                  <button
+   402→                    type="button"
+   403→                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+   404→                    onClick={(e) => { e.stopPropagation(); setPriorityFilter('all') }}
+   405→                  >
+   406→                    <X className="size-3" strokeWidth={2.5} />
+   407→                  </button>
+   408→                )}
+   409→              </div>
+   410→              <div className="relative">
+   411→                <Select value={statusFilter} onValueChange={setStatusFilter}>
+   412→                  <SelectTrigger className={cn('w-[110px] h-7 data-[size=default]:h-7 text-xs', statusFilter !== 'all' && 'pr-8')}>
+   413→                    <SelectValue placeholder="Status" />
+   414→                  </SelectTrigger>
+   415→                  <SelectContent>
+   416→                    <SelectItem value="all">All Status</SelectItem>
+   417→                    <SelectItem value="Waiting">Waiting</SelectItem>
+   418→                    <SelectItem value="Assigned">Assigned</SelectItem>
+   419→                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+   420→                  </SelectContent>
+   421→                </Select>
+   422→                {statusFilter !== 'all' && (
+   423→                  <button
+   424→                    type="button"
+   425→                    className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+   426→                    onClick={(e) => { e.stopPropagation(); setStatusFilter('all') }}
+   427→                  >
+   428→                    <X className="size-3" strokeWidth={2.5} />
+   429→                  </button>
+   430→                )}
+   431→              </div>
+   432→            </div>
+   433→            {(searchQuery || priorityFilter !== 'all' || statusFilter !== 'all') && (
+   434→              <button
+   435→                type="button"
+   436→                onClick={() => { setSearchQuery(''); setPriorityFilter('all'); setStatusFilter('all') }}
+   437→                className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+   438→                title="Clear all filters"
+   439→              >
+   440→                <X className="size-3.5" strokeWidth={2.5} />
+   441→              </button>
+   442→            )}
+   443→            <p className="text-[11px] text-muted-foreground">
+   444→              Showing {filteredWaitlist.length} of {waitlist.length}
+   445→            </p>
+   446→          </div>
+   447→        </CardContent>
+   448→      </Card>
+   449→
+   450→      {/* Waitlist Table */}
+   451→      <Card className="py-0">
+   452→        <CardContent className="p-0 overflow-auto max-h-[65vh]">
+   453→          <Table>
+   454→            <TableHeader>
+   455→              <TableRow>
+   456→                <TableHead className="w-[50px]">#</TableHead>
+   457→                <TableHead>Guest Name</TableHead>
+   458→                <TableHead className="hidden md:table-cell">Room Preference</TableHead>
+   459→                <TableHead className="hidden sm:table-cell">Check-in</TableHead>
+   460→                <TableHead className="hidden lg:table-cell">Check-out</TableHead>
+   461→                <TableHead className="w-[50px] hidden sm:table-cell">Pax</TableHead>
+   462→                <TableHead>Priority</TableHead>
+   463→                <TableHead>Status</TableHead>
+   464→                <TableHead className="hidden md:table-cell">Contact</TableHead>
+   465→                <TableHead className="w-[180px] text-right">Actions</TableHead>
+   466→              </TableRow>
+   467→            </TableHeader>
+   468→            <TableBody>
+   469→              {filteredWaitlist.length === 0 ? (
+   470→                <TableRow>
+   471→                  <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
+   472→                    <Clock className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+   473→                    No waitlisted guests found
+   474→                  </TableCell>
+   475→                </TableRow>
+   476→              ) : (
+   477→                filteredWaitlist.map((entry) => (
+   478→                  <TableRow
+   479→                    key={entry.id}
+   480→                    className={cn(
+   481→                      entry.status === 'Cancelled' && 'opacity-50',
+   482→                      entry.priority === 'High' && entry.status === 'Waiting' && 'bg-red-50/50 dark:bg-red-950/10',
+   483→                    )}
+   484→                  >
+   485→                    <TableCell className="font-mono text-xs text-muted-foreground">
+   486→                      {entry.position}
+   487→                    </TableCell>
+   488→                    <TableCell>
+   489→                      <span className="font-medium text-xs">{entry.guestName}</span>
+   490→                      {entry.notes && (
+   491→                        <p className="text-[10px] text-muted-foreground truncate max-w-[200px] mt-0.5">
+   492→                          {entry.notes}
+   493→                        </p>
+   494→                      )}
+   495→                    </TableCell>
+   496→                    <TableCell className="hidden md:table-cell">
+   497→                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+   498→                        <BedDouble className="size-3" />
+   499→                        {entry.roomPreference}
+   500→                      </div>
+   501→                    </TableCell>
+   502→                    <TableCell className="hidden sm:table-cell text-xs">
+   503→                      {formatDate(entry.checkInDate)}
+   504→                    </TableCell>
+   505→                    <TableCell className="hidden lg:table-cell text-xs">
+   506→                      {formatDate(entry.checkOutDate)}
+   507→                    </TableCell>
+   508→                    <TableCell className="hidden sm:table-cell">
+   509→                      <div className="flex items-center gap-1 text-xs">
+   510→                        <Users className="size-3 text-muted-foreground" />
+   511→                        {entry.guestsCount}
+   512→                      </div>
+   513→                    </TableCell>
+   514→                    <TableCell>
+   515→                      <PriorityBadge priority={entry.priority} />
+   516→                    </TableCell>
+   517→                    <TableCell>
+   518→                      <StatusBadge status={entry.status} />
+   519→                    </TableCell>
+   520→                    <TableCell className="hidden md:table-cell">
+   521→                      <span className="text-xs text-muted-foreground font-mono">{entry.contactPhone}</span>
+   522→                    </TableCell>
+   523→                    <TableCell className="text-right">
+   524→                      {entry.status === 'Waiting' && (
+   525→                        <div className="flex items-center justify-end gap-1">
+   526→                          <Button
+   527→                            size="sm"
+   528→                            variant="outline"
+   529→                            className="text-xs h-7 gap-1"
+   530→                            onClick={() => openAssignDialog(entry)}
+   531→                          >
+   532→                            <BedDouble className="size-3" />
+   533→                            <span className="hidden xl:inline">Assign</span>
+   534→                          </Button>
+   535→                          <Button
+   536→                            size="sm"
+   537→                            variant="outline"
+   538→                            className="text-xs h-7 px-2"
+   539→                            onClick={() => handleCallGuest(entry)}
+   540→                            title={`Call ${entry.contactPhone}`}
+   541→                          >
+   542→                            <Phone className="size-3" />
+   543→                          </Button>
+   544→                          <Button
+   545→                            size="sm"
+   546→                            variant="ghost"
+   547→                            className="text-xs h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+   548→                            onClick={() => handleRemoveFromWaitlist(entry)}
+   549→                            title="Remove from waitlist"
+   550→                          >
+   551→                            <Trash2 className="size-3" />
+   552→                          </Button>
+   553→                        </div>
+   554→                      )}
+   555→                    </TableCell>
+   556→                  </TableRow>
+   557→                ))
+   558→              )}
+   559→            </TableBody>
+   560→          </Table>
+   561→        </CardContent>
+   562→      </Card>
+   563→
+   564→      {/* ─── Add to Waitlist Dialog ────────────────────────────── */}
+   565→      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+   566→        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+   567→          <DialogHeader>
+   568→            <DialogTitle className="flex items-center gap-2">
+   569→              <Plus className="size-5" />
+   570→              Add to Waitlist
+   571→            </DialogTitle>
+   572→            <DialogDescription>
+   573→              Add a guest to the waitlist when rooms are fully booked.
+   574→            </DialogDescription>
+   575→          </DialogHeader>
+   576→          <div className="space-y-4">
+   577→            <div className="grid gap-3">
+   578→              <div className="grid gap-1.5">
+   579→                <Label className="text-xs">Guest Name *</Label>
+   580→                <Input
+   581→                  value={formGuestName}
+   582→                  onChange={(e) => setFormGuestName(e.target.value)}
+   583→                  placeholder="Full name"
+   584→                />
+   585→              </div>
+   586→              <div className="grid grid-cols-2 gap-3">
+   587→                <div className="grid gap-1.5">
+   588→                  <Label className="text-xs">Check-in Date *</Label>
+   589→                  <Input
+   590→                    type="date"
+   591→                    value={formCheckIn}
+   592→                    onChange={(e) => setFormCheckIn(e.target.value)}
+   593→                  />
+   594→                </div>
+   595→                <div className="grid gap-1.5">
+   596→                  <Label className="text-xs">Check-out Date *</Label>
+   597→                  <Input
+   598→                    type="date"
+   599→                    value={formCheckOut}
+   600→                    onChange={(e) => setFormCheckOut(e.target.value)}
+   601→                  />
+   602→                </div>
+   603→              </div>
+   604→              <div className="grid grid-cols-2 gap-3">
+   605→                <div className="grid gap-1.5">
+   606→                  <Label className="text-xs">Room Preference</Label>
+   607→                  <Input
+   608→                    value={formRoomPref}
+   609→                    onChange={(e) => setFormRoomPref(e.target.value)}
+   610→                    placeholder="e.g. Deluxe King"
+   611→                  />
+   612→                </div>
+   613→                <div className="grid gap-1.5">
+   614→                  <Label className="text-xs">Guests Count</Label>
+   615→                  <Select value={formGuestsCount} onValueChange={setFormGuestsCount}>
+   616→                    <SelectTrigger>
+   617→                      <SelectValue />
+   618→                    </SelectTrigger>
+   619→                    <SelectContent>
+   620→                      <SelectItem value="1">1 Guest</SelectItem>
+   621→                      <SelectItem value="2">2 Guests</SelectItem>
+   622→                      <SelectItem value="3">3 Guests</SelectItem>
+   623→                      <SelectItem value="4">4 Guests</SelectItem>
+   624→                    </SelectContent>
+   625→                  </Select>
+   626→                </div>
+   627→              </div>
+   628→              <div className="grid grid-cols-2 gap-3">
+   629→                <div className="grid gap-1.5">
+   630→                  <Label className="text-xs">Priority</Label>
+   631→                  <Select value={formPriority} onValueChange={(v) => setFormPriority(v as Priority)}>
+   632→                    <SelectTrigger>
+   633→                      <SelectValue />
+   634→                    </SelectTrigger>
+   635→                    <SelectContent>
+   636→                      <SelectItem value="High">High</SelectItem>
+   637→                      <SelectItem value="Normal">Normal</SelectItem>
+   638→                      <SelectItem value="Low">Low</SelectItem>
+   639→                    </SelectContent>
+   640→                  </Select>
+   641→                </div>
+   642→                <div className="grid gap-1.5">
+   643→                  <Label className="text-xs">Contact Phone</Label>
+   644→                  <Input
+   645→                    value={formPhone}
+   646→                    onChange={(e) => setFormPhone(e.target.value)}
+   647→                    placeholder="+977-98XX-XXXXXX"
+   648→                  />
+   649→                </div>
+   650→              </div>
+   651→              <div className="grid gap-1.5">
+   652→                <Label className="text-xs">Notes</Label>
+   653→                <Textarea
+   654→                  value={formNotes}
+   655→                  onChange={(e) => setFormNotes(e.target.value)}
+   656→                  placeholder="Any special notes or requests..."
+   657→                  rows={3}
+   658→                />
+   659→              </div>
+   660→            </div>
+   661→          </div>
+   662→          <DialogFooter>
+   663→            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+   664→            <Button onClick={handleAddToWaitlist} disabled={!formGuestName.trim() || !formCheckIn || !formCheckOut}>
+   665→              <Plus className="size-4 mr-1.5" />
+   666→              Add to Waitlist
+   667→            </Button>
+   668→          </DialogFooter>
+   669→        </DialogContent>
+   670→      </Dialog>
+   671→
+   672→      {/* ─── Assign Room Dialog ───────────────────────────────── */}
+   673→      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+   674→        <DialogContent className="max-w-md">
+   675→          <DialogHeader>
+   676→            <DialogTitle className="flex items-center gap-2">
+   677→              <BedDouble className="size-5" />
+   678→              Assign Room
+   679→            </DialogTitle>
+   680→            <DialogDescription>
+   681→              {selectedEntry
+   682→                ? `Select a room for ${selectedEntry.guestName} (Preferred: ${selectedEntry.roomPreference})`
+   683→                : 'Select a room to assign'}
+   684→            </DialogDescription>
+   685→          </DialogHeader>
+   686→          <div className="max-h-72 overflow-y-auto">
+   687→            <div className="space-y-1">
+   688→              {AVAILABLE_ROOMS.map((room) => (
+   689→                <button
+   690→                  key={room.id}
+   691→                  onClick={() => setSelectedRoomId(room.id)}
+   692→                  className={cn(
+   693→                    'flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm transition-colors',
+   694→                    selectedRoomId === room.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+   695→                  )}
+   696→                >
+   697→                  <BedDouble className="size-4 shrink-0" />
+   698→                  <div className="flex-1">
+   699→                    <span className="font-medium">Room {room.number}</span>
+   700→                    <span className="text-xs opacity-70 ml-2">{room.type}</span>
+   701→                  </div>
+   702→                  <span className="text-xs opacity-70">Floor {room.floor}</span>
+   703→                </button>
+   704→              ))}
+   705→            </div>
+   706→          </div>
+   707→          <DialogFooter>
+   708→            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+   709→            <Button onClick={handleAssignRoom} disabled={!selectedRoomId}>
+   710→              <CheckCircle2 className="size-4 mr-1.5" />
+   711→              Assign Room
+   712→            </Button>
+   713→          </DialogFooter>
+   714→        </DialogContent>
+   715→      </Dialog>
+   716→    </div>
+   717→  )
+   718→}
+   719→

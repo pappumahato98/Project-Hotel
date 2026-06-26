@@ -8,13 +8,13 @@ import { invalidate } from '@/lib/queryKeys'
 import {
   LogIn, BedDouble, Bell, Clock, Star, AlertTriangle, Users, CheckCircle2,
   UserCheck, Crown, Footprints, KeyRound, Mail, Sparkles, BookOpen, Wand2,
+  ArrowLeft, Shield, Phone,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
@@ -30,7 +30,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
+import { formatDate, formatTime, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore, useNavigationStore, useFrontDeskContextStore, useGuestLedgerContextStore } from '@/lib/store'
 
@@ -183,6 +183,9 @@ export function ArrivalsView() {
   const [keyCardRoomNumber, setKeyCardRoomNumber] = useState('')
   const [keyCardIssued, setKeyCardIssued] = useState(false)
   const [keyCardProcessed, setKeyCardProcessed] = useState(false)
+
+  // Mobile detail view state
+  const [mobileShowDetail, setMobileShowDetail] = useState(false)
 
   // Walk-in form state
   const [walkInForm, setWalkInForm] = useState<WalkInForm>(initialWalkInForm)
@@ -466,151 +469,318 @@ export function ArrivalsView() {
     }))
   }
 
+  const handleSelectArrival = (arrival: Arrival) => {
+    setSelectedArrival(arrival)
+    setSelectedRoomId('')
+    setMobileShowDetail(true)
+  }
+
+  const handleBackToList = () => {
+    setMobileShowDetail(false)
+  }
+
   // ─── Render ─────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shrink-0">
         <div>
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Today&apos;s Arrivals</h2>
           <p className="text-xs text-muted-foreground">
             Guest check-ins scheduled for {formatDate(today)}
           </p>
         </div>
-        <Button onClick={handleOpenWalkIn} className="gap-2 shrink-0">
-          <Footprints className="size-4" />
-          Walk-in Check-in
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant="secondary" className="text-[10px]">
+            {totalArrivals} expected
+          </Badge>
+          {vipArrivals > 0 && (
+            <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-700 dark:text-amber-400">
+              <Crown className="size-3 mr-0.5" />
+              {vipArrivals} VIP
+            </Badge>
+          )}
+          {unassignedArrivals > 0 && (
+            <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="size-3 mr-0.5" />
+              {unassignedArrivals} unassigned
+            </Badge>
+          )}
+          <Button onClick={handleOpenWalkIn} size="sm" className="gap-1.5">
+            <Footprints className="size-3.5" />
+            <span className="hidden sm:inline">Walk-in</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Arrivals List */}
-      <Card className="py-0">
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-2 space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full rounded-lg" />
-              ))}
-            </div>
-          ) : sortedArrivals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <LogIn className="size-8 mb-2 opacity-50" />
-              <p className="text-sm">No arrivals scheduled for today</p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {sortedArrivals.map((arrival) => {
-                const isUnassigned = !arrival.room
-                const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
-                return (
-                  <div
-                    key={arrival.id}
-                    className={cn(
-                      'p-2.5 transition-colors hover:bg-muted/50',
-                      isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20',
-                      isVip && !isUnassigned && 'border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10',
-                      isVip && isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/30',
-                    )}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      {/* Guest Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold truncate">
-                            {arrival.guest ? `${arrival.guest.firstName} ${arrival.guest.lastName}` : 'Unknown Guest'}
-                          </span>
-                          {isVip && (
-                            <Badge className="text-[10px] px-1.5 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
-                              <Star className="size-3 fill-amber-500 text-amber-500" />
-                              <Crown className="size-3" />
-                              {arrival.guest?.vipLevel?.toUpperCase()}
-                            </Badge>
-                          )}
-                          {isUnassigned && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
-                              <AlertTriangle className="size-3 mr-0.5" />
-                              Unassigned
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                          <span className="font-mono">{arrival.confirmationNo}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <BedDouble className="size-3" />
-                            {arrival.room ? (
-                              <span>Room {arrival.room.number} ({arrival.room.type.name})</span>
-                            ) : (
-                              <span className="text-amber-600 dark:text-amber-400">No room assigned</span>
-                            )}
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="size-3" />
-                            {arrival.adults} adults{arrival.children > 0 ? `, ${arrival.children} children` : ''}
-                          </span>
-                          <span>•</span>
-                          <span className="capitalize">{arrival.source?.replace('_', ' ')}</span>
-                        </div>
-                        {arrival.specialRequests && (
-                          <p className="text-xs text-muted-foreground mt-1 italic truncate">
-                            📋 {arrival.specialRequests}
-                          </p>
-                        )}
-                      </div>
+      {/* ─── Split Screen Body ─── */}
+      <div className="h-[calc(100vh-14rem)] min-h-[400px] flex flex-col lg:flex-row gap-3 overflow-hidden">
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAssignRoom(arrival)}
-                          className="text-xs"
-                        >
-                          <BedDouble className="size-3.5 mr-1" />
-                          {isUnassigned ? 'Assign Room' : 'Change Room'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleQuickCheckIn(arrival)}
-                          className="text-xs"
-                        >
-                          <UserCheck className="size-3.5 mr-1" />
-                          Check In
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-xs"
-                          onClick={() => handleNavigateToCheckIn(arrival)}
-                          title="Full 4-step check-in wizard"
-                        >
-                          <Wand2 className="size-3.5 mr-1" />
-                          <span className="hidden sm:inline">Full Check-In</span>
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-xs"
-                          onClick={() => handleViewLedger(arrival)}
-                          title="View guest ledger"
-                        >
-                          <BookOpen className="size-3.5 mr-1" />
-                          <span className="hidden sm:inline">Ledger</span>
-                        </Button>
-                        <Button size="sm" variant="ghost" className="size-7 p-0">
-                          <Bell className="size-3.5" />
-                        </Button>
+        {/* ─── Left Panel: Arrivals List ─── */}
+        <div className={cn(
+          'flex flex-col min-h-0 border rounded-lg bg-card overflow-hidden',
+          'w-full lg:w-[42%] xl:w-[38%]',
+          mobileShowDetail && selectedArrival && 'hidden lg:flex',
+        )}>
+          {/* List header */}
+          <div className="px-3 py-2 border-b shrink-0 flex items-center justify-between bg-muted/30">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Expected Arrivals
+            </span>
+            <span className="text-[10px] text-muted-foreground">{sortedArrivals.length} guests</span>
+          </div>
+          {/* List body */}
+          <div className="flex-1 overflow-y-auto">
+            {isLoading ? (
+              <div className="p-2 space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : sortedArrivals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <LogIn className="size-8 mb-2 opacity-50" />
+                <p className="text-sm">No arrivals scheduled for today</p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {sortedArrivals.map((arrival) => {
+                  const isUnassigned = !arrival.room
+                  const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
+                  const isSelected = selectedArrival?.id === arrival.id
+                  return (
+                    <button
+                      key={arrival.id}
+                      type="button"
+                      onClick={() => handleSelectArrival(arrival)}
+                      className={cn(
+                        'w-full text-left p-2.5 transition-colors hover:bg-muted/50',
+                        isSelected && 'bg-muted/80',
+                        isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20',
+                        isVip && !isUnassigned && 'border-l-4 border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10',
+                        isVip && isUnassigned && 'border-l-4 border-l-amber-500 bg-amber-50/70 dark:bg-amber-950/30',
+                      )}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-sm truncate">
+                          {arrival.guest ? `${arrival.guest.firstName} ${arrival.guest.lastName}` : 'Unknown Guest'}
+                        </span>
+                        {isVip && (
+                          <Badge className="text-[9px] px-1 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+                            <Star className="size-2.5 fill-amber-500 text-amber-500" />
+                            VIP
+                          </Badge>
+                        )}
+                        {isUnassigned && (
+                          <Badge variant="outline" className="text-[9px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="size-2.5 mr-0.5" />
+                            Unassigned
+                          </Badge>
+                        )}
+                        {isSelected && <CheckCircle2 className="size-4 text-teal-600 ml-auto shrink-0" />}
                       </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span className="font-mono">{arrival.confirmationNo}</span>
+                        <span>·</span>
+                        <span>Room {arrival.room?.number || '---'}</span>
+                        <span>·</span>
+                        <span>{arrival.adults}A{arrival.children > 0 ? ` ${arrival.children}Ch` : ''}</span>
+                      </div>
+                      {arrival.specialRequests && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          📋 {arrival.specialRequests}
+                        </p>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Right Panel: Arrival Detail ─── */}
+        <div className={cn(
+          'flex flex-col min-h-0 border rounded-lg bg-card',
+          'w-full lg:flex-1',
+          (!selectedArrival || !mobileShowDetail) && 'hidden lg:flex',
+        )}>
+          {selectedArrival ? (
+            <>
+              {/* Mobile back button */}
+              <div className="lg:hidden border-b px-3 py-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleBackToList}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Arrivals</span>
+                </button>
+              </div>
+
+              {/* Scrollable detail content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Guest & Room Header */}
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-lg font-semibold">
+                      {selectedArrival.guest ? `${selectedArrival.guest.firstName} ${selectedArrival.guest.lastName}` : 'Unknown Guest'}
+                    </span>
+                    {selectedArrival.guest?.vipLevel && selectedArrival.guest.vipLevel !== 'none' && (
+                      <Badge className="text-[10px] px-1.5 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+                        <Crown className="size-3" />
+                        {selectedArrival.guest.vipLevel.toUpperCase()}
+                      </Badge>
+                    )}
+                    {selectedArrival.guaranteed && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-300 text-emerald-700 dark:text-emerald-400">
+                        <Shield className="size-3 mr-0.5" />
+                        Guaranteed
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                    <span className="font-mono">{selectedArrival.confirmationNo}</span>
+                    <span>·</span>
+                    <span className="capitalize">{selectedArrival.source?.replace('_', ' ') || 'Direct'}</span>
+                    <span>·</span>
+                    <StatusBadge status={selectedArrival.status} />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Room & Rate Info */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Room</span>
+                    <p className="text-sm font-medium mt-0.5">
+                      {selectedArrival.room ? (
+                        <>
+                          {selectedArrival.room.number} — {selectedArrival.room.type.name}
+                          <span className="text-muted-foreground text-xs ml-1">({selectedArrival.room.type.code})</span>
+                        </>
+                      ) : (
+                        <span className="text-amber-600 dark:text-amber-400">Unassigned</span>
+                      )}
+                    </p>
+                    {selectedArrival.room && (
+                      <p className="text-xs text-muted-foreground">
+                        Floor {selectedArrival.room.floor}{selectedArrival.room.wing ? ` · Wing ${selectedArrival.room.wing}` : ''}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Rate</span>
+                    <p className="text-sm font-medium mt-0.5">{formatCurrency(selectedArrival.roomRate)}<span className="text-xs text-muted-foreground">/night</span></p>
+                    <p className="text-xs text-muted-foreground">
+                      {nightsBetween(selectedArrival.checkIn, selectedArrival.checkOut)} nights · Total: {formatCurrency(selectedArrival.totalAmount || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Stay Dates */}
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Stay Duration</span>
+                  <p className="text-sm mt-0.5 font-medium">
+                    {formatDate(selectedArrival.checkIn)} → {formatDate(selectedArrival.checkOut)}
+                  </p>
+                </div>
+
+                {/* Guest Contact */}
+                {selectedArrival.guest && (selectedArrival.guest.email || selectedArrival.guest.phone) && (
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Contact</span>
+                    <div className="mt-1 space-y-0.5 text-sm">
+                      {selectedArrival.guest.email && (
+                        <p className="flex items-center gap-1.5 text-muted-foreground">
+                          <Mail className="size-3 shrink-0" />
+                          {selectedArrival.guest.email}
+                        </p>
+                      )}
+                      {selectedArrival.guest.phone && (
+                        <p className="flex items-center gap-1.5 text-muted-foreground">
+                          <Phone className="size-3 shrink-0" />
+                          {selectedArrival.guest.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
-                )
-              })}
+                )}
+
+                {/* Occupancy */}
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="size-4 text-muted-foreground shrink-0" />
+                  <span>{selectedArrival.adults} adults</span>
+                  {selectedArrival.children > 0 && <span>· {selectedArrival.children} children</span>}
+                </div>
+
+                {/* Special Requests */}
+                {selectedArrival.specialRequests && (
+                  <div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Special Requests</span>
+                    <p className="text-sm mt-0.5 bg-muted/50 rounded-md p-2.5">{selectedArrival.specialRequests}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* ─── Sticky Action Bar ─── */}
+              <div className="shrink-0 border-t bg-background p-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => handleNavigateToCheckIn(selectedArrival)}
+                    className="flex-1 min-w-[130px]"
+                  >
+                    <Wand2 className="size-4 mr-1.5" />
+                    Go Check-in
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      resetCheckInForm()
+                      setCheckInDialogOpen(true)
+                    }}
+                  >
+                    <UserCheck className="size-3.5 mr-1.5" />
+                    Quick Check-In
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleAssignRoom(selectedArrival)}
+                  >
+                    <BedDouble className="size-3.5 mr-1.5" />
+                    Room
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleViewLedger(selectedArrival)}
+                  >
+                    <BookOpen className="size-3.5 mr-1.5" />
+                    Ledger
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-9"
+                    title="Wake-up call / Service bell"
+                  >
+                    <Bell className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            /* Empty state */
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-6">
+              <LogIn className="size-10 mb-3 opacity-30" />
+              <p className="text-sm font-medium">No arrival selected</p>
+              <p className="text-xs mt-1 text-center max-w-[200px]">Click an arrival from the list to view details and process check-in</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* ─── Room Picker Dialog ──────────────────────────────────────── */}
       <Dialog open={roomPickerOpen} onOpenChange={setRoomPickerOpen}>

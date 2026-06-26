@@ -812,7 +812,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                   <div className="flex gap-2">
                     <Button onClick={handleUseReservation} className="flex-1">
                       <Check className="w-4 h-4 mr-2" />
-                      Use Reservation
+                      Go Check-in
                     </Button>
                     {expressMode && (
                       <Button variant="outline" className="flex-1" onClick={() => handleExpressCheckIn(reservationData)}>
@@ -1062,7 +1062,7 @@ export function CheckInWizard({ onBack, onOpenRatePosting, prefillReservationId 
                       <div className="flex gap-2 mt-3">
                         <Button onClick={handleUseReservation} className="flex-1">
                           <Check className="w-4 h-4 mr-2" />
-                          Use Reservation
+                          Go Check-in
                         </Button>
                         {expressMode && (
                           <Button variant="outline" className="flex-1" onClick={() => handleExpressCheckIn(reservationData)}>

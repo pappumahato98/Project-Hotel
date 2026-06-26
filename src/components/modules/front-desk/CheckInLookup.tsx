@@ -171,6 +171,11 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
   const [guestPhone, setGuestPhone] = useState('')
   const [guestNationality, setGuestNationality] = useState('')
 
+  // Clear prefill on unmount to avoid stale prefills
+  useEffect(() => {
+    return () => { setPrefillReservationId(null) }
+  }, [setPrefillReservationId])
+
   // Debounced search ────────────────────────────────────────────────---------------------------------------
   useEffect(() => {
     const timer = setTimeout(() => {
