@@ -4,7 +4,7 @@ import { apiFetch } from '@/lib/api'
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Search, User, Clock, Loader2, Check, Zap, ArrowLeft, X,
+  Search, User, Users, Clock, Loader2, Check, Zap, ArrowLeft, X, CheckCircle2,
   Crown, Mail, Phone, CalendarDays, Star, BedDouble, Minus, Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -28,6 +28,7 @@ import {
   Popover, PopoverTrigger, PopoverContent,
 } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/components/shared/step-indicator'
 import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -229,6 +230,36 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
     enabled: !isDirectWalkIn && !prefillReservationId,
   })
 
+  // Available rooms for walk-in mode (for live summary)
+  const { data: availableRoomsData } = useQuery({
+    queryKey: ['rooms-available-count'],
+    queryFn: async () => {
+      return apiFetch('/api/rooms?status=vacant_clean,inspected') as Promise<{
+        rooms: Array<{ id: string; type: { id: string; name: string; code: string } }>
+        roomTypes: Array<{ id: string; name: string; code: string; baseOccupancy: number; maxOccupancy: number }>
+        summary?: { available: number; totalRooms: number; occupied: number }
+      }>
+    },
+    enabled: isDirectWalkIn,
+  })
+
+  // Compute available rooms by type for walk-in
+  const walkInNights = nightsBetween(walkInDate, walkInCheckOut)
+  const totalPax = walkInAdults + walkInChildren
+  const canContinue = !!(guestFirstName.trim() && guestLastName.trim())
+  const availableRoomTypes = useMemo(() => {
+    if (!availableRoomsData) return []
+    const counts: Record<string, number> = {}
+    for (const r of availableRoomsData.rooms) {
+      const rtId = r.type.id
+      counts[rtId] = (counts[rtId] || 0) + 1
+    }
+    return availableRoomsData.roomTypes.map(rt => ({
+      ...rt,
+      availableCount: counts[rt.id] || 0,
+    })).filter(rt => rt.availableCount > 0 && rt.maxOccupancy >= totalPax)
+  }, [availableRoomsData, totalPax])
+
   // Reservation search (debounced)
   const {
     data: searchResults,
@@ -237,8 +268,8 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
     queryKey: ['reservation-search', debouncedQuery],
     queryFn: async () => {
       if (!debouncedQuery || debouncedQuery.length < 2) return null
-      const data = await apiFetch(`/api/reservations?search=${encodeURIComponent(debouncedQuery)}&status=confirmed,tentative`)
-      return (data.reservations || []) as ReservationData[]
+      const data = await apiFetch<{ reservations?: ReservationData[] }>(`/api/reservations?search=${encodeURIComponent(debouncedQuery)}&status=confirmed,tentative`)
+      return (data?.reservations || []) as ReservationData[]
     },
     enabled: debouncedQuery.length >= 2,
   })
@@ -339,6 +370,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
             </p>
             <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
               {res.room && <span>Room {res.room.number}</span>}
+              {res.room && <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} pax={res.adults + res.children} inline />}
               <span>·</span>
               <span>{formatDate(res.checkIn)} → {formatDate(res.checkOut)}</span>
               <span>·</span>
@@ -373,7 +405,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto space-y-2 p-3 sm:p-4">
+        <div className={cn('space-y-2 p-3 sm:p-4', isDirectWalkIn ? '' : 'max-w-2xl mx-auto')}>
 
           {/* Prefilled reservation mode */}
           {prefillReservationId ? (
@@ -431,7 +463,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                         <p className="text-sm font-medium flex items-center gap-1"><StatusBadge status={reservationData.status} /></p>
                       </div>
                       <InfoItem label="Guest" value={reservationData.guest ? `${reservationData.guest.firstName} ${reservationData.guest.lastName}` : '-'} />
-                      <InfoItem label="Room" value={reservationData.room ? `${reservationData.room.number} - ${reservationData.room.type.name}` : '-'} />
+                      <InfoItem label="Room" value={reservationData.room ? <span className="flex items-center gap-1.5">{reservationData.room.number} <RoomTypeBedBadge typeName={reservationData.room.type.name} bedConfig={reservationData.room.type.bedConfig} typeCode={reservationData.room.type.code} pax={reservationData.adults + reservationData.children} inline /></span> : '-'} />
                       <InfoItem label="Stay" value={`${formatDate(reservationData.checkIn)} → ${formatDate(reservationData.checkOut)}`} />
                       <InfoItem label="Rate" value={`${formatCurrency(reservationData.roomRate)}/night`} />
                     </div>
@@ -599,7 +631,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         <InfoItem label="Guest" value={`${reservationData.guest?.firstName || ''} ${reservationData.guest?.lastName || ''}`} />
                         <InfoItem label="Confirmation" value={reservationData.confirmationNo} />
-                        {reservationData.room && <InfoItem label="Room" value={`${reservationData.room.number} - ${reservationData.room.type.name}`} />}
+                        {reservationData.room && <InfoItem label="Room" value={<span className="flex items-center gap-1.5">{reservationData.room.number} <RoomTypeBedBadge typeName={reservationData.room.type.name} bedConfig={reservationData.room.type.bedConfig} typeCode={reservationData.room.type.code} pax={reservationData.adults + reservationData.children} inline /></span>} />}
                         <InfoItem label="Stay" value={`${formatDate(reservationData.checkIn)} → ${formatDate(reservationData.checkOut)}`} />
                         <InfoItem label="Rate" value={`${formatCurrency(reservationData.roomRate)}/night`} />
                         {reservationData.specialRequests && <InfoItem label="Requests" value={reservationData.specialRequests} />}
@@ -635,94 +667,221 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                   )}
                 </div>
               ) : (
-                /* --- Direct Walk-in Mode --- */
-                <div className="space-y-2">
-                  <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-                    <User className="w-3 h-3 mr-1" />
-                    Direct Walk-in
-                  </Badge>
+                /* --- Direct Walk-in Mode (Split Screen) --- */
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Left Panel — Form */}
+                  <div className="lg:w-[55%] xl:w-[52%] 2xl:w-[50%] space-y-2">
+                    {/* Guest Info */}
+                    <Card className="p-2.5">
+                      <CardTitle className="text-sm mb-2">
+                        <User className="w-3.5 h-3.5 inline mr-1.5 text-amber-600" />
+                        Guest Information
+                      </CardTitle>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">First Name <span className="text-red-500">*</span></Label>
+                          <Input value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="h-9 text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Last Name <span className="text-red-500">*</span></Label>
+                          <Input value={guestLastName} onChange={e => setGuestLastName(e.target.value)} placeholder="Last name" className="h-9 text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Email</Label>
+                          <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="guest@email.com" className="h-9 text-sm" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Phone</Label>
+                          <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="+977-98XXXXXXXX" className="h-9 text-sm" />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <Label className="text-xs">Nationality</Label>
+                          <Select value={guestNationality} onValueChange={setGuestNationality}>
+                            <SelectTrigger className="h-9 text-sm">
+                              <SelectValue placeholder="Select nationality" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COUNTRIES.map(c => (
+                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </Card>
 
-                  {/* Guest Info */}
-                  <Card className="p-2.5">
-                    <CardTitle className="text-sm mb-2">Guest Information</CardTitle>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">First Name <span className="text-red-500">*</span></Label>
-                        <Input value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="h-9 text-sm" />
+                    {/* Stay Details */}
+                    <Card className="p-2.5">
+                      <CardTitle className="text-sm mb-2">
+                        <CalendarDays className="w-3.5 h-3.5 inline mr-1.5 text-teal-600" />
+                        Stay Details
+                      </CardTitle>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Check-in Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+                                <CalendarDays className="mr-2 h-3.5 w-3.5" />
+                                {formatDate(walkInDate)}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={fromDateOnly(walkInDate)} onSelect={d => d && setWalkInDate(toDateOnly(d))} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Check-out Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+                                <CalendarDays className="mr-2 h-3.5 w-3.5" />
+                                {formatDate(walkInCheckOut)}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar mode="single" selected={fromDateOnly(walkInCheckOut)} onSelect={d => d && setWalkInCheckOut(toDateOnly(d))} initialFocus />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Last Name <span className="text-red-500">*</span></Label>
-                        <Input value={guestLastName} onChange={e => setGuestLastName(e.target.value)} placeholder="Last name" className="h-9 text-sm" />
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <NumberStepper label="Adults" value={walkInAdults} min={1} max={10} onChange={setWalkInAdults} />
+                        <NumberStepper label="Children" value={walkInChildren} min={0} max={10} onChange={setWalkInChildren} />
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Email</Label>
-                        <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="guest@email.com" className="h-9 text-sm" />
+                    </Card>
+
+                    {/* Continue Button */}
+                    <Button onClick={handleWalkInContinue} className="w-full" size="lg" disabled={!canContinue}>
+                      <ArrowLeft className="w-4 h-4 mr-2 rotate-180" />
+                      Continue to Check-In
+                    </Button>
+                  </div>
+
+                  {/* Right Panel — Live Summary */}
+                  <div className="lg:w-[45%] xl:w-[48%] 2xl:w-[50%] space-y-2">
+                    <Card className="p-3 border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                          <User className="w-3 h-3 mr-1" />
+                          Direct Walk-in
+                        </Badge>
+                        {canContinue ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground ml-auto">Fill name to continue</span>
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Phone</Label>
-                        <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="+977-98XXXXXXXX" className="h-9 text-sm" />
+
+                      {/* Guest Summary */}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Guest</h4>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-amber-700 dark:text-amber-300">
+                              {guestFirstName ? guestFirstName.charAt(0).toUpperCase() : '?'}
+                              {guestLastName ? guestLastName.charAt(0).toUpperCase() : ''}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate">
+                              {guestFirstName || guestLastName
+                                ? `${guestFirstName || ''} ${guestLastName || ''}`.trim() || '—'
+                                : <span className="text-muted-foreground italic">Enter guest name</span>
+                              }
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              {guestEmail && <><Mail className="w-3 h-3" /><span className="truncate">{guestEmail}</span></>}
+                              {guestPhone && <><Phone className="w-3 h-3 ml-1" /><span>{guestPhone}</span></>}
+                            </div>
+                            {guestNationality && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                <Star className="w-3 h-3 inline mr-0.5" />{guestNationality}
+                              </p>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1 sm:col-span-2">
-                        <Label className="text-xs">Nationality</Label>
-                        <Select value={guestNationality} onValueChange={setGuestNationality}>
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select nationality" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COUNTRIES.map(c => (
-                              <SelectItem key={c} value={c}>{c}</SelectItem>
+
+                      <Separator className="my-3" />
+
+                      {/* Stay Summary */}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stay</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <p className="text-[10px] text-muted-foreground">Check-in</p>
+                            <p className="text-sm font-semibold">{formatDateShort(walkInDate)}</p>
+                          </div>
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <p className="text-[10px] text-muted-foreground">Nights</p>
+                            <p className="text-lg font-bold text-teal-600 dark:text-teal-400">{walkInNights}</p>
+                          </div>
+                          <div className="text-center p-2 rounded-lg bg-background/60">
+                            <p className="text-[10px] text-muted-foreground">Check-out</p>
+                            <p className="text-sm font-semibold">{formatDateShort(walkInCheckOut)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center gap-4 text-sm">
+                          <span className="flex items-center gap-1">
+                            <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span className="font-medium">{walkInAdults}</span>
+                            <span className="text-muted-foreground text-xs">Adults</span>
+                          </span>
+                          {walkInChildren > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="font-medium">{walkInChildren}</span>
+                              <span className="text-muted-foreground text-xs">Children</span>
+                            </span>
+                          )}
+                          <span className="text-red-500 dark:text-red-400 font-semibold text-xs">
+                            Pax: {totalPax}
+                          </span>
+                        </div>
+                      </div>
+
+                      <Separator className="my-3" />
+
+                      {/* Available Rooms Summary */}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Available Room Types
+                          {availableRoomsData && (
+                            <span className="ml-1 text-teal-600 dark:text-teal-400 font-normal normal-case">
+                              ({availableRoomsData.rooms.length} rooms)
+                            </span>
+                          )}
+                        </h4>
+                        {!availableRoomsData ? (
+                          <div className="space-y-1.5">
+                            <Skeleton className="h-7 w-full" />
+                            <Skeleton className="h-7 w-3/4" />
+                          </div>
+                        ) : availableRoomTypes.length > 0 ? (
+                          <div className="space-y-1 max-h-36 overflow-y-auto">
+                            {availableRoomTypes.map(rt => (
+                              <div key={rt.id} className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-background/60 hover:bg-background/80 transition-colors">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <BedDouble className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  <span className="text-xs font-medium truncate">{rt.name}</span>
+                                  <span className="text-[10px] font-mono text-muted-foreground">{rt.code}</span>
+                                </div>
+                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                                  {rt.availableCount} room{rt.availableCount > 1 ? 's' : ''}
+                                </Badge>
+                              </div>
                             ))}
-                          </SelectContent>
-                        </Select>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 text-center py-2">
+                            No room types available for {totalPax} pax
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  </Card>
-
-                  {/* Stay Details */}
-                  <Card className="p-2.5">
-                    <CardTitle className="text-sm mb-2">Stay Details</CardTitle>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Check-in Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
-                              <CalendarDays className="mr-2 h-3.5 w-3.5" />
-                              {formatDate(walkInDate)}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={fromDateOnly(walkInDate)} onSelect={d => d && setWalkInDate(toDateOnly(d))} initialFocus />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Check-out Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
-                              <CalendarDays className="mr-2 h-3.5 w-3.5" />
-                              {formatDate(walkInCheckOut)}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar mode="single" selected={fromDateOnly(walkInCheckOut)} onSelect={d => d && setWalkInCheckOut(toDateOnly(d))} initialFocus />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-                    {/* Wider Adults/Children with flex-1 */}
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <NumberStepper label="Adults" value={walkInAdults} min={1} max={10} onChange={setWalkInAdults} />
-                      <NumberStepper label="Children" value={walkInChildren} min={0} max={10} onChange={setWalkInChildren} />
-                    </div>
-                  </Card>
-
-                  {/* Continue Button */}
-                  <Button onClick={handleWalkInContinue} className="w-full" size="lg">
-                    <ArrowLeft className="w-4 h-4 mr-2 rotate-180" />
-                    Continue to Check-In
-                  </Button>
+                    </Card>
+                  </div>
                 </div>
               )}
             </>

@@ -188,3 +188,59 @@ export function getNepaliDayForDate(date: string | Date): string {
   if (isNaN(d.getTime())) return ''
   return getNepaliDayNameShort(d)
 }
+
+// ─── Room Type & Bed Shortcut Helpers ─────────────────────────────────
+
+const TYPE_SHORTCUTS: Record<string, string> = {
+  deluxe: 'DLX', standard: 'STD', superior: 'SUP', executive: 'EXC',
+  presidential: 'PRS', premium: 'PRM', suite: 'STE', family: 'FAM',
+  economy: 'ECO', classic: 'CLS', premier: 'PMR', royal: 'ROY',
+  penthouse: 'PNT', studio: 'STU', villa: 'VLA',
+}
+
+const BED_SHORTCUTS: Record<string, string> = {
+  single: 'SGL', double: 'DBL', twin: 'Twin', king: 'Kng',
+  queen: 'Qun', master: 'Mas', sofa: 'Sfa', bunk: 'Bnk',
+  full: 'Full', twin_single: 'TS',
+}
+
+export function getTypeShortcut(typeName: string | null | undefined, typeCode?: string | null): string {
+  if (!typeName && !typeCode) return ''
+  if (typeName) {
+    const lower = typeName.toLowerCase()
+    for (const [key, shortcut] of Object.entries(TYPE_SHORTCUTS)) {
+      if (lower.includes(key)) return shortcut
+    }
+  }
+  if (typeCode) return typeCode.toUpperCase().slice(0, 3)
+  if (typeName) return typeName.toUpperCase().slice(0, 3)
+  return ''
+}
+
+export function getBedShortcut(bedConfig: string | null | undefined): string {
+  if (!bedConfig) return ''
+  const lower = bedConfig.toLowerCase()
+  if (lower.includes('+')) {
+    const parts = lower.split('+').map(p => p.trim())
+    const shortcuts: string[] = []
+    for (const part of parts) {
+      for (const [key, shortcut] of Object.entries(BED_SHORTCUTS)) {
+        if (part.includes(key)) { shortcuts.push(shortcut); break }
+      }
+    }
+    return shortcuts.join('+') || ''
+  }
+  for (const [key, shortcut] of Object.entries(BED_SHORTCUTS)) {
+    if (lower.includes(key)) return shortcut
+  }
+  return ''
+}
+
+export function getRoomTypeBedShort(typeName: string | null | undefined, bedConfig: string | null | undefined, typeCode?: string | null): string {
+  const t = getTypeShortcut(typeName, typeCode)
+  const b = getBedShortcut(bedConfig)
+  if (t && b) return `${t} ${b}`
+  if (t) return t
+  if (b) return b
+  return ''
+}

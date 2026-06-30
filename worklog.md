@@ -1406,3 +1406,35 @@ Stage Summary:
 - All 5 features (R1-R5) verified working end-to-end via Agent Browser + VLM screenshot analysis
 - Prefill race condition fix confirmed: setPrefillReservationId + navigateTo sequence works without premature clearing
 - No code changes needed — all verification passed
+---
+Task ID: session4-tasks
+Agent: Main Orchestrator
+Task: Fix profile update, add room type/bed shortcuts, enhance Direct Check-in, verify settlement
+
+Work Log:
+- Audited codebase for mock/seed data vs API: All front-desk components use TanStack Query + apiFetch to call backend APIs. Rooms API has auto-seed for first use. Property/settings stores have defaults with backend sync. Data flows correctly.
+- (task a) Fixed profile update failure: Header ProfileDialog was missing `userId` in the PUT body. Added `userId: user?.id` to the JSON payload in `src/components/layout/header.tsx`.
+- (task d) Verified "Cancel Booking" rename already done in ReservationsView action menu (line 1193).
+- (task e) Verified conditional action menu already implemented: Cancel Booking hidden for checked_in/checked_out/cancelled statuses. "Again Reservation" shown for cancelled status with full re-booking logic.
+- (task c) Verified Settlement page exists and is functional: `SettlementView.tsx` is fully implemented with folio listing, payment processing, and settlement workflow. Already imported in FrontDeskModule.
+- (task f) Added Room Type & Bed shortcuts:
+  - Created utility functions in `src/lib/format.ts`: `getTypeShortcut()`, `getBedShortcut()`, `getRoomTypeBedShort()`
+  - Created shared component `src/components/shared/room-type-bed-badge.tsx` with inline and badge modes, red pax display
+  - Updated `src/app/api/reservations/route.ts` to include `bedConfig` in room type select
+  - Updated `ReservationRoom` interface in ReservationsView to include `bedConfig`
+  - Added RoomTypeBedBadge to 4 locations in ReservationsView (table, detail dialog, room assignment, cancel dialog)
+  - Added RoomTypeBedBadge to 5 locations in CheckInProcess (selected room, confirmed reservation, room grid cards, same-type rooms list, success summary)
+  - Added RoomTypeBedBadge to 3 locations in CheckInLookup (search results, detail panels)
+- (task b) Enhanced Direct Check-in page:
+  - Converted from single-column to split-screen layout (left: form, right: live summary)
+  - Added available rooms query from `/api/rooms?status=vacant_clean,inspected`
+  - Right panel shows: Walk-in badge, guest avatar/name/contact/nationality summary, stay dates/nights grid, pax display (red), available room types list filtered by capacity
+  - Continue button disabled until first+last name entered
+  - Removed max-w-2xl constraint for walk-in mode
+
+Stage Summary:
+- 7 tasks addressed: 4 were already done, 3 were new work
+- New files: `src/components/shared/room-type-bed-badge.tsx`
+- Modified files: `src/lib/format.ts`, `src/components/layout/header.tsx`, `src/app/api/reservations/route.ts`, `src/components/modules/front-desk/ReservationsView.tsx`, `src/components/modules/front-desk/CheckInProcess.tsx`, `src/components/modules/front-desk/CheckInLookup.tsx`
+- Zero TypeScript errors in all modified files
+- Dev server compiles successfully with all 200s on API calls

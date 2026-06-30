@@ -30,6 +30,7 @@ import {
   Popover, PopoverTrigger, PopoverContent,
 } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/components/shared/step-indicator'
 import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
 import { invalidate } from '@/lib/queryKeys'
@@ -1031,7 +1032,7 @@ export function CheckInProcess({ onBack }: { onBack: () => void }) {
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => handleSelectRoom(reservationData.room.id)}>
+            <Button variant="outline" size="sm" onClick={() => handleSelectRoom(reservationData.room!.id)}>
               Use Assigned Room
             </Button>
           </div>
@@ -1430,7 +1431,9 @@ export function CheckInProcess({ onBack }: { onBack: () => void }) {
             {selectedRoom && (
               <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
                 <BedDouble className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                <span className="font-medium">{selectedRoom.number} — {selectedRoom.type.name} (Floor {selectedRoom.floor})</span>
+                <span className="font-medium">{selectedRoom.number}</span>
+                <RoomTypeBedBadge typeName={selectedRoom.type.name} bedConfig={selectedRoom.type.bedConfig} typeCode={selectedRoom.type.code} pax={adults + children} inline />
+                <span className="text-muted-foreground text-xs">(Floor {selectedRoom.floor})</span>
               </div>
             )}
             <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
