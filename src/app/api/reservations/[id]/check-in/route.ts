@@ -32,7 +32,7 @@ export async function POST(
             floor: true,
             wing: true,
             status: true,
-            type: { select: { name: true, code: true } },
+            type: { select: { name: true, code: true, bedConfig: true } },
           },
         },
         folios: {
@@ -128,7 +128,7 @@ export async function POST(
             number: true,
             floor: true,
             wing: true,
-            type: { select: { name: true, code: true } },
+            type: { select: { name: true, code: true, bedConfig: true } },
           },
         },
         folios: {

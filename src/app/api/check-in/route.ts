@@ -477,7 +477,7 @@ export async function POST(request: Request) {
         },
         room: {
           include: {
-            type: { select: { id: true, name: true, code: true } },
+            type: { select: { id: true, name: true, code: true, bedConfig: true } },
           },
         },
         folios: {

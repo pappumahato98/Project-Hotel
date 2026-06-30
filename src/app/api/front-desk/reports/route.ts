@@ -23,7 +23,7 @@ export async function GET(request: Request) {
           },
           include: {
             guest: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, vipLevel: true } },
-            room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true } } } },
+            room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true, bedConfig: true } } } },
           },
           orderBy: { checkIn: 'asc' },
         })
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
           },
           include: {
             guest: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, vipLevel: true } },
-            room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true } } } },
+            room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true, bedConfig: true } } } },
             folios: { select: { id: true, balance: true, status: true } },
           },
           orderBy: { checkOut: 'asc' },
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
           where: { status: 'checked_in' },
           include: {
             guest: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, vipLevel: true } },
-            room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true } } } },
+            room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true, bedConfig: true } } } },
             folios: { select: { id: true, balance: true, status: true } },
           },
           orderBy: { room: { number: 'asc' } },

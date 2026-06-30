@@ -156,7 +156,7 @@ export async function GET() {
       },
       include: {
         guest: { select: { firstName: true, lastName: true, vipLevel: true } },
-        room: { select: { number: true, type: { select: { name: true, code: true } } } },
+        room: { select: { number: true, type: { select: { name: true, code: true, bedConfig: true } } } },
       },
       orderBy: { checkIn: 'asc' },
       take: 5,

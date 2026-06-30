@@ -209,7 +209,7 @@ export async function PATCH(
       data: updateData,
       include: {
         guest: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, vipLevel: true } },
-        room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true } } } },
+        room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true, bedConfig: true } } } },
         folios: { select: { id: true, balance: true, status: true } },
       },
     })
