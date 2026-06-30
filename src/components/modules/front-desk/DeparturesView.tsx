@@ -27,6 +27,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore, usePreferencesStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
@@ -45,7 +46,7 @@ interface DepartureRoom {
   id: string
   number: string
   floor: number
-  type: { name: string; code: string }
+  type: { name: string; code: string; bedConfig?: string }
 }
 
 interface FolioLineItem {
@@ -75,6 +76,8 @@ interface Departure {
   creditLimit: number
   guest: DepartureGuest
   room: DepartureRoom
+  adults?: number
+  children?: number
   folios: DepartureFolio[]
 }
 
@@ -445,7 +448,7 @@ export function DeparturesView() {
                     const isZeroBalance = balance === 0
                     return (
                       <TableRow key={dep.id}>
-                        <TableCell className="font-bold font-mono">{dep.room.number}</TableCell>
+                        <TableCell className="font-bold font-mono">{dep.room.number} <RoomTypeBedBadge typeName={dep.room.type.name} bedConfig={dep.room.type.bedConfig} typeCode={dep.room.type.code} pax={(dep.adults ?? 1) + (dep.children ?? 0)} inline /></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{dep.guest.firstName} {dep.guest.lastName}</span>
@@ -573,7 +576,7 @@ export function DeparturesView() {
             <DialogTitle>Folio Review</DialogTitle>
             <DialogDescription>
               {selectedDeparture && (
-                <>Room {selectedDeparture.room.number} — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
+                <>Room {selectedDeparture.room.number} <RoomTypeBedBadge typeName={selectedDeparture.room.type.name} bedConfig={selectedDeparture.room.type.bedConfig} typeCode={selectedDeparture.room.type.code} pax={(selectedDeparture.adults ?? 1) + (selectedDeparture.children ?? 0)} inline /> — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -592,7 +595,7 @@ export function DeparturesView() {
                   <TableBody>
                     {/* Show mock folio items based on reservation data */}
                     <TableRow>
-                      <TableCell className="text-sm">Room Charge ({selectedDeparture.room.type.name})</TableCell>
+                      <TableCell className="text-sm">Room Charge (<RoomTypeBedBadge typeName={selectedDeparture.room.type.name} bedConfig={selectedDeparture.room.type.bedConfig} typeCode={selectedDeparture.room.type.code} pax={(selectedDeparture.adults ?? 1) + (selectedDeparture.children ?? 0)} inline />)</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(selectedDeparture.checkIn)}</TableCell>
                       <TableCell className="text-right text-sm font-medium text-red-600">
                         {formatCurrency(selectedDeparture.totalAmount)}
@@ -662,7 +665,7 @@ export function DeparturesView() {
             <DialogTitle>Request Late Checkout</DialogTitle>
             <DialogDescription>
               {selectedDeparture && (
-                <>Room {selectedDeparture.room.number} — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
+                <>Room {selectedDeparture.room.number} <RoomTypeBedBadge typeName={selectedDeparture.room.type.name} bedConfig={selectedDeparture.room.type.bedConfig} typeCode={selectedDeparture.room.type.code} pax={(selectedDeparture.adults ?? 1) + (selectedDeparture.children ?? 0)} inline /> — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -890,7 +893,7 @@ export function DeparturesView() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Room:</span>
-                  <span className="font-medium">{receiptData.room.number} ({receiptData.room.type.name})</span>
+                  <span className="font-medium">{receiptData.room.number} (<RoomTypeBedBadge typeName={receiptData.room.type.name} bedConfig={receiptData.room.type.bedConfig} typeCode={receiptData.room.type.code} pax={(receiptData.adults ?? 1) + (receiptData.children ?? 0)} inline />)</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Check-in:</span>
@@ -914,7 +917,7 @@ export function DeparturesView() {
                 </h4>
                 <div className="rounded-lg border p-3 space-y-1.5 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Room Charge ({receiptData.room.type.name})</span>
+                    <span className="text-muted-foreground">Room Charge (<RoomTypeBedBadge typeName={receiptData.room.type.name} bedConfig={receiptData.room.type.bedConfig} typeCode={receiptData.room.type.code} pax={(receiptData.adults ?? 1) + (receiptData.children ?? 0)} inline />)</span>
                     <span>{formatCurrency(receiptData.totalAmount)}</span>
                   </div>
                   {(receiptData.folios[0]?.items || [])

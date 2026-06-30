@@ -31,6 +31,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatCurrency, formatTime, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore } from '@/lib/store'
@@ -121,7 +122,7 @@ interface RoomInfo {
   floor: number
   wing: string | null
   status: string
-  type: { id: string; name: string; code: string }
+  type: { id: string; name: string; code: string; bedConfig: string | null }
 }
 
 interface ReservationInfo {
@@ -598,7 +599,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
                       <span className="flex items-center gap-1">
                         <BedDouble className="size-3" />
                         {arrival.room
-                          ? `Room ${arrival.room.number} (${arrival.room.type.name})`
+                          ? <>Room {arrival.room.number} (<RoomTypeBedBadge typeName={arrival.room.type.name} bedConfig={arrival.room.type.bedConfig} inline />)</>
                           : 'Room to be assigned'}
                       </span>
                       <span>·</span>
@@ -763,7 +764,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
                 <p className="font-medium flex items-center gap-1">
                   <BedDouble className="size-3" />
                   {activeReservation.room
-                    ? activeReservation.room.type.name
+                    ? <RoomTypeBedBadge typeName={activeReservation.room.type.name} bedConfig={activeReservation.room.type.bedConfig} typeCode={activeReservation.room.type.code} pax={activeReservation.adults + (activeReservation.children || 0)} />
                     : activeReservation.roomTypeId
                       ? getRoomTypeName(activeReservation.roomTypeId)
                       : 'Not specified'}
@@ -834,8 +835,8 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
                 <Check className="size-5 text-green-600" />
               </div>
               <div>
-                <p className="font-semibold text-sm">
-                  Room {activeReservation.room.number} — {activeReservation.room.type.name}
+                <p className="font-semibold text-sm flex items-center gap-1 flex-wrap">
+                  Room {activeReservation.room.number} — <RoomTypeBedBadge typeName={activeReservation.room.type.name} bedConfig={activeReservation.room.type.bedConfig} inline />
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Floor {activeReservation.room.floor}
@@ -910,7 +911,7 @@ export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm">Room {room.number}</p>
-                          <p className="text-xs text-muted-foreground">{room.type.name}</p>
+                          <RoomTypeBedBadge typeName={room.type.name} bedConfig={room.type.bedConfig} typeCode={room.type.code} className="mt-0.5" />
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline" className="text-[10px] px-1 py-0">
                               <Layers className="size-2.5 mr-0.5" />

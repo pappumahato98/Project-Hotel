@@ -30,6 +30,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore, useNavigationStore, useFrontDeskContextStore, useGuestLedgerContextStore } from '@/lib/store'
@@ -95,7 +96,7 @@ interface ArrivalRoom {
   number: string
   floor: number
   wing: string | null
-  type: { name: string; code: string }
+  type: { name: string; code: string; bedConfig?: string | null }
 }
 
 interface Arrival {
@@ -121,7 +122,7 @@ interface AvailableRoom {
   floor: number
   wing: string | null
   status: string
-  type: { name: string; code: string }
+  type: { name: string; code: string; bedConfig?: string | null }
 }
 
 interface WalkInForm {
@@ -659,8 +660,8 @@ export function ArrivalsView() {
                     <p className="text-sm font-medium mt-0.5">
                       {selectedArrival.room ? (
                         <>
-                          {selectedArrival.room.number} — {selectedArrival.room.type.name}
-                          <span className="text-muted-foreground text-xs ml-1">({selectedArrival.room.type.code})</span>
+                          {selectedArrival.room.number}
+                          <RoomTypeBedBadge typeName={selectedArrival.room.type.name} bedConfig={selectedArrival.room.type.bedConfig} typeCode={selectedArrival.room.type.code} pax={selectedArrival.adults + selectedArrival.children} inline className="ml-1" />
                         </>
                       ) : (
                         <span className="text-amber-600 dark:text-amber-400">Unassigned</span>
@@ -808,7 +809,7 @@ export function ArrivalsView() {
                     <BedDouble className="size-4 shrink-0" />
                     <div className="flex-1">
                       <span className="font-medium">Room {room.number}</span>
-                      <span className="text-xs opacity-70 ml-2">{room.type.name}</span>
+                      <RoomTypeBedBadge typeName={room.type.name} bedConfig={room.type.bedConfig} typeCode={room.type.code} inline className="ml-1.5" />
                     </div>
                     <span className="text-xs opacity-70">Floor {room.floor}</span>
                   </button>
@@ -849,7 +850,7 @@ export function ArrivalsView() {
                   {selectedArrival.guest ? `${selectedArrival.guest.firstName} ${selectedArrival.guest.lastName}` : 'Guest'}
                 </p>
                 <p className="text-muted-foreground">
-                  Room {selectedArrival.room?.number || selectedRoomId ? selectedArrival.room?.number : 'To be assigned'} • {selectedArrival.room?.type.name}
+                  <span className="flex items-center gap-1">Room {selectedArrival.room?.number || selectedRoomId ? selectedArrival.room?.number : 'To be assigned'} {selectedArrival.room && <RoomTypeBedBadge typeName={selectedArrival.room.type.name} bedConfig={selectedArrival.room.type.bedConfig} typeCode={selectedArrival.room.type.code} pax={selectedArrival.adults + selectedArrival.children} inline />}</span>
                 </p>
                 <p className="text-muted-foreground">
                   {formatDate(selectedArrival.checkIn)} → {formatDate(selectedArrival.checkOut)}

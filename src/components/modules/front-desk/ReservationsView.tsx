@@ -39,6 +39,7 @@ import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -61,7 +62,7 @@ interface ReservationRoom {
   number: string
   floor: number
   wing: string | null
-  type: { name: string; code: string }
+  type: { name: string; code: string; bedConfig?: string | null }
 }
 
 interface ReservationFolio {
@@ -1083,7 +1084,10 @@ export function ReservationsView() {
                             className="h-7 px-2 font-medium text-xs"
                             onClick={(e) => { e.stopPropagation(); navigateTo('rooms', 'room-board') }}
                           >
-                            {res.room.number}
+                            <span className="flex items-center gap-1">
+                              {res.room.number}
+                              <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} pax={res.adults + res.children} inline />
+                            </span>
                           </Button>
                         ) : (
                           <span className="text-amber-600 dark:text-amber-400 text-xs">Unassigned</span>
@@ -1363,7 +1367,7 @@ export function ReservationsView() {
                   {selectedReservation?.room ? (
                     <>
                       <span className="font-medium">{selectedReservation.room.number}</span>
-                      <span className="text-muted-foreground ml-2">({selectedReservation.room.type.name} — {selectedReservation.room.type.code})</span>
+                      <RoomTypeBedBadge typeName={selectedReservation.room.type.name} bedConfig={selectedReservation.room.type.bedConfig} typeCode={selectedReservation.room.type.code} pax={selectedReservation.adults + selectedReservation.children} className="ml-2" />
                     </>
                   ) : (
                     <span className="text-muted-foreground">No room assigned</span>
@@ -1788,7 +1792,7 @@ export function ReservationsView() {
                     <span className="text-muted-foreground text-xs">Room</span>
                     <p className="font-medium">
                       {selectedReservation.room
-                        ? `${selectedReservation.room.number} (${selectedReservation.room.type.name})`
+                        ? <span className="flex items-center gap-1.5">{selectedReservation.room.number} <RoomTypeBedBadge typeName={selectedReservation.room.type.name} bedConfig={selectedReservation.room.type.bedConfig} typeCode={selectedReservation.room.type.code} pax={selectedReservation.adults + selectedReservation.children} inline /></span>
                         : 'To be assigned'}
                     </p>
                   </div>

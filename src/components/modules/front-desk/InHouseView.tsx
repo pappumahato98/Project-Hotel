@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/alert-dialog'
 // ScrollArea removed — nested scrolling contexts break row click events
 import { StatusBadge } from '@/components/shared/status-badge'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatCurrency, toDateOnly, fromDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useSettingsStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
@@ -58,7 +59,7 @@ interface InHouseRoom {
   number: string
   floor: number
   wing?: string
-  type: { name: string; code: string }
+  type: { name: string; code: string; bedConfig?: string }
 }
 
 interface InHouseFolio {
@@ -87,7 +88,7 @@ interface VacantRoom {
   number: string
   floor: number
   wing?: string
-  type: { name: string; code: string }
+  type: { name: string; code: string; bedConfig?: string }
 }
 
 // ─── Quick Charge Presets ───────────────────────────────────────────────
@@ -679,6 +680,7 @@ export function InHouseView() {
                           <TableCell className="font-bold font-mono">
                           <div className="flex items-center gap-1">
                             {res.room.number}
+                            <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} inline />
                             {wakeUpCalls[res.id]?.set && (
                               <span className="relative flex size-4 items-center justify-center">
                                 <span className="absolute inline-flex h-3 w-3 rounded-full bg-amber-400 opacity-75 animate-ping" />
@@ -751,7 +753,7 @@ export function InHouseView() {
                                     <div>
                                       <p className="text-xs font-semibold">{res.guest.firstName} {res.guest.lastName}</p>
                                       <p className="text-[10px] text-muted-foreground">
-                                        {res.confirmationNo} · {res.room.type.name} · Floor {res.room.floor}{res.room.wing ? ` · ${res.room.wing}` : ''}
+                                        {res.confirmationNo} · {res.room.type.name} <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} inline /> · Floor {res.room.floor}{res.room.wing ? ` · ${res.room.wing}` : ''}
                                       </p>
                                     </div>
                                   </div>
@@ -946,7 +948,10 @@ export function InHouseView() {
                     </div>
                     <div className="rounded-md bg-muted/50 p-2.5">
                       <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Room Type</p>
-                      <p className="font-medium text-xs">{selectedReservation.room.type.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-xs">{selectedReservation.room.type.name}</p>
+                        <RoomTypeBedBadge typeName={selectedReservation.room.type.name} bedConfig={selectedReservation.room.type.bedConfig} typeCode={selectedReservation.room.type.code} />
+                      </div>
                     </div>
                     <div className="rounded-md bg-muted/50 p-2.5">
                       <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Floor / Wing</p>
@@ -1195,7 +1200,7 @@ export function InHouseView() {
                 <p className="font-semibold">{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</p>
                 <p className="text-muted-foreground">
                   Current Room: <span className="font-mono font-bold">{selectedReservation.room.number}</span>
-                  {' · '}{selectedReservation.room.type.name}
+                  {' · '}{selectedReservation.room.type.name} <RoomTypeBedBadge typeName={selectedReservation.room.type.name} bedConfig={selectedReservation.room.type.bedConfig} typeCode={selectedReservation.room.type.code} inline />
                   {' · '}Floor {selectedReservation.room.floor}
                 </p>
               </div>
@@ -1210,7 +1215,7 @@ export function InHouseView() {
                     {vacantRoomsData && vacantRoomsData.length > 0 ? (
                       vacantRoomsData.map((room) => (
                         <SelectItem key={room.id} value={room.id}>
-                          Room {room.number} — {room.type.name} (Floor {room.floor}
+                          Room {room.number} — {room.type.name} <RoomTypeBedBadge typeName={room.type.name} bedConfig={room.type.bedConfig} typeCode={room.type.code} inline /> (Floor {room.floor}
                           {room.wing ? ` · ${room.wing}` : ''})
                         </SelectItem>
                       ))

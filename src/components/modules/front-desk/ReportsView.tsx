@@ -37,6 +37,7 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatCurrency, formatDateTime } from '@/lib/format'
 import { nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -519,7 +520,7 @@ function ArrivalsReport({ date }: { date?: string }) {
                   </TableCell>
                   <TableCell>
                     {res.room ? (
-                      <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
+                      <span className="text-xs flex items-center gap-1">{res.room.number} <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} inline /></span>
                     ) : (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
                         Unassigned
@@ -622,7 +623,7 @@ function DeparturesReport({ date }: { date?: string }) {
                   </TableCell>
                   <TableCell>
                     {res.room ? (
-                      <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
+                      <span className="text-xs flex items-center gap-1">{res.room.number} <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} inline /></span>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -733,7 +734,7 @@ function InHouseReport() {
                     </TableCell>
                     <TableCell>
                       {res.room ? (
-                        <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
+                        <span className="text-xs flex items-center gap-1">{res.room.number} <RoomTypeBedBadge typeName={res.room.type.name} bedConfig={res.room.type.bedConfig} typeCode={res.room.type.code} inline /></span>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}

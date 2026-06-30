@@ -18,6 +18,7 @@ import {
   BookOpen,
   Settings2,
   DollarSign,
+  Wallet,
 } from 'lucide-react'
 
 import { useNavigationStore, useFrontDeskContextStore, useFrontDeskTabsStore } from '@/lib/store'
@@ -37,6 +38,7 @@ import { WakeUpCallsView } from './WakeUpCallsView'
 import { GuestDirectoryView } from './GuestDirectoryView'
 import { GuestLedgerView } from './GuestLedgerView'
 import { RoomRatePostingPage } from './RoomRatePostingPage'
+import { SettlementView } from './SettlementView'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
@@ -67,6 +69,7 @@ const SUB_MODULES: Record<string, TabDef> = {
   'guest-directory':{ label: 'Guest Dir.',     icon: BookUser },
   'guest-ledger':  { label: 'Guest Ledger',  icon: BookOpen },
   'rate-posting': { label: 'Rate Posting',  icon: DollarSign },
+  settlement:      { label: 'Settlement',     icon: Wallet },
 }
 
 const TAB_KEYS = Object.keys(SUB_MODULES)
@@ -302,6 +305,8 @@ function StandardView({ subModule }: { subModule: string }) {
       return <GuestLedgerView />
     case 'rate-posting':
       return <RoomRatePostingPage />
+    case 'settlement':
+      return <SettlementView />
     default:
       return <ReservationsView />
   }

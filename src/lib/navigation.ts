@@ -214,6 +214,8 @@ export const EXTRA_SUB_MODULE_LABELS: Record<string, Record<string, string>> = {
   'front-desk': {
     'check-in-process': 'Check-In Process',
     'guest-ledger': 'Guest Ledger',
+    'rate-posting': 'Rate Posting',
+    settlement: 'Settlement',
   },
 }
 

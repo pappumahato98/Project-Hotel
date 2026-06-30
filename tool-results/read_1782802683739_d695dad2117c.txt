@@ -1,0 +1,1234 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useQuery } from '@tanstack/react-query'
+     5→import { apiFetch } from '@/lib/api'
+     6→import {
+     7→  CalendarDays,
+     8→  Users,
+     9→  BedDouble,
+    10→  ArrowDownToLine,
+    11→  ArrowUpFromLine,
+    12→  TrendingUp,
+    13→  BarChart3,
+    14→  FileText,
+    15→  DollarSign,
+    16→  Activity,
+    17→  ArrowRightLeft,
+    18→  Clock,
+    19→  Hotel,
+    20→  Receipt,
+    21→  RefreshCw,
+    22→  Percent,
+    23→  Download,
+    24→} from 'lucide-react'
+    25→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    26→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    27→import { Badge } from '@/components/ui/badge'
+    28→import { Button } from '@/components/ui/button'
+    29→import { Skeleton } from '@/components/ui/skeleton'
+    30→import {
+    31→  Table,
+    32→  TableHeader,
+    33→  TableBody,
+    34→  TableHead,
+    35→  TableRow,
+    36→  TableCell,
+    37→  TableFooter,
+    38→} from '@/components/ui/table'
+    39→import { Separator } from '@/components/ui/separator'
+    40→import { formatDate, formatCurrency, formatDateTime } from '@/lib/format'
+    41→import { nightsBetween } from '@/lib/format'
+    42→import { cn } from '@/lib/utils'
+    43→import { exportToCSV } from '@/lib/sort-csv'
+    44→import { toast } from 'sonner'
+    45→import { useQueryClient } from '@tanstack/react-query'
+    46→
+    47→// ─── Types ────────────────────────────────────────────────────────────
+    48→
+    49→interface SummaryData {
+    50→  report: string
+    51→  totalRooms: number
+    52→  arrivals: number
+    53→  departures: number
+    54→  inHouse: number
+    55→  totalReservations: number
+    56→  occupancyPct: number
+    57→  totalRevenue: number
+    58→  totalPaid: number
+    59→  outstanding: number
+    60→  moveLogs: number
+    61→}
+    62→
+    63→interface ArrivalReservation {
+    64→  id: string
+    65→  confirmationNo: string
+    66→  guest: { firstName: string; lastName: string; vipLevel: string } | null
+    67→  room: { id: string; number: string; type: { name: string; code: string } } | null
+    68→  checkIn: string
+    69→  checkOut: string
+    70→  source: string | null
+    71→  specialRequests: string | null
+    72→  status: string
+    73→  adults: number
+    74→  children: number
+    75→}
+    76→
+    77→interface ArrivalsData {
+    78→  report: string
+    79→  date: string
+    80→  reservations: ArrivalReservation[]
+    81→  total: number
+    82→}
+    83→
+    84→interface DepartureFolio {
+    85→  total: number
+    86→  paid: number
+    87→  balance: number
+    88→}
+    89→
+    90→interface DepartureReservation {
+    91→  id: string
+    92→  confirmationNo: string
+    93→  guest: { firstName: string; lastName: string } | null
+    94→  room: { id: string; number: string; type: { name: string; code: string } } | null
+    95→  checkIn: string
+    96→  checkOut: string
+    97→  folios: DepartureFolio[] | null
+    98→  status: string
+    99→}
+   100→
+   101→interface DeparturesData {
+   102→  report: string
+   103→  date: string
+   104→  reservations: DepartureReservation[]
+   105→  total: number
+   106→}
+   107→
+   108→interface InHouseFolio {
+   109→  total: number
+   110→  paid: number
+   111→  balance: number
+   112→}
+   113→
+   114→interface InHouseReservation {
+   115→  id: string
+   116→  confirmationNo: string
+   117→  guest: { firstName: string; lastName: string; vipLevel: string } | null
+   118→  room: { id: string; number: string; type: { name: string; code: string } } | null
+   119→  checkIn: string
+   120→  checkOut: string
+   121→  status: string
+   122→  folios: InHouseFolio[] | null
+   123→}
+   124→
+   125→interface InHouseData {
+   126→  report: string
+   127→  reservations: InHouseReservation[]
+   128→  total: number
+   129→}
+   130→
+   131→interface RoomMove {
+   132→  id: string
+   133→  reservationId: string
+   134→  confirmationNo: string
+   135→  fromRoomNumber: string
+   136→  toRoomNumber: string
+   137→  fromCheckIn: string
+   138→  toCheckIn: string
+   139→  fromCheckOut: string
+   140→  toCheckOut: string
+   141→  moveType: string
+   142→  reason: string
+   143→  changedByName: string
+   144→  createdAt: string
+   145→}
+   146→
+   147→interface RoomMovesData {
+   148→  report: string
+   149→  moves: RoomMove[]
+   150→  total: number
+   151→}
+   152→
+   153→interface OccupancyDay {
+   154→  date: string
+   155→  total: number
+   156→  occupied: number
+   157→  arrivals: number
+   158→  departures: number
+   159→}
+   160→
+   161→interface OccupancyData {
+   162→  report: string
+   163→  totalRooms: number
+   164→  days: OccupancyDay[]
+   165→}
+   166→
+   167→interface RevenueData {
+   168→  report: string
+   169→  totalRevenue: number
+   170→  totalPaid: number
+   171→  outstanding: number
+   172→  totalReservations: number
+   173→  totalRooms: number
+   174→  averageRate: number
+   175→}
+   176→
+   177→// ─── Report Tab Config ───────────────────────────────────────────────
+   178→
+   179→const REPORT_TABS = [
+   180→  { value: 'summary', label: 'Daily Summary', icon: BarChart3 },
+   181→  { value: 'arrivals', label: 'Arrivals', icon: ArrowDownToLine },
+   182→  { value: 'departures', label: 'Departures', icon: ArrowUpFromLine },
+   183→  { value: 'inhouse', label: 'In-House', icon: Users },
+   184→  { value: 'room-moves', label: 'Room Moves', icon: ArrowRightLeft },
+   185→  { value: 'occupancy', label: 'Occupancy', icon: Activity },
+   186→  { value: 'revenue', label: 'Revenue', icon: DollarSign },
+   187→] as const
+   188→
+   189→type ReportType = (typeof REPORT_TABS)[number]['value']
+   190→
+   191→// ─── Helper: Report Query Hook ─────────────────────────────────────────
+   192→
+   193→function useReportQuery<T>(type: ReportType, date?: string) {
+   194→  return useQuery<T>({
+   195→    queryKey: ['front-desk-reports', type, date],
+   196→    queryFn: async () => {
+   197→      const params = new URLSearchParams({ type })
+   198→      if (date) params.set('date', date)
+   199→      return apiFetch(`/api/front-desk/reports?${params.toString()}`)
+   200→    },
+   201→    refetchInterval: 30000,
+   202→  })
+   203→}
+   204→
+   205→// ─── Loading Skeleton Component ───────────────────────────────────────
+   206→
+   207→function ReportSkeleton({ rows = 5 }: { rows?: number }) {
+   208→  return (
+   209→    <div className="space-y-3 p-1">
+   210→      {Array.from({ length: rows }).map((_, i) => (
+   211→        <Skeleton key={i} className="h-12 w-full rounded-md" />
+   212→      ))}
+   213→    </div>
+   214→  )
+   215→}
+   216→
+   217→function StatsCardSkeleton() {
+   218→  return (
+   219→    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+   220→      {Array.from({ length: 4 }).map((_, i) => (
+   221→        <Card key={i}>
+   222→          <CardContent className="p-2.5">
+   223→            <div className="flex items-center gap-2">
+   224→              <Skeleton className="size-10 rounded-lg" />
+   225→              <div className="space-y-2">
+   226→                <Skeleton className="h-7 w-16" />
+   227→                <Skeleton className="h-3 w-24" />
+   228→              </div>
+   229→            </div>
+   230→          </CardContent>
+   231→        </Card>
+   232→      ))}
+   233→    </div>
+   234→  )
+   235→}
+   236→
+   237→function TableSkeleton({ cols = 5, rows = 6 }: { cols?: number; rows?: number }) {
+   238→  return (
+   239→    <Card className="py-0">
+   240→      <CardContent className="p-0">
+   241→        <Table>
+   242→          <TableHeader>
+   243→            <TableRow>
+   244→              {Array.from({ length: cols }).map((_, i) => (
+   245→                <TableHead key={i}>
+   246→                  <Skeleton className="h-4 w-16" />
+   247→                </TableHead>
+   248→              ))}
+   249→            </TableRow>
+   250→          </TableHeader>
+   251→          <TableBody>
+   252→            {Array.from({ length: rows }).map((_, i) => (
+   253→              <TableRow key={i}>
+   254→                {Array.from({ length: cols }).map((_, j) => (
+   255→                  <TableCell key={j}>
+   256→                    <Skeleton className="h-4 w-full" />
+   257→                  </TableCell>
+   258→                ))}
+   259→              </TableRow>
+   260→            ))}
+   261→          </TableBody>
+   262→        </Table>
+   263→      </CardContent>
+   264→    </Card>
+   265→  )
+   266→}
+   267→
+   268→function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+   269→  return (
+   270→    <Card>
+   271→      <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   272→        <Icon className="size-8 mb-2 opacity-40" />
+   273→        <p className="text-sm">{message}</p>
+   274→      </CardContent>
+   275→    </Card>
+   276→  )
+   277→}
+   278→
+   279→// ─── Stat Card ────────────────────────────────────────────────────────
+   280→
+   281→interface StatCardProps {
+   282→  label: string
+   283→  value: string | number
+   284→  icon: React.ElementType
+   285→  iconBg: string
+   286→  iconColor: string
+   287→  subtext?: string
+   288→}
+   289→
+   290→function StatCard({ label, value, icon: Icon, iconBg, iconColor, subtext }: StatCardProps) {
+   291→  return (
+   292→    <Card>
+   293→      <CardContent className="p-2.5 flex items-center gap-2">
+   294→        <div className={cn('flex size-10 items-center justify-center rounded-lg', iconBg)}>
+   295→          <Icon className={cn('size-5', iconColor)} />
+   296→        </div>
+   297→        <div>
+   298→          <p className="text-lg font-bold">{value}</p>
+   299→          <p className="text-xs text-muted-foreground">{label}</p>
+   300→          {subtext && (
+   301→            <p className="text-[10px] text-muted-foreground mt-0.5">{subtext}</p>
+   302→          )}
+   303→        </div>
+   304→      </CardContent>
+   305→    </Card>
+   306→  )
+   307→}
+   308→
+   309→// ─── Source Badge ─────────────────────────────────────────────────────
+   310→
+   311→function SourceBadge({ source }: { source: string | null }) {
+   312→  if (!source) return <span className="text-xs text-muted-foreground">—</span>
+   313→
+   314→  const colors: Record<string, string> = {
+   315→    online: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border-teal-300 dark:border-teal-700',
+   316→    walk_in: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300 border-violet-300 dark:border-violet-700',
+   317→    phone: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   318→    email: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700',
+   319→    agent: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 border-orange-300 dark:border-orange-700',
+   320→    corporate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-600',
+   321→    group: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-pink-300 dark:border-pink-700',
+   322→  }
+   323→
+   324→  const colorClass = colors[source] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+   325→
+   326→  return (
+   327→    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', colorClass)}>
+   328→      {source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+   329→    </Badge>
+   330→  )
+   331→}
+   332→
+   333→// ─── Move Type Badge ───────────────────────────────────────────────────
+   334→
+   335→function MoveTypeBadge({ type }: { type: string }) {
+   336→  const colors: Record<string, string> = {
+   337→    room_change: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300 border-violet-300 dark:border-violet-700',
+   338→    date_shift: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   339→    room_and_date: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border-teal-300 dark:border-teal-700',
+   340→  }
+   341→
+   342→  const colorClass = colors[type] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+   343→
+   344→  return (
+   345→    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', colorClass)}>
+   346→      {type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+   347→    </Badge>
+   348→  )
+   349→}
+   350→
+   351→// ─── Sub-Report Components ────────────────────────────────────────────
+   352→
+   353→// 1. Daily Summary
+   354→function SummaryReport({ date }: { date?: string }) {
+   355→  const { data, isLoading, error, refetch, isFetching } = useReportQuery<SummaryData>('summary', date)
+   356→
+   357→  if (isLoading) return <StatsCardSkeleton />
+   358→  if (error) return <EmptyState icon={FileText} message="Failed to load daily summary" />
+   359→
+   360→  const summary = data as SummaryData
+   361→
+   362→  return (
+   363→    <div className="space-y-3">
+   364→      {/* Stats Grid */}
+   365→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+   366→        <StatCard
+   367→          label="Total Rooms"
+   368→          value={summary.totalRooms}
+   369→          icon={Hotel}
+   370→          iconBg="bg-slate-100 dark:bg-slate-800"
+   371→          iconColor="text-slate-600 dark:text-slate-400"
+   372→        />
+   373→        <StatCard
+   374→          label="Today's Arrivals"
+   375→          value={summary.arrivals}
+   376→          icon={ArrowDownToLine}
+   377→          iconBg="bg-emerald-100 dark:bg-emerald-950"
+   378→          iconColor="text-emerald-600 dark:text-emerald-400"
+   379→        />
+   380→        <StatCard
+   381→          label="Today's Departures"
+   382→          value={summary.departures}
+   383→          icon={ArrowUpFromLine}
+   384→          iconBg="bg-rose-100 dark:bg-rose-950"
+   385→          iconColor="text-rose-600 dark:text-rose-400"
+   386→        />
+   387→        <StatCard
+   388→          label="In-House Guests"
+   389→          value={summary.inHouse}
+   390→          icon={Users}
+   391→          iconBg="bg-sky-100 dark:bg-sky-950"
+   392→          iconColor="text-sky-600 dark:text-sky-400"
+   393→        />
+   394→        <StatCard
+   395→          label="Occupancy"
+   396→          value={`${summary.occupancyPct}%`}
+   397→          icon={Percent}
+   398→          iconBg="bg-amber-100 dark:bg-amber-950"
+   399→          iconColor="text-amber-600 dark:text-amber-400"
+   400→        />
+   401→        <StatCard
+   402→          label="Total Reservations"
+   403→          value={summary.totalReservations}
+   404→          icon={CalendarDays}
+   405→          iconBg="bg-violet-100 dark:bg-violet-950"
+   406→          iconColor="text-violet-600 dark:text-violet-400"
+   407→        />
+   408→      </div>
+   409→
+   410→      <Separator />
+   411→
+   412→      {/* Financial Summary */}
+   413→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+   414→        <StatCard
+   415→          label="Total Revenue"
+   416→          value={formatCurrency(summary.totalRevenue)}
+   417→          icon={DollarSign}
+   418→          iconBg="bg-emerald-100 dark:bg-emerald-950"
+   419→          iconColor="text-emerald-600 dark:text-emerald-400"
+   420→        />
+   421→        <StatCard
+   422→          label="Total Paid"
+   423→          value={formatCurrency(summary.totalPaid)}
+   424→          icon={Receipt}
+   425→          iconBg="bg-green-100 dark:bg-green-950"
+   426→          iconColor="text-green-600 dark:text-green-400"
+   427→        />
+   428→        <StatCard
+   429→          label="Outstanding"
+   430→          value={formatCurrency(summary.outstanding)}
+   431→          icon={TrendingUp}
+   432→          iconBg={summary.outstanding > 0 ? 'bg-rose-100 dark:bg-rose-950' : 'bg-gray-100 dark:bg-gray-800'}
+   433→          iconColor={summary.outstanding > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-600 dark:text-gray-400'}
+   434→        />
+   435→        <StatCard
+   436→          label="Room Moves Today"
+   437→          value={summary.moveLogs}
+   438→          icon={ArrowRightLeft}
+   439→          iconBg="bg-violet-100 dark:bg-violet-950"
+   440→          iconColor="text-violet-600 dark:text-violet-400"
+   441→        />
+   442→      </div>
+   443→
+   444→      {/* Refresh indicator */}
+   445→      <div className="flex justify-end">
+   446→        <Button
+   447→          variant="ghost"
+   448→          size="sm"
+   449→          className="text-xs text-muted-foreground gap-1.5"
+   450→          onClick={() => refetch()}
+   451→          disabled={isFetching}
+   452→        >
+   453→          <RefreshCw className={cn('size-3', isFetching && 'animate-spin')} />
+   454→          {isFetching ? 'Refreshing...' : 'Refresh'}
+   455→        </Button>
+   456→      </div>
+   457→    </div>
+   458→  )
+   459→}
+   460→
+   461→// 2. Arrivals Report
+   462→function ArrivalsReport({ date }: { date?: string }) {
+   463→  const { data, isLoading, error } = useReportQuery<ArrivalsData>('arrivals', date)
+   464→
+   465→  if (isLoading) return <TableSkeleton cols={6} rows={6} />
+   466→  if (error) return <EmptyState icon={ArrowDownToLine} message="Failed to load arrivals report" />
+   467→
+   468→  const arrivalsData = data as ArrivalsData
+   469→  const arrivals = arrivalsData.reservations || []
+   470→
+   471→  if (arrivals.length === 0) {
+   472→    return <EmptyState icon={ArrowDownToLine} message="No arrivals scheduled for this date" />
+   473→  }
+   474→
+   475→  return (
+   476→    <Card className="py-0">
+   477→      <CardContent className="p-0">
+   478→        <Table>
+   479→          <TableHeader>
+   480→            <TableRow>
+   481→              <TableHead className="text-xs">Guest</TableHead>
+   482→              <TableHead className="text-xs">Confirmation</TableHead>
+   483→              <TableHead className="text-xs">Room</TableHead>
+   484→              <TableHead className="text-xs hidden md:table-cell">Check-In</TableHead>
+   485→              <TableHead className="text-xs hidden lg:table-cell">Check-Out</TableHead>
+   486→              <TableHead className="text-xs hidden sm:table-cell">Source</TableHead>
+   487→              <TableHead className="text-xs">Status</TableHead>
+   488→            </TableRow>
+   489→          </TableHeader>
+   490→          <TableBody>
+   491→            {arrivals.map((res, idx) => {
+   492→              const guestName = res.guest
+   493→                ? `${res.guest.firstName} ${res.guest.lastName}`
+   494→                : 'Unknown Guest'
+   495→              const isVip = res.guest?.vipLevel && res.guest.vipLevel !== 'none'
+   496→
+   497→              return (
+   498→                <TableRow
+   499→                  key={res.id}
+   500→                  className={cn(idx % 2 !== 0 && 'bg-muted/30')}
+   501→                >
+   502→                  <TableCell>
+   503→                    <div className="flex items-center gap-2">
+   504→                      <span className="font-medium text-xs">{guestName}</span>
+   505→                      {isVip && (
+   506→                        <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   507→                          VIP
+   508→                        </Badge>
+   509→                      )}
+   510→                    </div>
+   511→                    {res.specialRequests && (
+   512→                      <p className="text-[10px] text-muted-foreground mt-0.5 max-w-[200px] truncate">
+   513→                        {res.specialRequests}
+   514→                      </p>
+   515→                    )}
+   516→                  </TableCell>
+   517→                  <TableCell>
+   518→                    <span className="font-mono text-xs">{res.confirmationNo}</span>
+   519→                  </TableCell>
+   520→                  <TableCell>
+   521→                    {res.room ? (
+   522→                      <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
+   523→                    ) : (
+   524→                      <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
+   525→                        Unassigned
+   526→                      </Badge>
+   527→                    )}
+   528→                  </TableCell>
+   529→                  <TableCell className="hidden md:table-cell">
+   530→                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+   531→                      <Clock className="size-3" />
+   532→                      {formatDate(res.checkIn)}
+   533→                    </span>
+   534→                  </TableCell>
+   535→                  <TableCell className="hidden lg:table-cell">
+   536→                    <span className="text-xs text-muted-foreground">{formatDate(res.checkOut)}</span>
+   537→                  </TableCell>
+   538→                  <TableCell className="hidden sm:table-cell">
+   539→                    <SourceBadge source={res.source} />
+   540→                  </TableCell>
+   541→                  <TableCell>
+   542→                    <Badge
+   543→                      variant="outline"
+   544→                      className={cn(
+   545→                        'text-[10px] px-1.5 py-0',
+   546→                        res.status === 'checked_in'
+   547→                          ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-300 dark:border-green-700'
+   548→                          : 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   549→                      )}
+   550→                    >
+   551→                      {res.status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+   552→                    </Badge>
+   553→                  </TableCell>
+   554→                </TableRow>
+   555→              )
+   556→            })}
+   557→          </TableBody>
+   558→          <TableFooter>
+   559→            <TableRow>
+   560→              <TableCell colSpan={6} className="text-xs text-muted-foreground">
+   561→                Total Arrivals
+   562→              </TableCell>
+   563→              <TableCell className="font-bold text-xs">{arrivalsData.total}</TableCell>
+   564→            </TableRow>
+   565→          </TableFooter>
+   566→        </Table>
+   567→      </CardContent>
+   568→    </Card>
+   569→  )
+   570→}
+   571→
+   572→// 3. Departures Report
+   573→function DeparturesReport({ date }: { date?: string }) {
+   574→  const { data, isLoading, error } = useReportQuery<DeparturesData>('departures', date)
+   575→
+   576→  if (isLoading) return <TableSkeleton cols={5} rows={6} />
+   577→  if (error) return <EmptyState icon={ArrowUpFromLine} message="Failed to load departures report" />
+   578→
+   579→  const departuresData = data as DeparturesData
+   580→  const departures = departuresData.reservations || []
+   581→
+   582→  if (departures.length === 0) {
+   583→    return <EmptyState icon={ArrowUpFromLine} message="No departures scheduled for this date" />
+   584→  }
+   585→
+   586→  return (
+   587→    <Card className="py-0">
+   588→      <CardContent className="p-0">
+   589→        <Table>
+   590→          <TableHeader>
+   591→            <TableRow>
+   592→              <TableHead className="text-xs">Guest</TableHead>
+   593→              <TableHead className="text-xs">Room</TableHead>
+   594→              <TableHead className="text-xs hidden md:table-cell">Check-Out</TableHead>
+   595→              <TableHead className="text-xs hidden sm:table-cell">Nights</TableHead>
+   596→              <TableHead className="text-xs">Folio Balance</TableHead>
+   597→              <TableHead className="text-xs">Status</TableHead>
+   598→            </TableRow>
+   599→          </TableHeader>
+   600→          <TableBody>
+   601→            {departures.map((res, idx) => {
+   602→              const guestName = res.guest
+   603→                ? `${res.guest.firstName} ${res.guest.lastName}`
+   604→                : 'Unknown Guest'
+   605→
+   606→              const folioBalance = res.folios && res.folios.length > 0
+   607→                ? res.folios.reduce((sum, f) => sum + (f.balance || 0), 0)
+   608→                : 0
+   609→
+   610→              const nights = nightsBetween(res.checkIn, res.checkOut)
+   611→
+   612→              return (
+   613→                <TableRow
+   614→                  key={res.id}
+   615→                  className={cn(idx % 2 !== 0 && 'bg-muted/30')}
+   616→                >
+   617→                  <TableCell>
+   618→                    <div className="flex items-center gap-2">
+   619→                      <span className="font-medium text-xs">{guestName}</span>
+   620→                    </div>
+   621→                    <span className="font-mono text-[10px] text-muted-foreground">{res.confirmationNo}</span>
+   622→                  </TableCell>
+   623→                  <TableCell>
+   624→                    {res.room ? (
+   625→                      <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
+   626→                    ) : (
+   627→                      <span className="text-xs text-muted-foreground">—</span>
+   628→                    )}
+   629→                  </TableCell>
+   630→                  <TableCell className="hidden md:table-cell">
+   631→                    <span className="text-xs text-muted-foreground">{formatDate(res.checkOut)}</span>
+   632→                  </TableCell>
+   633→                  <TableCell className="hidden sm:table-cell">
+   634→                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+   635→                      {nights} {nights === 1 ? 'night' : 'nights'}
+   636→                    </Badge>
+   637→                  </TableCell>
+   638→                  <TableCell>
+   639→                    <span className={cn(
+   640→                      'text-xs font-medium',
+   641→                      folioBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400',
+   642→                    )}>
+   643→                      {formatCurrency(folioBalance)}
+   644→                    </span>
+   645→                  </TableCell>
+   646→                  <TableCell>
+   647→                    <Badge
+   648→                      variant="outline"
+   649→                      className={cn(
+   650→                        'text-[10px] px-1.5 py-0',
+   651→                        res.status === 'checked_out'
+   652→                          ? 'bg-gray-50 text-gray-600 dark:bg-gray-900 dark:text-gray-400 border-gray-300 dark:border-gray-700'
+   653→                          : 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   654→                      )}
+   655→                    >
+   656→                      {res.status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+   657→                    </Badge>
+   658→                  </TableCell>
+   659→                </TableRow>
+   660→              )
+   661→            })}
+   662→          </TableBody>
+   663→          <TableFooter>
+   664→            <TableRow>
+   665→              <TableCell colSpan={5} className="text-xs text-muted-foreground">
+   666→                Total Departures
+   667→              </TableCell>
+   668→              <TableCell className="font-bold text-xs">{departuresData.total}</TableCell>
+   669→            </TableRow>
+   670→          </TableFooter>
+   671→        </Table>
+   672→      </CardContent>
+   673→    </Card>
+   674→  )
+   675→}
+   676→
+   677→// 4. In-House Report
+   678→function InHouseReport() {
+   679→  const { data, isLoading, error } = useReportQuery<InHouseData>('inhouse')
+   680→
+   681→  if (isLoading) return <TableSkeleton cols={6} rows={8} />
+   682→  if (error) return <EmptyState icon={Users} message="Failed to load in-house report" />
+   683→
+   684→  const inHouseData = data as InHouseData
+   685→  const guests = inHouseData.reservations || []
+   686→
+   687→  if (guests.length === 0) {
+   688→    return <EmptyState icon={Users} message="No guests currently in-house" />
+   689→  }
+   690→
+   691→  return (
+   692→    <Card className="py-0">
+   693→      <CardContent className="p-0">
+   694→        <div className="max-h-96 overflow-y-auto">
+   695→          <Table>
+   696→            <TableHeader className="sticky top-0 bg-card z-10">
+   697→              <TableRow>
+   698→                <TableHead className="text-xs">Guest</TableHead>
+   699→                <TableHead className="text-xs">Room</TableHead>
+   700→                <TableHead className="text-xs hidden md:table-cell">Check-In</TableHead>
+   701→                <TableHead className="text-xs hidden lg:table-cell">Check-Out</TableHead>
+   702→                <TableHead className="text-xs hidden sm:table-cell">Nights</TableHead>
+   703→                <TableHead className="text-xs">Folio Balance</TableHead>
+   704→              </TableRow>
+   705→            </TableHeader>
+   706→            <TableBody>
+   707→              {guests.map((res, idx) => {
+   708→                const guestName = res.guest
+   709→                  ? `${res.guest.firstName} ${res.guest.lastName}`
+   710→                  : 'Unknown Guest'
+   711→                const isVip = res.guest?.vipLevel && res.guest.vipLevel !== 'none'
+   712→                const nights = nightsBetween(res.checkIn, res.checkOut)
+   713→
+   714→                const folioBalance = res.folios && res.folios.length > 0
+   715→                  ? res.folios.reduce((sum, f) => sum + (f.balance || 0), 0)
+   716→                  : 0
+   717→
+   718→                return (
+   719→                  <TableRow
+   720→                    key={res.id}
+   721→                    className={cn(idx % 2 !== 0 && 'bg-muted/30')}
+   722→                  >
+   723→                    <TableCell>
+   724→                      <div className="flex items-center gap-2">
+   725→                        <span className="font-medium text-xs">{guestName}</span>
+   726→                        {isVip && (
+   727→                          <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   728→                            VIP
+   729→                          </Badge>
+   730→                        )}
+   731→                      </div>
+   732→                      <span className="font-mono text-[10px] text-muted-foreground">{res.confirmationNo}</span>
+   733→                    </TableCell>
+   734→                    <TableCell>
+   735→                      {res.room ? (
+   736→                        <span className="text-xs">{res.room.number} <span className="text-muted-foreground text-[10px]">({res.room.type.code})</span></span>
+   737→                      ) : (
+   738→                        <span className="text-xs text-muted-foreground">—</span>
+   739→                      )}
+   740→                    </TableCell>
+   741→                    <TableCell className="hidden md:table-cell">
+   742→                      <span className="text-xs text-muted-foreground">{formatDate(res.checkIn)}</span>
+   743→                    </TableCell>
+   744→                    <TableCell className="hidden lg:table-cell">
+   745→                      <span className="text-xs text-muted-foreground">{formatDate(res.checkOut)}</span>
+   746→                    </TableCell>
+   747→                    <TableCell className="hidden sm:table-cell">
+   748→                      <span className="text-xs">{nights} {nights === 1 ? 'night' : 'nights'}</span>
+   749→                    </TableCell>
+   750→                    <TableCell>
+   751→                      <span className={cn(
+   752→                        'text-sm font-medium',
+   753→                        folioBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400',
+   754→                      )}>
+   755→                        {formatCurrency(folioBalance)}
+   756→                      </span>
+   757→                    </TableCell>
+   758→                  </TableRow>
+   759→                )
+   760→              })}
+   761→            </TableBody>
+   762→            <TableFooter>
+   763→              <TableRow>
+   764→                <TableCell colSpan={5} className="text-xs text-muted-foreground">
+   765→                  Total In-House
+   766→                </TableCell>
+   767→                <TableCell className="font-bold text-xs">{inHouseData.total}</TableCell>
+   768→              </TableRow>
+   769→            </TableFooter>
+   770→          </Table>
+   771→        </div>
+   772→      </CardContent>
+   773→    </Card>
+   774→  )
+   775→}
+   776→
+   777→// 5. Room Move Log
+   778→function RoomMovesReport() {
+   779→  const { data, isLoading, error } = useReportQuery<RoomMovesData>('room-moves')
+   780→
+   781→  if (isLoading) return <TableSkeleton cols={6} rows={6} />
+   782→  if (error) return <EmptyState icon={ArrowRightLeft} message="Failed to load room moves" />
+   783→
+   784→  const movesData = data as RoomMovesData
+   785→  const moves = movesData.moves || []
+   786→
+   787→  if (moves.length === 0) {
+   788→    return <EmptyState icon={ArrowRightLeft} message="No room moves recorded" />
+   789→  }
+   790→
+   791→  return (
+   792→    <Card className="py-0">
+   793→      <CardContent className="p-0">
+   794→        <div className="max-h-96 overflow-y-auto">
+   795→          <Table>
+   796→            <TableHeader className="sticky top-0 bg-card z-10">
+   797→              <TableRow>
+   798→                <TableHead className="text-xs">Date/Time</TableHead>
+   799→                <TableHead className="text-xs">Guest</TableHead>
+   800→                <TableHead className="text-xs">Room Change</TableHead>
+   801→                <TableHead className="text-xs hidden md:table-cell">Type</TableHead>
+   802→                <TableHead className="text-xs hidden lg:table-cell">Reason</TableHead>
+   803→                <TableHead className="text-xs hidden sm:table-cell">Changed By</TableHead>
+   804→              </TableRow>
+   805→            </TableHeader>
+   806→            <TableBody>
+   807→              {moves.map((move, idx) => (
+   808→                <TableRow
+   809→                  key={move.id}
+   810→                  className={cn(idx % 2 !== 0 && 'bg-muted/30')}
+   811→                >
+   812→                  <TableCell>
+   813→                    <span className="text-xs text-muted-foreground">{formatDateTime(move.createdAt)}</span>
+   814→                  </TableCell>
+   815→                  <TableCell>
+   816→                    <div>
+   817→                      <span className="text-xs font-medium">{move.confirmationNo}</span>
+   818→                      <span className="block font-mono text-[10px] text-muted-foreground">{move.confirmationNo}</span>
+   819→                    </div>
+   820→                  </TableCell>
+   821→                  <TableCell>
+   822→                    <div className="flex items-center gap-1.5">
+   823→                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+   824→                        {move.fromRoomNumber}
+   825→                      </Badge>
+   826→                      <ArrowRightLeft className="size-3 text-muted-foreground" />
+   827→                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-violet-300 dark:border-violet-700">
+   828→                        {move.toRoomNumber}
+   829→                      </Badge>
+   830→                    </div>
+   831→                  </TableCell>
+   832→                  <TableCell className="hidden md:table-cell">
+   833→                    <MoveTypeBadge type={move.moveType} />
+   834→                  </TableCell>
+   835→                  <TableCell className="hidden lg:table-cell">
+   836→                    <span className="text-xs text-muted-foreground max-w-[180px] truncate block">
+   837→                      {move.reason || '—'}
+   838→                    </span>
+   839→                  </TableCell>
+   840→                  <TableCell className="hidden sm:table-cell">
+   841→                    <span className="text-xs">{move.changedByName || '—'}</span>
+   842→                  </TableCell>
+   843→                </TableRow>
+   844→              ))}
+   845→            </TableBody>
+   846→            <TableFooter>
+   847→              <TableRow>
+   848→                <TableCell colSpan={5} className="text-xs text-muted-foreground">
+   849→                  Total Moves
+   850→                </TableCell>
+   851→                <TableCell className="font-bold text-xs">{movesData.total}</TableCell>
+   852→              </TableRow>
+   853→            </TableFooter>
+   854→          </Table>
+   855→        </div>
+   856→      </CardContent>
+   857→    </Card>
+   858→  )
+   859→}
+   860→
+   861→// 6. Occupancy Report (7-day trend)
+   862→function OccupancyReport() {
+   863→  const { data, isLoading, error } = useReportQuery<OccupancyData>('occupancy')
+   864→
+   865→  if (isLoading) return <TableSkeleton cols={6} rows={7} />
+   866→  if (error) return <EmptyState icon={Activity} message="Failed to load occupancy report" />
+   867→
+   868→  const occupancyData = data as OccupancyData
+   869→  const days = occupancyData.days || []
+   870→
+   871→  if (days.length === 0) {
+   872→    return <EmptyState icon={Activity} message="No occupancy data available" />
+   873→  }
+   874→
+   875→  return (
+   876→    <div className="space-y-3">
+   877→      {/* Header Stats */}
+   878→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+   879→        <StatCard
+   880→          label="Total Rooms"
+   881→          value={occupancyData.totalRooms}
+   882→          icon={Hotel}
+   883→          iconBg="bg-slate-100 dark:bg-slate-800"
+   884→          iconColor="text-slate-600 dark:text-slate-400"
+   885→        />
+   886→        {(() => {
+   887→          const avgOccupancy = days.length > 0
+   888→            ? Math.round(days.reduce((sum, d) => {
+   889→                const pct = d.total > 0 ? (d.occupied / d.total) * 100 : 0
+   890→                return sum + pct
+   891→              }, 0) / days.length)
+   892→            : 0
+   893→
+   894→          return (
+   895→            <>
+   896→              <StatCard
+   897→                label="Avg. Occupancy (7 days)"
+   898→                value={`${avgOccupancy}%`}
+   899→                icon={Percent}
+   900→                iconBg="bg-amber-100 dark:bg-amber-950"
+   901→                iconColor="text-amber-600 dark:text-amber-400"
+   902→              />
+   903→              <StatCard
+   904→                label="Peak Occupancy"
+   905→                value={`${Math.max(...days.map(d => d.total > 0 ? Math.round((d.occupied / d.total) * 100) : 0))}%`}
+   906→                icon={TrendingUp}
+   907→                iconBg="bg-emerald-100 dark:bg-emerald-950"
+   908→                iconColor="text-emerald-600 dark:text-emerald-400"
+   909→              />
+   910→            </>
+   911→          )
+   912→        })()}
+   913→      </div>
+   914→
+   915→      <Card className="py-0">
+   916→        <CardContent className="p-0">
+   917→          <Table>
+   918→            <TableHeader>
+   919→              <TableRow>
+   920→                <TableHead className="text-xs">Date</TableHead>
+   921→                <TableHead className="text-xs">Total Rooms</TableHead>
+   922→                <TableHead className="text-xs">Occupied</TableHead>
+   923→                <TableHead className="text-xs hidden sm:table-cell">Arrivals</TableHead>
+   924→                <TableHead className="text-xs hidden sm:table-cell">Departures</TableHead>
+   925→                <TableHead className="text-xs">Occupancy %</TableHead>
+   926→              </TableRow>
+   927→            </TableHeader>
+   928→            <TableBody>
+   929→              {days.map((day, idx) => {
+   930→                const occPct = day.total > 0 ? Math.round((day.occupied / day.total) * 100) : 0
+   931→                const isToday = day.date === new Date().toISOString().split('T')[0]
+   932→
+   933→                return (
+   934→                  <TableRow
+   935→                    key={day.date}
+   936→                    className={cn(
+   937→                      idx % 2 !== 0 && 'bg-muted/30',
+   938→                      isToday && 'bg-emerald-50/50 dark:bg-emerald-950/20',
+   939→                    )}
+   940→                  >
+   941→                    <TableCell>
+   942→                      <span className={cn(
+   943→                        'text-xs font-medium',
+   944→                        isToday && 'text-emerald-700 dark:text-emerald-400',
+   945→                      )}>
+   946→                        {formatDate(day.date)}
+   947→                      </span>
+   948→                      {isToday && (
+   949→                        <Badge className="text-[9px] px-1 py-0 ml-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700">
+   950→                          Today
+   951→                        </Badge>
+   952→                      )}
+   953→                    </TableCell>
+   954→                    <TableCell>
+   955→                      <span className="text-xs">{day.total}</span>
+   956→                    </TableCell>
+   957→                    <TableCell>
+   958→                      <span className="text-xs font-medium">{day.occupied}</span>
+   959→                    </TableCell>
+   960→                    <TableCell className="hidden sm:table-cell">
+   961→                      <span className="text-xs flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+   962→                        <ArrowDownToLine className="size-3" />
+   963→                        {day.arrivals}
+   964→                      </span>
+   965→                    </TableCell>
+   966→                    <TableCell className="hidden sm:table-cell">
+   967→                      <span className="text-xs flex items-center gap-1 text-rose-600 dark:text-rose-400">
+   968→                        <ArrowUpFromLine className="size-3" />
+   969→                        {day.departures}
+   970→                      </span>
+   971→                    </TableCell>
+   972→                    <TableCell>
+   973→                      <div className="flex items-center gap-2">
+   974→                        {/* Visual occupancy bar */}
+   975→                        <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+   976→                          <div
+   977→                            className={cn(
+   978→                              'h-full rounded-full transition-all',
+   979→                              occPct >= 80
+   980→                                ? 'bg-emerald-500'
+   981→                                : occPct >= 50
+   982→                                  ? 'bg-amber-500'
+   983→                                  : 'bg-rose-500',
+   984→                            )}
+   985→                            style={{ width: `${Math.min(occPct, 100)}%` }}
+   986→                          />
+   987→                        </div>
+   988→                        <span className={cn(
+   989→                          'text-xs font-medium',
+   990→                          occPct >= 80
+   991→                            ? 'text-emerald-600 dark:text-emerald-400'
+   992→                            : occPct >= 50
+   993→                              ? 'text-amber-600 dark:text-amber-400'
+   994→                              : 'text-rose-600 dark:text-rose-400',
+   995→                        )}>
+   996→                          {occPct}%
+   997→                        </span>
+   998→                      </div>
+   999→                    </TableCell>
+  1000→                  </TableRow>
+  1001→                )
+  1002→              })}
+  1003→            </TableBody>
+  1004→          </Table>
+  1005→        </CardContent>
+  1006→      </Card>
+  1007→    </div>
+  1008→  )
+  1009→}
+  1010→
+  1011→// 7. Revenue Summary
+  1012→function RevenueReport() {
+  1013→  const { data, isLoading, error } = useReportQuery<RevenueData>('revenue')
+  1014→
+  1015→  if (isLoading) return <StatsCardSkeleton />
+  1016→  if (error) return <EmptyState icon={DollarSign} message="Failed to load revenue report" />
+  1017→
+  1018→  const revenue = data as RevenueData
+  1019→
+  1020→  const collectionRate = revenue.totalRevenue > 0
+  1021→    ? Math.round((revenue.totalPaid / revenue.totalRevenue) * 100)
+  1022→    : 0
+  1023→
+  1024→  const revenuePerRoom = revenue.totalRooms > 0
+  1025→    ? Math.round(revenue.totalRevenue / revenue.totalRooms)
+  1026→    : 0
+  1027→
+  1028→  return (
+  1029→    <div className="space-y-3">
+  1030→      {/* Primary Stats */}
+  1031→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+  1032→        <StatCard
+  1033→          label="Total Revenue"
+  1034→          value={formatCurrency(revenue.totalRevenue)}
+  1035→          icon={DollarSign}
+  1036→          iconBg="bg-emerald-100 dark:bg-emerald-950"
+  1037→          iconColor="text-emerald-600 dark:text-emerald-400"
+  1038→          subtext={`RevPAR: ${formatCurrency(revenuePerRoom)}`}
+  1039→        />
+  1040→        <StatCard
+  1041→          label="Total Paid"
+  1042→          value={formatCurrency(revenue.totalPaid)}
+  1043→          icon={Receipt}
+  1044→          iconBg="bg-green-100 dark:bg-green-950"
+  1045→          iconColor="text-green-600 dark:text-green-400"
+  1046→          subtext={`${collectionRate}% collection rate`}
+  1047→        />
+  1048→        <StatCard
+  1049→          label="Outstanding"
+  1050→          value={formatCurrency(revenue.outstanding)}
+  1051→          icon={TrendingUp}
+  1052→          iconBg={revenue.outstanding > 0 ? 'bg-rose-100 dark:bg-rose-950' : 'bg-gray-100 dark:bg-gray-800'}
+  1053→          iconColor={revenue.outstanding > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-600 dark:text-gray-400'}
+  1054→        />
+  1055→      </div>
+  1056→
+  1057→      <Separator />
+  1058→
+  1059→      {/* Secondary Stats */}
+  1060→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+  1061→        <StatCard
+  1062→          label="Average Rate"
+  1063→          value={formatCurrency(revenue.averageRate)}
+  1064→          icon={BarChart3}
+  1065→          iconBg="bg-sky-100 dark:bg-sky-950"
+  1066→          iconColor="text-sky-600 dark:text-sky-400"
+  1067→        />
+  1068→        <StatCard
+  1069→          label="Total Reservations"
+  1070→          value={revenue.totalReservations}
+  1071→          icon={CalendarDays}
+  1072→          iconBg="bg-violet-100 dark:bg-violet-950"
+  1073→          iconColor="text-violet-600 dark:text-violet-400"
+  1074→        />
+  1075→        <StatCard
+  1076→          label="Total Rooms"
+  1077→          value={revenue.totalRooms}
+  1078→          icon={Hotel}
+  1079→          iconBg="bg-slate-100 dark:bg-slate-800"
+  1080→          iconColor="text-slate-600 dark:text-slate-400"
+  1081→        />
+  1082→      </div>
+  1083→
+  1084→      {/* Collection Rate Visual */}
+  1085→      <Card>
+  1086→        <CardContent className="p-2.5">
+  1087→          <div className="flex items-center justify-between mb-2">
+  1088→            <span className="text-xs font-medium">Collection Rate</span>
+  1089→            <span className={cn(
+  1090→              'text-xs font-bold',
+  1091→              collectionRate >= 80
+  1092→                ? 'text-emerald-600 dark:text-emerald-400'
+  1093→                : collectionRate >= 50
+  1094→                  ? 'text-amber-600 dark:text-amber-400'
+  1095→                  : 'text-rose-600 dark:text-rose-400',
+  1096→            )}>
+  1097→              {collectionRate}%
+  1098→            </span>
+  1099→          </div>
+  1100→          <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+  1101→            <div
+  1102→              className={cn(
+  1103→                'h-full rounded-full transition-all',
+  1104→                collectionRate >= 80
+  1105→                  ? 'bg-emerald-500'
+  1106→                  : collectionRate >= 50
+  1107→                    ? 'bg-amber-500'
+  1108→                    : 'bg-rose-500',
+  1109→              )}
+  1110→              style={{ width: `${Math.min(collectionRate, 100)}%` }}
+  1111→            />
+  1112→          </div>
+  1113→          <div className="flex justify-between mt-1.5">
+  1114→            <span className="text-[10px] text-muted-foreground">0%</span>
+  1115→            <span className="text-[10px] text-muted-foreground">100%</span>
+  1116→          </div>
+  1117→        </CardContent>
+  1118→      </Card>
+  1119→    </div>
+  1120→  )
+  1121→}
+  1122→
+  1123→// ─── Main Component ──────────────────────────────────────────────────
+  1124→
+  1125→export function ReportsView() {
+  1126→  const queryClient = useQueryClient()
+  1127→  const [activeTab, setActiveTab] = useState<ReportType>('summary')
+  1128→
+  1129→  const activeTabConfig = REPORT_TABS.find((t) => t.value === activeTab)
+  1130→  const ActiveIcon = activeTabConfig?.icon || BarChart3
+  1131→
+  1132→  const handleExportCSV = () => {
+  1133→    const cacheData = queryClient.getQueryData(['front-desk-reports', activeTab])
+  1134→    if (!cacheData) {
+  1135→      toast.error('No data to export. Please wait for the report to load.')
+  1136→      return
+  1137→    }
+  1138→    const data = cacheData as Record<string, unknown>
+  1139→    const extractRows = (obj: Record<string, unknown>): Record<string, unknown>[] => {
+  1140→      // Try to find the array of rows in the report data
+  1141→      for (const key of ['reservations', 'moves', 'days']) {
+  1142→        if (Array.isArray(obj[key])) return obj[key] as Record<string, unknown>[]
+  1143→      }
+  1144→      // For summary/revenue, wrap the single object
+  1145→      return [obj]
+  1146→    }
+  1147→    const rows = extractRows(data)
+  1148→    const today = new Date().toISOString().split('T')[0]
+  1149→    exportToCSV(rows, `front-desk-${activeTab}-${today}`)
+  1150→    toast.success(`${activeTab.replace(/-/g, ' ')} report exported as CSV`)
+  1151→  }
+  1152→
+  1153→  const reportDescriptions: Record<ReportType, string> = {
+  1154→    summary: "Today's operational overview with key metrics and financials",
+  1155→    arrivals: "Expected guest check-ins for the selected date",
+  1156→    departures: "Expected guest check-outs for the selected date",
+  1157→    inhouse: 'All guests currently checked in and their folio status',
+  1158→    'room-moves': 'History of room changes made via the calendar',
+  1159→    occupancy: '7-day occupancy trend with daily breakdown',
+  1160→    revenue: 'Financial overview including revenue, payments, and outstanding balances',
+  1161→  }
+  1162→
+  1163→  return (
+  1164→    <div className="flex flex-col gap-2">
+  1165→      {/* Header */}
+  1166→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  1167→        <div>
+  1168→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+  1169→            <FileText className="size-3.5 text-muted-foreground" />
+  1170→            Front Desk Reports
+  1171→          </h2>
+  1172→          <p className="text-xs text-muted-foreground">
+  1173→            Operational insights and daily performance metrics
+  1174→          </p>
+  1175→        </div>
+  1176→        <Button
+  1177→          variant="outline"
+  1178→          size="sm"
+  1179→          className="gap-1 text-[11px]"
+  1180→          onClick={handleExportCSV}
+  1181→        >
+  1182→          <Download className="size-3.5" />
+  1183→          Export CSV
+  1184→        </Button>
+  1185→      </div>
+  1186→
+  1187→      {/* Tabs */}
+  1188→      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ReportType)} className="w-full">
+  1189→        <TabsList className="w-full sm:w-auto overflow-x-auto">
+  1190→          {REPORT_TABS.map((tab) => {
+  1191→            const TabIcon = tab.icon
+  1192→            return (
+  1193→              <TabsTrigger
+  1194→                key={tab.value}
+  1195→                value={tab.value}
+  1196→                className="text-xs sm:text-sm gap-1.5"
+  1197→              >
+  1198→                <TabIcon className="size-3.5" />
+  1199→                <span className="hidden sm:inline">{tab.label}</span>
+  1200→                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+  1201→              </TabsTrigger>
+  1202→            )
+  1203→          })}
+  1204→        </TabsList>
+  1205→
+  1206→        {/* Tab Content */}
+  1207→        {REPORT_TABS.map((tab) => (
+  1208→          <TabsContent key={tab.value} value={tab.value} className="mt-2">
+  1209→            {/* Report Header */}
+  1210→            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+  1211→              <div className="flex items-center gap-2">
+  1212→                <ActiveIcon className="size-3.5 text-muted-foreground" />
+  1213→                <div>
+  1214→                  <h3 className="text-sm font-semibold">{tab.label}</h3>
+  1215→                  <p className="text-xs text-muted-foreground">{reportDescriptions[tab.value]}</p>
+  1216→                </div>
+  1217→              </div>
+  1218→            </div>
+  1219→
+  1220→            {/* Report Content */}
+  1221→            {tab.value === 'summary' && <SummaryReport />}
+  1222→            {tab.value === 'arrivals' && <ArrivalsReport />}
+  1223→            {tab.value === 'departures' && <DeparturesReport />}
+  1224→            {tab.value === 'inhouse' && <InHouseReport />}
+  1225→            {tab.value === 'room-moves' && <RoomMovesReport />}
+  1226→            {tab.value === 'occupancy' && <OccupancyReport />}
+  1227→            {tab.value === 'revenue' && <RevenueReport />}
+  1228→          </TabsContent>
+  1229→        ))}
+  1230→      </Tabs>
+  1231→    </div>
+  1232→  )
+  1233→}
+  1234→

@@ -1,0 +1,873 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useCallback, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { apiFetch } from '@/lib/api'
+     6→import { format, parseISO } from 'date-fns'
+     7→import {
+     8→  DollarSign, Clock, AlertCircle, CheckCircle, Loader2, X,
+     9→  Search, RefreshCw, ChevronDown, ChevronRight,
+    10→  Zap, CalendarDays, Users, BarChart3, BedDouble,
+    11→  MoreHorizontal, Download, FileSpreadsheet,
+    12→  ListChecks, Wallet, Moon, ArrowRight, ShieldCheck,
+    13→  Building2, FileText, UserCircle, Receipt, CreditCard,
+    14→  Eye, Filter, CalendarIcon,
+    15→} from 'lucide-react'
+    16→import { toast } from 'sonner'
+    17→import { cn } from '@/lib/utils'
+    18→import { formatDate, formatCurrency } from '@/lib/format'
+    19→import { invalidate } from '@/lib/queryKeys'
+    20→import { useNavigationStore, useFolioContextStore } from '@/lib/store'
+    21→
+    22→import { Button } from '@/components/ui/button'
+    23→import { Input } from '@/components/ui/input'
+    24→import { Label } from '@/components/ui/label'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import { Card, CardContent } from '@/components/ui/card'
+    27→import { Separator } from '@/components/ui/separator'
+    28→import { Skeleton } from '@/components/ui/skeleton'
+    29→import { Checkbox } from '@/components/ui/checkbox'
+    30→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+    31→import {
+    32→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    33→} from '@/components/ui/table'
+    34→import {
+    35→  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+    36→  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
+    37→} from '@/components/ui/dropdown-menu'
+    38→import {
+    39→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    40→} from '@/components/ui/dialog'
+    41→import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+    42→import { Calendar } from '@/components/ui/calendar'
+    43→
+    44→// ─── Types ──────────────────────────────────────────────────────────────
+    45→
+    46→interface PendingReservation {
+    47→  reservationId: string
+    48→  confirmationNo: string
+    49→  guest: { id: string; firstName: string; lastName: string } | null
+    50→  room: { id: string; number: string; type: { name: string } | null } | null
+    51→  checkIn: string
+    52→  checkOut: string
+    53→  roomRate: number
+    54→  folio: { id: string; balance: number; status: string } | null
+    55→  pendingNights: string[]
+    56→  postedNights: string[]
+    57→  futureNights: string[]
+    58→  totalNights: number
+    59→  pendingAmount: number
+    60→}
+    61→
+    62→interface PendingResponse {
+    63→  pendingReservations: PendingReservation[]
+    64→  summary: { totalReservations: number; totalPendingNights: number; totalPendingAmount: number }
+    65→}
+    66→
+    67→// ─── Constants ──────────────────────────────────────────────────────────
+    68→
+    69→type PostingType = 'all' | 'no-room' | 'urgent'
+    70→
+    71→const POSTING_TYPE_OPTIONS: { value: PostingType; label: string }[] = [
+    72→  { value: 'all', label: 'All Pending' },
+    73→  { value: 'no-room', label: 'No Room' },
+    74→  { value: 'urgent', label: 'Urgent (3+)' },
+    75→]
+    76→
+    77→// ─── Component ──────────────────────────────────────────────────────────
+    78→
+    79→export function RoomRatePostingPage() {
+    80→  const queryClient = useQueryClient()
+    81→  const navigateTo = useNavigationStore((s) => s.navigateTo)
+    82→  const setFolioContext = useFolioContextStore((s) => s.setFolioContext)
+    83→
+    84→  // State
+    85→  const [search, setSearch] = useState('')
+    86→  const [searchInput, setSearchInput] = useState('')
+    87→  const [postingType, setPostingType] = useState<PostingType>('all')
+    88→  const [dateFilter, setDateFilter] = useState('')
+    89→  const [calendarOpen, setCalendarOpen] = useState(false)
+    90→  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+    91→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+    92→
+    93→  // Dialogs
+    94→  const [postConfirmOpen, setPostConfirmOpen] = useState(false)
+    95→  const [postTarget, setPostTarget] = useState<PendingReservation | null>(null)
+    96→  const [bulkPostOpen, setBulkPostOpen] = useState(false)
+    97→  const [rateOverride, setRateOverride] = useState('')
+    98→  const [showQuickActions, setShowQuickActions] = useState(false)
+    99→
+   100→  // ── Fetch pending reservations ───────────────────────────────────
+   101→  const { data: pendingData, isLoading, refetch } = useQuery({
+   102→    queryKey: ['rate-posting-pending'],
+   103→    queryFn: () => apiFetch<PendingResponse>('/api/room-rate-posting/pending'),
+   104→  })
+   105→
+   106→  // ── Post single reservation's pending nights ────────────────────
+   107→  const postMutation = useMutation({
+   108→    mutationFn: async ({ reservationId, dates, customRate }: { reservationId: string; dates: string[]; customRate?: number }) => {
+   109→      const body: Record<string, unknown> = { reservationId, dates }
+   110→      if (customRate && customRate > 0) body.customRate = customRate
+   111→      return apiFetch('/api/room-rate-posting', {
+   112→        method: 'POST',
+   113→        headers: { 'Content-Type': 'application/json' },
+   114→        body: JSON.stringify(body),
+   115→      })
+   116→    },
+   117→    onSuccess: () => {
+   118→      toast.success('Pending charges posted successfully')
+   119→      invalidate.afterFolioChange(queryClient)
+   120→      queryClient.invalidateQueries({ queryKey: ['rate-posting-pending'] })
+   121→      setPostConfirmOpen(false)
+   122→      setPostTarget(null)
+   123→      setRateOverride('')
+   124→      setSelectedIds(new Set())
+   125→    },
+   126→    onError: (error) => {
+   127→      toast.error(error.message || 'Failed to post charges')
+   128→      setPostConfirmOpen(false)
+   129→      setPostTarget(null)
+   130→      setRateOverride('')
+   131→    },
+   132→  })
+   133→
+   134→  // ── Post selected (batch) ───────────────────────────────────────
+   135→  const postSelectedMutation = useMutation({
+   136→    mutationFn: async (items: { reservationId: string; dates: string[] }[]) => {
+   137→      const results: { reservationId: string; success: boolean; error?: string }[] = []
+   138→      for (const item of items) {
+   139→        try {
+   140→          await apiFetch('/api/room-rate-posting', {
+   141→            method: 'POST',
+   142→            headers: { 'Content-Type': 'application/json' },
+   143→            body: JSON.stringify({ reservationId: item.reservationId, dates: item.dates }),
+   144→          })
+   145→          results.push({ reservationId: item.reservationId, success: true })
+   146→        } catch (e) {
+   147→          results.push({ reservationId: item.reservationId, success: false, error: (e as Error).message })
+   148→        }
+   149→      }
+   150→      return results
+   151→    },
+   152→    onSuccess: (results) => {
+   153→      const ok = results.filter((r) => r.success).length
+   154→      const fail = results.filter((r) => !r.success).length
+   155→      if (fail > 0) toast.warning(`${ok} posted, ${fail} failed`)
+   156→      else toast.success(`${ok} reservation(s) posted successfully`)
+   157→      invalidate.afterFolioChange(queryClient)
+   158→      queryClient.invalidateQueries({ queryKey: ['rate-posting-pending'] })
+   159→      setSelectedIds(new Set())
+   160→    },
+   161→    onError: (error) => toast.error(error.message || 'Batch post failed'),
+   162→  })
+   163→
+   164→  // ── Bulk post all pending ───────────────────────────────────────
+   165→  const bulkPostMutation = useMutation({
+   166→    mutationFn: async () => {
+   167→      return apiFetch('/api/room-rate-posting/bulk-post', {
+   168→        method: 'POST',
+   169→        headers: { 'Content-Type': 'application/json' },
+   170→        body: JSON.stringify({ postAll: true }),
+   171→      })
+   172→    },
+   173→    onSuccess: (data) => {
+   174→      const result = data as { message?: string }
+   175→      toast.success(result?.message || 'Bulk post completed')
+   176→      invalidate.afterFolioChange(queryClient)
+   177→      queryClient.invalidateQueries({ queryKey: ['rate-posting-pending'] })
+   178→      setBulkPostOpen(false)
+   179→    },
+   180→    onError: (error) => {
+   181→      toast.error(error.message || 'Bulk post failed')
+   182→      setBulkPostOpen(false)
+   183→    },
+   184→  })
+   185→
+   186→  // ── Derived data ────────────────────────────────────────────────
+   187→  const pendingSummary = pendingData?.summary
+   188→  const pendingReservations = pendingData?.pendingReservations || []
+   189→
+   190→  const filteredPendingReservations = useMemo(() => {
+   191→    let list = [...pendingReservations]
+   192→
+   193→    // Posting type filter
+   194→    if (postingType === 'no-room') list = list.filter((r) => !r.room)
+   195→    else if (postingType === 'urgent') list = list.filter((r) => r.pendingNights.length >= 3)
+   196→
+   197→    // Search (name, room, conf#)
+   198→    if (search) {
+   199→      const s = search.toLowerCase()
+   200→      list = list.filter((r) =>
+   201→        r.guest?.firstName?.toLowerCase().includes(s) ||
+   202→        r.guest?.lastName?.toLowerCase().includes(s) ||
+   203→        r.confirmationNo?.toLowerCase().includes(s) ||
+   204→        r.room?.number?.toLowerCase().includes(s)
+   205→      )
+   206→    }
+   207→
+   208→    // Date filter
+   209→    if (dateFilter) {
+   210→      list = list.filter((r) => r.pendingNights.includes(dateFilter))
+   211→    }
+   212→
+   213→    // Sort by room number ascending
+   214→    list.sort((a, b) => (a.room?.number || '').localeCompare(b.room?.number || '', undefined, { numeric: true }))
+   215→    return list
+   216→  }, [pendingReservations, search, postingType, dateFilter])
+   217→
+   218→  const pendingStats = useMemo(() => {
+   219→    const noRoom = filteredPendingReservations.filter((r) => !r.room).length
+   220→    const avgRate = filteredPendingReservations.length > 0
+   221→      ? Math.round(filteredPendingReservations.reduce((s, r) => s + r.roomRate, 0) / filteredPendingReservations.length)
+   222→      : 0
+   223→    const totalFolioBalance = filteredPendingReservations.reduce((s, r) => s + (r.folio?.balance || 0), 0)
+   224→    const totalPendingNights = filteredPendingReservations.reduce((s, r) => s + r.pendingNights.length, 0)
+   225→    const totalPendingAmount = filteredPendingReservations.reduce((s, r) => s + r.pendingAmount, 0)
+   226→    return { noRoom, avgRate, totalFolioBalance, totalPendingNights, totalPendingAmount }
+   227→  }, [filteredPendingReservations])
+   228→
+   229→  const isWorking = postMutation.isPending || bulkPostMutation.isPending || postSelectedMutation.isPending
+   230→
+   231→  // ── Handlers ─────────────────────────────────────────────────────
+   232→  const handleSearch = useCallback(() => setSearch(searchInput), [searchInput])
+   233→  const handleKeyDown = useCallback((e: React.KeyboardEvent) => { if (e.key === 'Enter') handleSearch() }, [handleSearch])
+   234→
+   235→  const clearFilters = useCallback(() => {
+   236→    setSearchInput(''); setSearch(''); setPostingType('all'); setDateFilter(''); setCalendarOpen(false)
+   237→  }, [])
+   238→
+   239→  const handlePostReservation = useCallback(() => {
+   240→    if (!postTarget) return
+   241→    const customRate = rateOverride ? parseFloat(rateOverride) : undefined
+   242→    postMutation.mutate({ reservationId: postTarget.reservationId, dates: postTarget.pendingNights, customRate })
+   243→  }, [postTarget, rateOverride, postMutation])
+   244→
+   245→  const handleBulkPost = useCallback(() => bulkPostMutation.mutate(), [bulkPostMutation])
+   246→
+   247→  const handlePostSelected = useCallback(() => {
+   248→    const items = filteredPendingReservations
+   249→      .filter((r) => selectedIds.has(r.reservationId))
+   250→      .map((r) => ({ reservationId: r.reservationId, dates: r.pendingNights }))
+   251→    if (items.length === 0) return
+   252→    postSelectedMutation.mutate(items)
+   253→  }, [filteredPendingReservations, selectedIds, postSelectedMutation])
+   254→
+   255→  const toggleExpand = useCallback((id: string) => {
+   256→    setExpandedRow((prev) => (prev === id ? null : id))
+   257→  }, [])
+   258→
+   259→  const toggleSelectAll = useCallback(() => {
+   260→    if (selectedIds.size === filteredPendingReservations.length) setSelectedIds(new Set())
+   261→    else setSelectedIds(new Set(filteredPendingReservations.map((r) => r.reservationId)))
+   262→  }, [selectedIds.size, filteredPendingReservations])
+   263→
+   264→  const toggleSelect = useCallback((id: string) => {
+   265→    setSelectedIds((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n })
+   266→  }, [])
+   267→
+   268→  // ── Navigation actions ───────────────────────────────────────────
+   269→  const handleViewFolio = useCallback((res: PendingReservation) => {
+   270→    if (res.guest && res.room && res.folio) {
+   271→      setFolioContext({
+   272→        reservationId: res.reservationId, guestId: res.guest.id,
+   273→        guestName: `${res.guest.firstName} ${res.guest.lastName}`,
+   274→        roomNumber: res.room.number, confirmationNo: res.confirmationNo, folioId: res.folio.id,
+   275→      })
+   276→      navigateTo('front-desk', 'folio')
+   277→    } else { toast.error('Cannot open folio — missing guest, room, or folio data') }
+   278→  }, [navigateTo, setFolioContext])
+   279→
+   280→  const handleViewReservation = useCallback((res: PendingReservation) => {
+   281→    navigateTo('front-desk', 'reservations')
+   282→    toast.info(`Viewing reservation ${res.confirmationNo}`)
+   283→  }, [navigateTo])
+   284→
+   285→  const handleViewGuest = useCallback((res: PendingReservation) => {
+   286→    navigateTo('crm', 'profiles')
+   287→    toast.info('Viewing guest profile')
+   288→  }, [navigateTo])
+   289→
+   290→  // ── Export CSV ──────────────────────────────────────────────────
+   291→  const handleExport = useCallback(() => {
+   292→    const rows = filteredPendingReservations.map((r) => ({
+   293→      Room: r.room?.number || '', Guest: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '',
+   294→      'Check-In': formatDate(r.checkIn), 'Check-Out': formatDate(r.checkOut),
+   295→      'Rate/Night': r.roomRate, 'Pending Nights': r.pendingNights.length,
+   296→      'Posted Nights': r.postedNights.length, 'Future Nights': r.futureNights.length,
+   297→      'Pending Amount': r.pendingAmount, 'Folio Balance': r.folio?.balance || 0,
+   298→      'Confirmation #': r.confirmationNo,
+   299→    }))
+   300→    if (rows.length === 0) { toast.info('No data to export'); return }
+   301→    const headers = Object.keys(rows[0])
+   302→    const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => `"${(r as Record<string, unknown>)[h]}"`).join(','))].join('\n')
+   303→    const blob = new Blob([csv], { type: 'text/csv' })
+   304→    const url = URL.createObjectURL(blob)
+   305→    const a = document.createElement('a'); a.href = url; a.download = `rate-posting-${new Date().toISOString().split('T')[0]}.csv`
+   306→    a.click(); URL.revokeObjectURL(url); toast.success(`Exported ${rows.length} records`)
+   307→  }, [filteredPendingReservations])
+   308→
+   309→  const hasActiveFilters = search || postingType !== 'all' || dateFilter
+   310→
+   311→  // ── Render ───────────────────────────────────────────────────────
+   312→  return (
+   313→    <TooltipProvider delayDuration={300}>
+   314→    <div className="space-y-4">
+   315→      {/* ═══════════════ HEADER ═══════════════ */}
+   316→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   317→        <div>
+   318→          <h2 className="text-lg font-semibold flex items-center gap-2">
+   319→            <DollarSign className="size-5 text-emerald-600" />
+   320→            Room Rate Posting
+   321→          </h2>
+   322→          <p className="text-sm text-muted-foreground mt-0.5">
+   323→            Manage daily room charge postings for in-house guests
+   324→          </p>
+   325→        </div>
+   326→        <div className="flex items-center gap-2">
+   327→          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-1.5">
+   328→            <RefreshCw className="size-3.5" /> Refresh
+   329→          </Button>
+   330→          <Button variant="outline" size="sm" onClick={handleExport} className="gap-1.5">
+   331→            <Download className="size-3.5" /> Export
+   332→          </Button>
+   333→          <DropdownMenu open={showQuickActions} onOpenChange={setShowQuickActions}>
+   334→            <DropdownMenuTrigger asChild>
+   335→              <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
+   336→                <Zap className="size-3.5" /> Quick Actions <ChevronDown className="size-3" />
+   337→              </Button>
+   338→            </DropdownMenuTrigger>
+   339→            <DropdownMenuContent align="end" className="w-64">
+   340→              <DropdownMenuLabel className="text-xs">Posting Actions</DropdownMenuLabel>
+   341→              <DropdownMenuSeparator />
+   342→              <DropdownMenuItem
+   343→                onClick={() => { setShowQuickActions(false); setBulkPostOpen(true) }}
+   344→                disabled={isWorking || pendingReservations.length === 0} className="gap-2.5 py-2"
+   345→              >
+   346→                <Zap className="size-4 text-emerald-600" />
+   347→                <div className="flex-1">
+   348→                  <p className="font-medium text-sm">Post All Pending</p>
+   349→                  <p className="text-[10px] text-muted-foreground">Post charges for all {pendingSummary?.totalReservations || 0} reservations</p>
+   350→                </div>
+   351→              </DropdownMenuItem>
+   352→              {selectedIds.size > 0 && (
+   353→                <DropdownMenuItem
+   354→                  onClick={() => { setShowQuickActions(false); handlePostSelected() }}
+   355→                  disabled={isWorking} className="gap-2.5 py-2"
+   356→                >
+   357→                  <ListChecks className="size-4 text-blue-600" />
+   358→                  <div className="flex-1">
+   359→                    <p className="font-medium text-sm">Post Selected ({selectedIds.size})</p>
+   360→                    <p className="text-[10px] text-muted-foreground">Post charges for selected reservations</p>
+   361→                  </div>
+   362→                </DropdownMenuItem>
+   363→              )}
+   364→              <DropdownMenuSeparator />
+   365→              <DropdownMenuLabel className="text-xs">Navigate To</DropdownMenuLabel>
+   366→              <DropdownMenuSeparator />
+   367→              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'in-house') }} className="gap-2.5 py-2">
+   368→                <BedDouble className="size-4 text-teal-600" />
+   369→                <div className="flex-1"><p className="font-medium text-sm">In-House Guests</p></div>
+   370→              </DropdownMenuItem>
+   371→              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'folio') }} className="gap-2.5 py-2">
+   372→                <Receipt className="size-4 text-violet-600" />
+   373→                <div className="flex-1"><p className="font-medium text-sm">Guest Folio</p></div>
+   374→              </DropdownMenuItem>
+   375→              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'calendar') }} className="gap-2.5 py-2">
+   376→                <CalendarDays className="size-4 text-sky-600" />
+   377→                <div className="flex-1"><p className="font-medium text-sm">Reservation Calendar</p></div>
+   378→              </DropdownMenuItem>
+   379→              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('front-desk', 'reports') }} className="gap-2.5 py-2">
+   380→                <FileSpreadsheet className="size-4 text-amber-600" />
+   381→                <div className="flex-1"><p className="font-medium text-sm">Reports</p></div>
+   382→              </DropdownMenuItem>
+   383→              <DropdownMenuItem onClick={() => { setShowQuickActions(false); navigateTo('accounting', 'ledger') }} className="gap-2.5 py-2">
+   384→                <CreditCard className="size-4 text-purple-600" />
+   385→                <div className="flex-1"><p className="font-medium text-sm">Accounting Ledger</p></div>
+   386→              </DropdownMenuItem>
+   387→            </DropdownMenuContent>
+   388→          </DropdownMenu>
+   389→        </div>
+   390→      </div>
+   391→
+   392→      {/* ═══════════════ STAT CARDS ═══════════════ */}
+   393→      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+   394→        <StatCard icon={<Clock className="size-4 text-amber-600" />} label="Pending" value={String(pendingSummary?.totalReservations ?? 0)} sublabel={`${pendingSummary?.totalPendingNights ?? 0} nights`} bgClass="bg-amber-50 border-amber-200" />
+   395→        <StatCard icon={<Wallet className="size-4 text-emerald-600" />} label="Pending Amount" value={pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'} sublabel="Total charges" bgClass="bg-emerald-50 border-emerald-200" />
+   396→        <StatCard icon={<Users className="size-4 text-blue-600" />} label="In-House" value={String(filteredPendingReservations.length)} sublabel="With pending" bgClass="bg-blue-50 border-blue-200" />
+   397→        <StatCard icon={<BarChart3 className="size-4 text-violet-600" />} label="Avg Rate/Night" value={pendingStats.avgRate > 0 ? formatCurrency(pendingStats.avgRate) : 'NPR 0'} sublabel="Of pending" bgClass="bg-violet-50 border-violet-200" />
+   398→        <StatCard icon={<Building2 className="size-4 text-sky-600" />} label="Folio Balance" value={pendingStats.totalFolioBalance > 0 ? formatCurrency(pendingStats.totalFolioBalance) : 'NPR 0'} sublabel="Combined balance" bgClass="bg-sky-50 border-sky-200" />
+   399→        <StatCard icon={<AlertCircle className="size-4 text-red-600" />} label="Issues" value={String(pendingStats.noRoom)} sublabel={pendingStats.noRoom > 0 ? 'No room assigned' : 'All assigned'} bgClass="bg-red-50 border-red-200" />
+   400→      </div>
+   401→
+   402→      {/* ═══════════════ FILTER BAR ═══════════════ */}
+   403→      <div className="flex items-center gap-2 flex-wrap">
+   404→        {/* Search box — searches by name, room, conf# */}
+   405→        <div className="relative">
+   406→          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+   407→          <Input
+   408→            placeholder="Search guest, room, conf#..."
+   409→            value={searchInput}
+   410→            onChange={(e) => setSearchInput(e.target.value)}
+   411→            onKeyDown={handleKeyDown}
+   412→            className="h-9 w-[330px] pl-8 pr-8 text-sm bg-background border-border/80"
+   413→          />
+   414→          {search && (
+   415→            <button
+   416→              onClick={() => { setSearchInput(''); setSearch('') }}
+   417→              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-sm text-muted-foreground hover:text-foreground transition-colors"
+   418→            >
+   419→              <X className="size-3.5" />
+   420→            </button>
+   421→          )}
+   422→        </div>
+   423→
+   424→        {/* Posting type toggle buttons */}
+   425→        <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 gap-0.5">
+   426→          {POSTING_TYPE_OPTIONS.map((opt) => (
+   427→            <Button
+   428→              key={opt.value}
+   429→              variant="ghost"
+   430→              size="sm"
+   431→              onClick={() => setPostingType(opt.value)}
+   432→              className={cn(
+   433→                'h-8 text-xs px-3 rounded-md transition-all',
+   434→                postingType === opt.value
+   435→                  ? 'bg-background shadow-sm font-medium text-foreground'
+   436→                  : 'text-muted-foreground hover:text-foreground'
+   437→              )}
+   438→            >
+   439→              <Filter className="size-3 mr-1.5" />
+   440→              {opt.label}
+   441→            </Button>
+   442→          ))}
+   443→        </div>
+   444→
+   445→        {/* Calendar date picker */}
+   446→        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+   447→          <PopoverTrigger asChild>
+   448→            <Button
+   449→              variant="outline"
+   450→              className={cn(
+   451→                'h-9 gap-2 text-sm font-normal justify-start border-border/80',
+   452→                dateFilter ? 'text-foreground' : 'text-muted-foreground'
+   453→              )}
+   454→            >
+   455→              <CalendarIcon className="size-4 text-muted-foreground" />
+   456→              {dateFilter ? (
+   457→                <span className="font-medium">{format(parseISO(dateFilter), 'dd MMM yyyy')}</span>
+   458→              ) : (
+   459→                <span>Pick a date</span>
+   460→              )}
+   461→            </Button>
+   462→          </PopoverTrigger>
+   463→          <PopoverContent className="w-auto p-0" align="start">
+   464→            <Calendar
+   465→              mode="single"
+   466→              selected={dateFilter ? parseISO(dateFilter) : undefined}
+   467→              onSelect={(day) => {
+   468→                if (day) {
+   469→                  const y = day.getFullYear()
+   470→                  const m = String(day.getMonth() + 1).padStart(2, '0')
+   471→                  const d = String(day.getDate()).padStart(2, '0')
+   472→                  setDateFilter(`${y}-${m}-${d}`)
+   473→                } else {
+   474→                  setDateFilter('')
+   475→                }
+   476→                setCalendarOpen(false)
+   477→              }}
+   478→              initialFocus
+   479→            />
+   480→            {dateFilter && (
+   481→              <div className="border-t px-3 py-2">
+   482→                <Button
+   483→                  variant="ghost"
+   484→                  size="sm"
+   485→                  className="w-full h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+   486→                  onClick={() => { setDateFilter(''); setCalendarOpen(false) }}
+   487→                >
+   488→                  <X className="size-3" /> Clear date
+   489→                </Button>
+   490→              </div>
+   491→            )}
+   492→          </PopoverContent>
+   493→        </Popover>
+   494→
+   495→        {hasActiveFilters && (
+   496→          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs text-muted-foreground gap-1.5 hover:text-foreground">
+   497→            <X className="size-3.5" /> Clear All
+   498→          </Button>
+   499→        )}
+   500→      </div>
+   501→
+   502→      {/* ═══════════════ BATCH ACTIONS BAR ═══════════════ */}
+   503→      {!isLoading && filteredPendingReservations.length > 0 && (
+   504→        <Card className="py-2 px-4">
+   505→          <div className="flex items-center justify-between text-xs gap-3 flex-wrap">
+   506→            <div className="flex items-center gap-4">
+   507→              <label className="flex items-center gap-2 cursor-pointer">
+   508→                <Checkbox checked={selectedIds.size === filteredPendingReservations.length && filteredPendingReservations.length > 0} onCheckedChange={toggleSelectAll} className="size-3.5" />
+   509→                <span className="text-muted-foreground"><span className="font-semibold text-foreground">{filteredPendingReservations.length}</span> reservations</span>
+   510→              </label>
+   511→              <Separator orientation="vertical" className="h-4" />
+   512→              <span className="text-muted-foreground"><span className="font-semibold text-amber-600">{pendingStats.totalPendingNights}</span> pending nights</span>
+   513→              <span className="font-semibold tabular-nums">{formatCurrency(pendingStats.totalPendingAmount)}</span>
+   514→            </div>
+   515→            <div className="flex items-center gap-2">
+   516→              {selectedIds.size > 0 && (
+   517→                <Button size="sm" variant="outline" onClick={handlePostSelected} disabled={isWorking} className="h-7 text-xs gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+   518→                  <ListChecks className="size-3" /> Post {selectedIds.size} Selected
+   519→                </Button>
+   520→              )}
+   521→              <Button size="sm" variant="outline" onClick={() => setBulkPostOpen(true)} disabled={isWorking || pendingReservations.length === 0} className="h-7 text-xs gap-1.5">
+   522→                {bulkPostMutation.isPending ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />} Post All
+   523→              </Button>
+   524→            </div>
+   525→          </div>
+   526→        </Card>
+   527→      )}
+   528→
+   529→      {/* ═══════════════ PENDING TABLE ═══════════════ */}
+   530→      {isLoading ? (
+   531→        <Card><CardContent className="p-4 space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</CardContent></Card>
+   532→      ) : filteredPendingReservations.length === 0 ? (
+   533→        <EmptyState
+   534→          icon={<CheckCircle className="size-12 text-emerald-400" />}
+   535→          title={hasActiveFilters ? 'No Matches Found' : 'All Caught Up!'}
+   536→          description={hasActiveFilters ? 'No pending room charges match your current filters.' : 'No pending room charges to post. All in-house guests are up to date.'}
+   537→        />
+   538→      ) : (
+   539→        <Card className="overflow-hidden">
+   540→          <div className="max-h-[calc(100vh-340px)] overflow-y-auto">
+   541→            <Table>
+   542→              <TableHeader className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm">
+   543→                <TableRow>
+   544→                  <TableHead className="text-xs w-[36px] p-1.5">
+   545→                    <Checkbox checked={selectedIds.size === filteredPendingReservations.length && filteredPendingReservations.length > 0} onCheckedChange={toggleSelectAll} className="size-3.5" />
+   546→                  </TableHead>
+   547→                  <TableHead className="text-xs w-[32px]"></TableHead>
+   548→                  <TableHead className="text-xs">Room</TableHead>
+   549→                  <TableHead className="text-xs">Guest</TableHead>
+   550→                  <TableHead className="text-xs">Stay</TableHead>
+   551→                  <TableHead className="text-xs text-right">Rate/Night</TableHead>
+   552→                  <TableHead className="text-xs text-center">Pend</TableHead>
+   553→                  <TableHead className="text-xs text-center">Post</TableHead>
+   554→                  <TableHead className="text-xs text-center">Futr</TableHead>
+   555→                  <TableHead className="text-xs text-right">Pending Amt</TableHead>
+   556→                  <TableHead className="text-xs text-center">Folio</TableHead>
+   557→                  <TableHead className="text-xs text-right w-[80px]">Actions</TableHead>
+   558→                </TableRow>
+   559→              </TableHeader>
+   560→              <TableBody>
+   561→                {filteredPendingReservations.map((res) => (
+   562→                  <PendingRow
+   563→                    key={res.reservationId}
+   564→                    reservation={res}
+   565→                    isExpanded={expandedRow === res.reservationId}
+   566→                    isSelected={selectedIds.has(res.reservationId)}
+   567→                    onToggle={() => toggleExpand(res.reservationId)}
+   568→                    onSelect={() => toggleSelect(res.reservationId)}
+   569→                    onPost={() => { setPostTarget(res); setPostConfirmOpen(true); setRateOverride('') }}
+   570→                    onViewFolio={() => handleViewFolio(res)}
+   571→                    onViewReservation={() => handleViewReservation(res)}
+   572→                    onViewGuest={() => handleViewGuest(res)}
+   573→                    isPosting={postMutation.isPending && postMutation.variables?.reservationId === res.reservationId}
+   574→                  />
+   575→                ))}
+   576→              </TableBody>
+   577→            </Table>
+   578→          </div>
+   579→        </Card>
+   580→      )}
+   581→
+   582→      {/* ═══════════════ POST CONFIRM DIALOG ═══════════════ */}
+   583→      <Dialog open={postConfirmOpen} onOpenChange={setPostConfirmOpen}>
+   584→        <DialogContent className="max-w-md">
+   585→          <DialogHeader>
+   586→            <DialogTitle className="flex items-center gap-2"><Zap className="size-5 text-emerald-600" /> Reserve Posting</DialogTitle>
+   587→            <DialogDescription>Post all pending room charges for this reservation to the guest folio.</DialogDescription>
+   588→          </DialogHeader>
+   589→          {postTarget && (
+   590→            <div className="space-y-4 py-2">
+   591→              <div className="rounded-lg border bg-muted/30 p-3">
+   592→                <div className="grid grid-cols-2 gap-3 text-xs">
+   593→                  <DetailItem label="Room" value={postTarget.room?.number || '—'} />
+   594→                  <DetailItem label="Guest" value={postTarget.guest ? `${postTarget.guest.firstName} ${postTarget.guest.lastName}` : '—'} />
+   595→                  <DetailItem label="Confirmation" value={postTarget.confirmationNo} />
+   596→                  <DetailItem label="Room Type" value={postTarget.room?.type?.name || '—'} />
+   597→                </div>
+   598→                <Separator className="my-2.5" />
+   599→                <div className="grid grid-cols-3 gap-3 text-xs text-center">
+   600→                  <div className="rounded-md bg-amber-50 border border-amber-200 py-1.5 px-2">
+   601→                    <p className="text-[10px] text-amber-600 font-medium uppercase">Pending</p>
+   602→                    <p className="font-bold text-amber-700">{postTarget.pendingNights.length}</p>
+   603→                  </div>
+   604→                  <div className="rounded-md bg-emerald-50 border border-emerald-200 py-1.5 px-2">
+   605→                    <p className="text-[10px] text-emerald-600 font-medium uppercase">Posted</p>
+   606→                    <p className="font-bold text-emerald-700">{postTarget.postedNights.length}</p>
+   607→                  </div>
+   608→                  <div className="rounded-md bg-gray-50 border border-gray-200 py-1.5 px-2">
+   609→                    <p className="text-[10px] text-gray-500 font-medium uppercase">Future</p>
+   610→                    <p className="font-bold text-gray-600">{postTarget.futureNights.length}</p>
+   611→                  </div>
+   612→                </div>
+   613→              </div>
+   614→              <div className="flex items-center justify-between text-xs">
+   615→                <span className="text-muted-foreground">Total Amount</span>
+   616→                <span className="text-base font-bold tabular-nums">{formatCurrency(postTarget.pendingAmount)}</span>
+   617→              </div>
+   618→              <div>
+   619→                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1"><ShieldCheck className="size-3" /> Override Rate (optional)</Label>
+   620→                <Input type="number" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} placeholder={`Default: ${formatCurrency(postTarget.roomRate)}`} className="mt-1.5 h-9 text-sm" min={0} />
+   621→                <p className="text-[10px] text-muted-foreground mt-1">Leave empty to use the default room rate</p>
+   622→              </div>
+   623→              <div className="text-[10px] text-muted-foreground">Nights to post: <span className="font-mono">{postTarget.pendingNights.join(', ')}</span></div>
+   624→              {!postTarget.room && (
+   625→                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+   626→                  <AlertCircle className="size-4 shrink-0" /> <span>No room assigned. Charges cannot be posted.</span>
+   627→                </div>
+   628→              )}
+   629→            </div>
+   630→          )}
+   631→          <DialogFooter className="gap-2">
+   632→            <Button variant="outline" onClick={() => { setPostConfirmOpen(false); setRateOverride('') }} className="gap-1.5"><X className="size-3.5" /> Cancel</Button>
+   633→            <Button onClick={handlePostReservation} disabled={postMutation.isPending || !postTarget?.room} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
+   634→              {postMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle className="size-3.5" />} Post Charges
+   635→            </Button>
+   636→          </DialogFooter>
+   637→        </DialogContent>
+   638→      </Dialog>
+   639→
+   640→      {/* ═══════════════ BULK POST ALL DIALOG ═══════════════ */}
+   641→      <Dialog open={bulkPostOpen} onOpenChange={setBulkPostOpen}>
+   642→        <DialogContent className="max-w-md">
+   643→          <DialogHeader>
+   644→            <DialogTitle className="flex items-center gap-2"><Zap className="size-5 text-amber-500" /> Post All Pending Charges</DialogTitle>
+   645→            <DialogDescription>Post pending room charges for ALL in-house reservations at once.</DialogDescription>
+   646→          </DialogHeader>
+   647→          <div className="space-y-3 py-2">
+   648→            <div className="grid grid-cols-3 gap-3">
+   649→              <div className="rounded-md border bg-amber-50 p-3 text-center">
+   650→                <p className="text-2xl font-bold text-amber-700">{pendingSummary?.totalReservations ?? 0}</p>
+   651→                <p className="text-[10px] text-muted-foreground mt-0.5">Reservations</p>
+   652→              </div>
+   653→              <div className="rounded-md border bg-blue-50 p-3 text-center">
+   654→                <p className="text-2xl font-bold text-blue-700">{pendingSummary?.totalPendingNights ?? 0}</p>
+   655→                <p className="text-[10px] text-muted-foreground mt-0.5">Nights</p>
+   656→              </div>
+   657→              <div className="rounded-md border bg-emerald-50 p-3 text-center">
+   658→                <p className="text-2xl font-bold text-emerald-700">{pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'}</p>
+   659→                <p className="text-[10px] text-muted-foreground mt-0.5">Total</p>
+   660→              </div>
+   661→            </div>
+   662→            {pendingStats.noRoom > 0 && (
+   663→              <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+   664→                <AlertCircle className="size-4 shrink-0" /> <span><strong>{pendingStats.noRoom}</strong> reservation(s) have no room assigned and will be skipped.</span>
+   665→              </div>
+   666→            )}
+   667→            <div className="rounded-lg bg-muted/50 border p-3 text-xs text-muted-foreground space-y-1">
+   668→              <p className="font-medium text-foreground">What will happen:</p>
+   669→              <ul className="list-disc list-inside space-y-0.5 ml-1">
+   670→                <li>Room charges will be created for each pending night</li>
+   671→                <li>Folio transactions will be generated automatically</li>
+   672→                <li>Guest folio balances will be updated</li>
+   673→                <li>This action cannot be undone (use Void to reverse)</li>
+   674→              </ul>
+   675→            </div>
+   676→          </div>
+   677→          <DialogFooter className="gap-2">
+   678→            <Button variant="outline" onClick={() => setBulkPostOpen(false)} className="gap-1.5"><X className="size-3.5" /> Cancel</Button>
+   679→            <Button onClick={handleBulkPost} disabled={bulkPostMutation.isPending || (pendingSummary?.totalReservations ?? 0) === 0} className="gap-1.5 bg-amber-600 hover:bg-amber-700">
+   680→              {bulkPostMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />} Confirm Post All
+   681→            </Button>
+   682→          </DialogFooter>
+   683→        </DialogContent>
+   684→      </Dialog>
+   685→    </div>
+   686→    </TooltipProvider>
+   687→  )
+   688→}
+   689→
+   690→// ─── Sub-components ─────────────────────────────────────────────────────
+   691→
+   692→function StatCard({ icon, label, value, sublabel, bgClass }: { icon: React.ReactNode; label: string; value: string; sublabel: string; bgClass: string }) {
+   693→  return (
+   694→    <Card className={cn('py-3', bgClass)}>
+   695→      <CardContent className="px-4">
+   696→        <div className="flex items-start justify-between">
+   697→          <div className="space-y-0.5 min-w-0">
+   698→            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
+   699→            <p className="text-lg font-bold tabular-nums truncate" title={value}>{value}</p>
+   700→            <p className="text-[10px] text-muted-foreground truncate">{sublabel}</p>
+   701→          </div>
+   702→          <div className="p-1.5 rounded-lg bg-background/60 shrink-0">{icon}</div>
+   703→        </div>
+   704→      </CardContent>
+   705→    </Card>
+   706→  )
+   707→}
+   708→
+   709→function DetailItem({ label, value, className }: { label: string; value: string; className?: string }) {
+   710→  return (
+   711→    <div className="flex flex-col">
+   712→      <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{label}</span>
+   713→      <span className={cn('text-xs font-medium mt-0.5', className)}>{value}</span>
+   714→    </div>
+   715→  )
+   716→}
+   717→
+   718→function EmptyState({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+   719→  return (
+   720→    <Card className="py-12">
+   721→      <CardContent className="px-6 text-center space-y-3">{icon}<div><p className="font-medium text-sm">{title}</p><p className="text-xs text-muted-foreground mt-1">{description}</p></div></CardContent>
+   722→    </Card>
+   723→  )
+   724→}
+   725→
+   726→function PendingRow({
+   727→  reservation: res, isExpanded, isSelected, onToggle, onSelect, onPost,
+   728→  onViewFolio, onViewReservation, onViewGuest, isPosting,
+   729→}: {
+   730→  reservation: PendingReservation; isExpanded: boolean; isSelected: boolean
+   731→  onToggle: () => void; onSelect: () => void; onPost: () => void
+   732→  onViewFolio: () => void; onViewReservation: () => void; onViewGuest: () => void
+   733→  isPosting: boolean
+   734→}) {
+   735→  const [dropdownOpen, setDropdownOpen] = useState(false)
+   736→  const guestName = res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : '—'
+   737→  const hasRoom = !!res.room
+   738→
+   739→  const handleShowDetails = useCallback(() => {
+   740→    setDropdownOpen(false)
+   741→    onToggle()
+   742→  }, [onToggle])
+   743→
+   744→  return (
+   745→    <>
+   746→      <TableRow
+   747→        className={cn('cursor-pointer hover:bg-muted/50 transition-colors', isExpanded && 'bg-muted/30', !hasRoom && 'opacity-60', isSelected && 'bg-emerald-50/50')}
+   748→        onClick={onToggle}
+   749→      >
+   750→        <TableCell className="p-1.5" onClick={(e) => e.stopPropagation()}>
+   751→          <Checkbox checked={isSelected} onCheckedChange={onSelect} className="size-3.5" />
+   752→        </TableCell>
+   753→        <TableCell className="p-1.5" onClick={(e) => e.stopPropagation()}>
+   754→          {isExpanded ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
+   755→        </TableCell>
+   756→        <TableCell className="text-xs font-semibold" onClick={(e) => e.stopPropagation()}>
+   757→          {hasRoom ? (
+   758→            <span className="flex items-center gap-1"><BedDouble className="size-3 text-muted-foreground" />{res.room.number}</span>
+   759→          ) : (
+   760→            <Tooltip><TooltipTrigger asChild><span className="text-amber-600 flex items-center gap-1"><AlertCircle className="size-3" />—</span></TooltipTrigger><TooltipContent>No room assigned</TooltipContent></Tooltip>
+   761→          )}
+   762→        </TableCell>
+   763→        <TableCell className="text-xs font-medium truncate max-w-[120px]" title={guestName} onClick={(e) => e.stopPropagation()}>{guestName}</TableCell>
+   764→        <TableCell className="text-xs text-muted-foreground whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+   765→          <span className="hidden sm:inline">{formatDate(res.checkIn)} <ArrowRight className="size-2.5 inline" /> {formatDate(res.checkOut)}</span>
+   766→          <span className="sm:hidden">{formatDate(res.checkIn)}</span>
+   767→        </TableCell>
+   768→        <TableCell className="text-xs text-right font-mono tabular-nums" onClick={(e) => e.stopPropagation()}>{formatCurrency(res.roomRate)}</TableCell>
+   769→        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+   770→          <Badge variant="destructive" className="h-5 text-[10px] font-semibold px-1.5">{res.pendingNights.length}</Badge>
+   771→        </TableCell>
+   772→        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+   773→          <Badge variant="secondary" className="h-5 text-[10px] px-1.5">{res.postedNights.length}</Badge>
+   774→        </TableCell>
+   775→        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+   776→          {res.futureNights.length > 0 ? <Badge variant="outline" className="h-5 text-[10px] px-1.5 text-muted-foreground">{res.futureNights.length}</Badge> : <span className="text-muted-foreground">0</span>}
+   777→        </TableCell>
+   778→        <TableCell className="text-xs text-right font-semibold tabular-nums text-amber-600" onClick={(e) => e.stopPropagation()}>{formatCurrency(res.pendingAmount)}</TableCell>
+   779→        <TableCell className="text-center text-[10px] tabular-nums" onClick={(e) => e.stopPropagation()}>
+   780→          {res.folio ? (
+   781→            <Tooltip><TooltipTrigger asChild>
+   782→              <span className={cn('font-medium', (res.folio.balance ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600')}>{formatCurrency(res.folio.balance)}</span>
+   783→            </TooltipTrigger><TooltipContent>Folio Balance</TooltipContent></Tooltip>
+   784→          ) : <span className="text-muted-foreground">—</span>}
+   785→        </TableCell>
+   786→        <TableCell className="text-right p-1.5" onClick={(e) => e.stopPropagation()}>
+   787→          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+   788→            <DropdownMenuTrigger asChild>
+   789→              <Button size="icon" variant="ghost" className="h-7 w-7" disabled={isPosting}><MoreHorizontal className="size-4" /></Button>
+   790→            </DropdownMenuTrigger>
+   791→            <DropdownMenuContent align="end" className="w-56">
+   792→              <DropdownMenuLabel className="text-xs">Room {res.room?.number || '—'} — {guestName}</DropdownMenuLabel>
+   793→              <DropdownMenuSeparator />
+   794→              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onPost() }} disabled={!hasRoom || isPosting} className="gap-2.5 py-2 text-emerald-700 focus:text-emerald-700">
+   795→                {isPosting ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
+   796→                <div><p className="font-medium text-sm">Reserve Posting</p><p className="text-[10px] text-muted-foreground">Post {res.pendingNights.length} pending night(s) to folio</p></div>
+   797→              </DropdownMenuItem>
+   798→              <DropdownMenuItem onClick={handleShowDetails} className="gap-2.5 py-2">
+   799→                <Eye className="size-4 text-blue-600" />
+   800→                <div><p className="text-sm">{isExpanded ? 'Hide Details' : 'Show Details'}</p><p className="text-[10px] text-muted-foreground">View night breakdown &amp; info</p></div>
+   801→              </DropdownMenuItem>
+   802→              <DropdownMenuSeparator />
+   803→              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onViewFolio() }} className="gap-2.5 py-2">
+   804→                <Receipt className="size-4 text-violet-600" />
+   805→                <div><p className="text-sm">View Folio</p><p className="text-[10px] text-muted-foreground">Guest billing &amp; transactions</p></div>
+   806→              </DropdownMenuItem>
+   807→              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onViewReservation() }} className="gap-2.5 py-2">
+   808→                <FileText className="size-4 text-blue-600" />
+   809→                <div><p className="text-sm">View Reservation</p><p className="text-[10px] text-muted-foreground">Reservation details &amp; history</p></div>
+   810→              </DropdownMenuItem>
+   811→              <DropdownMenuItem onClick={() => { setDropdownOpen(false); onViewGuest() }} className="gap-2.5 py-2">
+   812→                <UserCircle className="size-4 text-rose-600" />
+   813→                <div><p className="text-sm">View Guest Profile</p><p className="text-[10px] text-muted-foreground">Guest information &amp; stay history</p></div>
+   814→              </DropdownMenuItem>
+   815→            </DropdownMenuContent>
+   816→          </DropdownMenu>
+   817→        </TableCell>
+   818→      </TableRow>
+   819→
+   820→      {/* Expanded Detail */}
+   821→      {isExpanded && (
+   822→        <TableRow>
+   823→          <TableCell colSpan={12} className="bg-muted/20 p-4">
+   824→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+   825→              <div className="sm:col-span-2 lg:col-span-3">
+   826→                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   827→                  <div>
+   828→                    <p className="font-semibold mb-1.5 text-amber-600 uppercase tracking-wider text-[10px] flex items-center gap-1"><Clock className="size-3" /> Pending Nights ({res.pendingNights.length})</p>
+   829→                    <div className="flex flex-wrap gap-1">
+   830→                      {res.pendingNights.length > 0 ? res.pendingNights.map((d) => (
+   831→                        <Badge key={d} variant="destructive" className="h-5 text-[10px] px-1.5">{formatDate(d)}</Badge>
+   832→                      )) : <span className="text-muted-foreground">None</span>}
+   833→                    </div>
+   834→                  </div>
+   835→                  <div>
+   836→                    <p className="font-semibold mb-1.5 text-emerald-600 uppercase tracking-wider text-[10px] flex items-center gap-1"><CheckCircle className="size-3" /> Posted ({res.postedNights.length})</p>
+   837→                    <div className="flex flex-wrap gap-1">
+   838→                      {res.postedNights.length > 0 ? res.postedNights.map((d) => (
+   839→                        <Badge key={d} variant="secondary" className="h-5 text-[10px] px-1.5">{formatDate(d)}</Badge>
+   840→                      )) : <span className="text-muted-foreground">None</span>}
+   841→                    </div>
+   842→                  </div>
+   843→                  <div>
+   844→                    <p className="font-semibold mb-1.5 text-muted-foreground uppercase tracking-wider text-[10px] flex items-center gap-1"><Moon className="size-3" /> Future ({res.futureNights.length})</p>
+   845→                    <div className="flex flex-wrap gap-1">
+   846→                      {res.futureNights.length > 0 ? res.futureNights.map((d) => (
+   847→                        <Badge key={d} variant="outline" className="h-5 text-[10px] px-1.5 text-muted-foreground">{formatDate(d)}</Badge>
+   848→                      )) : <span className="text-muted-foreground">None</span>}
+   849→                    </div>
+   850→                  </div>
+   851→                </div>
+   852→              </div>
+   853→              <div className="space-y-2">
+   854→                <p className="font-semibold text-[10px] text-muted-foreground uppercase tracking-wider">Details</p>
+   855→                <div className="space-y-1.5">
+   856→                  <div className="flex justify-between"><span className="text-muted-foreground">Confirmation</span><span className="font-mono font-medium">{res.confirmationNo}</span></div>
+   857→                  <div className="flex justify-between"><span className="text-muted-foreground">Room Type</span><span className="font-medium">{res.room?.type?.name || '—'}</span></div>
+   858→                  <div className="flex justify-between"><span className="text-muted-foreground">Total Nights</span><span className="font-medium">{res.totalNights}</span></div>
+   859→                  <Separator />
+   860→                  <div className="flex justify-between"><span className="text-muted-foreground">Folio Balance</span><span className={cn('font-semibold tabular-nums', (res.folio?.balance ?? 0) > 0 ? 'text-amber-600' : 'text-emerald-600')}>{res.folio ? formatCurrency(res.folio.balance) : '—'}</span></div>
+   861→                  <div className="flex justify-between"><span className="text-muted-foreground">Pending Amount</span><span className="font-semibold tabular-nums text-amber-600">{formatCurrency(res.pendingAmount)}</span></div>
+   862→                </div>
+   863→                <Button size="sm" variant="outline" className="w-full h-7 text-[10px] gap-1 mt-2" onClick={onPost} disabled={isPosting || !hasRoom}>
+   864→                  {isPosting ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />} Post {res.pendingNights.length} Night(s)
+   865→                </Button>
+   866→              </div>
+   867→            </div>
+   868→          </TableCell>
+   869→        </TableRow>
+   870→      )}
+   871→    </>
+   872→  )
+   873→}

@@ -45,6 +45,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatDate, formatCurrency } from '@/lib/format'
+import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { cn } from '@/lib/utils'
 import { useEnterSubmit } from '@/hooks/use-enter-submit'
 import { toast } from 'sonner'
@@ -1019,8 +1020,8 @@ export function ReservationCalendarView() {
                         {selectedReservation.room?.number || 'Unassigned'}
                       </span>
                       {selectedReservation.room && (
-                        <span className="text-muted-foreground">
-                          {' '}({selectedReservation.room.type.name})
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <RoomTypeBedBadge typeName={selectedReservation.room.type.name} bedConfig={selectedReservation.room.type.bedConfig} typeCode={selectedReservation.room.type.code} pax={selectedReservation.adults + selectedReservation.children} inline />
                         </span>
                       )}
                     </div>
