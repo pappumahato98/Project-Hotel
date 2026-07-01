@@ -95,6 +95,16 @@ export async function GET(request: Request) {
       where.checkOut = { gte: d, lt: nextDay }
     }
 
+    const checkOutBefore = searchParams.get('checkOutBefore')
+    if (checkOutBefore) {
+      const d = new Date(checkOutBefore)
+      d.setHours(0, 0, 0, 0)
+      // Only add if no checkOutDate was set (to avoid conflict)
+      if (!checkOutDate) {
+        where.checkOut = { lt: d }
+      }
+    }
+
     const reservations = await db.reservation.findMany({
       where,
       include: {

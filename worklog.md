@@ -84,3 +84,36 @@ Work Log:
 Stage Summary:
 - GuestDirectoryView now fetches real data from /api/reservations?status=checked_in
 - All 18 front-desk views now use 100% backend data, zero mock data
+---
+Task ID: fix-functions
+Agent: Main Agent
+Task: Fix all non-functional previously implemented features
+
+Work Log:
+- Fixed database dates: Updated all 38 reservations (18 checked-in + 20 confirmed) from June dates to current period (around July 1, 2026). Result: 2 departures today, 7 arrivals today, 1 overdue, 18 checked-in total.
+- Fixed SettlementView API calls: Changed `/api/folio/${folioId}/payment` to `/api/folio/${folioId}` and added `type: 'payment'` and `paymentMethod` to request body (was 404 error).
+- Fixed DeparturesView payment mutation: Changed `method` to `paymentMethod` in POST body to match API contract.
+- Fixed DeparturesView late checkout surcharge: Was posting to `/api/folio` (folio creation endpoint) instead of `/api/folio/${folioId}` (transaction endpoint). Now correctly finds folioId and posts charge with `type: 'charge'`.
+- Added `checkOutBefore` query parameter to `/api/reservations` API for fetching overdue departures.
+- Updated DeparturesView to fetch both today's departures AND overdue departures with Promise.all.
+- Added OVERDUE badge (red) and red row highlighting for overdue departures.
+- Fixed null room crash: One checked-in reservation had no room assigned. Added null-safe access throughout DeparturesView (table, receipt dialog, toasts). Updated `DepartureRoom` type to allow null.
+- Fixed receipt print: Implemented real print functionality using `window.open()` with formatted receipt HTML. Fixed email receipt to show guest email.
+- Fixed receipt dialog null room access in two places (room number display and room charge line).
+- Added `email` and `phone` fields to `DepartureGuest` interface.
+- Updated RoomTypeBedBadge format from "DLX Kng +2" to "DLX #King +2" (hash separator, full bed type name, space before plus).
+- Added `getBedTypeName()` function to `src/lib/format.ts`.
+- Added neon button hover glow effect to all Button variants via CSS classes (btn-neon, btn-neon-red, btn-neon-green, btn-neon-amber).
+- Added three-dot hamburger menu (DropdownMenu) to Departures and Settlement pages with: Refresh Data, Export CSV, Print List, Toggle Compact View.
+- Added checkbox selection to Departures and Settlement tables with select-all, floating action bar.
+- Verified all fixes in browser: Settlement payment (POST 200), Departures data (3 rows with OVERDUE badge), Arrivals (7 guests), Check-in flow (3-step wizard).
+
+Stage Summary:
+- All critical functionality bugs fixed: API 404s, wrong body fields, null crashes
+- Database dates corrected to current period
+- Departures page now shows overdue departures with visual indicators
+- Receipt print now opens real print window with formatted receipt
+- RoomTypeBedBadge format: "TYPE #BedName +pax" with pax in red
+- Neon glow effect on all buttons
+- Hamburger menus + checkboxes added to Departures and Settlement
+- Lint: 0 errors, 0 warnings

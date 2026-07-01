@@ -162,3 +162,37 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.6 0 0 / 50%);
 }
+
+/* ─── Neon Button Effect ─── */
+.btn-neon {
+  position: relative;
+  transition: all 0.2s ease;
+}
+.btn-neon:hover {
+  box-shadow:
+    0 0 8px -2px oklch(0.6 0.2 250 / 40%),
+    0 0 20px -4px oklch(0.6 0.2 250 / 20%);
+}
+.btn-neon:active {
+  transform: scale(0.97);
+  box-shadow:
+    0 0 4px -1px oklch(0.6 0.2 250 / 30%);
+}
+/* Green neon variant */
+.btn-neon-green:hover {
+  box-shadow:
+    0 0 8px -2px oklch(0.65 0.2 145 / 40%),
+    0 0 20px -4px oklch(0.65 0.2 145 / 20%);
+}
+/* Red neon variant */
+.btn-neon-red:hover {
+  box-shadow:
+    0 0 8px -2px oklch(0.65 0.2 25 / 40%),
+    0 0 20px -4px oklch(0.65 0.2 25 / 20%);
+}
+/* Amber neon variant */
+.btn-neon-amber:hover {
+  box-shadow:
+    0 0 8px -2px oklch(0.75 0.18 85 / 40%),
+    0 0 20px -4px oklch(0.75 0.18 85 / 20%);
+}

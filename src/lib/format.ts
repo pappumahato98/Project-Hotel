@@ -204,6 +204,32 @@ const BED_SHORTCUTS: Record<string, string> = {
   full: 'Full', twin_single: 'TS',
 }
 
+const BED_TYPE_NAMES: Record<string, string> = {
+  single: 'Single', double: 'Double', twin: 'Twin', king: 'King',
+  queen: 'Queen', master: 'Master', sofa: 'Sofa', bunk: 'Bunk',
+  full: 'Full', twin_single: 'Twin/Single',
+}
+
+/** Extract readable bed type name(s) from bedConfig */
+export function getBedTypeName(bedConfig: string | null | undefined): string {
+  if (!bedConfig) return ''
+  const lower = bedConfig.toLowerCase()
+  if (lower.includes('+')) {
+    const parts = lower.split('+').map(p => p.trim())
+    const names: string[] = []
+    for (const part of parts) {
+      for (const [key, name] of Object.entries(BED_TYPE_NAMES)) {
+        if (part.includes(key)) { names.push(name); break }
+      }
+    }
+    return names.join('+') || ''
+  }
+  for (const [key, name] of Object.entries(BED_TYPE_NAMES)) {
+    if (lower.includes(key)) return name
+  }
+  return ''
+}
+
 export function getTypeShortcut(typeName: string | null | undefined, typeCode?: string | null): string {
   if (!typeName && !typeCode) return ''
   if (typeName) {

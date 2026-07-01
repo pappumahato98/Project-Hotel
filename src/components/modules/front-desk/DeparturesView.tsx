@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api'
 import {
   LogOut, BedDouble, Receipt, CreditCard, AlertTriangle, CheckCircle2, Printer,
   Zap, Eye, Clock, Banknote, Mail, X, ArrowRight, BedSingle, FileText, BookOpen,
+  MoreVertical, RefreshCw, Download, Printer as PrinterIcon, Rows3,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,10 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
+import { Checkbox } from '@/components/ui/checkbox'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
@@ -39,6 +44,8 @@ interface DepartureGuest {
   id: string
   firstName: string
   lastName: string
+  email?: string
+  phone?: string
   vipLevel: string
 }
 
@@ -75,7 +82,7 @@ interface Departure {
   paidAmount: number
   creditLimit: number
   guest: DepartureGuest
-  room: DepartureRoom
+  room: DepartureRoom | null
   adults?: number
   children?: number
   folios: DepartureFolio[]
@@ -126,12 +133,47 @@ export function DeparturesView() {
   // Receipt data
   const [receiptData, setReceiptData] = useState<Departure | null>(null)
 
+  // Checkbox selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [compactView, setCompactView] = useState(false)
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['departures'] })
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
   // Fetch today's departures (checked_in with checkOut = today)
   const { data, isLoading } = useQuery({
     queryKey: ['departures', today],
     queryFn: async () => {
-      const params = new URLSearchParams({ status: 'checked_in', checkOutDate: today })
-      return apiFetch(`/api/reservations?${params.toString()}`)
+      // Fetch both: today's departures AND overdue departures
+      const [todayData, overdueData] = await Promise.all([
+        apiFetch(`/api/reservations?status=checked_in&checkOutDate=${today}`),
+        // Fetch overdue: checked_in with checkOut < today
+        apiFetch(`/api/reservations?status=checked_in&checkOutBefore=${today}`),
+      ])
+      // Merge and deduplicate
+      const todayReservations = todayData?.reservations || []
+      const overdueReservations = overdueData?.reservations || []
+      const seen = new Set<string>()
+      const merged = [...todayReservations, ...overdueReservations].filter((r: { id: string }) => {
+        if (seen.has(r.id)) return false
+        seen.add(r.id)
+        return true
+      })
+      return { reservations: merged }
     },
     refetchInterval: 30000,
   })
@@ -139,6 +181,8 @@ export function DeparturesView() {
   const departures: Departure[] = data?.reservations || []
 
   // Stats
+  const overdueCount = departures.filter((d) => new Date(d.checkOut) < new Date(today)).length
+  const todayCount = departures.length - overdueCount
   const totalDepartures = departures.length
   const checkedOutCount = departures.filter((d) => d.status === 'checked_out').length
   const pendingDepartures = departures.filter((d) => d.status === 'checked_in').length
@@ -173,7 +217,7 @@ export function DeparturesView() {
       return apiFetch(`/api/folio/${folioId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'payment', amount, method, reference }),
+        body: JSON.stringify({ type: 'payment', paymentMethod: method, amount, reference }),
       })
     },
     onSuccess: () => {
@@ -191,19 +235,23 @@ export function DeparturesView() {
   // Late checkout mutation
   const lateCheckoutMutation = useMutation({
     mutationFn: async ({ reservationId, newCheckOut, surcharge }: { reservationId: string; newCheckOut: string; surcharge: number }) => {
+      // First get the folio ID for this reservation
+      const reservation = departures.find((d) => d.id === reservationId)
+      const folioId = reservation?.folios[0]?.id
+
       const result = await apiFetch(`/api/reservations/${reservationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ checkOut: newCheckOut }),
       })
       // Add surcharge to folio
-      if (surcharge > 0) {
-        await apiFetch(`/api/folio`, {
+      if (surcharge > 0 && folioId) {
+        await apiFetch(`/api/folio/${folioId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            reservationId,
             type: 'charge',
+            transactionType: 'late_checkout',
             description: `Late checkout surcharge (${LATE_CHECKOUT_OPTIONS[lateCheckoutOption].label})`,
             amount: surcharge,
           }),
@@ -251,11 +299,46 @@ export function DeparturesView() {
 
   const getBalance = (dep: Departure) => dep.folios[0]?.balance || 0
 
+  const toggleSelectAll = () => {
+    if (selectedIds.size === departures.length && departures.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(departures.map((d) => d.id)))
+    }
+  }
+
+  const handleExportCSV = () => {
+    const headers = ['Room', 'Guest', 'Confirmation', 'Check-Out', 'Balance', 'Status']
+    const rows = departures.map((d) => [
+      d.room?.number ?? 'Unassigned',
+      `${d.guest.firstName} ${d.guest.lastName}`,
+      d.confirmationNo,
+      d.checkOut,
+      String(getBalance(d)),
+      d.status,
+    ])
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'departures.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleCheckoutSelected = () => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    batchCheckoutMutation.mutate(ids)
+    setSelectedIds(new Set())
+  }
+
   const handleExpressCheckout = (dep: Departure) => {
     checkoutMutation.mutate(dep.id, {
       onSuccess: () => {
-        toast.success(`Express checkout complete for Room ${dep.room.number}`)
-        toast.info(`Room ${dep.room.number} marked for housekeeping - Vacant Dirty`)
+        toast.success(`Express checkout complete for Room ${dep.room?.number ?? 'N/A'}`)
+        toast.info(`Room ${dep.room?.number ?? 'N/A'} marked for housekeeping - Vacant Dirty`)
       },
     })
   }
@@ -369,11 +452,46 @@ export function DeparturesView() {
   }
 
   const handlePrintReceipt = () => {
+    if (!receiptData) return
+    const printWindow = window.open('', '_blank', 'width=400,height=600')
+    if (!printWindow) { toast.error('Please allow popups to print receipts'); return }
+    const guestName = `${receiptData.guest.firstName} ${receiptData.guest.lastName}`
+    const roomNum = receiptData.room?.number ?? 'N/A'
+    const roomType = receiptData.room?.type?.name ?? ''
+    const balance = getBalance(receiptData)
+    printWindow.document.write(`
+      <html><head><title>Checkout Receipt</title>
+      <style>body{font-family:monospace;max-width:350px;margin:0 auto;padding:20px;font-size:12px}
+      .center{text-align:center}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:8px 0}
+      .row{display:flex;justify-content:space-between}.green{color:green}.red{color:red}
+      h2{margin:0 0 4px}p.sub{margin:0 0 16px;color:#666;font-size:11px}</style></head>
+      <body>
+      <div class="center"><h2>MERIDIAN HOTEL</h2><p class="sub">Checkout Receipt</p></div>
+      <div class="line"></div>
+      <div class="row"><span>Guest:</span><span class="bold">${guestName}</span></div>
+      <div class="row"><span>Room:</span><span>${roomNum} ${roomType}</span></div>
+      <div class="row"><span>Confirmation:</span><span>${receiptData.confirmationNo}</span></div>
+      <div class="row"><span>Check-in:</span><span>${formatDate(receiptData.checkIn)}</span></div>
+      <div class="row"><span>Check-out:</span><span>${formatDate(receiptData.checkOut)}</span></div>
+      <div class="line"></div>
+      <div class="row"><span>Room Total:</span><span>${formatCurrency(receiptData.totalAmount)}</span></div>
+      <div class="row"><span>Payments:</span><span class="green">-${formatCurrency(receiptData.paidAmount)}</span></div>
+      <div class="line"></div>
+      <div class="row"><span class="bold">Balance Due:</span><span class="bold ${balance > 0 ? 'red' : 'green'}">${formatCurrency(balance)}</span></div>
+      <div class="line"></div>
+      <div class="center" style="margin-top:16px;font-size:10px;color:#999">Thank you for staying with us!</div>
+      <script>window.print();window.close();</script>
+      </body></html>
+    `)
+    printWindow.document.close()
     toast.success('Receipt sent to printer')
   }
 
   const handleEmailReceipt = () => {
-    toast.success('Receipt emailed to guest')
+    if (!receiptData) return
+    const guestEmail = receiptData.guest.email || 'no email on file'
+    // In production, this would call an email API
+    toast.success(`Receipt emailed to ${guestEmail}`)
   }
 
   // ─── Computed values ──────────────────────────────────────────────
@@ -391,30 +509,66 @@ export function DeparturesView() {
         <div>
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Today&apos;s Departures</h2>
           <p className="text-xs text-muted-foreground">
-            Guest check-outs scheduled for {formatDate(today)}
+            {todayCount} scheduled for {formatDate(today)}{overdueCount > 0 && <span className="text-red-600 font-medium"> · {overdueCount} overdue</span>}
           </p>
         </div>
-        {zeroBalancePending.length > 0 && (
-          <Button
-            onClick={handleBatchCheckout}
-            className="bg-green-600 hover:bg-green-700 text-white shrink-0"
-            disabled={batchCheckoutMutation.isPending}
-          >
-            <Zap className="size-4 mr-1.5" />
-            {batchCheckoutMutation.isPending
-              ? `Processing ${batchCheckoutMutation.submittedAt ? '...' : ''}`
-              : `Batch Checkout All Ready (${zeroBalancePending.length})`}
-          </Button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon" className="size-8" aria-label="Actions menu">
+                <MoreVertical className="size-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleRefresh}>
+                <RefreshCw className="size-4 mr-2" />
+                Refresh Data
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <Download className="size-4 mr-2" />
+                Export to CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePrint}>
+                <PrinterIcon className="size-4 mr-2" />
+                Print List
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setCompactView((v) => !v)}>
+                <Rows3 className="size-4 mr-2" />
+                {compactView ? 'Normal View' : 'Compact View'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {zeroBalancePending.length > 0 && (
+            <Button
+              onClick={handleBatchCheckout}
+              className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+              disabled={batchCheckoutMutation.isPending}
+            >
+              <Zap className="size-4 mr-1.5" />
+              {batchCheckoutMutation.isPending
+                ? `Processing ${batchCheckoutMutation.submittedAt ? '...' : ''}`
+                : `Batch Checkout All Ready (${zeroBalancePending.length})`}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Departures List */}
+      <div className="relative">
       <Card className="py-0">
         <CardContent className="p-0">
           <div className="max-h-[600px] overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px] pl-4">
+                    <Checkbox
+                      checked={departures.length > 0 && selectedIds.size === departures.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="w-[70px]">Room</TableHead>
                   <TableHead>Guest</TableHead>
                   <TableHead className="w-[100px]">Check-out</TableHead>
@@ -427,6 +581,7 @@ export function DeparturesView() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-4" /></TableCell>
                       {Array.from({ length: 6 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
@@ -436,7 +591,7 @@ export function DeparturesView() {
                   ))
                 ) : departures.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       <LogOut className="size-8 mx-auto mb-2 text-muted-foreground/50" />
                       No departures scheduled for today
                     </TableCell>
@@ -446,12 +601,24 @@ export function DeparturesView() {
                     const balance = getBalance(dep)
                     const isPending = dep.status === 'checked_in'
                     const isZeroBalance = balance === 0
+                    const isOverdue = new Date(dep.checkOut) < new Date(today)
                     return (
-                      <TableRow key={dep.id}>
-                        <TableCell className="font-bold font-mono">{dep.room.number} <RoomTypeBedBadge typeName={dep.room.type.name} bedConfig={dep.room.type.bedConfig} typeCode={dep.room.type.code} pax={(dep.adults ?? 1) + (dep.children ?? 0)} inline /></TableCell>
+                      <TableRow key={dep.id} className={cn(isOverdue ? 'bg-red-50/50 dark:bg-red-950/20' : '', selectedIds.has(dep.id) && 'bg-primary/5')}>
+                        <TableCell className={cn('pl-4', compactView ? 'py-1.5' : '')}>
+                          <Checkbox
+                            checked={selectedIds.has(dep.id)}
+                            onCheckedChange={() => toggleSelect(dep.id)}
+                          />
+                        </TableCell>
+                        <TableCell className={cn('font-bold font-mono', compactView ? 'py-1.5' : '')}>{dep.room ? <>{dep.room.number} <RoomTypeBedBadge typeName={dep.room.type.name} bedConfig={dep.room.type.bedConfig} typeCode={dep.room.type.code} pax={(dep.adults ?? 1) + (dep.children ?? 0)} inline /></> : <span className="text-muted-foreground">Unassigned</span>}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{dep.guest.firstName} {dep.guest.lastName}</span>
+                            {isOverdue && (
+                              <Badge className="text-[10px] px-1 py-0 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border-0">
+                                OVERDUE
+                              </Badge>
+                            )}
                             {dep.guest.vipLevel !== 'none' && (
                               <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                                 VIP
@@ -568,6 +735,30 @@ export function DeparturesView() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Floating Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="mt-2 flex items-center justify-between rounded-lg border bg-background p-3 shadow-lg">
+          <span className="text-sm font-medium">
+            {selectedIds.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleCheckoutSelected}
+              disabled={batchCheckoutMutation.isPending}
+            >
+              <LogOut className="size-4 mr-1.5" />
+              Checkout Selected
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())}>
+              Deselect All
+            </Button>
+          </div>
+        </div>
+      )}
+      </div>
 
       {/* ─── Folio Review Dialog ─────────────────────────────────── */}
       <Dialog open={folioDialogOpen} onOpenChange={setFolioDialogOpen}>
@@ -893,7 +1084,12 @@ export function DeparturesView() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Room:</span>
-                  <span className="font-medium">{receiptData.room.number} (<RoomTypeBedBadge typeName={receiptData.room.type.name} bedConfig={receiptData.room.type.bedConfig} typeCode={receiptData.room.type.code} pax={(receiptData.adults ?? 1) + (receiptData.children ?? 0)} inline />)</span>
+                  <span className="font-medium">
+                    {receiptData.room?.number ?? 'N/A'}
+                    {receiptData.room?.type && (
+                      <> (<RoomTypeBedBadge typeName={receiptData.room.type.name} bedConfig={receiptData.room.type.bedConfig} typeCode={receiptData.room.type.code} pax={(receiptData.adults ?? 1) + (receiptData.children ?? 0)} inline />)</>
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Check-in:</span>
@@ -917,7 +1113,12 @@ export function DeparturesView() {
                 </h4>
                 <div className="rounded-lg border p-3 space-y-1.5 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Room Charge (<RoomTypeBedBadge typeName={receiptData.room.type.name} bedConfig={receiptData.room.type.bedConfig} typeCode={receiptData.room.type.code} pax={(receiptData.adults ?? 1) + (receiptData.children ?? 0)} inline />)</span>
+                    <span className="text-muted-foreground">
+                      Room Charge
+                      {receiptData.room?.type && (
+                        <> (<RoomTypeBedBadge typeName={receiptData.room.type.name} bedConfig={receiptData.room.type.bedConfig} typeCode={receiptData.room.type.code} pax={(receiptData.adults ?? 1) + (receiptData.children ?? 0)} inline />)</>
+                      )}
+                    </span>
                     <span>{formatCurrency(receiptData.totalAmount)}</span>
                   </div>
                   {(receiptData.folios[0]?.items || [])

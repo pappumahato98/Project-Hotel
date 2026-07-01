@@ -1,0 +1,769 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+     5→import { toast } from 'sonner'
+     6→import { apiFetch } from '@/lib/api'
+     7→import {
+     8→  Wallet, CreditCard, Banknote, CheckCircle, Search, Filter, ArrowRight,
+     9→  Smartphone, Building2, Loader2,
+    10→} from 'lucide-react'
+    11→
+    12→import { Button } from '@/components/ui/button'
+    13→import { Badge } from '@/components/ui/badge'
+    14→import { Card, CardContent } from '@/components/ui/card'
+    15→import { Skeleton } from '@/components/ui/skeleton'
+    16→import { Input } from '@/components/ui/input'
+    17→import { Label } from '@/components/ui/label'
+    18→import { Separator } from '@/components/ui/separator'
+    19→import {
+    20→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    21→} from '@/components/ui/select'
+    22→import {
+    23→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    24→} from '@/components/ui/table'
+    25→import {
+    26→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    27→} from '@/components/ui/dialog'
+    28→import { StatusBadge } from '@/components/shared/status-badge'
+    29→import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
+    30→import { formatCurrency, formatDate, nightsBetween } from '@/lib/format'
+    31→import { cn } from '@/lib/utils'
+    32→import { useNavigationStore, useFolioContextStore } from '@/lib/store'
+    33→import { invalidate } from '@/lib/queryKeys'
+    34→
+    35→// ─── Types ──────────────────────────────────────────────────────────────
+    36→
+    37→interface SettlementGuest {
+    38→  id: string
+    39→  firstName: string
+    40→  lastName: string
+    41→  email: string
+    42→  phone: string
+    43→  vipLevel: string
+    44→}
+    45→
+    46→interface SettlementRoom {
+    47→  id: string
+    48→  number: string
+    49→  floor: number
+    50→  wing: string
+    51→  type: { name: string; code: string; bedConfig?: string }
+    52→}
+    53→
+    54→interface SettlementFolio {
+    55→  id: string
+    56→  balance: number
+    57→  status: string
+    58→  payments?: { id: string; amount: number; createdAt: string }[]
+    59→}
+    60→
+    61→interface InHouseReservation {
+    62→  id: string
+    63→  confirmationNo: string
+    64→  guest: SettlementGuest
+    65→  room: SettlementRoom
+    66→  adults: number
+    67→  children: number
+    68→  checkIn: string
+    69→  checkOut: string
+    70→  roomRate: number
+    71→  totalAmount: number
+    72→  paidAmount: number
+    73→  folios: SettlementFolio[]
+    74→}
+    75→
+    76→type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet'
+    77→
+    78→type BalanceFilter = 'all' | 'over_10k' | 'over_50k' | 'over_100k'
+    79→
+    80→const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
+    81→  { value: 'cash', label: 'Cash', icon: <Banknote className="size-4" /> },
+    82→  { value: 'card', label: 'Credit/Debit Card', icon: <CreditCard className="size-4" /> },
+    83→  { value: 'bank_transfer', label: 'Bank Transfer', icon: <Building2 className="size-4" /> },
+    84→  { value: 'digital_wallet', label: 'Digital Wallet', icon: <Smartphone className="size-4" /> },
+    85→]
+    86→
+    87→const BALANCE_FILTER_OPTIONS: { value: BalanceFilter; label: string }[] = [
+    88→  { value: 'all', label: 'All Balances' },
+    89→  { value: 'over_10k', label: 'Over 10K NPR' },
+    90→  { value: 'over_50k', label: 'Over 50K NPR' },
+    91→  { value: 'over_100k', label: 'Over 100K NPR' },
+    92→]
+    93→
+    94→// ─── Helpers ────────────────────────────────────────────────────────────
+    95→
+    96→function getOutstandingBalance(res: InHouseReservation): number {
+    97→  return res.folios[0]?.balance ?? (res.totalAmount - res.paidAmount)
+    98→}
+    99→
+   100→function getLastPayment(res: InHouseReservation): string | null {
+   101→  const payments = res.folios[0]?.payments
+   102→  if (!payments || payments.length === 0) return null
+   103→  const latest = payments.reduce((a, b) =>
+   104→    new Date(a.createdAt) > new Date(b.createdAt) ? a : b
+   105→  )
+   106→  return new Date(latest.createdAt).toLocaleDateString()
+   107→}
+   108→
+   109→function getVipBadge(vipLevel: string) {
+   110→  if (vipLevel === 'none' || !vipLevel) return null
+   111→  const level = vipLevel.charAt(0).toUpperCase() + vipLevel.slice(1)
+   112→  return (
+   113→    <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-0">
+   114→      {level}
+   115→    </Badge>
+   116→  )
+   117→}
+   118→
+   119→// ─── Component ──────────────────────────────────────────────────────────
+   120→
+   121→export function SettlementView() {
+   122→  const queryClient = useQueryClient()
+   123→  const { navigateTo } = useNavigationStore()
+   124→
+   125→  // Dialog states
+   126→  const [settleDialogOpen, setSettleDialogOpen] = useState(false)
+   127→  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+   128→
+   129→  // Selected reservation for single settle
+   130→  const [selectedReservation, setSelectedReservation] = useState<InHouseReservation | null>(null)
+   131→
+   132→  // Search & filter
+   133→  const [searchQuery, setSearchQuery] = useState('')
+   134→  const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>('all')
+   135→
+   136→  // Payment form (single)
+   137→  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+   138→  const [paymentAmount, setPaymentAmount] = useState('')
+   139→  const [paymentReference, setPaymentReference] = useState('')
+   140→
+   141→  // Batch payment form
+   142→  const [batchPaymentMethod, setBatchPaymentMethod] = useState<PaymentMethod>('cash')
+   143→
+   144→  // ─── Data Fetching ──────────────────────────────────────────────────
+   145→
+   146→  const { data, isLoading } = useQuery({
+   147→    queryKey: ['reservations', 'checked_in', 'settlement'],
+   148→    queryFn: async () => {
+   149→      return apiFetch<{ reservations: InHouseReservation[]; total: number }>(
+   150→        '/api/reservations?status=checked_in'
+   151→      )
+   152→    },
+   153→    refetchInterval: 30000,
+   154→  })
+   155→
+   156→  const reservations: InHouseReservation[] = data?.reservations || []
+   157→
+   158→  // ─── Computed ───────────────────────────────────────────────────────
+   159→
+   160→  const filteredReservations = useMemo(() => {
+   161→    let result = reservations.filter((r) => getOutstandingBalance(r) > 0)
+   162→
+   163→    // Search filter
+   164→    if (searchQuery.trim()) {
+   165→      const q = searchQuery.toLowerCase().trim()
+   166→      result = result.filter((r) => {
+   167→        const guestName = r.guest ? `${r.guest.firstName} ${r.guest.lastName}`.toLowerCase() : ''
+   168→        const roomNumber = r.room ? r.room.number.toLowerCase() : ''
+   169→        const confirmationNo = r.confirmationNo.toLowerCase()
+   170→        return guestName.includes(q) || roomNumber.includes(q) || confirmationNo.includes(q)
+   171→      })
+   172→    }
+   173→
+   174→    // Balance filter
+   175→    switch (balanceFilter) {
+   176→      case 'over_10k':
+   177→        result = result.filter((r) => getOutstandingBalance(r) > 10000)
+   178→        break
+   179→      case 'over_50k':
+   180→        result = result.filter((r) => getOutstandingBalance(r) > 50000)
+   181→        break
+   182→      case 'over_100k':
+   183→        result = result.filter((r) => getOutstandingBalance(r) > 100000)
+   184→        break
+   185→    }
+   186→
+   187→    return result
+   188→  }, [reservations, searchQuery, balanceFilter])
+   189→
+   190→  const totalOutstanding = filteredReservations.reduce(
+   191→    (sum, r) => sum + getOutstandingBalance(r),
+   192→    0
+   193→  )
+   194→  const guestCount = filteredReservations.length
+   195→
+   196→  // All reservations with outstanding balance (for batch)
+   197→  const allOutstanding = reservations.filter((r) => getOutstandingBalance(r) > 0)
+   198→  const batchTotalOutstanding = allOutstanding.reduce(
+   199→    (sum, r) => sum + getOutstandingBalance(r),
+   200→    0
+   201→  )
+   202→
+   203→  // ─── Mutations ─────────────────────────────────────────────────────
+   204→
+   205→  // Single payment mutation — uses existing API pattern: POST /api/folio/{folioId}
+   206→  const paymentMutation = useMutation({
+   207→    mutationFn: async ({
+   208→      folioId,
+   209→      amount,
+   210→      method,
+   211→      reference,
+   212→    }: {
+   213→      folioId: string
+   214→      amount: number
+   215→      method: PaymentMethod
+   216→      reference: string
+   217→    }) => {
+   218→      return apiFetch(`/api/folio/${folioId}`, {
+   219→        method: 'POST',
+   220→        headers: { 'Content-Type': 'application/json' },
+   221→        body: JSON.stringify({ type: 'payment', paymentMethod: method, amount, reference }),
+   222→      })
+   223→    },
+   224→    onSuccess: () => {
+   225→      invalidate.afterFolioChange(queryClient)
+   226→      setSettleDialogOpen(false)
+   227→      setPaymentAmount('')
+   228→      setPaymentReference('')
+   229→      toast.success('Payment processed successfully')
+   230→    },
+   231→    onError: () => {
+   232→      toast.error('Failed to process payment. Please try again.')
+   233→    },
+   234→  })
+   235→
+   236→  // Batch settlement mutation
+   237→  const batchSettleMutation = useMutation({
+   238→    mutationFn: async (method: PaymentMethod) => {
+   239→      const results: { reservation: InHouseReservation; success: boolean; error?: string }[] = []
+   240→      for (let i = 0; i < allOutstanding.length; i++) {
+   241→        const res = allOutstanding[i]
+   242→        const balance = getOutstandingBalance(res)
+   243→        const folioId = res.folios[0]?.id
+   244→        if (!folioId) {
+   245→          results.push({ reservation: res, success: false, error: 'No folio found' })
+   246→          continue
+   247→        }
+   248→        try {
+   249→          await apiFetch(`/api/folio/${folioId}`, {
+   250→            method: 'POST',
+   251→            headers: { 'Content-Type': 'application/json' },
+   252→            body: JSON.stringify({ type: 'payment', paymentMethod: method, amount: balance, reference: '' }),
+   253→          })
+   254→          results.push({ reservation: res, success: true })
+   255→          toast.success(`Settled ${i + 1} of ${allOutstanding.length}: Room ${res.room.number}`)
+   256→        } catch {
+   257→          results.push({ reservation: res, success: false, error: 'Payment failed' })
+   258→        }
+   259→      }
+   260→      return results
+   261→    },
+   262→    onSuccess: (results) => {
+   263→      invalidate.afterFolioChange(queryClient)
+   264→      setBatchDialogOpen(false)
+   265→      const successCount = results.filter((r) => r.success).length
+   266→      const failCount = results.filter((r) => !r.success).length
+   267→      if (failCount === 0) {
+   268→        toast.success(`All ${successCount} accounts settled successfully!`)
+   269→      } else {
+   270→        toast.warning(`Settled ${successCount} accounts. ${failCount} failed.`)
+   271→      }
+   272→    },
+   273→    onError: () => {
+   274→      toast.error('Batch settlement failed. Please try again.')
+   275→    },
+   276→  })
+   277→
+   278→  // ─── Handlers ───────────────────────────────────────────────────────
+   279→
+   280→  const handleSettleClick = (res: InHouseReservation) => {
+   281→    setSelectedReservation(res)
+   282→    const balance = getOutstandingBalance(res)
+   283→    setPaymentAmount(String(balance))
+   284→    setPaymentMethod('cash')
+   285→    setPaymentReference('')
+   286→    setSettleDialogOpen(true)
+   287→  }
+   288→
+   289→  const handleProcessPayment = () => {
+   290→    if (!selectedReservation) return
+   291→    const folioId = selectedReservation.folios[0]?.id
+   292→    if (!folioId) {
+   293→      toast.error('No folio found for this reservation')
+   294→      return
+   295→    }
+   296→    const amount = Number(paymentAmount)
+   297→    if (isNaN(amount) || amount <= 0) {
+   298→      toast.error('Please enter a valid payment amount')
+   299→      return
+   300→    }
+   301→    paymentMutation.mutate({
+   302→      folioId,
+   303→      amount,
+   304→      method: paymentMethod,
+   305→      reference: paymentReference,
+   306→    })
+   307→  }
+   308→
+   309→  const handleSettleAll = () => {
+   310→    if (allOutstanding.length === 0) {
+   311→      toast.info('No outstanding balances to settle')
+   312→      return
+   313→    }
+   314→    setBatchPaymentMethod('cash')
+   315→    setBatchDialogOpen(true)
+   316→  }
+   317→
+   318→  const handleConfirmBatchSettle = () => {
+   319→    batchSettleMutation.mutate(batchPaymentMethod)
+   320→  }
+   321→
+   322→  const handleViewFolio = (res: InHouseReservation) => {
+   323→    useFolioContextStore.getState().setFolioContext({
+   324→      reservationId: res.id,
+   325→      guestId: res.guest.id,
+   326→      guestName: `${res.guest.firstName} ${res.guest.lastName}`.trim(),
+   327→      roomNumber: res.room.number,
+   328→      confirmationNo: res.confirmationNo,
+   329→    })
+   330→    navigateTo('front-desk', 'folio')
+   331→  }
+   332→
+   333→  // ─── Render ─────────────────────────────────────────────────────────
+   334→
+   335→  const selectedBalance = selectedReservation
+   336→    ? getOutstandingBalance(selectedReservation)
+   337→    : 0
+   338→
+   339→  return (
+   340→    <div className="flex flex-col gap-2">
+   341→      {/* Header */}
+   342→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+   343→        <div>
+   344→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+   345→            Settlement
+   346→          </h2>
+   347→          <p className="text-xs text-muted-foreground">
+   348→            View and settle outstanding guest folio balances
+   349→          </p>
+   350→        </div>
+   351→        {allOutstanding.length > 0 && (
+   352→          <Button
+   353→            onClick={handleSettleAll}
+   354→            className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+   355→          >
+   356→            <CheckCircle className="size-4 mr-1.5" />
+   357→            Settle All ({allOutstanding.length})
+   358→          </Button>
+   359→        )}
+   360→      </div>
+   361→
+   362→      {/* Summary Stats */}
+   363→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   364→        <Card className="py-0">
+   365→          <CardContent className="p-4 flex items-center gap-3">
+   366→            <div className="flex items-center justify-center size-10 rounded-lg bg-red-100 dark:bg-red-950">
+   367→              <Wallet className="size-5 text-red-600 dark:text-red-400" />
+   368→            </div>
+   369→            <div>
+   370→              <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
+   371→              <p className="text-lg font-bold text-red-600 dark:text-red-400">
+   372→                {formatCurrency(totalOutstanding)}
+   373→              </p>
+   374→            </div>
+   375→          </CardContent>
+   376→        </Card>
+   377→        <Card className="py-0">
+   378→          <CardContent className="p-4 flex items-center gap-3">
+   379→            <div className="flex items-center justify-center size-10 rounded-lg bg-amber-100 dark:bg-amber-950">
+   380→              <CreditCard className="size-5 text-amber-600 dark:text-amber-400" />
+   381→            </div>
+   382→            <div>
+   383→              <p className="text-xs text-muted-foreground font-medium">Guests with Balance</p>
+   384→              <p className="text-lg font-bold">{guestCount}</p>
+   385→            </div>
+   386→          </CardContent>
+   387→        </Card>
+   388→        <Card className="py-0">
+   389→          <CardContent className="p-4 flex items-center gap-3">
+   390→            <div className="flex items-center justify-center size-10 rounded-lg bg-green-100 dark:bg-green-950">
+   391→              <Banknote className="size-5 text-green-600 dark:text-green-400" />
+   392→            </div>
+   393→            <div>
+   394→              <p className="text-xs text-muted-foreground font-medium">Avg. Balance</p>
+   395→              <p className="text-lg font-bold">
+   396→                {guestCount > 0 ? formatCurrency(Math.round(totalOutstanding / guestCount)) : formatCurrency(0)}
+   397→              </p>
+   398→            </div>
+   399→          </CardContent>
+   400→        </Card>
+   401→      </div>
+   402→
+   403→      {/* Search & Filter Bar */}
+   404→      <Card className="py-0">
+   405→        <CardContent className="p-3 flex flex-col sm:flex-row gap-3">
+   406→          <div className="relative flex-1">
+   407→            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   408→            <Input
+   409→              placeholder="Search by guest name, room number, or confirmation..."
+   410→              className="pl-9 h-9 text-sm"
+   411→              value={searchQuery}
+   412→              onChange={(e) => setSearchQuery(e.target.value)}
+   413→            />
+   414→          </div>
+   415→          <div className="flex items-center gap-2 shrink-0">
+   416→            <Filter className="size-4 text-muted-foreground" />
+   417→            <Select
+   418→              value={balanceFilter}
+   419→              onValueChange={(v) => setBalanceFilter(v as BalanceFilter)}
+   420→            >
+   421→              <SelectTrigger className="h-9 w-[180px] text-sm">
+   422→                <SelectValue />
+   423→              </SelectTrigger>
+   424→              <SelectContent>
+   425→                {BALANCE_FILTER_OPTIONS.map((opt) => (
+   426→                  <SelectItem key={opt.value} value={opt.value}>
+   427→                    {opt.label}
+   428→                  </SelectItem>
+   429→                ))}
+   430→              </SelectContent>
+   431→            </Select>
+   432→          </div>
+   433→        </CardContent>
+   434→      </Card>
+   435→
+   436→      {/* Outstanding Accounts Table */}
+   437→      <Card className="py-0">
+   438→        <CardContent className="p-0">
+   439→          <div className="max-h-[600px] overflow-y-auto">
+   440→            <Table>
+   441→              <TableHeader>
+   442→                <TableRow>
+   443→                  <TableHead className="w-[80px]">Room</TableHead>
+   444→                  <TableHead>Guest</TableHead>
+   445→                  <TableHead className="w-[100px] hidden md:table-cell">Confirmation</TableHead>
+   446→                  <TableHead className="w-[70px] text-center hidden lg:table-cell">Nights</TableHead>
+   447→                  <TableHead className="w-[120px] text-right">Outstanding</TableHead>
+   448→                  <TableHead className="w-[100px] text-center hidden md:table-cell">Last Payment</TableHead>
+   449→                  <TableHead className="w-[160px] text-right">Actions</TableHead>
+   450→                </TableRow>
+   451→              </TableHeader>
+   452→              <TableBody>
+   453→                {isLoading ? (
+   454→                  Array.from({ length: 6 }).map((_, i) => (
+   455→                    <TableRow key={i}>
+   456→                      {Array.from({ length: 7 }).map((_, j) => (
+   457→                        <TableCell key={j}>
+   458→                          <Skeleton className="h-4 w-full" />
+   459→                        </TableCell>
+   460→                      ))}
+   461→                    </TableRow>
+   462→                  ))
+   463→                ) : filteredReservations.length === 0 ? (
+   464→                  <TableRow>
+   465→                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+   466→                      <Wallet className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+   467→                      {searchQuery || balanceFilter !== 'all'
+   468→                        ? 'No matching accounts found'
+   469→                        : 'All accounts are settled'}
+   470→                    </TableCell>
+   471→                  </TableRow>
+   472→                ) : (
+   473→                  filteredReservations.map((res) => {
+   474→                    const balance = getOutstandingBalance(res)
+   475→                    const nights = res.checkIn && res.checkOut ? nightsBetween(res.checkIn, res.checkOut) : 0
+   476→                    const lastPay = getLastPayment(res)
+   477→                    return (
+   478→                      <TableRow key={res.id}>
+   479→                        {/* Room */}
+   480→                        <TableCell className="font-bold font-mono">
+   481→                          {res.room ? (
+   482→                            <>
+   483→                              {res.room.number}
+   484→                              <RoomTypeBedBadge
+   485→                                typeName={res.room.type.name}
+   486→                                bedConfig={res.room.type.bedConfig}
+   487→                                typeCode={res.room.type.code}
+   488→                                inline
+   489→                                className="ml-1"
+   490→                              />
+   491→                            </>
+   492→                          ) : (
+   493→                            <span className="text-muted-foreground">Unassigned</span>
+   494→                          )}
+   495→                        </TableCell>
+   496→
+   497→                        {/* Guest */}
+   498→                        <TableCell>
+   499→                          <div className="flex items-center gap-2">
+   500→                            <span className="font-medium">
+   501→                              {res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : '—'}
+   502→                            </span>
+   503→                            {res.guest && getVipBadge(res.guest.vipLevel)}
+   504→                          </div>
+   505→                          <p className="text-xs text-muted-foreground md:hidden">
+   506→                            {res.confirmationNo}
+   507→                          </p>
+   508→                        </TableCell>
+   509→
+   510→                        {/* Confirmation */}
+   511→                        <TableCell className="text-xs font-mono hidden md:table-cell">
+   512→                          {res.confirmationNo}
+   513→                        </TableCell>
+   514→
+   515→                        {/* Nights */}
+   516→                        <TableCell className="text-center hidden lg:table-cell">
+   517→                          <span className="text-sm font-medium">{nights}</span>
+   518→                        </TableCell>
+   519→
+   520→                        {/* Outstanding Balance */}
+   521→                        <TableCell className="text-right">
+   522→                          <span className={cn(
+   523→                            'font-semibold',
+   524→                            balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600',
+   525→                          )}>
+   526→                            {formatCurrency(balance)}
+   527→                          </span>
+   528→                        </TableCell>
+   529→
+   530→                        {/* Last Payment */}
+   531→                        <TableCell className="text-center text-xs text-muted-foreground hidden md:table-cell">
+   532→                          {lastPay || '—'}
+   533→                        </TableCell>
+   534→
+   535→                        {/* Actions */}
+   536→                        <TableCell className="text-right">
+   537→                          <div className="flex justify-end gap-1 flex-wrap">
+   538→                            <Button
+   539→                              size="sm"
+   540→                              className="text-xs h-7 bg-green-600 hover:bg-green-700 text-white"
+   541→                              onClick={() => handleSettleClick(res)}
+   542→                            >
+   543→                              <Banknote className="size-3 mr-0.5" />
+   544→                              Settle
+   545→                            </Button>
+   546→                            <Button
+   547→                              size="sm"
+   548→                              variant="outline"
+   549→                              className="text-xs h-7"
+   550→                              onClick={() => handleViewFolio(res)}
+   551→                            >
+   552→                              <ArrowRight className="size-3 mr-0.5" />
+   553→                              <span className="hidden sm:inline">View Folio</span>
+   554→                              <span className="sm:hidden">Folio</span>
+   555→                            </Button>
+   556→                          </div>
+   557→                        </TableCell>
+   558→                      </TableRow>
+   559→                    )
+   560→                  })
+   561→                )}
+   562→              </TableBody>
+   563→            </Table>
+   564→          </div>
+   565→        </CardContent>
+   566→      </Card>
+   567→
+   568→      {/* ─── Single Settlement Dialog ───────────────────────────────── */}
+   569→      <Dialog open={settleDialogOpen} onOpenChange={setSettleDialogOpen}>
+   570→        <DialogContent className="sm:max-w-md">
+   571→          <DialogHeader>
+   572→            <DialogTitle className="flex items-center gap-2">
+   573→              <Banknote className="size-5 text-green-600" />
+   574→              Settle Account
+   575→            </DialogTitle>
+   576→            <DialogDescription>
+   577→              Process payment for this guest&apos;s outstanding balance
+   578→            </DialogDescription>
+   579→          </DialogHeader>
+   580→
+   581→          {selectedReservation && (
+   582→            <div className="flex flex-col gap-4">
+   583→              {/* Guest Info */}
+   584→              <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+   585→                <div className="flex items-center justify-between">
+   586→                  <span className="text-sm font-medium">
+   587→                    {selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : 'Unknown Guest'}
+   588→                    {selectedReservation.guest && getVipBadge(selectedReservation.guest.vipLevel)}
+   589→                  </span>
+   590→                </div>
+   591→                <div className="flex items-center justify-between text-xs text-muted-foreground">
+   592→                  <span>{selectedReservation.room ? `Room ${selectedReservation.room.number} · ${selectedReservation.room.type.name}` : 'Unassigned Room'}</span>
+   593→                  <span className="font-mono">{selectedReservation.confirmationNo}</span>
+   594→                </div>
+   595→                <Separator />
+   596→                <div className="flex items-center justify-between">
+   597→                  <span className="text-sm text-muted-foreground">Outstanding Balance</span>
+   598→                  <span className="text-xl font-bold text-red-600 dark:text-red-400">
+   599→                    {formatCurrency(selectedBalance)}
+   600→                  </span>
+   601→                </div>
+   602→              </div>
+   603→
+   604→              {/* Payment Method */}
+   605→              <div className="space-y-2">
+   606→                <Label className="text-sm font-medium">Payment Method</Label>
+   607→                <div className="grid grid-cols-2 gap-2">
+   608→                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
+   609→                    <Button
+   610→                      key={opt.value}
+   611→                      type="button"
+   612→                      variant={paymentMethod === opt.value ? 'default' : 'outline'}
+   613→                      className={cn(
+   614→                        'h-10 justify-start gap-2 text-sm',
+   615→                        paymentMethod === opt.value && 'bg-green-600 hover:bg-green-700 text-white',
+   616→                      )}
+   617→                      onClick={() => setPaymentMethod(opt.value)}
+   618→                    >
+   619→                      {opt.icon}
+   620→                      {opt.label}
+   621→                    </Button>
+   622→                  ))}
+   623→                </div>
+   624→              </div>
+   625→
+   626→              {/* Amount */}
+   627→              <div className="space-y-2">
+   628→                <Label htmlFor="settle-amount" className="text-sm font-medium">
+   629→                  Amount (NPR)
+   630→                </Label>
+   631→                <Input
+   632→                  id="settle-amount"
+   633→                  type="number"
+   634→                  min="1"
+   635→                  step="1"
+   636→                  value={paymentAmount}
+   637→                  onChange={(e) => setPaymentAmount(e.target.value)}
+   638→                  className="h-10 text-base font-semibold"
+   639→                />
+   640→              </div>
+   641→
+   642→              {/* Reference */}
+   643→              <div className="space-y-2">
+   644→                <Label htmlFor="settle-reference" className="text-sm font-medium">
+   645→                  Reference Number <span className="text-muted-foreground font-normal">(optional)</span>
+   646→                </Label>
+   647→                <Input
+   648→                  id="settle-reference"
+   649→                  placeholder="e.g. REF-123, transaction ID..."
+   650→                  value={paymentReference}
+   651→                  onChange={(e) => setPaymentReference(e.target.value)}
+   652→                  className="h-10 text-sm"
+   653→                />
+   654→              </div>
+   655→            </div>
+   656→          )}
+   657→
+   658→          <DialogFooter className="gap-2 sm:gap-0">
+   659→            <Button
+   660→              variant="outline"
+   661→              onClick={() => setSettleDialogOpen(false)}
+   662→              disabled={paymentMutation.isPending}
+   663→            >
+   664→              Cancel
+   665→            </Button>
+   666→            <Button
+   667→              className="bg-green-600 hover:bg-green-700 text-white"
+   668→              onClick={handleProcessPayment}
+   669→              disabled={paymentMutation.isPending}
+   670→            >
+   671→              {paymentMutation.isPending ? (
+   672→                <Loader2 className="size-4 mr-1.5 animate-spin" />
+   673→              ) : (
+   674→                <CheckCircle className="size-4 mr-1.5" />
+   675→              )}
+   676→              Process Payment
+   677→            </Button>
+   678→          </DialogFooter>
+   679→        </DialogContent>
+   680→      </Dialog>
+   681→
+   682→      {/* ─── Batch Settlement Dialog ───────────────────────────────── */}
+   683→      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+   684→        <DialogContent className="sm:max-w-md">
+   685→          <DialogHeader>
+   686→            <DialogTitle className="flex items-center gap-2">
+   687→              <CheckCircle className="size-5 text-green-600" />
+   688→              Settle All Outstanding
+   689→            </DialogTitle>
+   690→            <DialogDescription>
+   691→              Process payments for all {allOutstanding.length} guests with outstanding balances
+   692→            </DialogDescription>
+   693→          </DialogHeader>
+   694→
+   695→          <div className="flex flex-col gap-4">
+   696→            {/* Summary */}
+   697→            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+   698→              <div className="flex items-center justify-between">
+   699→                <span className="text-sm text-muted-foreground">Accounts to Settle</span>
+   700→                <span className="text-sm font-semibold">{allOutstanding.length}</span>
+   701→              </div>
+   702→              <Separator />
+   703→              <div className="flex items-center justify-between">
+   704→                <span className="text-sm text-muted-foreground">Total Outstanding</span>
+   705→                <span className="text-xl font-bold text-red-600 dark:text-red-400">
+   706→                  {formatCurrency(batchTotalOutstanding)}
+   707→                </span>
+   708→              </div>
+   709→            </div>
+   710→
+   711→            {/* Payment Method */}
+   712→            <div className="space-y-2">
+   713→              <Label className="text-sm font-medium">Payment Method (applied to all)</Label>
+   714→              <div className="grid grid-cols-2 gap-2">
+   715→                {PAYMENT_METHOD_OPTIONS.map((opt) => (
+   716→                  <Button
+   717→                    key={opt.value}
+   718→                    type="button"
+   719→                    variant={batchPaymentMethod === opt.value ? 'default' : 'outline'}
+   720→                    className={cn(
+   721→                      'h-10 justify-start gap-2 text-sm',
+   722→                      batchPaymentMethod === opt.value && 'bg-green-600 hover:bg-green-700 text-white',
+   723→                    )}
+   724→                    onClick={() => setBatchPaymentMethod(opt.value)}
+   725→                  >
+   726→                    {opt.icon}
+   727→                    {opt.label}
+   728→                  </Button>
+   729→                ))}
+   730→              </div>
+   731→            </div>
+   732→
+   733→            {/* Progress indicator */}
+   734→            {batchSettleMutation.isPending && (
+   735→              <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950 p-3">
+   736→                <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+   737→                  <Loader2 className="size-4 animate-spin" />
+   738→                  Processing payments... Please wait.
+   739→                </div>
+   740→              </div>
+   741→            )}
+   742→          </div>
+   743→
+   744→          <DialogFooter className="gap-2 sm:gap-0">
+   745→            <Button
+   746→              variant="outline"
+   747→              onClick={() => setBatchDialogOpen(false)}
+   748→              disabled={batchSettleMutation.isPending}
+   749→            >
+   750→              Cancel
+   751→            </Button>
+   752→            <Button
+   753→              className="bg-green-600 hover:bg-green-700 text-white"
+   754→              onClick={handleConfirmBatchSettle}
+   755→              disabled={batchSettleMutation.isPending}
+   756→            >
+   757→              {batchSettleMutation.isPending ? (
+   758→                <Loader2 className="size-4 mr-1.5 animate-spin" />
+   759→              ) : (
+   760→                <CheckCircle className="size-4 mr-1.5" />
+   761→              )}
+   762→              Settle All — {formatCurrency(batchTotalOutstanding)}
+   763→            </Button>
+   764→          </DialogFooter>
+   765→        </DialogContent>
+   766→      </Dialog>
+   767→    </div>
+   768→  )
+   769→}
