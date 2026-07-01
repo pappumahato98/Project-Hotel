@@ -12,7 +12,6 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from '@/components/ui/table'
@@ -430,6 +429,7 @@ export function TaskBoardView() {
   const [filterHkStatus, setFilterHkStatus] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
   const [filterFloor, setFilterFloor] = useState('')
+  const [filterRoomType, setFilterRoomType] = useState('')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
@@ -518,6 +518,25 @@ export function TaskBoardView() {
     })
   }
 
+  // Client-side filtered rows for room type
+  const filteredRows = useMemo(() => {
+    if (!filterRoomType) return tableRows
+    return tableRows.filter((r) => r.roomTypeCode === filterRoomType)
+  }, [tableRows, filterRoomType])
+
+  // Unique values derived from tableRows (not filtered)
+  const uniqueHkStatuses = useMemo(() => {
+    const s = new Set(tableRows.map((r) => r.hkDisplayStatus))
+    return Array.from(s)
+  }, [tableRows])
+
+  const uniquePriorities = useMemo(() => {
+    const s = new Set(tableRows.map((r) => r.priority))
+    return Array.from(s)
+  }, [tableRows])
+
+  const hasAnyFilter = filterHkStatus || filterPriority || filterFloor || filterRoomType
+
   // Loading state
   if ((viewMode === 'table' && tableLoading) || (viewMode !== 'table' && kanbanLoading)) {
     return (
@@ -535,13 +554,13 @@ export function TaskBoardView() {
 
   // ─── TABLE VIEW ──────────────────────────────────────────
   const TableView = () => (
-    <div className="space-y-3">
-      {/* Toolbar: Search + Filters */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-2">
+      {/* Toolbar: Search only */}
+      <div className="flex items-center justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search by room, type, guest..."
+            placeholder="Search by guest, reservation..."
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             className="h-8 pl-8 text-xs"
@@ -555,96 +574,83 @@ export function TaskBoardView() {
             </button>
           )}
         </div>
-
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <FilterDropdown
-            label="HK Status"
-            value={filterHkStatus}
-            onValueChange={setFilterHkStatus}
-            options={[
-              { value: 'clean', label: 'Clean' },
-              { value: 'dirty', label: 'Dirty' },
-              { value: 'cleaning', label: 'Cleaning' },
-              { value: 'cleaned', label: 'Cleaned' },
-              { value: 'change_over', label: 'Change Over' },
-              { value: 'pending', label: 'Pending' },
-              { value: 'inspected', label: 'Inspected' },
-              { value: 'failed', label: 'Failed' },
-            ]}
-          />
-          <FilterDropdown
-            label="Priority"
-            value={filterPriority}
-            onValueChange={setFilterPriority}
-            options={[
-              { value: 'vip', label: 'VIP' },
-              { value: 'rush', label: 'Rush' },
-              { value: 'high', label: 'High' },
-              { value: 'normal', label: 'Normal' },
-              { value: 'low', label: 'Low' },
-            ]}
-          />
-          <FilterDropdown
-            label="Floor"
-            value={filterFloor}
-            onValueChange={setFilterFloor}
-            options={floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))}
-          />
-          {(filterHkStatus || filterPriority || filterFloor) && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-3">
+          <span>{filteredRows.length} room{filteredRows.length !== 1 ? 's' : ''}</span>
+          {selectedRows.size > 0 && (
+            <span className="font-medium text-foreground">· {selectedRows.size} selected</span>
+          )}
+          {hasAnyFilter && (
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 text-xs text-muted-foreground"
+              className="h-6 px-2 text-[10px] text-muted-foreground"
               onClick={() => {
-                setFilterHkStatus('')
-                setFilterPriority('')
-                setFilterFloor('')
+                setFilterHkStatus(''); setFilterPriority(''); setFilterFloor(''); setFilterRoomType('')
               }}
             >
-              <X className="w-3 h-3 mr-1" /> Clear
+              <X className="w-2.5 h-2.5 mr-0.5" /> Clear filters
             </Button>
           )}
         </div>
       </div>
 
-      {/* Results count + batch info */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{tableRows.length} room{tableRows.length !== 1 ? 's' : ''}</span>
-        {selectedRows.size > 0 && (
-          <span className="font-medium text-foreground">{selectedRows.size} selected</span>
-        )}
-      </div>
-
-      {/* Data Table */}
+      {/* Data Table — no ScrollArea, let page scroll naturally */}
       <div className="rounded-lg border bg-card overflow-hidden">
-        <ScrollArea className="max-h-[calc(100vh-320px)]">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={tableRows.length > 0 && selectedRows.size === tableRows.length}
-                    onCheckedChange={toggleAllRows}
-                  />
-                </TableHead>
-                <TableHead className="text-xs font-semibold">Room</TableHead>
-                <TableHead className="text-xs font-semibold">Room Type</TableHead>
-                <TableHead className="text-xs font-semibold">HK Status</TableHead>
-                <TableHead className="text-xs font-semibold">Priority</TableHead>
-                <TableHead className="text-xs font-semibold">Floor</TableHead>
-                <TableHead className="text-xs font-semibold">Reservation</TableHead>
-                <TableHead className="text-xs font-semibold">Comments</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tableRows.length === 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={filteredRows.length > 0 && selectedRows.size === filteredRows.length}
+                  onCheckedChange={toggleAllRows}
+                />
+              </TableHead>
+              <TableHead className="text-xs font-semibold">Room</TableHead>
+              <TableHead>
+                <FilterDropdown
+                  label="Room Type"
+                  value={filterRoomType}
+                  onValueChange={setFilterRoomType}
+                  options={roomTypes.map((rt) => ({ value: rt.value, label: rt.label }))}
+                />
+              </TableHead>
+              <TableHead>
+                <FilterDropdown
+                  label="HK Status"
+                  value={filterHkStatus}
+                  onValueChange={setFilterHkStatus}
+                  options={uniqueHkStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+                />
+              </TableHead>
+              <TableHead>
+                <FilterDropdown
+                  label="Priority"
+                  value={filterPriority}
+                  onValueChange={setFilterPriority}
+                  options={uniquePriorities.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+                />
+              </TableHead>
+              <TableHead>
+                <FilterDropdown
+                  label="Floor"
+                  value={filterFloor}
+                  onValueChange={setFilterFloor}
+                  options={floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))}
+                />
+              </TableHead>
+              <TableHead className="text-xs font-semibold">Reservation</TableHead>
+              <TableHead className="text-xs font-semibold">Comments</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+              {filteredRows.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-sm">
                     No rooms found
                   </TableCell>
                 </TableRow>
               ) : (
-                tableRows.map((row, idx) => (
+                filteredRows.map((row, idx) => (
                   <TableRow
                     key={row.roomId}
                     className={cn(
@@ -697,7 +703,6 @@ export function TaskBoardView() {
               )}
             </TableBody>
           </Table>
-        </ScrollArea>
       </div>
     </div>
   )
