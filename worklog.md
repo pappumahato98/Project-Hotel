@@ -259,3 +259,22 @@ Stage Summary:
 - All colored section gaps in Check-in page reduced from 12px to 8px margins
 - Browser-verified with VLM: spacing now tight and compact
 - No runtime errors
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Implement table-based Board View for housekeeping task board matching provided screenshot
+
+Work Log:
+- Created `/api/housekeeping/rooms` API endpoint that fetches all rooms with joined HK task data and reservation data
+- API computes `hkDisplayStatus` (clean/dirty/cleaning/cleaned/change_over/pending/assigned/inspected/failed) and `reservationStatus` (occupied/vacant/due_in/confirmed)
+- Rewrote `TaskBoardView.tsx` with 3 view modes: Board (table), Kanban (old board), Attendant
+- Board view features: search bar with debounced input, 3 filter dropdowns (HK Status, Priority, Floor), checkbox row selection with select-all, colored HK status badges, colored reservation badges, priority dots, alternating row backgrounds, scroll area
+- Stats bar updated to show data from both table and kanban queries
+- Fixed import typo (`@/components/button` → `@/components/ui/button`)
+- Verified via browser: all 3 views render correctly, no console errors, API returns 200
+
+Stage Summary:
+- New API: `src/app/api/housekeeping/rooms/route.ts`
+- Rewritten: `src/components/modules/housekeeping/TaskBoardView.tsx`
+- VLM verified: colored badges, search, filters, checkboxes, priority dots all present and professional
