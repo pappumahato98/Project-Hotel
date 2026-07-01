@@ -628,14 +628,14 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                   <div className="lg:w-[52%] xl:w-[54%] 2xl:w-[56%] min-w-0">
                     {searchedReservationId && reservationData ? (
                       <Card className="p-3 border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20">
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-2 mb-2">
                           <Check className="w-4 h-4 text-teal-600" />
                           <h4 className="text-sm font-semibold">Reservation Details</h4>
                           <Badge variant="outline" className="text-[10px] font-mono ml-auto">{reservationData.confirmationNo}</Badge>
                         </div>
 
                         {/* Guest info header */}
-                        <div className="flex items-center gap-3 mb-3 pb-3 border-b">
+                        <div className="flex items-center gap-3 mb-2 pb-2 border-b">
                           <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center shrink-0">
                             <span className="text-sm font-bold text-teal-700 dark:text-teal-300">
                               {reservationData.guest?.firstName?.charAt(0)?.toUpperCase() || '?'}
@@ -658,7 +658,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                         </div>
 
                         {/* Detail grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-2">
                           <InfoItem label="Room" value={reservationData.room ? <span className="flex items-center gap-1.5">{reservationData.room.number} <RoomTypeBedBadge typeName={reservationData.room.type.name} bedConfig={reservationData.room.type.bedConfig} typeCode={reservationData.room.type.code} pax={reservationData.adults + reservationData.children} inline /></span> : 'Not assigned'} />
                           <InfoItem label="Stay" value={`${formatDateShort(reservationData.checkIn)} → ${formatDateShort(reservationData.checkOut)}`} />
                           <InfoItem label="Rate" value={`${formatCurrency(reservationData.roomRate)}/night`} />
@@ -683,8 +683,8 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                           const co = fromDateOnly(reservationData.checkOut)
                           const nights = nightsBetween(reservationData.checkIn, reservationData.checkOut)
                           return (
-                            <div className="rounded-lg bg-background/60 p-2.5 mb-3">
-                              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Stay Calendar</h4>
+                            <div className="rounded-lg bg-background/60 p-2 mb-2">
+                              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Stay Calendar</h4>
                               <div className="grid grid-cols-7 gap-1 text-center">
                                 {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
                                   <div key={d} className="text-[10px] font-medium text-muted-foreground py-1">{d}</div>
@@ -730,7 +730,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
 
                         {/* Special requests */}
                         {reservationData.specialRequests && (
-                          <div className="mb-3 p-2 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30">
+                          <div className="mb-2 p-2 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30">
                             <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">Special Requests</p>
                             <p className="text-xs text-muted-foreground">{reservationData.specialRequests}</p>
                           </div>
@@ -738,7 +738,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
 
                         {/* Guest stay history */}
                         {guestStayHistory && guestStayHistory.length > 0 && (
-                          <div className="mb-3 pt-2 border-t">
+                          <div className="mb-2 pt-2 border-t">
                             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
                               <Star className="w-3 h-3 inline mr-0.5" />
                               Previous Stays ({guestStayHistory.length})
@@ -876,7 +876,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                   {/* Right Panel — Live Summary */}
                   <div className="lg:w-[45%] xl:w-[48%] 2xl:w-[50%] space-y-2">
                     <Card className="p-3 border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50/50 to-orange-50/30 dark:from-amber-950/20 dark:to-orange-950/10">
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-2">
                         <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                           <User className="w-3 h-3 mr-1" />
                           Direct Walk-in
@@ -918,7 +918,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                         </div>
                       </div>
 
-                      <Separator className="my-3" />
+                      <Separator className="my-2" />
 
                       {/* Stay Summary */}
                       <div className="space-y-2">
@@ -956,7 +956,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                         </div>
                       </div>
 
-                      <Separator className="my-3" />
+                      <Separator className="my-2" />
 
                       {/* Stay Calendar Summary */}
                       {walkInNights > 0 && (() => {
@@ -1002,7 +1002,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                         )
                       })()}
 
-                      <Separator className="my-3" />
+                      <Separator className="my-2" />
 
                       {/* Available Rooms Summary */}
                       <div className="space-y-2">
