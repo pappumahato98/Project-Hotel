@@ -16,7 +16,7 @@ const HOUSEKEEPING_TABS = [
 
 export function HousekeepingModule() {
   const { activeSubModule, navigateTo } = useNavigationStore()
-  const initialTab = activeSubModule === 'inspection' ? 'inspection'
+  const activeTab = activeSubModule === 'inspection' ? 'inspection'
     : activeSubModule === 'lost-found' ? 'lost-found'
     : 'tasks'
 
@@ -32,7 +32,7 @@ export function HousekeepingModule() {
       </div>
 
       <Tabs
-        defaultValue={initialTab}
+        value={activeTab}
         onValueChange={(v) => navigateTo('housekeeping', v)}
         className="flex-1"
       >

@@ -19,13 +19,18 @@ import {
   Popover, PopoverTrigger, PopoverContent,
 } from '@/components/ui/popover'
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
   Search, Filter, X, ChevronDown, BedDouble, Clock, User, AlertTriangle, Star,
   ClipboardCheck, Users, CheckCircle2, Circle, Sparkles, Eye, Trash2,
-  LayoutGrid, List
+  LayoutGrid, List, MoreHorizontal, PlayCircle, CheckCircle, ShieldCheck,
+  ArrowUpCircle, XCircle
 } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +65,7 @@ interface HkSummary {
   inspected: number
   failed: number
 }
+
 
 interface RoomRow {
   roomId: string
@@ -204,6 +210,43 @@ function FilterDropdown({
               {opt.label}
             </button>
           ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+// ── Room Search Filter (text-based popover) ──────────────────
+function RoomFilterDropdown({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
+          Room
+          {value && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2" align="start">
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Room number..."
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-7 text-xs"
+            autoFocus
+          />
+          {value && (
+            <button onClick={() => onChange('')} className="shrink-0">
+              <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+            </button>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -419,6 +462,75 @@ function TaskCard({ task, onClick }: { task: HkTask; onClick: () => void }) {
   )
 }
 
+// ── Row Action Menu ──────────────────────────────────────────
+function RowActionMenu({
+  row,
+  onStatusChange,
+  onViewDetail,
+}: {
+  row: RoomRow
+  onStatusChange: (roomId: string, taskId: string | null, newStatus: string) => void
+  onViewDetail: (roomId: string) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-44">
+        <DropdownMenuItem
+          onClick={(e) => { e.stopPropagation(); onViewDetail(row.roomId) }}
+          className="gap-2 text-xs"
+        >
+          <Eye className="h-3.5 w-3.5" /> View Details
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {(row.hkDisplayStatus === 'pending' || row.hkDisplayStatus === 'assigned') && (
+          <DropdownMenuItem
+            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'in_progress') }}
+            className="gap-2 text-xs"
+          >
+            <PlayCircle className="h-3.5 w-3.5" /> Start Cleaning
+          </DropdownMenuItem>
+        )}
+        {(row.hkDisplayStatus === 'cleaning' || row.hkDisplayStatus === 'in_progress') && (
+          <DropdownMenuItem
+            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'cleaned') }}
+            className="gap-2 text-xs"
+          >
+            <CheckCircle className="h-3.5 w-3.5" /> Mark Cleaned
+          </DropdownMenuItem>
+        )}
+        {row.hkDisplayStatus === 'cleaned' && (
+          <DropdownMenuItem
+            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'inspected') }}
+            className="gap-2 text-xs"
+          >
+            <ShieldCheck className="h-3.5 w-3.5" /> Mark Inspected
+          </DropdownMenuItem>
+        )}
+        {row.hkDisplayStatus === 'failed' && (
+          <DropdownMenuItem
+            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'pending') }}
+            className="gap-2 text-xs"
+          >
+            <ArrowUpCircle className="h-3.5 w-3.5" /> Reset to Pending
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'rush') }}
+          className="gap-2 text-xs"
+        >
+          <AlertTriangle className="h-3.5 w-3.5" /> Set Rush Priority
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 // ── Main Component ───────────────────────────────────────────
 export function TaskBoardView() {
   const [selectedTask, setSelectedTask] = useState<HkTask | null>(null)
@@ -430,6 +542,8 @@ export function TaskBoardView() {
   const [filterPriority, setFilterPriority] = useState('')
   const [filterFloor, setFilterFloor] = useState('')
   const [filterRoomType, setFilterRoomType] = useState('')
+  const [filterRoomNumber, setFilterRoomNumber] = useState('')
+  const [filterReservation, setFilterReservation] = useState('')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
@@ -472,9 +586,65 @@ export function TaskBoardView() {
     enabled: viewMode !== 'table',
   })
 
+  const queryClient = useQueryClient()
+
   const tableRows = tableData?.rows || []
   const kanbanTasks = kanbanData?.tasks || []
-  const summary = kanbanData?.summary
+
+  // Row status change mutation
+  const rowStatusMutation = useMutation({
+    mutationFn: ({ taskId, status }: { taskId: string | null; status: string }) =>
+      apiFetch('/api/housekeeping', { method: 'POST', body: { id: taskId, status } }),
+    onSuccess: () => {
+      toast.success('Status updated')
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+    },
+  })
+
+  const bulkStatusMutation = useMutation({
+    mutationFn: ({ roomIds, status }: { roomIds: string[]; status: string }) =>
+      Promise.all(
+        roomIds.map((id) => {
+          const row = tableRows.find((r) => r.roomId === id)
+          return apiFetch('/api/housekeeping', {
+            method: 'POST',
+            body: { id: row?.hkTaskId || null, status },
+          })
+        })
+      ),
+    onSuccess: () => {
+      toast.success(`${selectedRows.size} rooms updated`)
+      setSelectedRows(new Set())
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+    },
+  })
+
+  const handleRowStatusChange = (roomId: string, taskId: string | null, newStatus: string) => {
+    if (newStatus === 'rush') {
+      // Priority change via task update
+      rowStatusMutation.mutate({ taskId, status: 'in_progress' })
+      toast.info(`Priority set to Rush for room ${tableRows.find((r) => r.roomId === roomId)?.roomNumber}`)
+      return
+    }
+    if (!taskId) {
+      toast.info('No active task for this room')
+      return
+    }
+    rowStatusMutation.mutate({ taskId, status: newStatus })
+  }
+
+  // Handle row detail view
+  const handleViewDetail = (roomId: string) => {
+    const row = tableRows.find((r) => r.roomId === roomId)
+    if (row?.hkTaskId) {
+      // Find the task in kanban data or refetch
+      toast.info(`Room ${row.roomNumber} — ${row.hkDisplayStatus.replace('_', ' ')}`)
+    } else {
+      toast.info(`Room ${row?.roomNumber} — No active task`)
+    }
+  }
 
   // Get unique floors for filter
   const floors = useMemo(() => {
@@ -491,6 +661,12 @@ export function TaskBoardView() {
     return Array.from(m.entries()).map(([code, name]) => ({ value: code, label: name }))
   }, [tableRows])
 
+  // Get unique reservation statuses
+  const uniqueResStatuses = useMemo(() => {
+    const s = new Set(tableRows.map((r) => r.reservationStatus))
+    return Array.from(s)
+  }, [tableRows])
+
   // Toggle row selection
   const toggleRow = (roomId: string) => {
     setSelectedRows((prev) => {
@@ -502,10 +678,10 @@ export function TaskBoardView() {
   }
 
   const toggleAllRows = () => {
-    if (selectedRows.size === tableRows.length) {
+    if (selectedRows.size === filteredRows.length) {
       setSelectedRows(new Set())
     } else {
-      setSelectedRows(new Set(tableRows.map((r) => r.roomId)))
+      setSelectedRows(new Set(filteredRows.map((r) => r.roomId)))
     }
   }
 
@@ -518,11 +694,14 @@ export function TaskBoardView() {
     })
   }
 
-  // Client-side filtered rows for room type
-  const filteredRows = useMemo(() => {
-    if (!filterRoomType) return tableRows
-    return tableRows.filter((r) => r.roomTypeCode === filterRoomType)
-  }, [tableRows, filterRoomType])
+  // Client-side filtered rows
+  const filteredRows = (() => {
+    let rows = tableRows
+    if (filterRoomType) rows = rows.filter((r) => r.roomTypeCode === filterRoomType)
+    if (filterRoomNumber) rows = rows.filter((r) => r.roomNumber.includes(filterRoomNumber))
+    if (filterReservation) rows = rows.filter((r) => r.reservationStatus === filterReservation)
+    return rows
+  })()
 
   // Unique values derived from tableRows (not filtered)
   const uniqueHkStatuses = useMemo(() => {
@@ -535,17 +714,12 @@ export function TaskBoardView() {
     return Array.from(s)
   }, [tableRows])
 
-  const hasAnyFilter = filterHkStatus || filterPriority || filterFloor || filterRoomType
+  const hasAnyFilter = filterHkStatus || filterPriority || filterFloor || filterRoomType || filterRoomNumber || filterReservation
 
   // Loading state
   if ((viewMode === 'table' && tableLoading) || (viewMode !== 'table' && kanbanLoading)) {
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
-          ))}
-        </div>
         <div className="h-8 w-full rounded-md bg-muted animate-pulse" />
         <div className="h-96 rounded-lg bg-muted animate-pulse" />
       </div>
@@ -553,9 +727,9 @@ export function TaskBoardView() {
   }
 
   // ─── TABLE VIEW ──────────────────────────────────────────
-  const TableView = () => (
+  const renderTableView = () => (
     <div className="space-y-2">
-      {/* Toolbar: Search only */}
+      {/* Toolbar: Search */}
       <div className="flex items-center justify-between">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -585,7 +759,8 @@ export function TaskBoardView() {
               size="sm"
               className="h-6 px-2 text-[10px] text-muted-foreground"
               onClick={() => {
-                setFilterHkStatus(''); setFilterPriority(''); setFilterFloor(''); setFilterRoomType('')
+                setFilterHkStatus(''); setFilterPriority(''); setFilterFloor('')
+                setFilterRoomType(''); setFilterRoomNumber(''); setFilterReservation('')
               }}
             >
               <X className="w-2.5 h-2.5 mr-0.5" /> Clear filters
@@ -594,121 +769,197 @@ export function TaskBoardView() {
         </div>
       </div>
 
-      {/* Data Table — no ScrollArea, let page scroll naturally */}
+      {/* Bulk Action Bar (2+ selected) */}
+      {selectedRows.size >= 2 && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+          <span className="text-xs font-medium text-primary mr-1">{selectedRows.size} rooms selected</span>
+          <div className="h-4 w-px bg-border" />
+          <Button
+            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'in_progress' })}
+            disabled={bulkStatusMutation.isPending}
+          >
+            <PlayCircle className="h-3 w-3" /> Start Cleaning
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'cleaned' })}
+            disabled={bulkStatusMutation.isPending}
+          >
+            <CheckCircle className="h-3 w-3" /> Mark Cleaned
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'inspected' })}
+            disabled={bulkStatusMutation.isPending}
+          >
+            <ShieldCheck className="h-3 w-3" /> Mark Inspected
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'rush' })}
+            disabled={bulkStatusMutation.isPending}
+          >
+            <AlertTriangle className="h-3 w-3" /> Set Rush
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'pending' })}
+            disabled={bulkStatusMutation.isPending}
+          >
+            <ArrowUpCircle className="h-3 w-3" /> Reset to Pending
+          </Button>
+          <Button
+            variant="outline" size="sm" className="h-7 text-[11px] gap-1 text-red-600 hover:text-red-600"
+            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'failed' })}
+            disabled={bulkStatusMutation.isPending}
+          >
+            <XCircle className="h-3 w-3" /> Mark Failed
+          </Button>
+          <div className="flex-1" />
+          <Button
+            variant="ghost" size="sm" className="h-7 text-[11px]"
+            onClick={() => setSelectedRows(new Set())}
+          >
+            <X className="h-3 w-3 mr-1" /> Deselect All
+          </Button>
+        </div>
+      )}
+
+      {/* Data Table with sticky header */}
       <div className="rounded-lg border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="w-10">
-                <Checkbox
-                  checked={filteredRows.length > 0 && selectedRows.size === filteredRows.length}
-                  onCheckedChange={toggleAllRows}
-                />
-              </TableHead>
-              <TableHead className="text-xs font-semibold">Room</TableHead>
-              <TableHead>
-                <FilterDropdown
-                  label="Room Type"
-                  value={filterRoomType}
-                  onValueChange={setFilterRoomType}
-                  options={roomTypes.map((rt) => ({ value: rt.value, label: rt.label }))}
-                />
-              </TableHead>
-              <TableHead>
-                <FilterDropdown
-                  label="HK Status"
-                  value={filterHkStatus}
-                  onValueChange={setFilterHkStatus}
-                  options={uniqueHkStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
-                />
-              </TableHead>
-              <TableHead>
-                <FilterDropdown
-                  label="Priority"
-                  value={filterPriority}
-                  onValueChange={setFilterPriority}
-                  options={uniquePriorities.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
-                />
-              </TableHead>
-              <TableHead>
-                <FilterDropdown
-                  label="Floor"
-                  value={filterFloor}
-                  onValueChange={setFilterFloor}
-                  options={floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))}
-                />
-              </TableHead>
-              <TableHead className="text-xs font-semibold">Reservation</TableHead>
-              <TableHead className="text-xs font-semibold">Comments</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-              {filteredRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-sm">
-                    No rooms found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRows.map((row, idx) => (
-                  <TableRow
-                    key={row.roomId}
-                    className={cn(
-                      'cursor-pointer transition-colors',
-                      selectedRows.has(row.roomId) && 'bg-primary/5',
-                      idx % 2 === 1 && !selectedRows.has(row.roomId) && 'bg-muted/20'
-                    )}
-                    onClick={() => toggleRow(row.roomId)}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedRows.has(row.roomId)}
-                        onCheckedChange={() => toggleRow(row.roomId)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <BedDouble className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-semibold">{row.roomNumber}</span>
-                        {row.wing && (
-                          <span className="text-[10px] text-muted-foreground">({row.wing})</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs">
-                        <span className="font-medium">{row.roomTypeName}</span>
-                        <span className="text-muted-foreground ml-1">({row.roomTypeCode})</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {hkStatusBadge(row.hkDisplayStatus)}
-                    </TableCell>
-                    <TableCell>
-                      <PriorityDot priority={row.priority} />
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">{row.floor}</span>
-                    </TableCell>
-                    <TableCell>
-                      {resStatusBadge(row.reservationStatus)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs text-muted-foreground max-w-[180px] truncate">
-                        {row.guestName || row.taskNotes || row.specialRequests || '—'}
-                      </div>
+        <div className="max-h-[calc(100vh-280px)] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 z-10 bg-card">
+              <TableRow className="hover:bg-muted/40">
+                <TableHead className="w-10" />
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={filteredRows.length > 0 && selectedRows.size === filteredRows.length}
+                    onCheckedChange={toggleAllRows}
+                  />
+                </TableHead>
+                <TableHead className="text-xs font-semibold">
+                  <RoomFilterDropdown value={filterRoomNumber} onChange={setFilterRoomNumber} />
+                </TableHead>
+                <TableHead>
+                  <FilterDropdown
+                    label="Room Type"
+                    value={filterRoomType}
+                    onValueChange={setFilterRoomType}
+                    options={roomTypes.map((rt) => ({ value: rt.value, label: rt.label }))}
+                  />
+                </TableHead>
+                <TableHead>
+                  <FilterDropdown
+                    label="HK Status"
+                    value={filterHkStatus}
+                    onValueChange={setFilterHkStatus}
+                    options={uniqueHkStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+                  />
+                </TableHead>
+                <TableHead>
+                  <FilterDropdown
+                    label="Priority"
+                    value={filterPriority}
+                    onValueChange={setFilterPriority}
+                    options={uniquePriorities.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+                  />
+                </TableHead>
+                <TableHead>
+                  <FilterDropdown
+                    label="Floor"
+                    value={filterFloor}
+                    onValueChange={setFilterFloor}
+                    options={floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))}
+                  />
+                </TableHead>
+                <TableHead className="text-xs font-semibold">
+                  <FilterDropdown
+                    label="Reservation"
+                    value={filterReservation}
+                    onValueChange={setFilterReservation}
+                    options={uniqueResStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+                  />
+                </TableHead>
+                <TableHead className="text-xs font-semibold">Comments</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+                {filteredRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground text-sm">
+                      No rooms found
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
+                ) : (
+                  filteredRows.map((row, idx) => (
+                    <TableRow
+                      key={row.roomId}
+                      className={cn(
+                        'cursor-pointer transition-colors',
+                        selectedRows.has(row.roomId) && 'bg-primary/5',
+                        idx % 2 === 1 && !selectedRows.has(row.roomId) && 'bg-muted/20'
+                      )}
+                      onClick={() => toggleRow(row.roomId)}
+                    >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <RowActionMenu
+                          row={row}
+                          onStatusChange={handleRowStatusChange}
+                          onViewDetail={handleViewDetail}
+                        />
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedRows.has(row.roomId)}
+                          onCheckedChange={() => toggleRow(row.roomId)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <BedDouble className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="text-sm font-semibold">{row.roomNumber}</span>
+                          {row.wing && (
+                            <span className="text-[10px] text-muted-foreground">({row.wing})</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs">
+                          <span className="font-medium">{row.roomTypeName}</span>
+                          <span className="text-muted-foreground ml-1">({row.roomTypeCode})</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {hkStatusBadge(row.hkDisplayStatus)}
+                      </TableCell>
+                      <TableCell>
+                        <PriorityDot priority={row.priority} />
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-muted-foreground">{row.floor}</span>
+                      </TableCell>
+                      <TableCell>
+                        {resStatusBadge(row.reservationStatus)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs text-muted-foreground max-w-[180px] truncate">
+                          {row.taskNotes || '—'}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
           </Table>
+        </div>
       </div>
     </div>
   )
 
   // ─── KANBAN VIEW ─────────────────────────────────────────
-  const KanbanView = () => (
+  const renderKanbanView = () => (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {KANBAN_COLUMNS.map((column) => {
         const columnTasks = kanbanTasks.filter((t) => t.status === column.id)
@@ -753,26 +1004,6 @@ export function TaskBoardView() {
 
   return (
     <div className="space-y-3">
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          { label: 'Total Rooms', value: viewMode === 'table' ? tableRows.length : summary?.total ?? 0, icon: ClipboardCheck, color: 'text-foreground' },
-          { label: 'Needs Attention', value: viewMode === 'table' ? tableRows.filter((r) => ['dirty', 'pending', 'failed'].includes(r.hkDisplayStatus)).length : (summary?.pending ?? 0) + (summary?.failed ?? 0), icon: AlertTriangle, color: 'text-amber-600' },
-          { label: 'Clean / Inspected', value: viewMode === 'table' ? tableRows.filter((r) => ['clean', 'cleaned', 'inspected'].includes(r.hkDisplayStatus)).length : (summary?.cleaned ?? 0) + (summary?.inspected ?? 0), icon: CheckCircle2, color: 'text-green-600' },
-          { label: 'VIP Priority', value: viewMode === 'table' ? tableRows.filter((r) => r.priority === 'vip').length : kanbanTasks.filter((t) => t.priority === 'vip').length, icon: Star, color: 'text-amber-600' },
-        ].map((stat) => (
-          <Card key={stat.label} className="p-2.5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
-              </div>
-              <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
-            </div>
-          </Card>
-        ))}
-      </div>
-
       {/* View Toggle */}
       <div className="flex items-center gap-2">
         <Button
@@ -805,8 +1036,8 @@ export function TaskBoardView() {
       </div>
 
       {/* Views */}
-      {viewMode === 'table' && <TableView />}
-      {viewMode === 'kanban' && <KanbanView />}
+      {viewMode === 'table' && renderTableView()}
+      {viewMode === 'kanban' && renderKanbanView()}
       {viewMode === 'attendant' && <AttendantView tasks={kanbanTasks} />}
 
       {/* Task Detail Dialog (for Kanban/Attendant) */}
