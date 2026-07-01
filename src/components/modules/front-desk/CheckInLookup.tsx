@@ -405,7 +405,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-y-auto">
-        <div className={cn('p-3 sm:p-4', isDirectWalkIn ? '' : '')}>
+        <div className="p-3 sm:p-4">
 
           {/* Prefilled reservation mode */}
           {prefillReservationId ? (
@@ -555,7 +555,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
 
               {!isDirectWalkIn ? (
                 /* --- Find Reservation Mode (Dual Column) --- */
-                <div className="flex flex-col lg:flex-row gap-3">
+                <div className="flex flex-col lg:flex-row gap-4 lg:items-start">
                   {/* Left Column — Search & Results List */}
                   <div className="lg:w-[48%] xl:w-[46%] 2xl:w-[44%] space-y-2 min-w-0">
                     {/* Search input */}
@@ -768,7 +768,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                       </Card>
                     ) : (
                       /* Empty state for right column */
-                      <Card className="p-6 border-dashed flex flex-col items-center justify-center min-h-[300px] text-center">
+                      <Card className="p-6 border-dashed flex flex-col items-center justify-center text-center">
                         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
                           <Search className="w-5 h-5 text-muted-foreground" />
                         </div>
