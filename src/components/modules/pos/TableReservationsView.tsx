@@ -218,7 +218,7 @@ function NewReservationDialog({
   const [phone, setPhone] = useState('')
   const [timeSlot, setTimeSlot] = useState('')
   const [partySize, setPartySize] = useState('2')
-  const [tablePref, setTablePref] = useState('')
+  const [tablePref, setTablePref] = useState('auto')
   const [specialRequests, setSpecialRequests] = useState('')
 
   const handleSubmit = () => {
@@ -229,7 +229,7 @@ function NewReservationDialog({
     onSubmit({
       guestName,
       phone,
-      tableNumber: tablePref ? Number(tablePref) : Math.floor(Math.random() * 15) + 1,
+      tableNumber: tablePref !== 'auto' ? Number(tablePref) : Math.floor(Math.random() * 15) + 1,
       seats: Number(partySize) + 1,
       timeSlot,
       endTimeSlot: '',
@@ -307,7 +307,7 @@ function NewReservationDialog({
                 <SelectValue placeholder="Auto-assign" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Auto-assign</SelectItem>
+                <SelectItem value="auto">Auto-assign</SelectItem>
                 {Array.from({ length: 15 }, (_, i) => i + 1).map((n) => (
                   <SelectItem key={n} value={String(n)}>Table {n}</SelectItem>
                 ))}
