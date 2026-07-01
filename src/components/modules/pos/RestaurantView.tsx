@@ -27,6 +27,7 @@ import {
 } from './pos-types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSettingsStore } from '@/lib/store'
+import { invalidate } from '@/lib/queryKeys'
 
 // ─── Allergen Icons ─────────────────────────────────────────────────
 function AllergenBadges({ allergens }: { allergens?: string[] }) {
@@ -463,13 +464,38 @@ function PostToRoomDialog({
   open,
   onClose,
   reservations,
+  amount,
 }: {
   open: boolean
   onClose: () => void
   reservations: GuestReservation[]
+  amount: number
 }) {
+  const queryClient = useQueryClient()
+  const [selectedReservation, setSelectedReservation] = useState<string>('')
+
+  const chargeMutation = useMutation({
+    mutationFn: async () => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'charge_to_room', reservationId: selectedReservation, amount, description: 'Restaurant charge' }),
+      })
+    },
+    onSuccess: () => {
+      invalidate.afterFolioCharge(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      toast.success('Charge posted to guest room')
+      setSelectedReservation('')
+      onClose()
+    },
+    onError: () => {
+      toast.error('Failed to post charge to room')
+    },
+  })
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) setSelectedReservation(''); onClose() }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -478,7 +504,11 @@ function PostToRoomDialog({
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">Select the guest reservation to charge this order to:</p>
-        <Select>
+        <div className="rounded-lg bg-muted p-3 text-center">
+          <p className="text-xs text-muted-foreground">Order Total</p>
+          <p className="text-lg font-bold">{formatNPR(amount)}</p>
+        </div>
+        <Select value={selectedReservation} onValueChange={setSelectedReservation}>
           <SelectTrigger>
             <SelectValue placeholder="Select guest..." />
           </SelectTrigger>
@@ -492,7 +522,12 @@ function PostToRoomDialog({
         </Select>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { toast.info('Charge posted to guest room'); onClose() }}>Post Charge</Button>
+          <Button disabled={!selectedReservation || chargeMutation.isPending} onClick={() => chargeMutation.mutate()}>
+            {chargeMutation.isPending ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5" />
+            ) : null}
+            Post Charge
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -930,6 +965,7 @@ export default function RestaurantView() {
         open={postToRoomOpen}
         onClose={() => setPostToRoomOpen(false)}
         reservations={reservations}
+        amount={total}
       />
 
       {/* Discount Dialog */}

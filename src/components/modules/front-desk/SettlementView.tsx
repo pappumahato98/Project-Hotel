@@ -57,6 +57,7 @@ interface SettlementRoom {
 
 interface SettlementFolio {
   id: string
+  folioType: string
   balance: number
   status: string
   payments?: { id: string; amount: number; createdAt: string }[]
@@ -98,13 +99,14 @@ const BALANCE_FILTER_OPTIONS: { value: BalanceFilter; label: string }[] = [
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function getOutstandingBalance(res: InHouseReservation): number {
-  return res.folios[0]?.balance ?? (res.totalAmount - res.paidAmount)
+  return res.folios.reduce((sum, f) => sum + (f.balance > 0 ? f.balance : 0), 0)
+    || (res.totalAmount - res.paidAmount)
 }
 
 function getLastPayment(res: InHouseReservation): string | null {
-  const payments = res.folios[0]?.payments
-  if (!payments || payments.length === 0) return null
-  const latest = payments.reduce((a, b) =>
+  const allPayments = res.folios.flatMap((f) => f.payments || [])
+  if (allPayments.length === 0) return null
+  const latest = allPayments.reduce((a, b) =>
     new Date(a.createdAt) > new Date(b.createdAt) ? a : b
   )
   return new Date(latest.createdAt).toLocaleDateString()
@@ -141,6 +143,7 @@ export function SettlementView() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentReference, setPaymentReference] = useState('')
+  const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null)
 
   // Batch payment form
   const [batchPaymentMethod, setBatchPaymentMethod] = useState<PaymentMethod>('cash')
@@ -258,28 +261,35 @@ export function SettlementView() {
     },
   })
 
-  // Batch settlement mutation
+  // Batch settlement mutation — settles each folio individually
   const batchSettleMutation = useMutation({
     mutationFn: async (method: PaymentMethod) => {
       const results: { reservation: InHouseReservation; success: boolean; error?: string }[] = []
       for (let i = 0; i < allOutstanding.length; i++) {
         const res = allOutstanding[i]
-        const balance = getOutstandingBalance(res)
-        const folioId = res.folios[0]?.id
-        if (!folioId) {
-          results.push({ reservation: res, success: false, error: 'No folio found' })
+        // Process each folio with a positive balance
+        const foliosToSettle = res.folios.filter((f) => f.balance > 0)
+        if (foliosToSettle.length === 0) {
+          results.push({ reservation: res, success: false, error: 'No folio with balance found' })
           continue
         }
-        try {
-          await apiFetch(`/api/folio/${folioId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'payment', paymentMethod: method, amount: balance, reference: '' }),
-          })
+        let allSuccess = true
+        for (const folio of foliosToSettle) {
+          try {
+            await apiFetch(`/api/folio/${folio.id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ type: 'payment', paymentMethod: method, amount: folio.balance, reference: '' }),
+            })
+          } catch {
+            allSuccess = false
+          }
+        }
+        if (allSuccess) {
           results.push({ reservation: res, success: true })
           toast.success(`Settled ${i + 1} of ${allOutstanding.length}: Room ${res.room.number}`)
-        } catch {
-          results.push({ reservation: res, success: false, error: 'Payment failed' })
+        } else {
+          results.push({ reservation: res, success: false, error: 'Payment failed on one or more folios' })
         }
       }
       return results
@@ -304,7 +314,10 @@ export function SettlementView() {
 
   const handleSettleClick = (res: InHouseReservation) => {
     setSelectedReservation(res)
-    const balance = getOutstandingBalance(res)
+    // Default to the first folio with a positive balance, or the first folio
+    const folioWithBalance = res.folios.find((f) => f.balance > 0) || res.folios[0]
+    setSelectedFolioId(folioWithBalance?.id || null)
+    const balance = folioWithBalance?.balance ?? getOutstandingBalance(res)
     setPaymentAmount(String(balance))
     setPaymentMethod('cash')
     setPaymentReference('')
@@ -313,7 +326,7 @@ export function SettlementView() {
 
   const handleProcessPayment = () => {
     if (!selectedReservation) return
-    const folioId = selectedReservation.folios[0]?.id
+    const folioId = selectedFolioId || selectedReservation.folios[0]?.id
     if (!folioId) {
       toast.error('No folio found for this reservation')
       return
@@ -401,7 +414,9 @@ export function SettlementView() {
   // ─── Render ─────────────────────────────────────────────────────────
 
   const selectedBalance = selectedReservation
-    ? getOutstandingBalance(selectedReservation)
+    ? (selectedFolioId
+        ? selectedReservation.folios.find((f) => f.id === selectedFolioId)?.balance ?? 0
+        : getOutstandingBalance(selectedReservation))
     : 0
 
   return (
@@ -726,9 +741,41 @@ export function SettlementView() {
                   <span>{selectedReservation.room ? `Room ${selectedReservation.room.number} · ${selectedReservation.room.type.name}` : 'Unassigned Room'}</span>
                   <span className="font-mono">{selectedReservation.confirmationNo}</span>
                 </div>
+
+                {/* Folio selector when multiple folios exist */}
+                {selectedReservation.folios.length > 1 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium text-muted-foreground">Settle Folio</Label>
+                      <Select value={selectedFolioId || ''} onValueChange={(v) => {
+                        setSelectedFolioId(v)
+                        const f = selectedReservation.folios.find((f) => f.id === v)
+                        if (f) setPaymentAmount(String(f.balance))
+                      }}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Select folio..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {selectedReservation.folios
+                            .filter((f) => f.balance > 0)
+                            .map((f) => (
+                              <SelectItem key={f.id} value={f.id}>
+                                <span className="capitalize">{f.folioType}</span>
+                                <span className="text-muted-foreground"> — {formatCurrency(f.balance)}</span>
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Outstanding Balance</span>
+                  <span className="text-sm text-muted-foreground">
+                    {selectedReservation.folios.length > 1 ? 'Selected Folio Balance' : 'Outstanding Balance'}
+                  </span>
                   <span className="text-xl font-bold text-red-600 dark:text-red-400">
                     {formatCurrency(selectedBalance)}
                   </span>

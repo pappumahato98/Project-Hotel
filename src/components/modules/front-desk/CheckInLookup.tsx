@@ -405,7 +405,7 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
   return (
     <div className="flex flex-col h-full bg-background">
       <div className="flex-1 overflow-y-auto">
-        <div className={cn('space-y-2 p-3 sm:p-4', isDirectWalkIn ? '' : 'max-w-2xl mx-auto')}>
+        <div className={cn('p-3 sm:p-4', isDirectWalkIn ? '' : '')}>
 
           {/* Prefilled reservation mode */}
           {prefillReservationId ? (
@@ -554,117 +554,231 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
               </div>
 
               {!isDirectWalkIn ? (
-                /* --- Find Reservation Mode --- */
-                <div className="space-y-2">
-                  {/* Search input */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by confirmation #, guest name, or room..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="pl-9 pr-9 h-10 text-sm"
-                    />
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => { setSearchQuery(''); setDebouncedQuery(''); setSearchedReservationId(null) }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                /* --- Find Reservation Mode (Dual Column) --- */
+                <div className="flex flex-col lg:flex-row gap-3">
+                  {/* Left Column — Search & Results List */}
+                  <div className="lg:w-[48%] xl:w-[46%] 2xl:w-[44%] space-y-2 min-w-0">
+                    {/* Search input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by confirmation #, guest name, or room..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="pl-9 pr-9 h-10 text-sm"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => { setSearchQuery(''); setDebouncedQuery(''); setSearchedReservationId(null) }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {searchLoading && (
+                        <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+
+                    {/* Search results */}
+                    {searchResults && searchResults.length > 0 && (
+                      <div className="space-y-2 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
+                        {searchResults.map(res => renderReservationCard(res))}
+                      </div>
                     )}
-                    {searchLoading && (
-                      <Loader2 className="absolute right-9 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    {searchResults && debouncedQuery.length >= 2 && searchResults.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded-lg">
+                        No reservations found matching &quot;{debouncedQuery}&quot;
+                      </p>
+                    )}
+
+                    {/* Today's Expected Arrivals */}
+                    {!debouncedQuery && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                          <h4 className="text-sm font-semibold">Today&apos;s Expected Arrivals</h4>
+                          {arrivalsData && arrivalsData.length > 0 && (
+                            <Badge variant="secondary" className="text-[10px] h-4">{arrivalsData.length}</Badge>
+                          )}
+                        </div>
+                        {arrivalsLoading && (
+                          <div className="space-y-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                              <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                            ))}
+                          </div>
+                        )}
+                        {arrivalsData && arrivalsData.length > 0 && (
+                          <div className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-1">
+                            {arrivalsData.map(res => renderReservationCard(res))}
+                          </div>
+                        )}
+                        {arrivalsData && arrivalsData.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded-lg">
+                            No expected arrivals for today
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {/* Search results */}
-                  {searchResults && searchResults.length > 0 && (
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      {searchResults.map(res => renderReservationCard(res))}
-                    </div>
-                  )}
-                  {searchResults && debouncedQuery.length >= 2 && searchResults.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded-lg">
-                      No reservations found matching &quot;{debouncedQuery}&quot;
-                    </p>
-                  )}
-
-                  {/* Today's Expected Arrivals */}
-                  {!debouncedQuery && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                        <h4 className="text-sm font-semibold">Today&apos;s Expected Arrivals</h4>
-                        {arrivalsData && arrivalsData.length > 0 && (
-                          <Badge variant="secondary" className="text-[10px] h-4">{arrivalsData.length}</Badge>
-                        )}
-                      </div>
-                      {arrivalsLoading && (
-                        <div className="space-y-2">
-                          {Array.from({ length: 3 }).map((_, i) => (
-                            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-                          ))}
+                  {/* Right Column — Selected Reservation Detail / Calendar Summary */}
+                  <div className="lg:w-[52%] xl:w-[54%] 2xl:w-[56%] min-w-0">
+                    {searchedReservationId && reservationData ? (
+                      <Card className="p-3 border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Check className="w-4 h-4 text-teal-600" />
+                          <h4 className="text-sm font-semibold">Reservation Details</h4>
+                          <Badge variant="outline" className="text-[10px] font-mono ml-auto">{reservationData.confirmationNo}</Badge>
                         </div>
-                      )}
-                      {arrivalsData && arrivalsData.length > 0 && (
-                        <div className="space-y-2 max-h-96 overflow-y-auto">
-                          {arrivalsData.map(res => renderReservationCard(res))}
-                        </div>
-                      )}
-                      {arrivalsData && arrivalsData.length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center py-2 bg-muted/30 rounded-lg">
-                          No expected arrivals for today
-                        </p>
-                      )}
-                    </div>
-                  )}
 
-                  {/* Selected reservation detail panel */}
-                  {searchedReservationId && reservationData && (
-                    <Card className="p-2.5 border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Check className="w-4 h-4 text-teal-600" />
-                        <h4 className="text-sm font-semibold">Reservation Details</h4>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <InfoItem label="Guest" value={`${reservationData.guest?.firstName || ''} ${reservationData.guest?.lastName || ''}`} />
-                        <InfoItem label="Confirmation" value={reservationData.confirmationNo} />
-                        {reservationData.room && <InfoItem label="Room" value={<span className="flex items-center gap-1.5">{reservationData.room.number} <RoomTypeBedBadge typeName={reservationData.room.type.name} bedConfig={reservationData.room.type.bedConfig} typeCode={reservationData.room.type.code} pax={reservationData.adults + reservationData.children} inline /></span>} />}
-                        <InfoItem label="Stay" value={`${formatDate(reservationData.checkIn)} → ${formatDate(reservationData.checkOut)}`} />
-                        <InfoItem label="Rate" value={`${formatCurrency(reservationData.roomRate)}/night`} />
-                        {reservationData.specialRequests && <InfoItem label="Requests" value={reservationData.specialRequests} />}
-                      </div>
-                      {/* Guest stay history */}
-                      {guestStayHistory && guestStayHistory.length > 0 && (
-                        <div className="mt-2 pt-2 border-t">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-                            Previous Stays ({guestStayHistory.length})
-                          </p>
-                          <div className="flex flex-wrap gap-1">
-                            {guestStayHistory.slice(0, 3).map((stay, i) => (
-                              <Badge key={stay.id || i} variant="secondary" className="text-[10px] h-5">
-                                {stay.roomNumber} · {formatDateShort(stay.checkIn)}
-                              </Badge>
-                            ))}
+                        {/* Guest info header */}
+                        <div className="flex items-center gap-3 mb-3 pb-3 border-b">
+                          <div className="w-10 h-10 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center shrink-0">
+                            <span className="text-sm font-bold text-teal-700 dark:text-teal-300">
+                              {reservationData.guest?.firstName?.charAt(0)?.toUpperCase() || '?'}
+                              {reservationData.guest?.lastName?.charAt(0)?.toUpperCase() || ''}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold truncate">
+                              {reservationData.guest ? `${reservationData.guest.firstName} ${reservationData.guest.lastName}` : 'Unknown Guest'}
+                              {reservationData.guest?.vipLevel && reservationData.guest.vipLevel !== 'none' && (
+                                <Badge className="text-[9px] h-4 px-1.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 ml-2">
+                                  <Crown className="w-2.5 h-2.5 mr-0.5" /> VIP
+                                </Badge>
+                              )}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                              {reservationData.guest?.email && <><Mail className="w-3 h-3" /><span className="truncate">{reservationData.guest.email}</span></>}
+                            </div>
                           </div>
                         </div>
-                      )}
-                      <div className="flex gap-2 mt-2">
-                        <Button onClick={handleUseReservation} className="flex-1">
-                          <Check className="w-4 h-4 mr-2" />
-                          Go Check-in
-                        </Button>
-                        {expressMode && (
-                          <Button variant="outline" className="flex-1" onClick={() => handleExpressCheckIn(reservationData)}>
-                            <Zap className="w-4 h-4 mr-2 text-amber-500" />
-                            Express Check-In
-                          </Button>
+
+                        {/* Detail grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs mb-3">
+                          <InfoItem label="Room" value={reservationData.room ? <span className="flex items-center gap-1.5">{reservationData.room.number} <RoomTypeBedBadge typeName={reservationData.room.type.name} bedConfig={reservationData.room.type.bedConfig} typeCode={reservationData.room.type.code} pax={reservationData.adults + reservationData.children} inline /></span> : 'Not assigned'} />
+                          <InfoItem label="Stay" value={`${formatDateShort(reservationData.checkIn)} → ${formatDateShort(reservationData.checkOut)}`} />
+                          <InfoItem label="Rate" value={`${formatCurrency(reservationData.roomRate)}/night`} />
+                          <InfoItem label="Pax" value={
+                            <>
+                              <span>{reservationData.adults} Adults</span>
+                              {reservationData.children > 0 && (
+                                <span className="ml-1">{reservationData.children} Children</span>
+                              )}
+                              <span className="text-red-500 font-semibold ml-1">
+                                ({reservationData.adults + reservationData.children})
+                              </span>
+                            </>
+                          } />
+                          <InfoItem label="Source" value={sourceLabel(reservationData.source)} />
+                          <InfoItem label="Total" value={formatCurrency(reservationData.totalAmount)} />
+                        </div>
+
+                        {/* Calendar stay summary */}
+                        {reservationData.checkIn && reservationData.checkOut && (() => {
+                          const ci = fromDateOnly(reservationData.checkIn)
+                          const co = fromDateOnly(reservationData.checkOut)
+                          const nights = nightsBetween(reservationData.checkIn, reservationData.checkOut)
+                          return (
+                            <div className="rounded-lg bg-background/60 p-2.5 mb-3">
+                              <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Stay Calendar</h4>
+                              <div className="grid grid-cols-7 gap-1 text-center">
+                                {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
+                                  <div key={d} className="text-[10px] font-medium text-muted-foreground py-1">{d}</div>
+                                ))}
+                                {Array.from({ length: 35 }, (_, i) => {
+                                  const baseDate = new Date(ci.getFullYear(), ci.getMonth(), 1)
+                                  const day = new Date(baseDate)
+                                  day.setDate(baseDate.getDate() + i - baseDate.getDay())
+                                  const isCheckIn = day.toDateString() === ci.toDateString()
+                                  const isCheckOut = day.toDateString() === co.toDateString()
+                                  const isStay = day >= ci && day < co
+                                  const isToday = day.toDateString() === new Date().toDateString()
+                                  const isCurrentMonth = day.getMonth() === ci.getMonth()
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={cn(
+                                        'text-[11px] py-1 rounded-md transition-colors',
+                                        !isCurrentMonth && 'text-muted-foreground/30',
+                                        isCurrentMonth && !isStay && !isCheckIn && !isCheckOut && 'text-muted-foreground',
+                                        isStay && !isCheckIn && !isCheckOut && 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-200 font-medium',
+                                        isCheckIn && 'bg-emerald-500 text-white font-bold rounded-l-md',
+                                        isCheckOut && 'bg-rose-500 text-white font-bold rounded-r-md',
+                                        isToday && 'ring-1 ring-inset ring-amber-400',
+                                      )}
+                                    >
+                                      {day.getDate()}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                              <div className="flex items-center justify-between mt-2 text-[10px]">
+                                <span className="text-muted-foreground">{nights} night{nights !== 1 ? 's' : ''}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Check-in</span>
+                                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-teal-100 dark:bg-teal-900/40" /> Stay</span>
+                                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-rose-500" /> Check-out</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()}
+
+                        {/* Special requests */}
+                        {reservationData.specialRequests && (
+                          <div className="mb-3 p-2 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-800/30">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-1">Special Requests</p>
+                            <p className="text-xs text-muted-foreground">{reservationData.specialRequests}</p>
+                          </div>
                         )}
-                      </div>
-                    </Card>
-                  )}
+
+                        {/* Guest stay history */}
+                        {guestStayHistory && guestStayHistory.length > 0 && (
+                          <div className="mb-3 pt-2 border-t">
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                              <Star className="w-3 h-3 inline mr-0.5" />
+                              Previous Stays ({guestStayHistory.length})
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {guestStayHistory.slice(0, 3).map((stay, i) => (
+                                <Badge key={stay.id || i} variant="secondary" className="text-[10px] h-5">
+                                  {stay.roomNumber} · {formatDateShort(stay.checkIn)}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button onClick={handleUseReservation} className="flex-1">
+                            <Check className="w-4 h-4 mr-2" />
+                            Go Check-in
+                          </Button>
+                          {expressMode && (
+                            <Button variant="outline" className="flex-1" onClick={() => handleExpressCheckIn(reservationData)}>
+                              <Zap className="w-4 h-4 mr-2 text-amber-500" />
+                              Express Check-In
+                            </Button>
+                          )}
+                        </div>
+                      </Card>
+                    ) : (
+                      /* Empty state for right column */
+                      <Card className="p-6 border-dashed flex flex-col items-center justify-center min-h-[300px] text-center">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                          <Search className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm font-medium text-muted-foreground">Select a Reservation</p>
+                        <p className="text-xs text-muted-foreground/70 mt-1">
+                          Click a reservation from the list or search to view details and check-in
+                        </p>
+                      </Card>
+                    )}
+                  </div>
                 </div>
               ) : (
                 /* --- Direct Walk-in Mode (Split Screen) --- */
@@ -841,6 +955,52 @@ export function CheckInLookup({ onBack, prefillReservationId }: CheckInLookupPro
                           </span>
                         </div>
                       </div>
+
+                      <Separator className="my-3" />
+
+                      {/* Stay Calendar Summary */}
+                      {walkInNights > 0 && (() => {
+                        const ci = fromDateOnly(walkInDate)
+                        const co = fromDateOnly(walkInCheckOut)
+                        return (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Stay Calendar</h4>
+                            <div className="rounded-lg bg-background/60 p-2">
+                              <div className="grid grid-cols-7 gap-0.5 text-center">
+                                {['S','M','T','W','T','F','S'].map((d, i) => (
+                                  <div key={i} className="text-[9px] font-medium text-muted-foreground py-0.5">{d}</div>
+                                ))}
+                                {Array.from({ length: 35 }, (_, i) => {
+                                  const baseDate = new Date(ci.getFullYear(), ci.getMonth(), 1)
+                                  const day = new Date(baseDate)
+                                  day.setDate(baseDate.getDate() + i - baseDate.getDay())
+                                  const isCheckIn = day.toDateString() === ci.toDateString()
+                                  const isCheckOut = day.toDateString() === co.toDateString()
+                                  const isStay = day >= ci && day < co
+                                  const isToday = day.toDateString() === new Date().toDateString()
+                                  const isCurrentMonth = day.getMonth() === ci.getMonth()
+                                  return (
+                                    <div
+                                      key={i}
+                                      className={cn(
+                                        'text-[10px] py-0.5 rounded-sm',
+                                        !isCurrentMonth && 'opacity-20',
+                                        isCurrentMonth && !isStay && !isCheckIn && !isCheckOut && 'text-muted-foreground',
+                                        isStay && !isCheckIn && !isCheckOut && 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200',
+                                        isCheckIn && 'bg-emerald-500 text-white font-bold',
+                                        isCheckOut && 'bg-rose-500 text-white font-bold',
+                                        isToday && !isCheckIn && !isCheckOut && 'ring-1 ring-inset ring-amber-400',
+                                      )}
+                                    >
+                                      {day.getDate()}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       <Separator className="my-3" />
 

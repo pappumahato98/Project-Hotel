@@ -65,6 +65,15 @@ export const qk = {
 
   // Wake-up Calls
   wakeUpCalls:     (d?: string)     => ['wake-up-calls', d] as const,
+
+  // Housekeeping
+  housekeeping:    ()               => ['housekeeping'] as const,
+
+  // POS
+  pos:             ()               => ['pos'] as const,
+
+  // Channel Bookings
+  channelBookings: ()               => ['channel-bookings'] as const,
 } as const
 
 // ─── Cross-module invalidation helpers ─────────────────────────────────
@@ -144,6 +153,27 @@ function auditKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
   extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
 }
 
+/** Keys that change when a ROOM STATUS changes (HK cleaning → inspected → vacant, not check-in/checkout/transfer). */
+function roomStatusChangeKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
+  const base = [
+    qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
+    qk.roomsCalendar(), qk.roomsVacant(), qk.vacantRooms(),
+    qk.frontDeskDashboard(), qk.dashboard(), qk.housekeeping(),
+  ] as const
+  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+}
+
+/** Keys that change when a FOLIO CHARGE is posted (POS → room, no guestId required). */
+function folioChargeKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
+  const base = [
+    qk.folios(), qk.inHouse(), qk.departures(),
+    qk.dashboard(), qk.frontDeskDashboard(),
+  ] as const
+  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+}
+
 // ─── Public API ────────────────────────────────────────────────────────
 
 export const invalidate = {
@@ -159,4 +189,8 @@ export const invalidate = {
   afterRoomTransfer:  (qc: QueryClient)      => roomTransferKeys(qc),
   /** Call after running night audit or day close. */
   afterAudit:         (qc: QueryClient)      => auditKeys(qc),
+  /** Call after a room status change from housekeeping (cleaning → inspected → vacant_clean). */
+  afterRoomStatusChange: (qc: QueryClient)   => roomStatusChangeKeys(qc),
+  /** Call after posting a folio charge from POS / external module (no guestId required). */
+  afterFolioCharge:   (qc: QueryClient)      => folioChargeKeys(qc),
 }

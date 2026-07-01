@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
   ArrowLeft, ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
-  StickyNote, XCircle, Activity, CircleAlert, Ban, X, BookOpen,
+  StickyNote, XCircle, Activity, CircleAlert, Ban, X, BookOpen, Loader2, Check,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -30,6 +30,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
@@ -233,6 +234,12 @@ export function FolioView() {
 
   // Notes form
   const [folioNotes, setFolioNotes] = useState('')
+
+  // Split folio dialog
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false)
+  const [splitSelectedTxnIds, setSplitSelectedTxnIds] = useState<Set<string>>(new Set())
+  const [splitFolioType, setSplitFolioType] = useState('company')
+  const [splitDescription, setSplitDescription] = useState('')
 
   // Search dropdown ref
   const searchRef = useRef<HTMLDivElement>(null)
@@ -518,6 +525,37 @@ export function FolioView() {
     onError: () => toast.error('Failed to void transaction'),
   })
 
+  const splitFolioMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeFolio) throw new Error('No folio selected')
+      return apiFetch<{ sourceFolio: Folio; targetFolio: Folio }>(
+        `/api/folio/${activeFolio.id}/split`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionIds: Array.from(splitSelectedTxnIds),
+            folioType: splitFolioType,
+            description: splitDescription || undefined,
+          }),
+        },
+      )
+    },
+    onSuccess: (data) => {
+      invalidate.afterFolioChange(queryClient, activeFolio?.guest?.id)
+      queryClient.invalidateQueries({ queryKey: ['folio-detail', data.sourceFolio.id] })
+      queryClient.invalidateQueries({ queryKey: ['folio-detail', data.targetFolio.id] })
+      setSelectedFolioId(data.sourceFolio.id)
+      setSplitDialogOpen(false)
+      setSplitSelectedTxnIds(new Set())
+      setSplitDescription('')
+      toast.success(
+        `Split ${splitSelectedTxnIds.size} transaction${splitSelectedTxnIds.size !== 1 ? 's' : ''} to new ${FOLIO_TYPE_LABELS[splitFolioType]} folio`,
+      )
+    },
+    onError: () => toast.error('Failed to split folio'),
+  })
+
   const handleOpenVoidDialog = (target: VoidTarget) => {
     setVoidTarget(target)
     setVoidReason('')
@@ -640,6 +678,16 @@ export function FolioView() {
                 onVoidPayment={(id, desc, amt) => handleOpenVoidDialog({ type: 'payment', id, description: desc, amount: amt })}
                 onNotesChange={setFolioNotes}
                 folioNotes={folioNotes}
+                onSplitClick={() => {
+                  if (!activeFolio?.transactions.length) {
+                    toast.info('No charges to split on this folio')
+                    return
+                  }
+                  setSplitSelectedTxnIds(new Set())
+                  setSplitFolioType('company')
+                  setSplitDescription('')
+                  setSplitDialogOpen(true)
+                }}
               />
             </div>
           </div>
@@ -878,6 +926,163 @@ export function FolioView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ─── 8. Split Folio Dialog ────────────────────────────── */}
+      <Dialog open={splitDialogOpen} onOpenChange={(open) => { setSplitDialogOpen(open); if (!open) setSplitSelectedTxnIds(new Set()) }}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SplitIcon className="size-5" />
+              Split Folio
+            </DialogTitle>
+            <DialogDescription>
+              Select charges to move to a new folio. The source folio balance will be recalculated.
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeFolio && (
+            <div className="flex flex-col gap-4 flex-1 min-h-0">
+              {/* Transaction list with checkboxes */}
+              <div className="rounded-lg border max-h-64 overflow-y-auto">
+                <div className="sticky top-0 bg-background/95 backdrop-sm border-b px-3 py-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Charges ({activeFolio.transactions.filter((t) => !isVoidedTransaction(t)).length} non-voided)
+                  </span>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => {
+                      const nonVoided = activeFolio.transactions.filter((t) => !isVoidedTransaction(t))
+                      const allIds = new Set(nonVoided.map((t) => t.id))
+                      if (splitSelectedTxnIds.size === allIds.size) {
+                        setSplitSelectedTxnIds(new Set())
+                      } else {
+                        setSplitSelectedTxnIds(allIds)
+                      }
+                    }}
+                  >
+                    {splitSelectedTxnIds.size === activeFolio.transactions.filter((t) => !isVoidedTransaction(t)).length
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </button>
+                </div>
+                <div className="divide-y">
+                  {activeFolio.transactions
+                    .filter((t) => !isVoidedTransaction(t))
+                    .map((txn) => (
+                      <label
+                        key={txn.id}
+                        className={cn(
+                          'flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/50 transition-colors',
+                          splitSelectedTxnIds.has(txn.id) && 'bg-primary/5',
+                        )}
+                      >
+                        <Checkbox
+                          checked={splitSelectedTxnIds.has(txn.id)}
+                          onCheckedChange={(checked) => {
+                            setSplitSelectedTxnIds((prev) => {
+                              const next = new Set(prev)
+                              if (checked) next.add(txn.id)
+                              else next.delete(txn.id)
+                              return next
+                            })
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium truncate">{txn.description}</span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
+                              {TRANSACTION_TYPE_LABELS[txn.transactionType] || txn.transactionType}
+                            </Badge>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDateTime(txn.createdAt)}
+                            {txn.outlet ? ` · ${txn.outlet}` : ''}
+                          </span>
+                        </div>
+                        <span className="text-sm font-semibold shrink-0">
+                          {formatCurrency(txn.totalAmount)}
+                        </span>
+                      </label>
+                    ))}
+                  {activeFolio.transactions.filter((t) => !isVoidedTransaction(t)).length === 0 && (
+                    <div className="px-3 py-8 text-center text-sm text-muted-foreground">
+                      No non-voided charges on this folio
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Split total */}
+              <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Selected Charges</span>
+                  <span className="font-medium">{splitSelectedTxnIds.size} transaction{splitSelectedTxnIds.size !== 1 ? 's' : ''}</span>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Amount to Split</span>
+                  <span className="text-lg font-bold text-primary">
+                    {formatCurrency(
+                      activeFolio.transactions
+                        .filter((t) => splitSelectedTxnIds.has(t.id))
+                        .reduce((sum, t) => sum + t.totalAmount, 0),
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Target folio type */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Target Folio Type *</Label>
+                <Select value={splitFolioType} onValueChange={setSplitFolioType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="company">Company</SelectItem>
+                    <SelectItem value="comp">Complimentary</SelectItem>
+                    <SelectItem value="master">Master</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Optional description */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">
+                  Description <span className="text-muted-foreground font-normal">(optional)</span>
+                </Label>
+                <Textarea
+                  placeholder="Reason for splitting this folio..."
+                  value={splitDescription}
+                  onChange={(e) => setSplitDescription(e.target.value)}
+                  rows={2}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setSplitDialogOpen(false)}
+              disabled={splitFolioMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => splitFolioMutation.mutate()}
+              disabled={splitSelectedTxnIds.size === 0 || splitFolioMutation.isPending}
+            >
+              {splitFolioMutation.isPending ? (
+                <><Loader2 className="size-4 mr-1.5 animate-spin" /> Splitting...</>
+              ) : (
+                <><Check className="size-4 mr-1.5" /> Split Folio</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1041,7 +1246,7 @@ function FolioDetailPanel({
   folio, loading, totalCharges, totalPayments, outstandingBalance,
   creditLimit, creditPct, currency, taxRate, activityTimeline,
   onBack, onViewGuestLedger, onViewInHouse, onChargeClick, onPaymentClick,
-  onVoidTransaction, onVoidPayment, onNotesChange, folioNotes,
+  onVoidTransaction, onVoidPayment, onNotesChange, folioNotes, onSplitClick,
 }: {
   folio: Folio
   loading: boolean
@@ -1062,6 +1267,7 @@ function FolioDetailPanel({
   onVoidPayment: (id: string, desc: string, amt: number) => void
   onNotesChange: (v: string) => void
   folioNotes: string
+  onSplitClick: () => void
 }) {
   const ratePerNight = folio.reservation.roomRate
 
@@ -1224,7 +1430,7 @@ function FolioDetailPanel({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="sm" variant="outline" onClick={() => toast.info('Split Folio — this feature allows distributing charges across multiple folios')}>
+                  <Button size="sm" variant="outline" onClick={onSplitClick}>
                     <SplitIcon className="size-4 mr-1.5" /> <span className="hidden sm:inline">Split Folio</span>
                   </Button>
                 </TooltipTrigger>

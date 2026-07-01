@@ -117,3 +117,128 @@ Stage Summary:
 - Neon glow effect on all buttons
 - Hamburger menus + checkboxes added to Departures and Settlement
 - Lint: 0 errors, 0 warnings
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Implement Split Folio feature (API + FolioView dialog + SettlementView multi-folio support)
+
+Work Log:
+- Created POST /api/folio/[id]/split API route with validation, transaction move, balance recalculation
+- Updated FolioView.tsx: replaced toast.info placeholder with real Split Folio dialog featuring:
+  - Checkbox list of non-voided charges with select all/deselect all
+  - Running total of selected charge amounts
+  - Target folio type selector (Company, Complimentary, Master)
+  - Optional description textarea
+  - splitFolioMutation with proper invalidation on success
+  - Added Checkbox, Loader2, Check, DialogDescription imports
+- Updated SettlementView.tsx to handle multiple folios per reservation:
+  - getOutstandingBalance now sums ALL folios' positive balances
+  - getLastPayment now searches across all folios' payments
+  - Added folioType to SettlementFolio interface
+  - Settlement dialog shows folio selector dropdown when >1 folio exists
+  - handleSettleClick defaults to first folio with positive balance
+  - handleProcessPayment uses selectedFolioId
+  - Batch settlement now iterates each folio individually
+  - selectedBalance computed from selected folio when chosen
+- Fixed pre-existing JSX parsing error in CheckInLookup.tsx line 665 (malformed fragment in InfoItem)
+
+Stage Summary:
+- Split Folio API: POST /api/folio/[id]/split validates input, creates new folio, moves transactions, recalculates both balances
+- FolioView: Full-featured split dialog with transaction selection, type picker, amount preview
+- SettlementView: Correctly aggregates all folio balances; settlement dialog allows choosing specific folio to pay
+
+---
+Task ID: 13
+Agent: Main Agent
+Task: Add cross-module cache invalidation to modules missing it
+
+Work Log:
+- Added 3 new qk entries to queryKeys.ts: housekeeping, pos, channelBookings
+- Added 2 new invalidation helpers to queryKeys.ts:
+  - afterRoomStatusChange — invalidates rooms, roomsBoard, roomsTypes, roomsAll, roomsCalendar, roomsVacant, vacantRooms, frontDeskDashboard, dashboard, housekeeping
+  - afterFolioCharge — invalidates folios, inHouse, departures, dashboard, frontDeskDashboard
+- Housekeeping InspectionView.tsx: Added updateTaskMutation calling POST /api/housekeeping (update-task-status action) with invalidate.afterRoomStatusChange in onSuccess for both Approve and Reject & Reassign buttons
+- POS RestaurantView.tsx: Converted PostToRoomDialog from toast-only placeholder to real mutation calling POST /api/pos (charge_to_room action) with invalidate.afterFolioCharge in onSuccess; added amount prop, controlled Select, loading state
+- POS BusinessCenterView.tsx: Converted EndRentalDialog "End & Charge" button from toast-only to real mutation with invalidate.afterFolioCharge in onSuccess
+- POS API route (route.ts): Added charge_to_room action that finds/creates folio by reservationId, posts FolioTransaction, recalculates balance
+- Channel Manager (BookingsView.tsx, ChannelsView.tsx): No mutations exist in views (read-only) — no changes needed
+- CRM GuestProfilesView.tsx: No mutations exist in view (read-only, no edit form) — no changes needed
+- Lint: 0 errors, 0 warnings
+
+Stage Summary:
+- queryKeys.ts: +3 qk entries, +2 invalidation helpers (afterRoomStatusChange, afterFolioCharge)
+- InspectionView: Approve/Reject now call real API + cross-invalidate rooms/dashboards/HK queries
+- Restaurant PostToRoomDialog: Now posts actual folio charges + cross-invalidates folios/in-house/departures/dashboards
+- BusinessCenter EndRentalDialog: Now posts actual folio charges + cross-invalidates same keys
+- Channel Manager & CRM: Skipped (no mutations in views to hook into)
+- Lint: 0 errors, 0 warnings (also fixed pre-existing CheckInLookup parse error)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Check-in page dual-column layout + Direct Check-in calendar summary
+
+Work Log:
+- Removed `max-w-2xl mx-auto` constraint from CheckInLookup Find Reservation mode
+- Converted Find Reservation to dual-column: Left (48%) = search input + results/arrivals list, Right (52%) = selected reservation detail card
+- Right column shows empty state with "Select a Reservation" prompt when nothing selected
+- Selected reservation detail includes: guest avatar, VIP badge, room/type badge, stay dates, rate, pax (red), source, total amount
+- Added mini Stay Calendar to right column showing check-in (green), stay (teal), check-out (red) days with legend
+- Added calendar summary to Direct Walk-in mode's right panel (between Stay and Available Room Types)
+- Calendar shows stay dates highlighted with amber/teal, today ringed in amber
+
+Stage Summary:
+- CheckInLookup now has proper dual-column layout in Find Reservation mode (lg breakpoint and above)
+- Both modes (Find Reservation and Direct Walk-in) have stay calendar summaries
+- Mobile still stacks vertically
+
+---
+Task ID: 7
+Agent: Subagent (full-stack-developer)
+Task: Split Folio functionality (API + UI dialog + multi-folio settlement)
+
+Work Log:
+- Created `src/app/api/folio/[id]/split/route.ts` — POST endpoint accepting transactionIds, folioType, description
+- Updated FolioView.tsx: replaced toast.info stub with real Split Folio Dialog (transaction selection, type picker, amount summary)
+- Updated SettlementView.tsx: getOutstandingBalance now sums ALL folios per reservation, dialog shows folio selector when multiple folios exist
+
+Stage Summary:
+- Split Folio API: POST /api/folio/[id]/split creates new folio and moves selected transactions
+- Split Folio UI: Checkbox list of charges, select/deselect all, target type selector, live total, mutation with invalidation
+- Settlement: Multi-folio aware — sums all folios, shows folio picker in settlement dialog
+
+---
+Task ID: 13
+Agent: Subagent (full-stack-developer)
+Task: Ensure all modules data tightly coupled via backend API
+
+Work Log:
+- Added 3 new qk entries: housekeeping, pos, channelBookings
+- Added 2 new invalidation helpers: afterRoomStatusChange, afterFolioCharge
+- Added invalidation to InspectionView.tsx: afterRoomStatusChange on Approve/Reject task
+- Added invalidation to RestaurantView.tsx: afterFolioCharge on Post Charge to Room
+- Added invalidation to BusinessCenterView.tsx: afterFolioCharge on End & Charge
+- Added charge_to_room action to POS API route
+
+Stage Summary:
+- Housekeeping task completion now propagates room status changes to Front Desk/Dashboard
+- POS room charges (restaurant, business center) now propagate to folio/dashboard/in-house views
+- Channel Manager and CRM views are read-only (no mutations to hook into)
+
+---
+Task ID: fix-split-scope
+Agent: Main Agent
+Task: Fix Split Folio dialog not opening (scope bug)
+
+Work Log:
+- Found root cause: Split Folio button was inside `FolioDetailPanel` (separate component) but referenced `activeFolio` and state setters from parent scope
+- Fix: Added `onSplitClick` prop to `FolioDetailPanel`, moved the condition+state logic to parent component
+- Added `onSplitClick` to both the type interface and destructuring pattern
+- Verified in browser: dialog now opens with full transaction list, select all, company/comp/master picker, amount summary
+
+Stage Summary:
+- Split Folio dialog now opens correctly
+- All 11 charges displayed with checkboxes, total NPR37,362 for selected item
+- Target folio type selector (Company/Complimentary/Master) working
+- Split button enables when transactions are selected

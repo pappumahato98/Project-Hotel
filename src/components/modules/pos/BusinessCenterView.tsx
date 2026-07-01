@@ -2,6 +2,8 @@
 import { toast } from 'sonner'
 
 import React, { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import {
   Monitor, Clock, DollarSign, Users, Plus, CreditCard, Printer,
   Phone, Truck, DoorOpen, Wifi,
@@ -23,6 +25,7 @@ import {
   usePosData, formatNPR, timeAgo,
   type BizService, type MeetingRoom, type ActiveRental,
 } from './pos-types'
+import { invalidate } from '@/lib/queryKeys'
 
 // ─── Category Icons ─────────────────────────────────────────────────
 function CategoryIcon({ category }: { category: BizService['category'] }) {
@@ -250,6 +253,28 @@ function EndRentalDialog({
   onClose: () => void
   rental: ActiveRental | null
 }) {
+  const queryClient = useQueryClient()
+  const [chargeTo, setChargeTo] = useState(`room-${rental?.roomNumber ?? ''}`)
+
+  const chargeMutation = useMutation({
+    mutationFn: async () => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'charge_to_room', amount: rental?.charges ?? 0, description: `${rental?.serviceName ?? 'Service'} - Business Center` }),
+      })
+    },
+    onSuccess: () => {
+      invalidate.afterFolioCharge(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      toast.success('Rental ended & charged to room')
+      onClose()
+    },
+    onError: () => {
+      toast.error('Failed to charge rental to room')
+    },
+  })
+
   if (!rental) return null
 
   return (
@@ -276,7 +301,7 @@ function EndRentalDialog({
           <Separator />
           <div>
             <Label className="text-sm font-medium">Charge To</Label>
-            <Select defaultValue={`room-${rental.roomNumber}`}>
+            <Select value={chargeTo} onValueChange={setChargeTo}>
               <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={`room-${rental.roomNumber}`}>Room {rental.roomNumber} — {rental.guestName}</SelectItem>
@@ -288,7 +313,12 @@ function EndRentalDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { toast.success('Rental ended & charged to room'); onClose() }}>End & Charge</Button>
+          <Button disabled={chargeMutation.isPending} onClick={() => chargeMutation.mutate()}>
+            {chargeMutation.isPending ? (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5" />
+            ) : null}
+            End & Charge
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

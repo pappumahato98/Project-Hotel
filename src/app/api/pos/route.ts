@@ -586,6 +586,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, orderId: splitOrderId, splitSubtotals })
     }
 
+    if (action === 'charge_to_room') {
+      const { reservationId, amount, description } = body
+
+      // Find folio for this reservation
+      let folio = await db.folio.findFirst({ where: { reservationId } })
+      if (!folio) {
+        const reservation = await db.reservation.findUnique({ where: { id: reservationId }, select: { guestId: true } })
+        if (!reservation) {
+          return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+        }
+        folio = await db.folio.create({ data: { reservationId, guestId: reservation.guestId } })
+      }
+
+      // Post charge to folio
+      const taxAmt = Math.round(amount * taxRateDecimal)
+      await db.folioTransaction.create({
+        data: {
+          folioId: folio.id,
+          transactionType: 'restaurant',
+          description: description || 'Restaurant charge',
+          amount,
+          taxAmount: taxAmt,
+          totalAmount: amount + taxAmt,
+          quantity: 1,
+          outlet: 'Restaurant',
+          postedBy: 'POS',
+        },
+      })
+
+      // Recalculate folio balance
+      const allCharges = await db.folioTransaction.findMany({ where: { folioId: folio.id }, select: { totalAmount: true } })
+      const allPayments = await db.folioPayment.findMany({ where: { folioId: folio.id }, select: { amount: true } })
+      const newBalance = allCharges.reduce((s, c) => s + c.totalAmount, 0) - allPayments.reduce((s, p) => s + p.amount, 0)
+      await db.folio.update({ where: { id: folio.id }, data: { balance: newBalance } })
+
+      broadcastEvent('pos:charge_to_room', { folioId: folio.id, amount, reservationId })
+      return NextResponse.json({ success: true, folioId: folio.id, amount })
+    }
+
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   } catch (error) {
     console.error('POS POST error:', error)

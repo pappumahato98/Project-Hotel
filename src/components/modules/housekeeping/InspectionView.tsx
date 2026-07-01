@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 
 import { useState } from 'react'
 import { apiFetch } from '@/lib/api'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { invalidate } from '@/lib/queryKeys'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -116,7 +117,25 @@ function InspectionDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const queryClient = useQueryClient()
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async (params: { id: string; status: string; inspectedBy?: string }) => {
+      return apiFetch('/api/housekeeping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update-task-status', ...params }),
+      })
+    },
+    onSuccess: () => {
+      invalidate.afterRoomStatusChange(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+    },
+    onError: () => {
+      toast.error('Failed to update task status')
+    },
+  })
 
   if (!task) return null
 
@@ -200,6 +219,7 @@ function InspectionDialog({
               variant="outline"
               className="flex-1 gap-2 border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40"
               onClick={() => {
+                updateTaskMutation.mutate({ id: task.id, status: 'in_progress' })
                 toast.info(`Room ${task.room.number} rejected & reassigned for cleaning`)
                 onOpenChange(false)
               }}
@@ -210,6 +230,7 @@ function InspectionDialog({
             <Button
               className="flex-1 gap-2"
               onClick={() => {
+                updateTaskMutation.mutate({ id: task.id, status: 'inspected', inspectedBy: 'Inspector' })
                 toast.success(`Room ${task.room.number} inspection passed`)
                 onOpenChange(false)
               }}
