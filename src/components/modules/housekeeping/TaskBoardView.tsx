@@ -260,7 +260,11 @@ function TaskDetailDialog({ task, open, onOpenChange }: { task: HkTask | null; o
 
   const updateStatusMutation = useMutation({
     mutationFn: (body: { id: string; status: string; inspectedBy?: string }) =>
-      apiFetch('/api/housekeeping', { method: 'POST', body }),
+      apiFetch('/api/housekeeping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, action: 'update-task-status' }),
+      }),
     onSuccess: () => {
       toast.success('Task status updated')
       queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
@@ -593,8 +597,14 @@ export function TaskBoardView() {
 
   // Row status change mutation
   const rowStatusMutation = useMutation({
-    mutationFn: ({ taskId, status }: { taskId: string | null; status: string }) =>
-      apiFetch('/api/housekeeping', { method: 'POST', body: { id: taskId, status } }),
+    mutationFn: ({ taskId, status, priority }: { taskId: string | null; status: string; priority?: string }) => {
+      if (!taskId) return Promise.reject(new Error('No active task'))
+      return apiFetch('/api/housekeeping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: taskId, status, priority, action: 'update-task-status' }),
+      })
+    },
     onSuccess: () => {
       toast.success('Status updated')
       queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
@@ -603,16 +613,16 @@ export function TaskBoardView() {
   })
 
   const bulkStatusMutation = useMutation({
-    mutationFn: ({ roomIds, status }: { roomIds: string[]; status: string }) =>
-      Promise.all(
-        roomIds.map((id) => {
-          const row = tableRows.find((r) => r.roomId === id)
-          return apiFetch('/api/housekeeping', {
-            method: 'POST',
-            body: { id: row?.hkTaskId || null, status },
-          })
-        })
-      ),
+    mutationFn: ({ roomIds, status }: { roomIds: string[]; status: string }) => {
+      const tasks = roomIds.map(id => tableRows.find(r => r.roomId === id))
+        .filter((r): r is NonNullable<typeof r> => !!r?.hkTaskId)
+      if (tasks.length === 0) return Promise.reject(new Error('No tasks to update'))
+      return Promise.all(tasks.map(row => apiFetch('/api/housekeeping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: row.hkTaskId, status, action: 'update-task-status' }),
+      })))
+    },
     onSuccess: () => {
       toast.success(`${selectedRows.size} rooms updated`)
       setSelectedRows(new Set())
@@ -624,7 +634,7 @@ export function TaskBoardView() {
   const handleRowStatusChange = (roomId: string, taskId: string | null, newStatus: string) => {
     if (newStatus === 'rush') {
       // Priority change via task update
-      rowStatusMutation.mutate({ taskId, status: 'in_progress' })
+      rowStatusMutation.mutate({ taskId, status: '', priority: 'rush' })
       toast.info(`Priority set to Rush for room ${tableRows.find((r) => r.roomId === roomId)?.roomNumber}`)
       return
     }

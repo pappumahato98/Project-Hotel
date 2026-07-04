@@ -126,10 +126,13 @@ export async function POST(request: Request) {
     }
 
     if (action === 'update-task-status') {
-      const { id, status, inspectedBy } = body
+      const { id, status, priority, inspectedBy } = body
+      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
 
-      const updateData: Prisma.HkTaskUpdateInput = { status }
+      const updateData: Prisma.HkTaskUpdateInput = {}
+      if (status) updateData.status = status
       if (inspectedBy) updateData.inspectedBy = inspectedBy
+      if (priority) updateData.priority = priority
       if (status === 'inspected' || status === 'cleaned') updateData.completedTime = new Date()
 
       const task = await db.hkTask.update({
@@ -137,6 +140,16 @@ export async function POST(request: Request) {
         data: updateData,
       })
 
+      return NextResponse.json(task)
+    }
+
+    // Legacy fallback: if no action but id+status present, treat as update-task-status
+    if (!action && body.id && body.status) {
+      const { id, status } = body
+      const task = await db.hkTask.update({
+        where: { id },
+        data: { status },
+      })
       return NextResponse.json(task)
     }
 
