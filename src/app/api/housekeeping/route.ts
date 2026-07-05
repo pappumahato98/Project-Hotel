@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 
+// Force recompile for new Prisma client model (HkInspectionAudit)
+
 // ─── Settings helper ──────────────────────────────────────
 async function getSettingsMap() {
   const rows = await db.systemSetting.findMany()
@@ -37,6 +39,22 @@ export async function GET(request: Request) {
       })
 
       return NextResponse.json(items)
+    }
+
+    // Inspection audit history
+    if (section === 'inspection-audit') {
+      const taskId = searchParams.get('taskId')
+      const roomId = searchParams.get('roomId')
+      const where: Prisma.HkInspectionAuditWhereInput = {}
+      if (taskId) where.hkTaskId = taskId
+      if (roomId) where.roomId = roomId
+
+      const audits = await db.hkInspectionAudit.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      })
+      return NextResponse.json(audits)
     }
 
     // Tasks section (default)
@@ -87,12 +105,13 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Create a lost & found item
+// POST: Various housekeeping actions
 export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { action } = body
 
+    // ─── Create Lost & Found ─────────────────────────────
     if (action === 'create-lost-found') {
       const { itemName, category, roomId, storageLocation, foundBy, description } = body
 
@@ -110,6 +129,7 @@ export async function POST(request: Request) {
       return NextResponse.json(item, { status: 201 })
     }
 
+    // ─── Claim Lost & Found ──────────────────────────────
     if (action === 'claim-lost-found') {
       const { id, claimedBy } = body
 
@@ -125,6 +145,116 @@ export async function POST(request: Request) {
       return NextResponse.json(item)
     }
 
+    // ─── Reject & Reassign (with audit trail) ────────────
+    if (action === 'reject-inspection') {
+      const { id, performedBy, reason, checklist, photos } = body
+      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
+      if (!performedBy) return NextResponse.json({ error: 'Performer info is required' }, { status: 400 })
+
+      // Get the task for room info
+      const existingTask = await db.hkTask.findUnique({
+        where: { id },
+        include: { room: { select: { id: true, number: true } } },
+      })
+      if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+
+      // Update task back to in_progress
+      const task = await db.hkTask.update({
+        where: { id },
+        data: { status: 'in_progress' },
+      })
+
+      // Create audit record
+      await db.hkInspectionAudit.create({
+        data: {
+          hkTaskId: id,
+          roomId: existingTask.room.id,
+          roomNumber: existingTask.room.number,
+          action: 'reject_reassign',
+          performedBy,
+          reason: reason || null,
+          checklistJson: checklist ? JSON.stringify(checklist) : null,
+          photosJson: photos ? JSON.stringify(photos) : null,
+        },
+      })
+
+      return NextResponse.json(task)
+    }
+
+    // ─── Approve Inspection (with audit trail) ───────────
+    if (action === 'approve-inspection') {
+      const { id, performedBy, checklist, photos } = body
+      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
+
+      const existingTask = await db.hkTask.findUnique({
+        where: { id },
+        include: { room: { select: { id: true, number: true } } },
+      })
+      if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+
+      // Update task to inspected
+      const task = await db.hkTask.update({
+        where: { id },
+        data: {
+          status: 'inspected',
+          inspectedBy: performedBy || 'Inspector',
+          completedTime: new Date(),
+        },
+      })
+
+      // Create audit record
+      await db.hkInspectionAudit.create({
+        data: {
+          hkTaskId: id,
+          roomId: existingTask.room.id,
+          roomNumber: existingTask.room.number,
+          action: 'approve',
+          performedBy: performedBy || 'Inspector',
+          checklistJson: checklist ? JSON.stringify(checklist) : null,
+          photosJson: photos ? JSON.stringify(photos) : null,
+        },
+      })
+
+      return NextResponse.json(task)
+    }
+
+    // ─── Force Mutation (with audit trail) ───────────────
+    if (action === 'force-mutation') {
+      const { id, performedBy, status, priority, reason } = body
+      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
+
+      const existingTask = await db.hkTask.findUnique({
+        where: { id },
+        include: { room: { select: { id: true, number: true } } },
+      })
+      if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+
+      const updateData: Prisma.HkTaskUpdateInput = {}
+      if (status) updateData.status = status
+      if (priority) updateData.priority = priority
+      if (status === 'inspected' || status === 'cleaned') updateData.completedTime = new Date()
+
+      const task = await db.hkTask.update({
+        where: { id },
+        data: updateData,
+      })
+
+      // Create audit record for forced action
+      await db.hkInspectionAudit.create({
+        data: {
+          hkTaskId: id,
+          roomId: existingTask.room.id,
+          roomNumber: existingTask.room.number,
+          action: 'force_mutation',
+          performedBy: performedBy || 'Unknown',
+          reason: reason || `Forced status change to ${status || priority} on occupied room`,
+        },
+      })
+
+      return NextResponse.json(task)
+    }
+
+    // ─── Update Task Status (standard) ───────────────────
     if (action === 'update-task-status') {
       const { id, status, priority, inspectedBy } = body
       if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })

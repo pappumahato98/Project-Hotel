@@ -357,6 +357,19 @@ model HkTask {
   room          Room     @relation(fields: [roomId], references: [id])
 }
 
+model HkInspectionAudit {
+  id            String   @id @default(cuid())
+  hkTaskId      String
+  roomId        String
+  roomNumber    String
+  action        String   // reject_reassign, approve, force_mutation
+  performedBy   String   // user name who did the action
+  reason        String?  // why notes (required for reject)
+  checklistJson String?  // JSON snapshot of inspection checklist
+  photosJson    String?  // JSON array of captured photo base64 or URLs
+  createdAt     DateTime @default(now())
+}
+
 model LostFound {
   id            String   @id @default(cuid())
   roomId        String?
