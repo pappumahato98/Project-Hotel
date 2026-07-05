@@ -311,9 +311,40 @@ Stage Summary:
 - PROJECT_STATE.md updated to comprehensive 20-section document
 - Captures complete project state for any future session to continue without context loss
 - Ready to push to GitHub
+
+---
+Task ID: hk-fixes-3
+Agent: Main Agent
+Task: Fix 3 Housekeeping issues — occupied room guard, single room actions, inspection popup/photo/audit
+
+Work Log:
+- Verified Task A (Occupied Room Guard) was already implemented in TaskBoardView.tsx from previous session
+  - OccupiedWarningDialog, ForceMutatedBlockDialog, executeSingleStatusChange with occupied checks all present
+  - E2E verified: clicking "Clean" on occupied Room 108 triggers "Occupied Room Warning" dialog with Cancel/Force options
+- Fixed Task B: Added `onError` handlers to all 3 mutations in TaskBoardView.tsx (rowStatusMutation, forceMutation, bulkStatusMutation)
+  - E2E verified: clicking "Clean" on vacant Room 127 → POST /api/housekeeping 200 → status changed Assigned→Cleaning→Cleaned
+- Rewrote InspectionView.tsx (Tasks C+D+E):
+  - Task C (Popup sizing): Changed DialogContent to `max-w-[95vw] max-h-[90vh] flex flex-col` with fixed header/footer and ScrollArea body
+    - Verified: dialog height 505px fits within 577px viewport
+  - Task D (Photo Capture): Implemented real camera capture using MediaDevices API
+    - PhotoCaptureSection component with start/stop camera, capture to canvas, base64 JPEG storage
+    - Photo grid with hover-to-delete, counter on button
+  - Task E (Audit Trail): Changed Reject & Reassign to use `reject-inspection` API action (not `update-task-status`)
+    - Added reject reason textarea (required field) with two-step confirm flow
+    - Changed Approve to use `approve-inspection` API action with checklist data
+    - Added AuditTrailSection component that fetches from `?section=inspection-audit&roomId=`
+    - Shows action type (Approved/Rejected/Force Mutated), performer, date/time, reason
+    - Collapsible "Inspection History" section inside dialog
+- E2E verified audit trail: Rejected Room 127 with reason → audit record created in HkInspectionAudit table with performedBy="Inspector", reason="Bathroom not sanitized - hair found in shower drain", createdAt timestamp
+
+Stage Summary:
+- All 5 tasks (A-E) completed and verified
+- Occupied room guard: working (warning popup + force + blocked dialog)
+- Single room actions: working (POST 200, status updates, error toasts)
+- Inspection dialog: responsive sizing with scrollable content
+- Photo capture: real camera integration (MediaDevices API + canvas)
+- Audit trail: full implementation (reject/approve both create records, UI shows history)
+- Lint: 0 errors, 0 warnings
 __workspace_agent_exit_code=$?
 printf "\n<<workspace_agent_exit_code:1783231257987:%s>>\n" "$__workspace_agent_exit_code"
 __workspace_agent_exit_code=$?
-printf "\n<<workspace_agent_exit_code:1783231308119:%s>>\n" "$__workspace_agent_exit_code"
-__workspace_agent_exit_code=$?
-printf "\n<<workspace_agent_exit_code:1783231308119:%s>>\n" "$__workspace_agent_exit_code"

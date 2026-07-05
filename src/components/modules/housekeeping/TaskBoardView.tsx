@@ -735,6 +735,9 @@ export function TaskBoardView() {
       queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
     },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to update status')
+    },
   })
 
   // Force mutation (for occupied rooms)
@@ -761,6 +764,9 @@ export function TaskBoardView() {
       }
       queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to force-mutate room')
     },
   })
 
@@ -843,6 +849,9 @@ export function TaskBoardView() {
       setSelectedRows(new Set())
       queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
       queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to update room statuses')
     },
   })
 
