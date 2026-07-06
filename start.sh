@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 
 case "$MODE" in
   dev)
-    echo "Starting dev server (webpack) on port 3000..."
+    echo "Starting dev server (turbopack) on port 3000..."
     export NODE_OPTIONS="--max-old-space-size=4096"
     exec npx next dev -p 3000 -H 0.0.0.0
     ;;
@@ -44,7 +44,7 @@ case "$MODE" in
   *)
     echo "Usage: $0 {dev|prod|watchdog|build}"
     echo ""
-    echo "  dev      - Development server with hot reload (webpack)"
+    echo "  dev      - Development server with hot reload (turbopack)"
     echo "  prod     - Production server (fast, stable)"
     echo "  watchdog - Production server with auto-restart"
     echo "  build    - Build for production"
