@@ -1,0 +1,461 @@
+     1→   535→   535→   535→                                  variant="outline"
+     2→   536→   536→   536→                                  className="text-xs h-7"
+     3→   537→   537→   537→                                  onClick={() => handleRequestLateCheckout(dep)}
+     4→   538→   538→   538→                                >
+     5→   539→   539→   539→                                  <Clock className="size-3 mr-0.5" /> Late
+     6→   540→   540→   540→                                </Button>
+     7→   541→   541→   541→                                {/* Regular Checkout */}
+     8→   542→   542→   542→                                <Button
+     9→   543→   543→   543→                                  size="sm"
+    10→   544→   544→   544→                                  className="text-xs h-7"
+    11→   545→   545→   545→                                  onClick={() => handleQuickCheckout(dep)}
+    12→   546→   546→   546→                                >
+    13→   547→   547→   547→                                  <LogOut className="size-3 mr-0.5" /> Checkout
+    14→   548→   548→   548→                                </Button>
+    15→   549→   549→   549→                              </>
+    16→   550→   550→   550→                            )}
+    17→   551→   551→   551→                            {dep.status === 'checked_out' && (
+    18→   552→   552→   552→                              <Badge variant="outline" className="text-xs">
+    19→   553→   553→   553→                                <CheckCircle2 className="size-3 mr-1" />
+    20→   554→   554→   554→                                Checked Out
+    21→   555→   555→   555→                              </Badge>
+    22→   556→   556→   556→                            )}
+    23→   557→   557→   557→                          </div>
+    24→   558→   558→   558→                        </TableCell>
+    25→   559→   559→   559→                      </TableRow>
+    26→   560→   560→   560→                    )
+    27→   561→   561→   561→                  })
+    28→   562→   562→   562→                )}
+    29→   563→   563→   563→              </TableBody>
+    30→   564→   564→   564→            </Table>
+    31→   565→   565→   565→          </div>
+    32→   566→   566→   566→        </CardContent>
+    33→   567→   567→   567→      </Card>
+    34→   568→   568→   568→
+    35→   569→   569→   569→      {/* ─── Folio Review Dialog ─────────────────────────────────── */}
+    36→   570→   570→   570→      <Dialog open={folioDialogOpen} onOpenChange={setFolioDialogOpen}>
+    37→   571→   571→   571→        <DialogContent className="max-w-lg">
+    38→   572→   572→   572→          <DialogHeader>
+    39→   573→   573→   573→            <DialogTitle>Folio Review</DialogTitle>
+    40→   574→   574→   574→            <DialogDescription>
+    41→   575→   575→   575→              {selectedDeparture && (
+    42→   576→   576→   576→                <>Room {selectedDeparture.room.number} — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
+    43→   577→   577→   577→              )}
+    44→   578→   578→   578→            </DialogDescription>
+    45→   579→   579→   579→          </DialogHeader>
+    46→   580→   580→   580→          {selectedDeparture && (
+    47→   581→   581→   581→            <div className="space-y-4">
+    48→   582→   582→   582→              {/* Folio items table */}
+    49→   583→   583→   583→              <div className="rounded-lg border max-h-64 overflow-y-auto">
+    50→   584→   584→   584→                <Table>
+    51→   585→   585→   585→                  <TableHeader>
+    52→   586→   586→   586→                    <TableRow>
+    53→   587→   587→   587→                      <TableHead className="text-xs">Description</TableHead>
+    54→   588→   588→   588→                      <TableHead className="text-xs w-[90px]">Date</TableHead>
+    55→   589→   589→   589→                      <TableHead className="text-xs w-[90px] text-right">Amount</TableHead>
+    56→   590→   590→   590→                    </TableRow>
+    57→   591→   591→   591→                  </TableHeader>
+    58→   592→   592→   592→                  <TableBody>
+    59→   593→   593→   593→                    {/* Show mock folio items based on reservation data */}
+    60→   594→   594→   594→                    <TableRow>
+    61→   595→   595→   595→                      <TableCell className="text-sm">Room Charge ({selectedDeparture.room.type.name})</TableCell>
+    62→   596→   596→   596→                      <TableCell className="text-xs text-muted-foreground">{formatDate(selectedDeparture.checkIn)}</TableCell>
+    63→   597→   597→   597→                      <TableCell className="text-right text-sm font-medium text-red-600">
+    64→   598→   598→   598→                        {formatCurrency(selectedDeparture.totalAmount)}
+    65→   599→   599→   599→                      </TableCell>
+    66→   600→   600→   600→                    </TableRow>
+    67→   601→   601→   601→                    {selectedDeparture.paidAmount > 0 && (
+    68→   602→   602→   602→                      <TableRow>
+    69→   603→   603→   603→                        <TableCell className="text-sm">Advance Payment</TableCell>
+    70→   604→   604→   604→                        <TableCell className="text-xs text-muted-foreground">{formatDate(selectedDeparture.checkIn)}</TableCell>
+    71→   605→   605→   605→                        <TableCell className="text-right text-sm font-medium text-green-600">
+    72→   606→   606→   606→                          -{formatCurrency(selectedDeparture.paidAmount)}
+    73→   607→   607→   607→                      </TableCell>
+    74→   608→   608→   608→                      </TableRow>
+    75→   609→   609→   609→                    )}
+    76→   610→   610→   610→                    {(selectedDeparture.folios[0]?.items || []).map((item) => (
+    77→   611→   611→   611→                      <TableRow key={item.id}>
+    78→   612→   612→   612→                        <TableCell className="text-sm">{item.description}</TableCell>
+    79→   613→   613→   613→                        <TableCell className="text-xs text-muted-foreground">{formatDate(item.date)}</TableCell>
+    80→   614→   614→   614→                        <TableCell className={cn(
+    81→   615→   615→   615→                          'text-right text-sm font-medium',
+    82→   616→   616→   616→                          item.type === 'charge' ? 'text-red-600' : 'text-green-600',
+    83→   617→   617→   617→                        )}>
+    84→   618→   618→   618→                          {item.type === 'charge' ? '' : '-'}{formatCurrency(item.amount)}
+    85→   619→   619→   619→                        </TableCell>
+    86→   620→   620→   620→                      </TableRow>
+    87→   621→   621→   621→                    ))}
+    88→   622→   622→   622→                  </TableBody>
+    89→   623→   623→   623→                </Table>
+    90→   624→   624→   624→              </div>
+    91→   625→   625→   625→
+    92→   626→   626→   626→              {/* Totals */}
+    93→   627→   627→   627→              <div className="space-y-2 rounded-lg bg-muted/50 p-3">
+    94→   628→   628→   628→                <div className="flex justify-between text-sm">
+    95→   629→   629→   629→                  <span className="text-muted-foreground">Total Charges:</span>
+    96→   630→   630→   630→                  <span className="font-medium">{formatCurrency(selectedDeparture.totalAmount)}</span>
+    97→   631→   631→   631→                </div>
+    98→   632→   632→   632→                <div className="flex justify-between text-sm">
+    99→   633→   633→   633→                  <span className="text-muted-foreground">Total Payments:</span>
+   100→   634→   634→   634→                  <span className="font-medium text-green-600">-{formatCurrency(selectedDeparture.paidAmount)}</span>
+   101→   635→   635→   635→                </div>
+   102→   636→   636→   636→                <Separator />
+   103→   637→   637→   637→                <div className="flex justify-between text-sm font-bold">
+   104→   638→   638→   638→                  <span>Outstanding Balance:</span>
+   105→   639→   639→   639→                  <span className={cn(
+   106→   640→   640→   640→                    getBalance(selectedDeparture) > 0 ? 'text-red-600' : 'text-green-600',
+   107→   641→   641→   641→                  )}>
+   108→   642→   642→   642→                    {formatCurrency(getBalance(selectedDeparture))}
+   109→   643→   643→   643→                  </span>
+   110→   644→   644→   644→                </div>
+   111→   645→   645→   645→              </div>
+   112→   646→   646→   646→            </div>
+   113→   647→   647→   647→          )}
+   114→   648→   648→   648→          <DialogFooter>
+   115→   649→   649→   649→            <Button variant="outline" onClick={() => setFolioDialogOpen(false)}>Close</Button>
+   116→   650→   650→   650→            <Button onClick={handleFolioSettleCheckout}>
+   117→   651→   651→   651→              <ArrowRight className="size-4 mr-1.5" />
+   118→   652→   652→   652→              Settle &amp; Checkout
+   119→   653→   653→   653→            </Button>
+   120→   654→   654→   654→          </DialogFooter>
+   121→   655→   655→   655→        </DialogContent>
+   122→   656→   656→   656→      </Dialog>
+   123→   657→   657→   657→
+   124→   658→   658→   658→      {/* ─── Late Checkout Dialog ───────────────────────────────── */}
+   125→   659→   659→   659→      <Dialog open={lateCheckoutDialogOpen} onOpenChange={setLateCheckoutDialogOpen}>
+   126→   660→   660→   660→        <DialogContent className="max-w-md">
+   127→   661→   661→   661→          <DialogHeader>
+   128→   662→   662→   662→            <DialogTitle>Request Late Checkout</DialogTitle>
+   129→   663→   663→   663→            <DialogDescription>
+   130→   664→   664→   664→              {selectedDeparture && (
+   131→   665→   665→   665→                <>Room {selectedDeparture.room.number} — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
+   132→   666→   666→   666→              )}
+   133→   667→   667→   667→            </DialogDescription>
+   134→   668→   668→   668→          </DialogHeader>
+   135→   669→   669→   669→          {selectedDeparture && (
+   136→   670→   670→   670→            <div className="space-y-4">
+   137→   671→   671→   671→              <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+   138→   672→   672→   672→                <p className="font-medium">Current checkout: {formatTime(selectedDeparture.checkOut)}</p>
+   139→   673→   673→   673→                <p className="text-muted-foreground">Room rate: {formatCurrency(selectedDeparture.roomRate)}/night</p>
+   140→   674→   674→   674→              </div>
+   141→   675→   675→   675→
+   142→   676→   676→   676→              <RadioGroup value={lateCheckoutOption} onValueChange={(v) => setLateCheckoutOption(v as LateCheckoutOption)}>
+   143→   677→   677→   677→                {(Object.entries(LATE_CHECKOUT_OPTIONS) as [LateCheckoutOption, typeof LATE_CHECKOUT_OPTIONS[LateCheckoutOption]][]).map(([key, opt]) => {
+   144→   678→   678→   678→                  const fee = Math.round(selectedDeparture.roomRate * opt.surchargePercent / 100)
+   145→   679→   679→   679→                  return (
+   146→   680→   680→   680→                    <div
+   147→   681→   681→   681→                      key={key}
+   148→   682→   682→   682→                      className={cn(
+   149→   683→   683→   683→                        'flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors',
+   150→   684→   684→   684→                        lateCheckoutOption === key
+   151→   685→   685→   685→                          ? 'border-primary bg-primary/5'
+   152→   686→   686→   686→                          : 'hover:bg-muted/50',
+   153→   687→   687→   687→                      )}
+   154→   688→   688→   688→                      onClick={() => setLateCheckoutOption(key)}
+   155→   689→   689→   689→                    >
+   156→   690→   690→   690→                      <RadioGroupItem value={key} id={`late-${key}`} />
+   157→   691→   691→   691→                      <Label htmlFor={`late-${key}`} className="flex-1 cursor-pointer">
+   158→   692→   692→   692→                        <div className="flex items-center justify-between">
+   159→   693→   693→   693→                          <span className="font-medium">{opt.timeLabel}</span>
+   160→   694→   694→   694→                          <span className="text-sm text-muted-foreground">
+   161→   695→   695→   695→                            +{formatCurrency(fee)}
+   162→   696→   696→   696→                          </span>
+   163→   697→   697→   697→                        </div>
+   164→   698→   698→   698→                      </Label>
+   165→   699→   699→   699→                    </div>
+   166→   700→   700→   700→                  )
+   167→   701→   701→   701→                })}
+   168→   702→   702→   702→              </RadioGroup>
+   169→   703→   703→   703→
+   170→   704→   704→   704→              {/* Fee summary */}
+   171→   705→   705→   705→              <div className="rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 text-sm space-y-2">
+   172→   706→   706→   706→                <div className="flex items-start gap-2">
+   173→   707→   707→   707→                  <Clock className="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+   174→   708→   708→   708→                  <div>
+   175→   709→   709→   709→                    <p className="font-medium text-amber-700 dark:text-amber-300">Late Checkout Fee</p>
+   176→   710→   710→   710→                    <p className="text-amber-600 dark:text-amber-400">
+   177→   711→   711→   711→                      Extended to {LATE_CHECKOUT_OPTIONS[lateCheckoutOption].label} — Additional charge: <strong>{formatCurrency(lateCheckoutFee)}</strong>
+   178→   712→   712→   712→                    </p>
+   179→   713→   713→   713→                  </div>
+   180→   714→   714→   714→                </div>
+   181→   715→   715→   715→              </div>
+   182→   716→   716→   716→            </div>
+   183→   717→   717→   717→          )}
+   184→   718→   718→   718→          <DialogFooter>
+   185→   719→   719→   719→            <Button variant="outline" onClick={() => setLateCheckoutDialogOpen(false)}>Cancel</Button>
+   186→   720→   720→   720→            <Button
+   187→   721→   721→   721→              onClick={handleConfirmLateCheckout}
+   188→   722→   722→   722→              disabled={lateCheckoutMutation.isPending}
+   189→   723→   723→   723→            >
+   190→   724→   724→   724→              <Clock className="size-4 mr-1.5" />
+   191→   725→   725→   725→              {lateCheckoutMutation.isPending ? 'Processing...' : 'Confirm Late Checkout'}
+   192→   726→   726→   726→            </Button>
+   193→   727→   727→   727→          </DialogFooter>
+   194→   728→   728→   728→        </DialogContent>
+   195→   729→   729→   729→      </Dialog>
+   196→   730→   730→   730→
+   197→   731→   731→   731→      {/* ─── Payment Dialog ─────────────────────────────────────── */}
+   198→   732→   732→   732→      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+   199→   733→   733→   733→        <DialogContent className="max-w-md">
+   200→   734→   734→   734→          <DialogHeader>
+   201→   735→   735→   735→            <DialogTitle>Settle Balance</DialogTitle>
+   202→   736→   736→   736→            <DialogDescription>
+   203→   737→   737→   737→              {selectedDeparture && (
+   204→   738→   738→   738→                <>Record a payment for Room {selectedDeparture.room.number} — Outstanding: {formatCurrency(getBalance(selectedDeparture))}</>
+   205→   739→   739→   739→              )}
+   206→   740→   740→   740→            </DialogDescription>
+   207→   741→   741→   741→          </DialogHeader>
+   208→   742→   742→   742→          <div className="space-y-4">
+   209→   743→   743→   743→            {/* Payment Method */}
+   210→   744→   744→   744→            <div className="space-y-2">
+   211→   745→   745→   745→              <Label>Payment Method</Label>
+   212→   746→   746→   746→              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+   213→   747→   747→   747→                <SelectTrigger className="w-full">
+   214→   748→   748→   748→                  <SelectValue placeholder="Select payment method" />
+   215→   749→   749→   749→                </SelectTrigger>
+   216→   750→   750→   750→                <SelectContent>
+   217→   751→   751→   751→                  {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
+   218→   752→   752→   752→                    <SelectItem key={key} value={key}>
+   219→   753→   753→   753→                      {label}
+   220→   754→   754→   754→                    </SelectItem>
+   221→   755→   755→   755→                  ))}
+   222→   756→   756→   756→                </SelectContent>
+   223→   757→   757→   757→              </Select>
+   224→   758→   758→   758→            </div>
+   225→   759→   759→   759→
+   226→   760→   760→   760→            {/* Amount */}
+   227→   761→   761→   761→            <div className="space-y-2">
+   228→   762→   762→   762→              <Label htmlFor="payment-amount">Amount ({preferences.currency})</Label>
+   229→   763→   763→   763→              <Input
+   230→   764→   764→   764→                id="payment-amount"
+   231→   765→   765→   765→                type="number"
+   232→   766→   766→   766→                placeholder="Enter amount"
+   233→   767→   767→   767→                value={paymentAmount}
+   234→   768→   768→   768→                onChange={(e) => setPaymentAmount(e.target.value)}
+   235→   769→   769→   769→                min={1}
+   236→   770→   770→   770→              />
+   237→   771→   771→   771→            </div>
+   238→   772→   772→   772→
+   239→   773→   773→   773→            {/* Reference */}
+   240→   774→   774→   774→            <div className="space-y-2">
+   241→   775→   775→   775→              <Label htmlFor="payment-reference">Reference / Note</Label>
+   242→   776→   776→   776→              <Input
+   243→   777→   777→   777→                id="payment-reference"
+   244→   778→   778→   778→                type="text"
+   245→   779→   779→   779→                placeholder="e.g. Transaction ID, Receipt No."
+   246→   780→   780→   780→                value={paymentReference}
+   247→   781→   781→   781→                onChange={(e) => setPaymentReference(e.target.value)}
+   248→   782→   782→   782→              />
+   249→   783→   783→   783→            </div>
+   250→   784→   784→   784→          </div>
+   251→   785→   785→   785→          <DialogFooter>
+   252→   786→   786→   786→            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+   253→   787→   787→   787→            <Button
+   254→   788→   788→   788→              onClick={handleRecordPayment}
+   255→   789→   789→   789→              disabled={paymentMutation.isPending}
+   256→   790→   790→   790→            >
+   257→   791→   791→   791→              <Banknote className="size-4 mr-1.5" />
+   258→   792→   792→   792→              {paymentMutation.isPending ? 'Recording...' : 'Record Payment'}
+   259→   793→   793→   793→            </Button>
+   260→   794→   794→   794→          </DialogFooter>
+   261→   795→   795→   795→        </DialogContent>
+   262→   796→   796→   796→      </Dialog>
+   263→   797→   797→   797→
+   264→   798→   798→   798→      {/* ─── Checkout Confirmation Dialog ───────────────────────── */}
+   265→   799→   799→   799→      <Dialog open={checkoutDialogOpen} onOpenChange={setCheckoutDialogOpen}>
+   266→   800→   800→   800→        <DialogContent className="max-w-md">
+   267→   801→   801→   801→          <DialogHeader>
+   268→   802→   802→   802→            <DialogTitle>Confirm Checkout</DialogTitle>
+   269→   803→   803→   803→          </DialogHeader>
+   270→   804→   804→   804→          {selectedDeparture && (
+   271→   805→   805→   805→            <div className="space-y-4">
+   272→   806→   806→   806→              {/* Guest & Room Info */}
+   273→   807→   807→   807→              <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+   274→   808→   808→   808→                <p className="font-semibold">
+   275→   809→   809→   809→                  {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}
+   276→   810→   810→   810→                </p>
+   277→   811→   811→   811→                <p className="text-muted-foreground">
+   278→   812→   812→   812→                  Room {selectedDeparture.room.number} • {selectedDeparture.confirmationNo}
+   279→   813→   813→   813→                </p>
+   280→   814→   814→   814→                <p className="text-muted-foreground">
+   281→   815→   815→   815→                  {formatDate(selectedDeparture.checkIn)} → {formatDate(selectedDeparture.checkOut)}
+   282→   816→   816→   816→                </p>
+   283→   817→   817→   817→              </div>
+   284→   818→   818→   818→
+   285→   819→   819→   819→              {/* Folio Summary */}
+   286→   820→   820→   820→              <div className="space-y-2">
+   287→   821→   821→   821→                <h4 className="text-sm font-semibold">Folio Summary</h4>
+   288→   822→   822→   822→                <div className="grid grid-cols-2 gap-2 text-sm">
+   289→   823→   823→   823→                  <div className="flex justify-between">
+   290→   824→   824→   824→                    <span className="text-muted-foreground">Total Charges:</span>
+   291→   825→   825→   825→                    <span className="font-medium">{formatCurrency(selectedDeparture.totalAmount)}</span>
+   292→   826→   826→   826→                  </div>
+   293→   827→   827→   827→                  <div className="flex justify-between">
+   294→   828→   828→   828→                    <span className="text-muted-foreground">Payments:</span>
+   295→   829→   829→   829→                    <span className="font-medium">{formatCurrency(selectedDeparture.paidAmount)}</span>
+   296→   830→   830→   830→                  </div>
+   297→   831→   831→   831→                  <Separator className="col-span-2" />
+   298→   832→   832→   832→                  <div className="flex justify-between col-span-2">
+   299→   833→   833→   833→                    <span className="font-semibold">Outstanding Balance:</span>
+   300→   834→   834→   834→                    <span className={cn(
+   301→   835→   835→   835→                      'font-bold',
+   302→   836→   836→   836→                      getBalance(selectedDeparture) > 0 ? 'text-red-600' : 'text-green-600',
+   303→   837→   837→   837→                    )}>
+   304→   838→   838→   838→                      {formatCurrency(getBalance(selectedDeparture))}
+   305→   839→   839→   839→                    </span>
+   306→   840→   840→   840→                  </div>
+   307→   841→   841→   841→                </div>
+   308→   842→   842→   842→              </div>
+   309→   843→   843→   843→
+   310→   844→   844→   844→              {(getBalance(selectedDeparture)) > 0 && (
+   311→   845→   845→   845→                <div className="rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2">
+   312→   846→   846→   846→                  <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+   313→   847→   847→   847→                  <span>This guest has an outstanding balance. Please ensure all charges are settled before checkout.</span>
+   314→   848→   848→   848→                </div>
+   315→   849→   849→   849→              )}
+   316→   850→   850→   850→
+   317→   851→   851→   851→              <p className="text-xs text-muted-foreground">
+   318→   852→   852→   852→                This will change the reservation status to <strong>Checked Out</strong> and update the room status to <strong>Vacant Dirty</strong> for housekeeping.
+   319→   853→   853→   853→              </p>
+   320→   854→   854→   854→            </div>
+   321→   855→   855→   855→          )}
+   322→   856→   856→   856→          <DialogFooter className="flex-col gap-2 sm:flex-row">
+   323→   857→   857→   857→            <Button variant="outline" onClick={() => setCheckoutDialogOpen(false)}>Cancel</Button>
+   324→   858→   858→   858→            {selectedDeparture && getBalance(selectedDeparture) > 0 && (
+   325→   859→   859→   859→              <Button variant="outline" onClick={handleOpenPaymentDialog}>
+   326→   860→   860→   860→                <CreditCard className="size-4 mr-1.5" />
+   327→   861→   861→   861→                Settle Balance
+   328→   862→   862→   862→              </Button>
+   329→   863→   863→   863→            )}
+   330→   864→   864→   864→            <Button
+   331→   865→   865→   865→              variant="destructive"
+   332→   866→   866→   866→              onClick={confirmCheckout}
+   333→   867→   867→   867→              disabled={checkoutMutation.isPending}
+   334→   868→   868→   868→            >
+   335→   869→   869→   869→              <LogOut className="size-4 mr-1.5" />
+   336→   870→   870→   870→              {checkoutMutation.isPending ? 'Processing...' : 'Confirm Checkout'}
+   337→   871→   871→   871→            </Button>
+   338→   872→   872→   872→          </DialogFooter>
+   339→   873→   873→   873→        </DialogContent>
+   340→   874→   874→   874→      </Dialog>
+   341→   875→   875→   875→
+   342→   876→   876→   876→      {/* ─── Checkout Summary Receipt Dialog ────────────────────── */}
+   343→   877→   877→   877→      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+   344→   878→   878→   878→        <DialogContent className="max-w-md">
+   345→   879→   879→   879→          <DialogHeader>
+   346→   880→   880→   880→            <DialogTitle>Checkout Summary</DialogTitle>
+   347→   881→   881→   881→            <DialogDescription>Guest checkout receipt</DialogDescription>
+   348→   882→   882→   882→          </DialogHeader>
+   349→   883→   883→   883→          {receiptData && (
+   350→   884→   884→   884→            <div className="space-y-4">
+   351→   885→   885→   885→              {/* Guest & Room */}
+   352→   886→   886→   886→              <div className="rounded-lg bg-muted/50 p-4 space-y-2 text-sm">
+   353→   887→   887→   887→                <div className="flex justify-between">
+   354→   888→   888→   888→                  <span className="text-muted-foreground">Guest:</span>
+   355→   889→   889→   889→                  <span className="font-semibold">{receiptData.guest.firstName} {receiptData.guest.lastName}</span>
+   356→   890→   890→   890→                </div>
+   357→   891→   891→   891→                <div className="flex justify-between">
+   358→   892→   892→   892→                  <span className="text-muted-foreground">Room:</span>
+   359→   893→   893→   893→                  <span className="font-medium">{receiptData.room.number} ({receiptData.room.type.name})</span>
+   360→   894→   894→   894→                </div>
+   361→   895→   895→   895→                <div className="flex justify-between">
+   362→   896→   896→   896→                  <span className="text-muted-foreground">Check-in:</span>
+   363→   897→   897→   897→                  <span>{formatDate(receiptData.checkIn)} {formatTime(receiptData.checkIn)}</span>
+   364→   898→   898→   898→                </div>
+   365→   899→   899→   899→                <div className="flex justify-between">
+   366→   900→   900→   900→                  <span className="text-muted-foreground">Check-out:</span>
+   367→   901→   901→   901→                  <span>{formatDate(receiptData.checkOut)} {formatTime(receiptData.checkOut)}</span>
+   368→   902→   902→   902→                </div>
+   369→   903→   903→   903→                <div className="flex justify-between">
+   370→   904→   904→   904→                  <span className="text-muted-foreground">Confirmation:</span>
+   371→   905→   905→   905→                  <span className="font-mono text-xs">{receiptData.confirmationNo}</span>
+   372→   906→   906→   906→                </div>
+   373→   907→   907→   907→              </div>
+   374→   908→   908→   908→
+   375→   909→   909→   909→              {/* Charges Breakdown */}
+   376→   910→   910→   910→              <div className="space-y-2">
+   377→   911→   911→   911→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+   378→   912→   912→   912→                  <Receipt className="size-3.5" />
+   379→   913→   913→   913→                  Charges Breakdown
+   380→   914→   914→   914→                </h4>
+   381→   915→   915→   915→                <div className="rounded-lg border p-3 space-y-1.5 text-sm">
+   382→   916→   916→   916→                  <div className="flex justify-between">
+   383→   917→   917→   917→                    <span className="text-muted-foreground">Room Charge ({receiptData.room.type.name})</span>
+   384→   918→   918→   918→                    <span>{formatCurrency(receiptData.totalAmount)}</span>
+   385→   919→   919→   919→                  </div>
+   386→   920→   920→   920→                  {(receiptData.folios[0]?.items || [])
+   387→   921→   921→   921→                    .filter((item) => item.type === 'charge')
+   388→   922→   922→   922→                    .map((item) => (
+   389→   923→   923→   923→                      <div key={item.id} className="flex justify-between">
+   390→   924→   924→   924→                        <span className="text-muted-foreground">{item.description}</span>
+   391→   925→   925→   925→                        <span>{formatCurrency(item.amount)}</span>
+   392→   926→   926→   926→                      </div>
+   393→   927→   927→   927→                    ))}
+   394→   928→   928→   928→                </div>
+   395→   929→   929→   929→              </div>
+   396→   930→   930→   930→
+   397→   931→   931→   931→              {/* Payments Breakdown */}
+   398→   932→   932→   932→              <div className="space-y-2">
+   399→   933→   933→   933→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+   400→   934→   934→   934→                  <CreditCard className="size-3.5" />
+   401→   935→   935→   935→                  Payments
+   402→   936→   936→   936→                </h4>
+   403→   937→   937→   937→                <div className="rounded-lg border p-3 space-y-1.5 text-sm">
+   404→   938→   938→   938→                  {receiptData.paidAmount > 0 && (
+   405→   939→   939→   939→                    <div className="flex justify-between">
+   406→   940→   940→   940→                      <span className="text-muted-foreground">Advance Payment</span>
+   407→   941→   941→   941→                      <span className="text-green-600">-{formatCurrency(receiptData.paidAmount)}</span>
+   408→   942→   942→   942→                    </div>
+   409→   943→   943→   943→                  )}
+   410→   944→   944→   944→                  {(receiptData.folios[0]?.items || [])
+   411→   945→   945→   945→                    .filter((item) => item.type === 'payment')
+   412→   946→   946→   946→                    .map((item) => (
+   413→   947→   947→   947→                      <div key={item.id} className="flex justify-between">
+   414→   948→   948→   948→                        <span className="text-muted-foreground">{item.description}</span>
+   415→   949→   949→   949→                        <span className="text-green-600">-{formatCurrency(item.amount)}</span>
+   416→   950→   950→   950→                      </div>
+   417→   951→   951→   951→                    ))}
+   418→   952→   952→   952→                </div>
+   419→   953→   953→   953→              </div>
+   420→   954→   954→   954→
+   421→   955→   955→   955→              {/* Final Balance */}
+   422→   956→   956→   956→              <div className="rounded-lg bg-muted p-3">
+   423→   957→   957→   957→                <div className="flex justify-between text-base font-bold">
+   424→   958→   958→   958→                  <span>Final Balance:</span>
+   425→   959→   959→   959→                  <span className={cn(
+   426→   960→   960→   960→                    getBalance(receiptData) > 0 ? 'text-red-600' : 'text-green-600',
+   427→   961→   961→   961→                  )}>
+   428→   962→   962→   962→                    {formatCurrency(getBalance(receiptData))}
+   429→   963→   963→   963→                  </span>
+   430→   964→   964→   964→                </div>
+   431→   965→   965→   965→              </div>
+   432→   966→   966→   966→
+   433→   967→   967→   967→              {/* Room Status */}
+   434→   968→   968→   968→              <div className="flex items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800 p-3 text-sm">
+   435→   969→   969→   969→                <BedSingle className="size-4 text-yellow-600 dark:text-yellow-400" />
+   436→   970→   970→   970→                <span className="text-yellow-700 dark:text-yellow-300 font-medium">
+   437→   971→   971→   971→                  Room Status: Vacant Dirty — Marked for Housekeeping
+   438→   972→   972→   972→                </span>
+   439→   973→   973→   973→              </div>
+   440→   974→   974→   974→            </div>
+   441→   975→   975→   975→          )}
+   442→   976→   976→   976→          <DialogFooter className="flex-col gap-2 sm:flex-row">
+   443→   977→   977→   977→            <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
+   444→   978→   978→   978→              <X className="size-4 mr-1.5" />
+   445→   979→   979→   979→              Close
+   446→   980→   980→   980→            </Button>
+   447→   981→   981→   981→            <Button variant="outline" onClick={handlePrintReceipt}>
+   448→   982→   982→   982→              <Printer className="size-4 mr-1.5" />
+   449→   983→   983→   983→              Print Receipt
+   450→   984→   984→   984→            </Button>
+   451→   985→   985→   985→            <Button onClick={handleEmailReceipt}>
+   452→   986→   986→   986→              <Mail className="size-4 mr-1.5" />
+   453→   987→   987→   987→              Email Receipt
+   454→   988→   988→   988→            </Button>
+   455→   989→   989→   989→          </DialogFooter>
+   456→   990→   990→   990→        </DialogContent>
+   457→   991→   991→   991→      </Dialog>
+   458→   992→   992→   992→    </div>
+   459→   993→   993→   993→  )
+   460→   994→   994→   994→}
+   461→   995→   995→   995→

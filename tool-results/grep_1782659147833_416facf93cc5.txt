@@ -1,0 +1,211 @@
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:951:                    <SelectValue placeholder="Select check-out time" />
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:977:                        <SelectValue placeholder="Select preference (optional)" />
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:995:                        <SelectValue placeholder="Select pillow type (optional)" />
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1015:                      placeholder="e.g. 07:00"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1065:                    placeholder="First name"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1074:                    placeholder="Last name"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1083:                    placeholder="+977-98XX-XXXXXX"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1093:                    placeholder="guest@email.com"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1103:                      <SelectValue placeholder="Select nationality" />
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1134:                    placeholder="ID / Passport number"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1154:                      <SelectValue placeholder="Select room type" />
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1177:                    placeholder="Auto-filled from room type"
+/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:1368:                placeholder="Enter a reason for the cancellation..."
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:561:            placeholder="Search by guest name, room number, or confirmation #..."
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:673:                placeholder="Charge description"
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:683:                  placeholder="0"
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:721:                  placeholder="Optional"
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:729:                  placeholder="Optional"
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:775:                placeholder="0"
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:803:                placeholder="Reference # (optional)"
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:860:                    placeholder="Enter reason for voiding..."
+/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:1575:                  placeholder="Add notes about this folio... (e.g., special billing arrangements, disputes, etc.)"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:239:  // Room type data from API (not hardcoded)
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:643:              {/* Photo Placeholder */}
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:856:            placeholder="Search rooms by number, type, floor, or wing..."
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:984:                          <SelectValue placeholder="—" />
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1000:                          placeholder="First name"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1001:                          className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 pr-7 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1018:                        placeholder="Last name"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1019:                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1026:                          <SelectValue placeholder="Select" />
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1041:                        placeholder="Email address"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1042:                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1051:                        placeholder="Street address"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1052:                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1061:                        placeholder="Phone number"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1062:                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1101:                  placeholder="Enter ID or passport number"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1102:                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1113:                  placeholder="City"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1114:                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1123:                  placeholder="Country"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1124:                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1176:                      <SelectValue placeholder="Select check-out time" />
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1196:                      <SelectValue placeholder="Select pillow type (optional)" />
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1217:                      <SelectValue placeholder="Select preference (optional)" />
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1240:                    placeholder="e.g. 07:00"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1302:                  placeholder="Enter deposit amount (NPR)"
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1318:                    <SelectValue placeholder="Select payment method" />
+/home/z/my-project/src/components/modules/front-desk/CheckInView.tsx:1336:                  placeholder="Any special billing instructions or notes..."
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:975:                  <SelectValue placeholder="Select purpose" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:989:                placeholder="Any special requests..."
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1054:              placeholder="Search rooms..."
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1063:                <SelectValue placeholder="Room Type" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1078:                <SelectValue placeholder="Floor" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1234:                <SelectValue placeholder="Select rate plan" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1310:                <Input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} placeholder={String(Math.round(grandTotal))} className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1316:                    <SelectValue placeholder="Select method" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1336:              <Input value={advanceReference} onChange={e => setAdvanceReference(e.target.value)} placeholder="Optional reference" className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1362:                    <SelectValue placeholder="Select type" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1373:                <Input value={editingDoc.docNumber || ''} onChange={e => setEditingDoc(prev => ({ ...prev, docNumber: e.target.value }))} placeholder="Enter document number" className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInProcess.tsx:1379:                    <SelectValue placeholder="Select country" />
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:1153:                placeholder="Guest full name"
+/home/z/my-project/src/components/modules/front-desk/ReservationCalendarView.tsx:1180:                    <SelectValue placeholder="Select room" />
+/home/z/my-project/src/components/modules/front-desk/RoomRatePostingPage.tsx:408:            placeholder="Search guest, room, conf#..."
+/home/z/my-project/src/components/modules/front-desk/RoomRatePostingPage.tsx:620:                <Input type="number" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} placeholder={`Default: ${formatCurrency(postTarget.roomRate)}`} className="mt-1.5 h-9 text-sm" min={0} />
+/home/z/my-project/src/components/modules/front-desk/QuickSearch.tsx:93:          placeholder="Search guests, rooms, reservations..."
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:695:                          placeholder="Search by name, phone, or email..."
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:762:                          placeholder="First name"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:770:                          placeholder="Last name"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:778:                          placeholder="+977-98XXXXXXXX"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:787:                          placeholder="guest@email.com"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:989:                        <SelectValue placeholder="All Room Types" />
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1211:                        placeholder="e.g., PA1234567"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1219:                        placeholder="Full name as on document"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1227:                        placeholder="e.g., Nepal"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1251:                        placeholder="e.g., Ministry of Foreign Affairs"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1259:                        placeholder="Any additional notes..."
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1359:                        placeholder="0"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1382:                      placeholder="e.g., RCP-001234"
+/home/z/my-project/src/components/modules/front-desk/CheckInPage.tsx:1390:                      placeholder="Payment notes..."
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:594:                    {/* Show mock folio items based on reservation data */}
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:749:                  <SelectValue placeholder="Select payment method" />
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:767:                placeholder="Enter amount"
+/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:780:                placeholder="e.g. Transaction ID, Receipt No."
+/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx:387:            placeholder="Search guest name, room, or confirmation #..."
+/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx:731:                              <SelectValue placeholder="Select card type" />
+/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx:745:                          placeholder="Receipt #, check #, or note..."
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:946:            placeholder="Search by name, company, contact, or room no..."
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1043:            placeholder="From"
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1051:            placeholder="To"
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1463:                  <SelectValue placeholder="Select folio..." />
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1491:                  <SelectValue placeholder="Select type..." />
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1508:                placeholder="Enter description..."
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1520:                placeholder="0.00"
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1533:                placeholder="Optional reference..."
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1574:                  <SelectValue placeholder="Select folio..." />
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1602:                  <SelectValue placeholder="Select method..." />
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1623:                    <SelectValue placeholder="Select card type..." />
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1642:                placeholder="0.00"
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1655:                placeholder="Optional reference..."
+/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1726:                    placeholder="Enter reason for voiding this transaction..."
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:866:                      placeholder="Search by confirmation #, guest name, or room..."
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1091:                        <Input value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1095:                        <Input value={guestLastName} onChange={e => setGuestLastName(e.target.value)} placeholder="Last name" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1099:                        <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="guest@email.com" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1103:                        <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="+977-98XXXXXXXX" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1109:                            <SelectValue placeholder="Select nationality" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1468:                  <SelectValue placeholder="Select purpose" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1482:                placeholder="Any special requests..."
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1531:              placeholder="Search rooms..."
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1540:                <SelectValue placeholder="Room Type" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1555:                <SelectValue placeholder="Floor" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1671:                  <SelectValue placeholder="Select rate plan" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1689:                placeholder="Enter room rate"
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1757:                <Input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} placeholder={String(Math.round(grandTotal))} className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1763:                    <SelectValue placeholder="Select method" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1783:              <Input value={advanceReference} onChange={e => setAdvanceReference(e.target.value)} placeholder="Optional reference" className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1809:                    <SelectValue placeholder="Select type" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1820:                <Input value={editingDoc.docNumber || ''} onChange={e => setEditingDoc(prev => ({ ...prev, docNumber: e.target.value }))} placeholder="Enter document number" className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:1826:                    <SelectValue placeholder="Select country" />
+/home/z/my-project/src/components/modules/front-desk/GuestDirectoryView.tsx:602:                placeholder="Search name, email, phone..."
+/home/z/my-project/src/components/modules/front-desk/GuestDirectoryView.tsx:621:                    <SelectValue placeholder="VIP Level" />
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:666:                      placeholder="First name"
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:674:                      placeholder="Last name"
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:684:                      placeholder="Phone number"
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:692:                      placeholder="Email address"
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:714:                        <SelectValue placeholder="Select room type" />
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:818:                    placeholder="Any special requests..."
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:827:                    placeholder="Internal notes..."
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:863:                placeholder="Search guest, conf #, room, source, amount..."
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1577:                      <SelectValue placeholder="Select room type" />
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1729:              placeholder="Enter your note here..."
+/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1904:              placeholder="e.g. Guest requested cancellation, duplicate booking..."
+/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:369:            placeholder="Search guest or room..."
+/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:553:                  <SelectValue placeholder="Select room" />
+/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:583:                placeholder="e.g. Airport departure, trekking tour..."
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:1394:                  <SelectValue placeholder="All Floors" />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2092:                      <SelectValue placeholder="Select existing guest..." />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2107:                      <Input placeholder="First" className="h-9 text-sm" value={newForm.firstName} onChange={(e) => setNewForm((p) => ({ ...p, firstName: e.target.value }))} />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2111:                      <Input placeholder="Last" className="h-9 text-sm" value={newForm.lastName} onChange={(e) => setNewForm((p) => ({ ...p, lastName: e.target.value }))} />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2115:                      <Input placeholder="+977-" className="h-9 text-sm" value={newForm.phone} onChange={(e) => setNewForm((p) => ({ ...p, phone: e.target.value }))} />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2119:                      <Input placeholder="email@example.com" className="h-9 text-sm" value={newForm.email} onChange={(e) => setNewForm((p) => ({ ...p, email: e.target.value }))} />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2139:                          <SelectValue placeholder="Select room" />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2202:                      <Input type="number" min={0} className="h-9 text-sm" value={newForm.roomRate || ''} placeholder="e.g. 12000" onChange={(e) => setNewForm((p) => ({ ...p, roomRate: parseFloat(e.target.value) || 0 }))} />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2223:                  <Textarea placeholder="Special requests..." className="text-sm" value={newForm.specialRequests} onChange={(e) => setNewForm((p) => ({ ...p, specialRequests: e.target.value }))} rows={2} />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2278:                  placeholder="Enter your note..."
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2391:                        <SelectValue placeholder="Select a reason..." />
+/home/z/my-project/src/components/modules/front-desk/CalendarView.tsx:2408:                        placeholder="Enter the reason for this move..."
+/home/z/my-project/src/components/modules/front-desk/CheckInLookup.tsx:470:                    placeholder="Search by confirmation #, guest name, or room..."
+/home/z/my-project/src/components/modules/front-desk/CheckInLookup.tsx:534:                    <Input value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} placeholder="First name" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInLookup.tsx:538:                    <Input value={guestLastName} onChange={e => setGuestLastName(e.target.value)} placeholder="Last name" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInLookup.tsx:542:                    <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} placeholder="guest@email.com" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInLookup.tsx:546:                    <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} placeholder="+977-98XXXXXXXX" className="h-9 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/CheckInLookup.tsx:552:                        <SelectValue placeholder="Select nationality" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:374:              <SelectValue placeholder="Status" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:385:              <SelectValue placeholder="Priority" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:398:            placeholder="Search guest, phone, room..."
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:497:              <Input value={formGuestName} onChange={(e) => setFormGuestName(e.target.value)} placeholder="Full name" className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:502:                <Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="+977-..." className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:506:                <Input value={formEmail} onChange={(e) => setFormEmail(e.target.value)} placeholder="email@example.com" className="h-8 text-sm" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:512:                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Any room type" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:551:              <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="Special requests, VIP notes..." rows={2} className="text-sm" />
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:589:                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Any room type" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:653:              <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select room" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:597:                    <SelectValue placeholder="All Floors" />
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:1147:                    placeholder="Charge description"
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:1156:                    placeholder="0"
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:1207:                    <SelectValue placeholder={vacantRoomsData?.length === 0 ? 'No available rooms' : 'Choose a room'} />
+/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:1520:                  placeholder="Enter note (e.g., extra pillows requested, late checkout approved...)"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:952:                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:967:                  placeholder="John"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:976:                  placeholder="Doe"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:988:                  placeholder="john@company.com"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:999:                  placeholder="+977-1-..."
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1010:                  placeholder="+977-98..."
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1025:                  placeholder="Acme Corp"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1034:                  placeholder="123 Business St"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1043:                  placeholder="Kathmandu"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1049:                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1061:                  placeholder="Jane Smith"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1073:                  placeholder="contact@company.com"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1084:                  placeholder="+977-1-..."
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1095:                  placeholder="123456789"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1106:                  placeholder="www.company.com"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1121:                  placeholder="Agent full name"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1130:                  placeholder="Travel Agency Inc."
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1142:                  placeholder="agent@agency.com"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1153:                  placeholder="+977-..."
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1164:                  placeholder="IATA-XXXXX"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1189:                placeholder="Search guest by name, email, or phone..."
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1238:                  {/* Avatar placeholder */}
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1332:              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1350:              placeholder="Rajesh"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1366:              placeholder="Sharma"
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1378:            <Input className="h-9 text-xs" type="email" value={guestFields.email} onChange={(e) => updateGuestField('email', e.target.value)} placeholder="guest@email.com" />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1384:            <Input className="h-9 text-xs" value={guestFields.phone} onChange={(e) => updateGuestField('phone', e.target.value)} placeholder="+977-98..." />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1391:              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1404:              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1415:              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1423:            <Input className="h-9 text-xs" value={guestFields.idNumber} onChange={(e) => updateGuestField('idNumber', e.target.value)} placeholder="ID number" />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1429:            <Input className="h-9 text-xs" value={guestFields.address} onChange={(e) => updateGuestField('address', e.target.value)} placeholder="Street address" />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1433:            <Input className="h-9 text-xs" value={guestFields.city} onChange={(e) => updateGuestField('city', e.target.value)} placeholder="City" />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1438:              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1629:                <SelectTrigger className="h-8 text-xs w-[140px]"><SelectValue placeholder="Room Type" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1636:                <SelectTrigger className="h-8 text-xs w-[100px]"><SelectValue placeholder="Floor" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1643:                <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1766:                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select room type" /></SelectTrigger>
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1779:                    <SelectValue placeholder={ratePlansForType.length === 0 ? 'Select room type first' : 'Select rate plan'} />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1791:                <Input className="h-9 text-xs" type="number" min={0} value={roomRate || ''} onChange={(e) => setRoomRate(parseFloat(e.target.value) || 0)} placeholder="Override rate" />
+/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:1840:              placeholder="Any special requests or preferences..."

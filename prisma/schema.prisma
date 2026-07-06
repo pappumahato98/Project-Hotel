@@ -382,6 +382,8 @@ model LostFound {
   claimedBy     String?
   claimDate     DateTime?
   status        String   @default("found") // found, claimed, donated, disposed
+  identityVerified Boolean @default(false)
+  claimAttachment  String?  // base64 or filename of claimant ID photo
   createdAt     DateTime @default(now())
 }
 

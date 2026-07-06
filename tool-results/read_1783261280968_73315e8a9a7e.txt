@@ -1,0 +1,620 @@
+     1→'use client'
+     2→import { toast } from 'sonner'
+     3→
+     4→import { useState } from 'react'
+     5→import { apiFetch } from '@/lib/api'
+     6→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Input } from '@/components/ui/input'
+    11→import { Label } from '@/components/ui/label'
+    12→import { Textarea } from '@/components/ui/textarea'
+    13→import {
+    14→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    15→} from '@/components/ui/table'
+    16→import {
+    17→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    18→} from '@/components/ui/select'
+    19→import {
+    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    21→} from '@/components/ui/dialog'
+    22→import { ScrollArea } from '@/components/ui/scroll-area'
+    23→import { Separator } from '@/components/ui/separator'
+    24→import { Checkbox } from '@/components/ui/checkbox'
+    25→import {
+    26→  PackageOpen, Plus, Search, Filter, Package, Hand, Gift, Trash2,
+    27→  CalendarDays, MapPin, User, Warehouse, Eye, Camera, X, Check, AlertCircle,
+    28→} from 'lucide-react'
+    29→import { StatusBadge } from '@/components/shared/status-badge'
+    30→import { cn } from '@/lib/utils'
+    31→import { format } from 'date-fns'
+    32→
+    33→// ── Types ────────────────────────────────────────────────────
+    34→interface LostFoundItem {
+    35→  id: string
+    36→  roomId: string | null
+    37→  itemName: string
+    38→  category: string
+    39→  description: string | null
+    40→  storageLocation: string | null
+    41→  foundBy: string
+    42→  foundDate: string
+    43→  claimedBy: string | null
+    44→  claimDate: string | null
+    45→  status: string
+    46→  identityVerified: boolean
+    47→  claimAttachment: string | null
+    48→  createdAt: string
+    49→}
+    50→
+    51→// ── Category Options ─────────────────────────────────────────
+    52→const CATEGORIES = [
+    53→  'electronics', 'clothing', 'jewelry', 'documents', 'keys', 'bags', 'books', 'other',
+    54→]
+    55→
+    56→function formatCategory(cat: string): string {
+    57→  return cat.charAt(0).toUpperCase() + cat.slice(1)
+    58→}
+    59→
+    60→const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
+    61→  found: Package,
+    62→  claimed: Hand,
+    63→  donated: Gift,
+    64→  disposed: Trash2,
+    65→}
+    66→
+    67→// ── View Item Dialog ─────────────────────────────────────────
+    68→function ViewItemDialog({ item, open, onOpenChange }: { item: LostFoundItem | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+    69→  if (!item) return null
+    70→  const StatusIcon = STATUS_ICON[item.status] || Package
+    71→  return (
+    72→    <Dialog open={open} onOpenChange={onOpenChange}>
+    73→      <DialogContent className="sm:max-w-lg max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto">
+    74→        <DialogHeader>
+    75→          <DialogTitle className="flex items-center gap-2">
+    76→            <StatusIcon className="h-5 w-5 text-primary" />
+    77→            {item.itemName}
+    78→          </DialogTitle>
+    79→          <DialogDescription>
+    80→            {formatCategory(item.category)} · {item.status === 'found' ? 'Unclaimed' : item.status === 'claimed' ? 'Claimed' : item.status}
+    81→          </DialogDescription>
+    82→        </DialogHeader>
+    83→        <div className="space-y-4 text-sm">
+    84→          {/* Description */}
+    85→          {item.description && (
+    86→            <div className="rounded-lg border p-3">
+    87→              <p className="text-xs text-muted-foreground mb-1">Description</p>
+    88→              <p>{item.description}</p>
+    89→            </div>
+    90→          )}
+    91→
+    92→          {/* Found Details */}
+    93→          <div className="grid grid-cols-2 gap-3">
+    94→            <div className="rounded-lg border p-3">
+    95→              <p className="text-xs text-muted-foreground mb-1">Found By</p>
+    96→              <p className="font-medium flex items-center gap-1.5">
+    97→                <User className="h-3.5 w-3.5" />
+    98→                {item.foundBy}
+    99→              </p>
+   100→            </div>
+   101→            <div className="rounded-lg border p-3">
+   102→              <p className="text-xs text-muted-foreground mb-1">Found Date & Time</p>
+   103→              <p className="font-medium flex items-center gap-1.5">
+   104→                <CalendarDays className="h-3.5 w-3.5" />
+   105→                {format(new Date(item.foundDate), 'MMM d, yyyy · hh:mm a')}
+   106→              </p>
+   107→            </div>
+   108→            {item.roomId && (
+   109→              <div className="rounded-lg border p-3">
+   110→                <p className="text-xs text-muted-foreground mb-1">Room</p>
+   111→                <p className="font-medium flex items-center gap-1.5">
+   112→                  <MapPin className="h-3.5 w-3.5" />
+   113→                  {item.roomId}
+   114→                </p>
+   115→              </div>
+   116→            )}
+   117→            {item.storageLocation && (
+   118→              <div className="rounded-lg border p-3">
+   119→                <p className="text-xs text-muted-foreground mb-1">Storage Location</p>
+   120→                <p className="font-medium flex items-center gap-1.5">
+   121→                  <Warehouse className="h-3.5 w-3.5" />
+   122→                  {item.storageLocation}
+   123→                </p>
+   124→              </div>
+   125→            )}
+   126→          </div>
+   127→
+   128→          {/* Claim Details (if claimed) */}
+   129→          {item.status === 'claimed' && (
+   130→            <>
+   131→              <Separator />
+   132→              <div className="space-y-3">
+   133→                <p className="font-semibold text-green-600 flex items-center gap-2">
+   134→                  <Check className="h-4 w-4" />
+   135→                  Claim Details
+   136→                </p>
+   137→                <div className="grid grid-cols-2 gap-3">
+   138→                  <div className="rounded-lg border p-3">
+   139→                    <p className="text-xs text-muted-foreground mb-1">Claimed By</p>
+   140→                    <p className="font-medium flex items-center gap-1.5">
+   141→                      <User className="h-3.5 w-3.5" />
+   142→                      {item.claimedBy}
+   143→                    </p>
+   144→                  </div>
+   145→                  <div className="rounded-lg border p-3">
+   146→                    <p className="text-xs text-muted-foreground mb-1">Claim Date</p>
+   147→                    <p className="font-medium flex items-center gap-1.5">
+   148→                      <CalendarDays className="h-3.5 w-3.5" />
+   149→                      {item.claimDate ? format(new Date(item.claimDate), 'MMM d, yyyy · hh:mm a') : '—'}
+   150→                    </p>
+   151→                  </div>
+   152→                </div>
+   153→                <div className={cn(
+   154→                  'flex items-center gap-2 rounded-lg border p-3',
+   155→                  item.identityVerified ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+   156→                )}>
+   157→                  {item.identityVerified ? (
+   158→                    <Check className="h-4 w-4 text-green-600" />
+   159→                  ) : (
+   160→                    <AlertCircle className="h-4 w-4 text-amber-600" />
+   161→                  )}
+   162→                  <span className={cn('text-sm font-medium', item.identityVerified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400')}>
+   163→                    {item.identityVerified ? 'Identity verified with ID' : 'Identity NOT verified'}
+   164→                  </span>
+   165→                </div>
+   166→                {item.claimAttachment && (
+   167→                  <div className="space-y-1.5">
+   168→                    <p className="text-xs text-muted-foreground font-medium">ID Proof Attachment</p>
+   169→                    <div className="rounded-lg border overflow-hidden max-w-[300px]">
+   170→                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+   171→                    </div>
+   172→                  </div>
+   173→                )}
+   174→              </div>
+   175→            </>
+   176→          )}
+   177→        </div>
+   178→      </DialogContent>
+   179→    </Dialog>
+   180→  )
+   181→}
+   182→
+   183→// ── Main Component ───────────────────────────────────────────
+   184→export function LostFoundView() {
+   185→  const queryClient = useQueryClient()
+   186→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   187→  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+   188→  const [searchQuery, setSearchQuery] = useState('')
+   189→  const [addOpen, setAddOpen] = useState(false)
+   190→  const [claimOpen, setClaimOpen] = useState(false)
+   191→  const [viewOpen, setViewOpen] = useState(false)
+   192→  const [selectedItem, setSelectedItem] = useState<LostFoundItem | null>(null)
+   193→
+   194→  // Add form state
+   195→  const [addForm, setAddForm] = useState({
+   196→    itemName: '',
+   197→    category: 'other',
+   198→    roomId: '',
+   199→    storageLocation: '',
+   200→    foundBy: '',
+   201→    description: '',
+   202→  })
+   203→
+   204→  // Claim form state
+   205→  const [claimForm, setClaimForm] = useState({
+   206→    claimedBy: '',
+   207→    identityVerified: false,
+   208→    claimAttachment: '' as string, // base64 of ID photo
+   209→  })
+   210→
+   211→  const { data, isLoading } = useQuery<LostFoundItem[]>({
+   212→    queryKey: ['lost-found'],
+   213→    queryFn: () => apiFetch('/api/housekeeping?section=lost-found'),
+   214→  })
+   215→
+   216→  const items = data || []
+   217→
+   218→  // Computed stats
+   219→  const totalItems = items.length
+   220→  const unclaimedItems = items.filter((i) => i.status === 'found').length
+   221→  const claimedThisMonth = items.filter((i) => {
+   222→    if (i.status !== 'claimed' || !i.claimDate) return false
+   223→    return new Date(i.claimDate).getMonth() === new Date().getMonth()
+   224→  }).length
+   225→
+   226→  // Filtered items
+   227→  const filteredItems = items.filter((item) => {
+   228→    if (statusFilter !== 'all' && item.status !== statusFilter) return false
+   229→    if (categoryFilter !== 'all' && item.category !== categoryFilter) return false
+   230→    if (searchQuery) {
+   231→      const q = searchQuery.toLowerCase()
+   232→      return (
+   233→        item.itemName.toLowerCase().includes(q) ||
+   234→        item.foundBy.toLowerCase().includes(q) ||
+   235→        item.roomId?.toLowerCase().includes(q) ||
+   236→        item.description?.toLowerCase().includes(q)
+   237→      )
+   238→    }
+   239→    return true
+   240→  })
+   241→
+   242→  const addMutation = useMutation({
+   243→    mutationFn: (params: typeof addForm) =>
+   244→      apiFetch('/api/housekeeping', {
+   245→        method: 'POST',
+   246→        headers: { 'Content-Type': 'application/json' },
+   247→        body: JSON.stringify({ action: 'create-lost-found', ...params }),
+   248→      }),
+   249→    onSuccess: () => {
+   250→      queryClient.invalidateQueries({ queryKey: ['lost-found'] })
+   251→      toast.success(`Found item "${addForm.itemName}" reported successfully`)
+   252→      setAddOpen(false)
+   253→      setAddForm({ itemName: '', category: 'other', roomId: '', storageLocation: '', foundBy: '', description: '' })
+   254→    },
+   255→    onError: (err: Error) => {
+   256→      toast.error(err.message || 'Failed to report item')
+   257→    },
+   258→  })
+   259→
+   260→  const claimMutation = useMutation({
+   261→    mutationFn: (params: { id: string; claimedBy: string; identityVerified: boolean; claimAttachment: string }) =>
+   262→      apiFetch('/api/housekeeping', {
+   263→        method: 'POST',
+   264→        headers: { 'Content-Type': 'application/json' },
+   265→        body: JSON.stringify({ action: 'claim-lost-found', ...params }),
+   266→      }),
+   267→    onSuccess: () => {
+   268→      queryClient.invalidateQueries({ queryKey: ['lost-found'] })
+   269→      toast.success(`Item "${selectedItem?.itemName}" claimed successfully`)
+   270→      setClaimOpen(false)
+   271→      setClaimForm({ claimedBy: '', identityVerified: false, claimAttachment: '' })
+   272→      setSelectedItem(null)
+   273→    },
+   274→    onError: (err: Error) => {
+   275→      toast.error(err.message || 'Failed to claim item')
+   276→    },
+   277→  })
+   278→
+   279→  if (isLoading) {
+   280→    return (
+   281→      <div className="space-y-4">
+   282→        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+   283→          {Array.from({ length: 3 }).map((_, i) => (
+   284→            <div key={i} className="h-24 rounded-lg bg-muted animate-pulse" />
+   285→          ))}
+   286→        </div>
+   287→        <div className="h-96 rounded-lg bg-muted animate-pulse" />
+   288→      </div>
+   289→    )
+   290→  }
+   291→
+   292→  return (
+   293→    <div className="space-y-4">
+   294→      {/* Stats */}
+   295→      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+   296→        {[
+   297→          { label: 'Total Items', value: totalItems, icon: PackageOpen, color: 'text-foreground' },
+   298→          { label: 'Unclaimed', value: unclaimedItems, icon: Package, color: 'text-yellow-600' },
+   299→          { label: 'Claimed This Month', value: claimedThisMonth, icon: Hand, color: 'text-green-600' },
+   300→        ].map((stat) => (
+   301→          <Card key={stat.label} className="p-2.5">
+   302→            <div className="flex items-center justify-between">
+   303→              <div>
+   304→                <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
+   305→                <p className="text-lg font-bold tracking-tight">{stat.value}</p>
+   306→              </div>
+   307→              <stat.icon className={cn('h-8 w-8 opacity-20', stat.color)} />
+   308→            </div>
+   309→          </Card>
+   310→        ))}
+   311→      </div>
+   312→
+   313→      {/* Filters + Add Button */}
+   314→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+   315→        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+   316→          <div className="relative flex-1 sm:max-w-xs">
+   317→            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+   318→            <Input
+   319→              placeholder="Search items..."
+   320→              className="pl-9"
+   321→              value={searchQuery}
+   322→              onChange={(e) => setSearchQuery(e.target.value)}
+   323→            />
+   324→          </div>
+   325→          <Select value={statusFilter} onValueChange={setStatusFilter}>
+   326→            <SelectTrigger className="sm:w-[120px] h-7 text-xs">
+   327→              <Filter className="h-4 w-4 mr-2" />
+   328→              <SelectValue placeholder="Status" />
+   329→            </SelectTrigger>
+   330→            <SelectContent>
+   331→              <SelectItem value="all">All Statuses</SelectItem>
+   332→              <SelectItem value="found">Found</SelectItem>
+   333→              <SelectItem value="claimed">Claimed</SelectItem>
+   334→              <SelectItem value="donated">Donated</SelectItem>
+   335→              <SelectItem value="disposed">Disposed</SelectItem>
+   336→            </SelectContent>
+   337→          </Select>
+   338→          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   339→            <SelectTrigger className="sm:w-[120px] h-7 text-xs">
+   340→              <SelectValue placeholder="Category" />
+   341→            </SelectTrigger>
+   342→            <SelectContent>
+   343→              <SelectItem value="all">All Categories</SelectItem>
+   344→              {CATEGORIES.map((c) => (
+   345→                <SelectItem key={c} value={c}>{formatCategory(c)}</SelectItem>
+   346→              ))}
+   347→            </SelectContent>
+   348→          </Select>
+   349→        </div>
+   350→        <Button className="gap-2" onClick={() => setAddOpen(true)}>
+   351→          <Plus className="h-4 w-4" />
+   352→          Report Found Item
+   353→        </Button>
+   354→      </div>
+   355→
+   356→      {/* Items Table */}
+   357→      <Card className="py-0">
+   358→        <ScrollArea className="max-h-[480px]">
+   359→          <Table>
+   360→            <TableHeader>
+   361→              <TableRow>
+   362→                <TableHead className="w-[100px]">Date Found</TableHead>
+   363→                <TableHead>Item</TableHead>
+   364→                <TableHead className="hidden md:table-cell">Category</TableHead>
+   365→                <TableHead className="hidden sm:table-cell">Room</TableHead>
+   366→                <TableHead className="hidden lg:table-cell">Found By</TableHead>
+   367→                <TableHead>Status</TableHead>
+   368→                <TableHead className="hidden lg:table-cell">Storage</TableHead>
+   369→                <TableHead className="w-[80px]">Actions</TableHead>
+   370→              </TableRow>
+   371→            </TableHeader>
+   372→            <TableBody>
+   373→              {filteredItems.length === 0 ? (
+   374→                <TableRow>
+   375→                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+   376→                    <PackageOpen className="h-8 w-8 mx-auto opacity-20 mb-2" />
+   377→                    <p>No items found</p>
+   378→                  </TableCell>
+   379→                </TableRow>
+   380→              ) : (
+   381→                filteredItems.map((item) => {
+   382→                  const StatusIcon = STATUS_ICON[item.status] || Package
+   383→                  return (
+   384→                    <TableRow key={item.id}>
+   385→                      <TableCell className="text-xs">
+   386→                        {format(new Date(item.foundDate), 'MMM d')}
+   387→                      </TableCell>
+   388→                      <TableCell>
+   389→                        <div className="flex items-center gap-2">
+   390→                          <StatusIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+   391→                          <div>
+   392→                            <p className="font-medium text-xs">{item.itemName}</p>
+   393→                            {item.description && (
+   394→                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+   395→                                {item.description}
+   396→                              </p>
+   397→                            )}
+   398→                          </div>
+   399→                        </div>
+   400→                      </TableCell>
+   401→                      <TableCell className="hidden md:table-cell text-xs">
+   402→                        {formatCategory(item.category)}
+   403→                      </TableCell>
+   404→                      <TableCell className="hidden sm:table-cell text-xs">
+   405→                        {item.roomId || '—'}
+   406→                      </TableCell>
+   407→                      <TableCell className="hidden lg:table-cell text-xs">
+   408→                        {item.foundBy}
+   409→                      </TableCell>
+   410→                      <TableCell>
+   411→                        <StatusBadge status={item.status} />
+   412→                      </TableCell>
+   413→                      <TableCell className="hidden lg:table-cell text-xs">
+   414→                        {item.storageLocation || '—'}
+   415→                      </TableCell>
+   416→                      <TableCell>
+   417→                        <div className="flex items-center gap-1">
+   418→                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+   419→                            onClick={() => { setSelectedItem(item); setViewOpen(true) }} title="View Details">
+   420→                            <Eye className="h-3.5 w-3.5" />
+   421→                          </Button>
+   422→                          {item.status === 'found' && (
+   423→                            <Button variant="outline" size="sm" className="h-7 text-xs"
+   424→                              onClick={() => { setSelectedItem(item); setClaimOpen(true) }}>
+   425→                              Claim
+   426→                            </Button>
+   427→                          )}
+   428→                        </div>
+   429→                      </TableCell>
+   430→                    </TableRow>
+   431→                  )
+   432→                })
+   433→              )}
+   434→            </TableBody>
+   435→          </Table>
+   436→        </ScrollArea>
+   437→      </Card>
+   438→
+   439→      {/* View Item Dialog */}
+   440→      <ViewItemDialog item={selectedItem} open={viewOpen} onOpenChange={setViewOpen} />
+   441→
+   442→      {/* Add Found Item Dialog */}
+   443→      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+   444→        <DialogContent className="sm:max-w-lg max-w-[calc(100vw-1rem)]">
+   445→          <DialogHeader>
+   446→            <DialogTitle>Report Found Item</DialogTitle>
+   447→            <DialogDescription>
+   448→              Record details about an item found in the hotel.
+   449→            </DialogDescription>
+   450→          </DialogHeader>
+   451→          <div className="space-y-4">
+   452→            <div className="grid gap-4 sm:grid-cols-2">
+   453→              <div className="space-y-2">
+   454→                <Label>Item Name *</Label>
+   455→                <Input
+   456→                  placeholder="e.g., iPhone 15 Pro"
+   457→                  value={addForm.itemName}
+   458→                  onChange={(e) => setAddForm((f) => ({ ...f, itemName: e.target.value }))}
+   459→                />
+   460→              </div>
+   461→              <div className="space-y-2">
+   462→                <Label>Category *</Label>
+   463→                <Select value={addForm.category} onValueChange={(v) => setAddForm((f) => ({ ...f, category: v }))}>
+   464→                  <SelectTrigger>
+   465→                    <SelectValue />
+   466→                  </SelectTrigger>
+   467→                  <SelectContent>
+   468→                    {CATEGORIES.map((c) => (
+   469→                      <SelectItem key={c} value={c}>{formatCategory(c)}</SelectItem>
+   470→                    ))}
+   471→                  </SelectContent>
+   472→                </Select>
+   473→              </div>
+   474→              <div className="space-y-2">
+   475→                <Label>Room Number</Label>
+   476→                <Input
+   477→                  placeholder="e.g., 301"
+   478→                  value={addForm.roomId}
+   479→                  onChange={(e) => setAddForm((f) => ({ ...f, roomId: e.target.value }))}
+   480→                />
+   481→              </div>
+   482→              <div className="space-y-2">
+   483→                <Label>Found By *</Label>
+   484→                <Input
+   485→                  placeholder="Staff name"
+   486→                  value={addForm.foundBy}
+   487→                  onChange={(e) => setAddForm((f) => ({ ...f, foundBy: e.target.value }))}
+   488→                />
+   489→              </div>
+   490→            </div>
+   491→            <div className="space-y-2">
+   492→              <Label>Storage Location</Label>
+   493→              <Input
+   494→                placeholder="e.g., Storage Room A, Shelf 3"
+   495→                value={addForm.storageLocation}
+   496→                onChange={(e) => setAddForm((f) => ({ ...f, storageLocation: e.target.value }))}
+   497→              />
+   498→            </div>
+   499→            <div className="space-y-2">
+   500→              <Label>Description</Label>
+   501→              <Textarea
+   502→                placeholder="Describe the item, color, condition..."
+   503→                value={addForm.description}
+   504→                onChange={(e) => setAddForm((f) => ({ ...f, description: e.target.value }))}
+   505→                rows={3}
+   506→              />
+   507→            </div>
+   508→          </div>
+   509→          <DialogFooter>
+   510→            <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
+   511→            <Button onClick={() => addMutation.mutate(addForm)} disabled={!addForm.itemName || !addForm.foundBy || addMutation.isPending}>
+   512→              {addMutation.isPending ? 'Submitting...' : 'Submit Report'}
+   513→            </Button>
+   514→          </DialogFooter>
+   515→        </DialogContent>
+   516→      </Dialog>
+   517→
+   518→      {/* Claim Item Dialog */}
+   519→      <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
+   520→        <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)]">
+   521→          <DialogHeader>
+   522→            <DialogTitle>Claim Item</DialogTitle>
+   523→            <DialogDescription>
+   524→              {selectedItem && `Process claim for "${selectedItem.itemName}"`}
+   525→            </DialogDescription>
+   526→          </DialogHeader>
+   527→          {selectedItem && (
+   528→            <div className="space-y-4">
+   529→              <div className="rounded-lg border p-3 space-y-2 text-sm">
+   530→                <div className="flex items-center gap-2">
+   531→                  <Package className="h-4 w-4 text-muted-foreground" />
+   532→                  <span className="font-medium">{selectedItem.itemName}</span>
+   533→                </div>
+   534→                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+   535→                  <MapPin className="h-3 w-3" />
+   536→                  <span>Found: {format(new Date(selectedItem.foundDate), 'MMM d, yyyy')}</span>
+   537→                  {selectedItem.roomId && (
+   538→                    <>
+   539→                      <span>·</span>
+   540→                      <span>Room {selectedItem.roomId}</span>
+   541→                    </>
+   542→                  )}
+   543→                </div>
+   544→              </div>
+   545→
+   546→              <div className="space-y-2">
+   547→                <Label>Claimed By *</Label>
+   548→                <Input
+   549→                  placeholder="Guest / person name"
+   550→                  value={claimForm.claimedBy}
+   551→                  onChange={(e) => setClaimForm((f) => ({ ...f, claimedBy: e.target.value }))}
+   552→                />
+   553→              </div>
+   554→
+   555→              <div className="flex items-start gap-3 rounded-lg border p-3">
+   556→                <label className="flex items-center gap-2 cursor-pointer">
+   557→                  <Checkbox
+   558→                    checked={claimForm.identityVerified}
+   559→                    onCheckedChange={(checked) =>
+   560→                      setClaimForm((f) => ({ ...f, identityVerified: !!checked }))
+   561→                    }
+   562→                  />
+   563→                  <span className="text-sm">Identity verified with ID</span>
+   564→                </label>
+   565→              </div>
+   566→
+   567→              <div className="space-y-2">
+   568→                <Label>ID Proof Attachment</Label>
+   569→                <div className="flex items-center gap-2">
+   570→                  <input
+   571→                    type="file"
+   572→                    accept="image/*"
+   573→                    className="hidden"
+   574→                    id="claim-attachment"
+   575→                    onChange={(e) => {
+   576→                      const file = e.target.files?.[0]
+   577→                      if (!file) return
+   578→                      const reader = new FileReader()
+   579→                      reader.onloadend = () => {
+   580→                        setClaimForm((f) => ({ ...f, claimAttachment: reader.result as string }))
+   581→                      }
+   582→                      reader.readAsDataURL(file)
+   583→                    }}
+   584→                  />
+   585→                  <Button type="button" variant="outline" className="gap-2" onClick={() => document.getElementById('claim-attachment')?.click()}>
+   586→                    <Camera className="h-4 w-4" />
+   587→                    {claimForm.claimAttachment ? 'Change Photo' : 'Capture/Upload ID'}
+   588→                  </Button>
+   589→                  {claimForm.claimAttachment && (
+   590→                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-red-500"
+   591→                      onClick={() => setClaimForm((f) => ({ ...f, claimAttachment: '' }))}>
+   592→                      <X className="h-3 w-3 mr-1" /> Remove
+   593→                    </Button>
+   594→                  )}
+   595→                </div>
+   596→                {claimForm.claimAttachment && (
+   597→                  <div className="rounded-md border overflow-hidden max-w-[200px]">
+   598→                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+   599→                  </div>
+   600→                )}
+   601→                <p className="text-xs text-muted-foreground">Take a photo or upload the claimant&apos;s ID for verification</p>
+   602→              </div>
+   603→            </div>
+   604→          )}
+   605→          <DialogFooter>
+   606→            <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
+   607→            <Button onClick={() => claimMutation.mutate({
+   608→              id: selectedItem!.id,
+   609→              claimedBy: claimForm.claimedBy,
+   610→              identityVerified: claimForm.identityVerified,
+   611→              claimAttachment: claimForm.claimAttachment,
+   612→            })} disabled={!claimForm.claimedBy || !claimForm.identityVerified || claimMutation.isPending}>
+   613→              {claimMutation.isPending ? 'Processing...' : 'Confirm Claim'}
+   614→            </Button>
+   615→          </DialogFooter>
+   616→        </DialogContent>
+   617→      </Dialog>
+   618→    </div>
+   619→  )
+   620→}

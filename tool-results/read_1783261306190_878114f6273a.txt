@@ -1,0 +1,1436 @@
+     1→'use client'
+     2→import { toast } from 'sonner'
+     3→
+     4→import { useState, useMemo, useCallback, useRef, Fragment } from 'react'
+     5→import { apiFetch } from '@/lib/api'
+     6→import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Checkbox } from '@/components/ui/checkbox'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Skeleton } from '@/components/ui/skeleton'
+    13→import {
+    14→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    15→} from '@/components/ui/dialog'
+    16→import { Textarea } from '@/components/ui/textarea'
+    17→import { Separator } from '@/components/ui/separator'
+    18→import {
+    19→  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+    20→} from '@/components/ui/table'
+    21→import {
+    22→  Popover, PopoverTrigger, PopoverContent,
+    23→} from '@/components/ui/popover'
+    24→import {
+    25→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+    26→} from '@/components/ui/dropdown-menu'
+    27→import {
+    28→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    29→} from '@/components/ui/select'
+    30→import { ScrollArea } from '@/components/ui/scroll-area'
+    31→import { StatusBadge } from '@/components/shared/status-badge'
+    32→import { cn } from '@/lib/utils'
+    33→import {
+    34→  Search, Filter, X, ChevronDown, BedDouble, Clock, User, AlertTriangle, Star,
+    35→  ClipboardCheck, Users, CheckCircle2, Check, Circle, Sparkles, Eye, Trash2,
+    36→  LayoutGrid, List, MoreHorizontal, PlayCircle, CheckCircle, ShieldCheck,
+    37→  ArrowUpCircle, XCircle, ShieldAlert, Camera, RotateCcw, Ban
+    38→} from 'lucide-react'
+    39→
+    40→// ── Types ────────────────────────────────────────────────────
+    41→interface HkTask {
+    42→  id: string
+    43→  roomId: string
+    44→  taskType: string
+    45→  status: string
+    46→  priority: string
+    47→  assignedTo: string | null
+    48→  scheduledTime: string
+    49→  completedTime: string | null
+    50→  estimatedMinutes: number
+    51→  notes: string | null
+    52→  room: {
+    53→    id: string
+    54→    number: string
+    55→    floor: number
+    56→    wing: string | null
+    57→    status: string
+    58→    type: { name: string; code: string }
+    59→  }
+    60→}
+    61→
+    62→interface HkSummary {
+    63→  total: number
+    64→  pending: number
+    65→  assigned: number
+    66→  inProgress: number
+    67→  cleaned: number
+    68→  inspected: number
+    69→  failed: number
+    70→}
+    71→
+    72→
+    73→interface RoomRow {
+    74→  roomId: string
+    75→  roomNumber: string
+    76→  floor: number
+    77→  wing: string | null
+    78→  roomTypeName: string
+    79→  roomTypeCode: string
+    80→  bedConfig: string
+    81→  maxOccupancy: number
+    82→  roomStatus: string
+    83→  hkDisplayStatus: string
+    84→  hkTaskId: string | null
+    85→  priority: string
+    86→  assignedTo: string | null
+    87→  taskNotes: string | null
+    88→  scheduledTime: string | null
+    89→  estimatedMinutes: number | null
+    90→  reservationStatus: string
+    91→  guestName: string | null
+    92→  specialRequests: string | null
+    93→  confirmationNo: string | null
+    94→  hasTask: boolean
+    95→}
+    96→
+    97→// ── HK Status Colors ─────────────────────────────────────────
+    98→function hkStatusBadge(status: string) {
+    99→  const map: Record<string, { classes: string; label: string }> = {
+   100→    clean: { classes: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800', label: 'Clean' },
+   101→    dirty: { classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Dirty' },
+   102→    cleaning: { classes: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Cleaning' },
+   103→    cleaned: { classes: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800', label: 'Cleaned' },
+   104→    change_over: { classes: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800', label: 'Change Over' },
+   105→    pending: { classes: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800', label: 'Pending' },
+   106→    assigned: { classes: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800', label: 'Assigned' },
+   107→    inspected: { classes: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800', label: 'Inspected' },
+   108→    failed: { classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Failed' },
+   109→    occupied: { classes: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Occupied' },
+   110→    out_of_order: { classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Out of Order' },
+   111→  }
+   112→  const s = map[status] || { classes: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: status }
+   113→  return <Badge variant="outline" className={cn('text-[11px] font-semibold px-2 py-0', s.classes)}>{s.label}</Badge>
+   114→}
+   115→
+   116→// ── Reservation Status Colors ────────────────────────────────
+   117→function resStatusBadge(status: string) {
+   118→  const map: Record<string, { classes: string; label: string }> = {
+   119→    occupied: { classes: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Occupied' },
+   120→    vacant: { classes: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-800', label: 'Vacant' },
+   121→    due_in: { classes: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-800', label: 'Due In' },
+   122→    confirmed: { classes: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800', label: 'Confirmed' },
+   123→    checked_out: { classes: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: 'Checked Out' },
+   124→    no_show: { classes: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', label: 'No Show' },
+   125→  }
+   126→  const s = map[status] || { classes: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: status }
+   127→  return <Badge variant="outline" className={cn('text-[11px] font-semibold px-2 py-0', s.classes)}>{s.label}</Badge>
+   128→}
+   129→
+   130→// ── Priority Indicator ───────────────────────────────────────
+   131→function PriorityDot({ priority }: { priority: string }) {
+   132→  const config: Record<string, { dot: string; label: string }> = {
+   133→    vip: { dot: 'bg-amber-500', label: 'VIP' },
+   134→    rush: { dot: 'bg-red-500', label: 'Rush' },
+   135→    high: { dot: 'bg-orange-500', label: 'High' },
+   136→    normal: { dot: 'bg-emerald-500', label: 'Normal' },
+   137→    low: { dot: 'bg-gray-400', label: 'Low' },
+   138→  }
+   139→  const c = config[priority] || config.normal
+   140→  return (
+   141→    <div className="flex items-center gap-1.5">
+   142→      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', c.dot)} />
+   143→      <span className="text-xs text-muted-foreground">{c.label}</span>
+   144→    </div>
+   145→  )
+   146→}
+   147→
+   148→// ── Helpers ──────────────────────────────────────────────────
+   149→function formatTaskType(type: string): string {
+   150→  const map: Record<string, string> = {
+   151→    checkout: 'Checkout', stayover: 'Stayover', turndown: 'Turndown',
+   152→    deep_clean: 'Deep Clean', maintenance: 'Maintenance',
+   153→  }
+   154→  return map[type] || type
+   155→}
+   156→
+   157→function formatTime(iso: string): string {
+   158→  const d = new Date(iso)
+   159→  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+   160→}
+   161→
+   162→function priorityColor(priority: string): string {
+   163→  switch (priority) {
+   164→    case 'vip': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+   165→    case 'rush': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800'
+   166→    case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800'
+   167→    default: return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+   168→  }
+   169→}
+   170→
+   171→const CLEANING_CHECKLIST = [
+   172→  'Strip bed linens', 'Replace with fresh linens', 'Empty trash bins', 'Clean bathroom surfaces',
+   173→  'Restock towels & amenities', 'Dust all surfaces', 'Vacuum/sweep floors', 'Clean windows & mirrors',
+   174→  'Check minibar & restock', 'Verify AC/TV functionality', 'Remove personal items left behind', 'Report any damages',
+   175→]
+   176→
+   177→// ── Occupied Room Warning Dialog ──────────────────────────────
+   178→function OccupiedWarningDialog({
+   179→  open,
+   180→  onOpenChange,
+   181→  occupiedRooms,
+   182→  actionLabel,
+   183→  onForce,
+   184→  onCancel,
+   185→}: {
+   186→  open: boolean
+   187→  onOpenChange: (open: boolean) => void
+   188→  occupiedRooms: { roomId: string; roomNumber: string; guestName: string | null }[]
+   189→  actionLabel: string
+   190→  onForce: () => void
+   191→  onCancel: () => void
+   192→}) {
+   193→  return (
+   194→    <Dialog open={open} onOpenChange={onOpenChange}>
+   195→      <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)]">
+   196→        <DialogHeader>
+   197→          <DialogTitle className="flex items-center gap-2 text-amber-600">
+   198→            <ShieldAlert className="h-5 w-5" />
+   199→            Occupied Room Warning
+   200→          </DialogTitle>
+   201→          <DialogDescription>
+   202→            The following rooms are currently occupied by guests.
+   203→          </DialogDescription>
+   204→        </DialogHeader>
+   205→        <div className="space-y-3">
+   206→          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 max-h-40 overflow-y-auto">
+   207→            <div className="space-y-2">
+   208→              {occupiedRooms.map((r) => (
+   209→                <div key={r.roomId} className="flex items-center justify-between text-sm">
+   210→                  <span className="font-semibold">Room {r.roomNumber}</span>
+   211→                  <span className="text-muted-foreground text-xs">{r.guestName || 'Guest'}</span>
+   212→                </div>
+   213→              ))}
+   214→            </div>
+   215→          </div>
+   216→          <p className="text-xs text-muted-foreground">
+   217→            Changing housekeeping status on occupied rooms may disturb guests. If you force this action, future mutations on these rooms will require a guest check-out or room transfer first.
+   218→          </p>
+   219→        </div>
+   220→        <DialogFooter className="gap-2 sm:gap-0">
+   221→          <Button variant="outline" onClick={onCancel}>
+   222→            <Ban className="h-4 w-4 mr-1.5" /> Cancel
+   223→          </Button>
+   224→          <Button variant="destructive" onClick={onForce}>
+   225→            <AlertTriangle className="h-4 w-4 mr-1.5" /> Force {actionLabel}
+   226→          </Button>
+   227→        </DialogFooter>
+   228→      </DialogContent>
+   229→    </Dialog>
+   230→  )
+   231→}
+   232→
+   233→// ── Force-Mutated Room Blocked Dialog ─────────────────────────
+   234→function ForceMutatedBlockDialog({
+   235→  open,
+   236→  onOpenChange,
+   237→  roomNumber,
+   238→  guestName,
+   239→}: {
+   240→  open: boolean
+   241→  onOpenChange: (open: boolean) => void
+   242→  roomNumber: string
+   243→  guestName: string | null
+   244→}) {
+   245→  return (
+   246→    <Dialog open={open} onOpenChange={onOpenChange}>
+   247→      <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)]">
+   248→        <DialogHeader>
+   249→          <DialogTitle className="flex items-center gap-2 text-red-600">
+   250→            <Ban className="h-5 w-5" />
+   251→            Action Blocked
+   252→          </DialogTitle>
+   253→          <DialogDescription>
+   254→            Room {roomNumber} was previously force-mutated while occupied.
+   255→          </DialogDescription>
+   256→        </DialogHeader>
+   257→        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 p-3 space-y-2">
+   258→          <p className="text-sm text-red-700 dark:text-red-300">
+   259→            {guestName ? `Guest "${guestName}" is still checked in.` : 'A guest is currently checked in.'}
+   260→          </p>
+   261→          <p className="text-xs text-muted-foreground">
+   262→            You must perform a <strong>Check-Out</strong> or <strong>Room Transfer</strong> for this room before making further housekeeping changes.
+   263→          </p>
+   264→        </div>
+   265→        <DialogFooter>
+   266→          <Button variant="outline" onClick={() => onOpenChange(false)}>
+   267→            Understood
+   268→          </Button>
+   269→        </DialogFooter>
+   270→      </DialogContent>
+   271→    </Dialog>
+   272→  )
+   273→}
+   274→
+   275→// ── Inline Row Action Buttons ─────────────────────────────────
+   276→function InlineRowActions({
+   277→  row,
+   278→  onStatusChange,
+   279→  onViewDetail,
+   280→  isForceMutated,
+   281→}: {
+   282→  row: RoomRow
+   283→  onStatusChange: (roomId: string, taskId: string | null, newStatus: string) => void
+   284→  onViewDetail: (roomId: string) => void
+   285→  isForceMutated: boolean
+   286→}) {
+   287→  const s = row.hkDisplayStatus
+   288→  return (
+   289→    <div className="flex items-center gap-0.5 flex-nowrap" onClick={(e) => e.stopPropagation()}>
+   290→      {/* View Details — always visible as separate button */}
+   291→      <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-7 sm:w-7 p-0 text-muted-foreground hover:text-foreground"
+   292→        onClick={() => onViewDetail(row.roomId)} title="View Details">
+   293→        <Eye className="h-3.5 w-3.5" />
+   294→      </Button>
+   295→
+   296→      {/* Three-dot menu for status actions */}
+   297→      <DropdownMenu>
+   298→        <DropdownMenuTrigger asChild>
+   299→          <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-7 sm:w-7 p-0 text-muted-foreground hover:text-foreground">
+   300→            <MoreHorizontal className="h-3.5 w-3.5" />
+   301→          </Button>
+   302→        </DropdownMenuTrigger>
+   303→        <DropdownMenuContent align="end" className="w-44">
+   304→          {(s === 'pending' || s === 'assigned') && (
+   305→            <DropdownMenuItem
+   306→              onClick={(e) => { e.preventDefault(); onStatusChange(row.roomId, row.hkTaskId, 'in_progress') }}
+   307→              disabled={isForceMutated}
+   308→              className="gap-2 text-xs text-sky-600 focus:text-sky-600 focus:bg-sky-50 dark:text-sky-400 dark:focus:bg-sky-950/40"
+   309→            >
+   310→              <PlayCircle className="h-3.5 w-3.5" /> Start Cleaning
+   311→            </DropdownMenuItem>
+   312→          )}
+   313→
+   314→          {(s === 'cleaning' || s === 'in_progress') && (
+   315→            <DropdownMenuItem
+   316→              onClick={(e) => { e.preventDefault(); onStatusChange(row.roomId, row.hkTaskId, 'cleaned') }}
+   317→              disabled={isForceMutated}
+   318→              className="gap-2 text-xs text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50 dark:text-emerald-400 dark:focus:bg-emerald-950/40"
+   319→            >
+   320→              <CheckCircle className="h-3.5 w-3.5" /> Mark Cleaned
+   321→            </DropdownMenuItem>
+   322→          )}
+   323→
+   324→          {s === 'cleaned' && (
+   325→            <DropdownMenuItem
+   326→              onClick={(e) => { e.preventDefault(); onStatusChange(row.roomId, row.hkTaskId, 'inspected') }}
+   327→              disabled={isForceMutated}
+   328→              className="gap-2 text-xs text-purple-600 focus:text-purple-600 focus:bg-purple-50 dark:text-purple-400 dark:focus:bg-purple-950/40"
+   329→            >
+   330→              <ShieldCheck className="h-3.5 w-3.5" /> Mark Inspected
+   331→            </DropdownMenuItem>
+   332→          )}
+   333→
+   334→          {s === 'failed' && (
+   335→            <DropdownMenuItem
+   336→              onClick={(e) => { e.preventDefault(); onStatusChange(row.roomId, row.hkTaskId, 'pending') }}
+   337→              disabled={isForceMutated}
+   338→              className="gap-2 text-xs text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:text-amber-400 dark:focus:bg-amber-950/40"
+   339→            >
+   340→              <RotateCcw className="h-3.5 w-3.5" /> Reset to Pending
+   341→            </DropdownMenuItem>
+   342→          )}
+   343→
+   344→          {/* Rush — always available (not blocked by force-mutated) */}
+   345→          <DropdownMenuItem
+   346→            onClick={(e) => { e.preventDefault(); onStatusChange(row.roomId, row.hkTaskId, 'rush') }}
+   347→            className="gap-2 text-xs text-red-500 focus:text-red-500 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40"
+   348→          >
+   349→            <AlertTriangle className="h-3.5 w-3.5" /> Set Rush Priority
+   350→          </DropdownMenuItem>
+   351→
+   352→          {/* Mark Failed — show for in_progress/cleaning/cleaned */}
+   353→          {(s === 'cleaning' || s === 'in_progress' || s === 'cleaned') && (
+   354→            <>
+   355→              <DropdownMenuSeparator />
+   356→              <DropdownMenuItem
+   357→                onClick={(e) => { e.preventDefault(); onStatusChange(row.roomId, row.hkTaskId, 'failed') }}
+   358→                disabled={isForceMutated}
+   359→                className="gap-2 text-xs text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40"
+   360→              >
+   361→                <XCircle className="h-3.5 w-3.5" /> Mark Failed
+   362→              </DropdownMenuItem>
+   363→            </>
+   364→          )}
+   365→        </DropdownMenuContent>
+   366→      </DropdownMenu>
+   367→
+   368→      {/* Locked badge */}
+   369→      {isForceMutated && (
+   370→        <Badge variant="outline" className="text-[9px] text-red-500 border-red-300 dark:border-red-700 shrink-0">
+   371→          <Ban className="h-2.5 w-2.5 mr-0.5" /> Locked
+   372→        </Badge>
+   373→      )}
+   374→    </div>
+   375→  )
+   376→}
+   377→
+   378→// ── Filter Dropdown Component ────────────────────────────────
+   379→function FilterDropdown({
+   380→  label,
+   381→  options,
+   382→  value,
+   383→  onValueChange,
+   384→}: {
+   385→  label: string
+   386→  options: { value: string; label: string }[]
+   387→  value: string
+   388→  onValueChange: (v: string) => void
+   389→}) {
+   390→  return (
+   391→    <Popover>
+   392→      <PopoverTrigger asChild>
+   393→        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
+   394→          {label}
+   395→          {value && (
+   396→            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+   397→          )}
+   398→          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+   399→        </Button>
+   400→      </PopoverTrigger>
+   401→      <PopoverContent className="w-40 p-1" align="start">
+   402→        <div className="space-y-0.5">
+   403→          {options.map((opt) => (
+   404→            <button
+   405→              key={opt.value}
+   406→              className={cn(
+   407→                'w-full text-left px-2 py-1.5 text-xs rounded-md transition-colors',
+   408→                value === opt.value
+   409→                  ? 'bg-primary text-primary-foreground'
+   410→                  : 'hover:bg-muted'
+   411→              )}
+   412→              onClick={() => onValueChange(value === opt.value ? '' : opt.value)}
+   413→            >
+   414→              {opt.label}
+   415→            </button>
+   416→          ))}
+   417→        </div>
+   418→      </PopoverContent>
+   419→    </Popover>
+   420→  )
+   421→}
+   422→
+   423→// ── Room Number Filter ────────────────────────────────────────
+   424→function RoomFilterDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+   425→  const [open, setOpen] = useState(false)
+   426→  const [input, setInput] = useState(value)
+   427→  return (
+   428→    <Popover open={open} onOpenChange={setOpen}>
+   429→      <PopoverTrigger asChild>
+   430→        <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs font-semibold">
+   431→          Room
+   432→          {value && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+   433→        </Button>
+   434→      </PopoverTrigger>
+   435→      <PopoverContent className="w-36 p-2" align="start">
+   436→        <Input
+   437→          placeholder="Room #..."
+   438→          value={input}
+   439→          onChange={(e) => setInput(e.target.value)}
+   440→          onKeyDown={(e) => { if (e.key === 'Enter') { onChange(input); setOpen(false) } }}
+   441→          className="h-7 text-xs"
+   442→          autoFocus
+   443→        />
+   444→        <div className="flex gap-1 mt-2">
+   445→          <Button size="sm" className="h-6 flex-1 text-[10px]" onClick={() => { onChange(input); setOpen(false) }}>Apply</Button>
+   446→          <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setInput(''); onChange(''); setOpen(false) }}>Clear</Button>
+   447→        </div>
+   448→      </PopoverContent>
+   449→    </Popover>
+   450→  )
+   451→}
+   452→
+   453→// ── Task Detail Dialog ────────────────────────────────────────
+   454→function TaskDetailDialog({
+   455→  task,
+   456→  open,
+   457→  onOpenChange,
+   458→}: {
+   459→  task: HkTask | null
+   460→  open: boolean
+   461→  onOpenChange: (open: boolean) => void
+   462→}) {
+   463→  const [checked, setChecked] = useState<Record<string, boolean>>({})
+   464→  const queryClient = useQueryClient()
+   465→
+   466→  const updateMutation = useMutation({
+   467→    mutationFn: (params: { id: string; status: string; inspectedBy?: string }) =>
+   468→      apiFetch('/api/housekeeping', {
+   469→        method: 'POST',
+   470→        headers: { 'Content-Type': 'application/json' },
+   471→        body: JSON.stringify({ action: 'update-task-status', ...params }),
+   472→      }),
+   473→    onSuccess: () => {
+   474→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   475→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   476→      toast.success('Status updated')
+   477→      onOpenChange(false)
+   478→    },
+   479→  })
+   480→
+   481→  if (!task) return null
+   482→
+   483→  const canStart = task.status === 'pending' || task.status === 'assigned'
+   484→  const canClean = task.status === 'in_progress' || task.status === 'cleaning'
+   485→  const canInspect = task.status === 'cleaned'
+   486→  const canReset = task.status === 'failed'
+   487→
+   488→  return (
+   489→    <Dialog open={open} onOpenChange={onOpenChange}>
+   490→      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+   491→        <DialogHeader>
+   492→          <DialogTitle className="flex items-center gap-2">
+   493→            <BedDouble className="h-5 w-5 text-primary" />
+   494→            Room {task.room.number} — Task Details
+   495→          </DialogTitle>
+   496→          <DialogDescription>
+   497→            Floor {task.room.floor}{task.room.wing ? ` · ${task.room.wing} Wing` : ''} · {task.room.type.name}
+   498→          </DialogDescription>
+   499→        </DialogHeader>
+   500→
+   501→        <div className="space-y-4">
+   502→          <div className="grid grid-cols-2 gap-3 text-sm">
+   503→            <div><span className="text-muted-foreground">Type:</span> <span className="font-medium ml-1">{formatTaskType(task.taskType)}</span></div>
+   504→            <div><span className="text-muted-foreground">Priority:</span> <Badge variant="outline" className={cn('ml-1 text-xs', priorityColor(task.priority))}>{task.priority}</Badge></div>
+   505→            <div><span className="text-muted-foreground">Assigned:</span> <span className="font-medium ml-1">{task.assignedTo || '—'}</span></div>
+   506→            <div><span className="text-muted-foreground">Est.:</span> <span className="font-medium ml-1">{task.estimatedMinutes} min</span></div>
+   507→          </div>
+   508→
+   509→          {task.notes && (
+   510→            <div className="rounded-lg border p-3 text-sm">
+   511→              <p className="text-muted-foreground text-xs mb-1">Notes</p>
+   512→              <p>{task.notes}</p>
+   513→            </div>
+   514→          )}
+   515→
+   516→          <div>
+   517→            <p className="text-sm font-semibold mb-2">Cleaning Checklist</p>
+   518→            <div className="rounded-lg border divide-y max-h-48 overflow-y-auto">
+   519→              {CLEANING_CHECKLIST.map((item, i) => (
+   520→                <label key={i} className="flex items-center gap-3 px-3 py-2 text-xs hover:bg-muted/50 cursor-pointer">
+   521→                  <Checkbox checked={checked[i] || false} onCheckedChange={() => setChecked((p) => ({ ...p, [i]: !p[i] }))} />
+   522→                  <span>{item}</span>
+   523→                </label>
+   524→              ))}
+   525→            </div>
+   526→          </div>
+   527→
+   528→          {/* Progress Tracker */}
+   529→          <div className="space-y-2">
+   530→            <p className="text-sm font-semibold">Task Progress</p>
+   531→            <div className="flex items-center gap-0">
+   532→              {[
+   533→                { id: 'pending', label: 'Pending', done: ['in_progress','cleaning','cleaned','inspected','failed'].includes(task.status) },
+   534→                { id: 'in_progress', label: 'Cleaning', done: ['cleaning','cleaned','inspected'].includes(task.status), active: ['in_progress','cleaning'].includes(task.status) },
+   535→                { id: 'cleaned', label: 'Cleaned', done: ['cleaned','inspected'].includes(task.status), active: task.status === 'cleaned' },
+   536→                { id: 'inspected', label: 'Inspected', done: task.status === 'inspected', active: task.status === 'inspected' },
+   537→              ].map((step, idx, arr) => (
+   538→                <Fragment key={step.id}>
+   539→                  <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+   540→                    <div className={cn(
+   541→                      'h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold border-2 transition-colors shrink-0',
+   542→                      step.done ? 'bg-green-500 border-green-500 text-white' 
+   543→                        : step.active ? 'bg-primary border-primary text-primary-foreground' 
+   544→                        : 'bg-muted border-muted-foreground/30 text-muted-foreground'
+   545→                    )}>
+   546→                      {step.done ? <Check className="h-3 w-3" /> : idx + 1}
+   547→                    </div>
+   548→                    <span className={cn(
+   549→                      'text-[10px] text-center leading-tight',
+   550→                      step.active ? 'font-semibold text-foreground' : 'text-muted-foreground'
+   551→                    )}>
+   552→                      {step.label}
+   553→                    </span>
+   554→                  </div>
+   555→                  {idx < arr.length - 1 && (
+   556→                    <div className={cn(
+   557→                      'h-0.5 flex-1 -mt-4 min-w-[8px]',
+   558→                      arr[idx + 1].done || arr[idx + 1].active ? 'bg-green-500' : 'bg-muted-foreground/20'
+   559→                    )} />
+   560→                  )}
+   561→                </Fragment>
+   562→              ))}
+   563→            </div>
+   564→          </div>
+   565→
+   566→          <Separator />
+   567→
+   568→          <div className="flex flex-wrap gap-2">
+   569→            {canStart && (
+   570→              <Button className="gap-1.5" onClick={() => updateMutation.mutate({ id: task.id, status: 'in_progress' })} disabled={updateMutation.isPending}>
+   571→                <PlayCircle className="h-4 w-4" /> Start Cleaning
+   572→              </Button>
+   573→            )}
+   574→            {canClean && (
+   575→              <Button className="gap-1.5" onClick={() => updateMutation.mutate({ id: task.id, status: 'cleaned' })} disabled={updateMutation.isPending}>
+   576→                <CheckCircle className="h-4 w-4" /> Mark Cleaned
+   577→              </Button>
+   578→            )}
+   579→            {canInspect && (
+   580→              <Button className="gap-1.5" onClick={() => updateMutation.mutate({ id: task.id, status: 'inspected', inspectedBy: 'Admin' })} disabled={updateMutation.isPending}>
+   581→                <ShieldCheck className="h-4 w-4" /> Mark Inspected
+   582→              </Button>
+   583→            )}
+   584→            {canReset && (
+   585→              <Button variant="outline" className="gap-1.5" onClick={() => updateMutation.mutate({ id: task.id, status: 'pending' })} disabled={updateMutation.isPending}>
+   586→                <ArrowUpCircle className="h-4 w-4" /> Reset to Pending
+   587→              </Button>
+   588→            )}
+   589→          </div>
+   590→        </div>
+   591→      </DialogContent>
+   592→    </Dialog>
+   593→  )
+   594→}
+   595→
+   596→// ── Kanban / Attendant sub-components (unchanged) ─────────────
+   597→function AttendantView({ tasks }: { tasks: HkTask[] }) {
+   598→  const byAttendant = useMemo(() => {
+   599→    const m = new Map<string, HkTask[]>()
+   600→    tasks.forEach((t) => {
+   601→      const name = t.assignedTo || 'Unassigned'
+   602→      if (!m.has(name)) m.set(name, [])
+   603→      m.get(name)!.push(t)
+   604→    })
+   605→    return m
+   606→  }, [tasks])
+   607→
+   608→  return (
+   609→    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+   610→      {Array.from(byAttendant.entries()).map(([name, attTasks]) => (
+   611→        <Card key={name}>
+   612→          <CardContent className="p-3 space-y-2">
+   613→            <div className="flex items-center gap-3">
+   614→              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-medium">
+   615→                {name.charAt(0)}
+   616→              </div>
+   617→              <div>
+   618→                <p className="text-sm font-semibold">{name}</p>
+   619→                <p className="text-xs text-muted-foreground">{attTasks.length} tasks assigned</p>
+   620→              </div>
+   621→            </div>
+   622→            {attTasks.map((task) => (
+   623→              <div key={task.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+   624→                <div className="flex items-center gap-2">
+   625→                  <BedDouble className="h-3.5 w-3.5 text-muted-foreground" />
+   626→                  <span className="font-medium">Room {task.room.number}</span>
+   627→                </div>
+   628→                <StatusBadge status={task.status} />
+   629→              </div>
+   630→            ))}
+   631→          </CardContent>
+   632→        </Card>
+   633→      ))}
+   634→    </div>
+   635→  )
+   636→}
+   637→
+   638→const KANBAN_COLUMNS: { id: string; label: string; color: string }[] = [
+   639→  { id: 'pending', label: 'Pending', color: 'border-yellow-400' },
+   640→  { id: 'in_progress', label: 'In Progress', color: 'border-amber-400' },
+   641→  { id: 'cleaned', label: 'Cleaned', color: 'border-green-400' },
+   642→  { id: 'inspected', label: 'Inspected', color: 'border-purple-400' },
+   643→  { id: 'failed', label: 'Failed', color: 'border-red-400' },
+   644→]
+   645→
+   646→function TaskCard({ task, onClick }: { task: HkTask; onClick: () => void }) {
+   647→  return (
+   648→    <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/20 group" onClick={onClick}>
+   649→      <CardContent className="p-3 space-y-2">
+   650→        <div className="flex items-center justify-between">
+   651→          <div className="flex items-center gap-2">
+   652→            <BedDouble className="h-4 w-4 text-muted-foreground" />
+   653→            <span className="font-semibold text-sm">Room {task.room.number}</span>
+   654→            <Badge variant="outline" className="text-xs font-normal">{formatTaskType(task.taskType)}</Badge>
+   655→          </div>
+   656→        </div>
+   657→        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   658→          {task.assignedTo && (
+   659→            <div className="flex items-center gap-1">
+   660→              <User className="h-3 w-3" />
+   661→              <span>{task.assignedTo}</span>
+   662→            </div>
+   663→          )}
+   664→          <Badge variant="outline" className={cn('text-xs', priorityColor(task.priority))}>
+   665→            {task.priority === 'vip' && <Star className="h-3 w-3 mr-0.5 fill-current" />}
+   666→            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+   667→          </Badge>
+   668→        </div>
+   669→        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+   670→          <Clock className="h-3 w-3" />
+   671→          <span>{task.estimatedMinutes} min</span>
+   672→          <span className="text-muted-foreground/60">·</span>
+   673→          <span>{formatTime(task.scheduledTime)}</span>
+   674→        </div>
+   675→      </CardContent>
+   676→    </Card>
+   677→  )
+   678→}
+   679→
+   680→// ── Main Component ───────────────────────────────────────────
+   681→export function TaskBoardView() {
+   682→  const [selectedTask, setSelectedTask] = useState<HkTask | null>(null)
+   683→  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'attendant'>('table')
+   684→
+   685→  // Table view filters
+   686→  const [searchQuery, setSearchQuery] = useState('')
+   687→  const [filterHkStatus, setFilterHkStatus] = useState('')
+   688→  const [filterPriority, setFilterPriority] = useState('')
+   689→  const [filterFloor, setFilterFloor] = useState('')
+   690→  const [filterRoomType, setFilterRoomType] = useState('')
+   691→  const [filterRoomNumber, setFilterRoomNumber] = useState('')
+   692→  const [filterReservation, setFilterReservation] = useState('')
+   693→  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+   694→  const [debouncedSearch, setDebouncedSearch] = useState('')
+   695→
+   696→  // Kanban expanded state
+   697→  const [expandedColumns, setExpandedColumns] = useState<Set<string>>(
+   698→    new Set(KANBAN_COLUMNS.map((c) => c.id))
+   699→  )
+   700→
+   701→  // Occupied room protection state
+   702→  const [occupiedWarning, setOccupiedWarning] = useState<{
+   703→    open: boolean
+   704→    rooms: { roomId: string; roomNumber: string; guestName: string | null }[]
+   705→    pendingAction: string
+   706→  }>({ open: false, rooms: [], pendingAction: '' })
+   707→  const [forceMutatedRooms, setForceMutatedRooms] = useState<Set<string>>(new Set())
+   708→  const [blockedDialog, setBlockedDialog] = useState<{
+   709→    open: boolean
+   710→    roomNumber: string
+   711→    guestName: string | null
+   712→  }>({ open: false, roomNumber: '', guestName: null })
+   713→
+   714→  // Ref to store pending single-row action
+   715→  const pendingSingleAction = useRef<{ roomId: string; taskId: string | null; newStatus: string } | null>(null)
+   716→  const pendingBulkAction = useRef<{ roomIds: string[]; status: string } | null>(null)
+   717→
+   718→  // Debounce search
+   719→  const [searchTimer, setSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
+   720→  const handleSearchChange = useCallback((v: string) => {
+   721→    setSearchQuery(v)
+   722→    if (searchTimer) clearTimeout(searchTimer)
+   723→    const timer = setTimeout(() => setDebouncedSearch(v), 300)
+   724→    setSearchTimer(timer)
+   725→  }, [searchTimer])
+   726→
+   727→  // Table data query
+   728→  const { data: tableData, isLoading: tableLoading } = useQuery<{ rows: RoomRow[] }>({
+   729→    queryKey: ['housekeeping-rooms', filterHkStatus, filterPriority, filterFloor, debouncedSearch],
+   730→    queryFn: () => {
+   731→      const params = new URLSearchParams()
+   732→      if (filterHkStatus) params.set('hkStatus', filterHkStatus)
+   733→      if (filterPriority) params.set('priority', filterPriority)
+   734→      if (filterFloor) params.set('floor', filterFloor)
+   735→      if (debouncedSearch) params.set('search', debouncedSearch)
+   736→      const qs = params.toString()
+   737→      return apiFetch(`/api/housekeeping/rooms${qs ? `?${qs}` : ''}`) as Promise<{ rows: RoomRow[] }>
+   738→    },
+   739→    enabled: viewMode === 'table',
+   740→  })
+   741→
+   742→  // Kanban data query
+   743→  const { data: kanbanData, isLoading: kanbanLoading } = useQuery<{
+   744→    tasks: HkTask[]
+   745→    summary: HkSummary
+   746→  }>({
+   747→    queryKey: ['housekeeping-tasks'],
+   748→    queryFn: () => apiFetch('/api/housekeeping') as Promise<{ tasks: HkTask[]; summary: HkSummary }>,
+   749→    enabled: viewMode !== 'table',
+   750→  })
+   751→
+   752→  const queryClient = useQueryClient()
+   753→
+   754→  const tableRows = tableData?.rows || []
+   755→  const kanbanTasks = kanbanData?.tasks || []
+   756→
+   757→  // ── Check for occupied rooms in a set of roomIds ──────────
+   758→  const getOccupiedInSet = useCallback((roomIds: string[]) => {
+   759→    return roomIds
+   760→      .map(id => tableRows.find(r => r.roomId === id))
+   761→      .filter((r): r is NonNullable<typeof r> => !!r && r.reservationStatus === 'occupied')
+   762→      .map(r => ({ roomId: r.roomId, roomNumber: r.roomNumber, guestName: r.guestName }))
+   763→  }, [tableRows])
+   764→
+   765→  // Row status change mutation (standard)
+   766→  const rowStatusMutation = useMutation({
+   767→    mutationFn: ({ taskId, status, priority }: { taskId: string | null; status: string; priority?: string }) => {
+   768→      if (!taskId) return Promise.reject(new Error('No active task'))
+   769→      return apiFetch('/api/housekeeping', {
+   770→        method: 'POST',
+   771→        headers: { 'Content-Type': 'application/json' },
+   772→        body: JSON.stringify({ id: taskId, status, priority, action: 'update-task-status' }),
+   773→      })
+   774→    },
+   775→    onSuccess: () => {
+   776→      toast.success('Status updated')
+   777→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   778→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   779→    },
+   780→    onError: (err: Error) => {
+   781→      toast.error(err.message || 'Failed to update status')
+   782→    },
+   783→  })
+   784→
+   785→  // Force mutation (for occupied rooms)
+   786→  const forceMutation = useMutation({
+   787→    mutationFn: ({ taskId, status, reason }: { taskId: string; status: string; reason: string }) => {
+   788→      return apiFetch('/api/housekeeping', {
+   789→        method: 'POST',
+   790→        headers: { 'Content-Type': 'application/json' },
+   791→        body: JSON.stringify({
+   792→          action: 'force-mutation',
+   793→          id: taskId,
+   794→          status,
+   795→          performedBy: 'Admin',
+   796→          reason,
+   797→        }),
+   798→      })
+   799→    },
+   800→    onSuccess: (_data, vars) => {
+   801→      // Find which room was forced and lock it
+   802→      const row = tableRows.find(r => r.hkTaskId === vars.taskId)
+   803→      if (row) {
+   804→        setForceMutatedRooms(prev => new Set([...prev, row.roomId]))
+   805→        toast.warning(`Room ${row.roomNumber} force-mutated. Future changes require check-out/transfer first.`, { duration: 5000 })
+   806→      }
+   807→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   808→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   809→    },
+   810→    onError: (err: Error) => {
+   811→      toast.error(err.message || 'Failed to force-mutate room')
+   812→    },
+   813→  })
+   814→
+   815→  // Bulk status mutation (with occupied check)
+   816→  const bulkStatusMutation = useMutation({
+   817→    mutationFn: ({ roomIds, status, force }: { roomIds: string[]; status: string; force?: boolean }) => {
+   818→      if (status === 'rush') {
+   819→        // Priority change
+   820→        const tasks = roomIds.map(id => tableRows.find(r => r.roomId === id))
+   821→          .filter((r): r is NonNullable<typeof r> => !!r?.hkTaskId)
+   822→        if (tasks.length === 0) return Promise.reject(new Error('No tasks to update'))
+   823→        return Promise.all(tasks.map(row =>
+   824→          apiFetch('/api/housekeeping', {
+   825→            method: 'POST',
+   826→            headers: { 'Content-Type': 'application/json' },
+   827→            body: JSON.stringify({ id: row.hkTaskId, priority: 'rush', action: 'update-task-status' }),
+   828→          })
+   829→        ))
+   830→      }
+   831→
+   832→      const tasks = roomIds.map(id => tableRows.find(r => r.roomId === id))
+   833→        .filter((r): r is NonNullable<typeof r> => !!r?.hkTaskId)
+   834→      if (tasks.length === 0) return Promise.reject(new Error('No tasks to update'))
+   835→
+   836→      if (force) {
+   837→        // Force mutation for occupied rooms
+   838→        const occupiedIds = new Set(
+   839→          roomIds
+   840→            .map(id => tableRows.find(r => r.roomId === id))
+   841→            .filter((r): r is NonNullable<typeof r> => !!r && r.reservationStatus === 'occupied')
+   842→            .map(r => r.roomId)
+   843→        )
+   844→        const normalTasks = tasks.filter(t => !occupiedIds.has(t.roomId))
+   845→        const occupiedTasks = tasks.filter(t => occupiedIds.has(t.roomId))
+   846→
+   847→        const promises = [
+   848→          ...normalTasks.map(row =>
+   849→            apiFetch('/api/housekeeping', {
+   850→              method: 'POST',
+   851→              headers: { 'Content-Type': 'application/json' },
+   852→              body: JSON.stringify({ id: row.hkTaskId, status, action: 'update-task-status' }),
+   853→            })
+   854→          ),
+   855→          ...occupiedTasks.map(row =>
+   856→            apiFetch('/api/housekeeping', {
+   857→              method: 'POST',
+   858→              headers: { 'Content-Type': 'application/json' },
+   859→              body: JSON.stringify({
+   860→                action: 'force-mutation',
+   861→                id: row.hkTaskId,
+   862→                status,
+   863→                performedBy: 'Admin',
+   864→                reason: `Bulk forced ${status} on occupied room ${row.roomNumber}`,
+   865→              }),
+   866→            })
+   867→          ),
+   868→        ]
+   869→
+   870→        // Lock force-mutated rooms
+   871→        occupiedIds.forEach(id => {
+   872→          setForceMutatedRooms(prev => new Set([...prev, id]))
+   873→        })
+   874→
+   875→        return Promise.all(promises)
+   876→      }
+   877→
+   878→      return Promise.all(tasks.map(row => apiFetch('/api/housekeeping', {
+   879→        method: 'POST',
+   880→        headers: { 'Content-Type': 'application/json' },
+   881→        body: JSON.stringify({ id: row.hkTaskId, status, action: 'update-task-status' }),
+   882→      })))
+   883→    },
+   884→    onSuccess: (_data, vars) => {
+   885→      const occupiedCount = getOccupiedInSet(vars.roomIds).length
+   886→      if (occupiedCount > 0 && vars.force) {
+   887→        toast.warning(`${occupiedCount} occupied room(s) force-mutated. Future changes require check-out/transfer.`, { duration: 5000 })
+   888→      } else {
+   889→        toast.success(`${vars.roomIds.length} rooms updated`)
+   890→      }
+   891→      setSelectedRows(new Set())
+   892→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   893→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   894→    },
+   895→    onError: (err: Error) => {
+   896→      toast.error(err.message || 'Failed to update room statuses')
+   897→    },
+   898→  })
+   899→
+   900→  // ── Execute a single room status change (with occupied check) ──
+   901→  const executeSingleStatusChange = useCallback((roomId: string, taskId: string | null, newStatus: string, force = false) => {
+   902→    // Check if this room was previously force-mutated and is STILL occupied
+   903→    if (!force && forceMutatedRooms.has(roomId)) {
+   904→      const row = tableRows.find(r => r.roomId === roomId)
+   905→      if (row?.reservationStatus === 'occupied') {
+   906→        setBlockedDialog({ open: true, roomNumber: row.roomNumber, guestName: row.guestName })
+   907→        return
+   908→      }
+   909→      // Room is no longer occupied — clear the force-mutated lock
+   910→      setForceMutatedRooms(prev => { const next = new Set(prev); next.delete(roomId); return next })
+   911→    }
+   912→
+   913→    if (!force && newStatus !== 'rush') {
+   914→      const occupied = getOccupiedInSet([roomId])
+   915→      if (occupied.length > 0) {
+   916→        pendingSingleAction.current = { roomId, taskId, newStatus }
+   917→        setOccupiedWarning({ open: true, rooms: occupied, pendingAction: newStatus })
+   918→        return
+   919→      }
+   920→    }
+   921→
+   922→    // Rush is just a priority change, no occupied check needed
+   923→    if (newStatus === 'rush') {
+   924→      rowStatusMutation.mutate({ taskId, status: '', priority: 'rush' })
+   925→      const row = tableRows.find(r => r.roomId === roomId)
+   926→      toast.info(`Priority set to Rush for room ${row?.roomNumber}`)
+   927→      return
+   928→    }
+   929→
+   930→    if (!taskId) { toast.info('No active task for this room'); return }
+   931→
+   932→    if (force) {
+   933→      // Use force-mutation API action
+   934→      forceMutation.mutate({ taskId, status: newStatus, reason: `Forced ${newStatus} on occupied room` })
+   935→    } else {
+   936→      rowStatusMutation.mutate({ taskId, status: newStatus })
+   937→    }
+   938→  }, [forceMutatedRooms, getOccupiedInSet, tableRows, rowStatusMutation, forceMutation])
+   939→
+   940→  // ── Handle single row status change (entry point) ─────────
+   941→  const handleRowStatusChange = (roomId: string, taskId: string | null, newStatus: string) => {
+   942→    executeSingleStatusChange(roomId, taskId, newStatus)
+   943→  }
+   944→
+   945→  // ── Handle bulk action (entry point with occupied check) ──
+   946→  const handleBulkAction = (status: string) => {
+   947→    const ids = Array.from(selectedRows)
+   948→    if (status !== 'rush') {
+   949→      const occupied = getOccupiedInSet(ids)
+   950→      if (occupied.length > 0) {
+   951→        pendingBulkAction.current = { roomIds: ids, status }
+   952→        setOccupiedWarning({ open: true, rooms: occupied, pendingAction: status })
+   953→        return
+   954→      }
+   955→    }
+   956→    bulkStatusMutation.mutate({ roomIds: ids, status })
+   957→  }
+   958→
+   959→  // ── Handle occupied warning force action ──────────────────
+   960→  const handleForceFromWarning = () => {
+   961→    setOccupiedWarning(prev => ({ ...prev, open: false }))
+   962→
+   963→    if (pendingSingleAction.current) {
+   964→      const { roomId, taskId, newStatus } = pendingSingleAction.current
+   965→      pendingSingleAction.current = null
+   966→      executeSingleStatusChange(roomId, taskId, newStatus, true)
+   967→    } else if (pendingBulkAction.current) {
+   968→      const { roomIds, status } = pendingBulkAction.current
+   969→      pendingBulkAction.current = null
+   970→      bulkStatusMutation.mutate({ roomIds, status, force: true })
+   971→    }
+   972→  }
+   973→
+   974→  const handleCancelWarning = () => {
+   975→    setOccupiedWarning(prev => ({ ...prev, open: false }))
+   976→    pendingSingleAction.current = null
+   977→    pendingBulkAction.current = null
+   978→  }
+   979→
+   980→  // Handle row detail view
+   981→  const handleViewDetail = (roomId: string) => {
+   982→    const row = tableRows.find((r) => r.roomId === roomId)
+   983→    if (row?.hkTaskId) {
+   984→      // Find task in kanban data or set from row data
+   985→      const kanbanTask = kanbanTasks.find(t => t.roomId === roomId)
+   986→      if (kanbanTask) {
+   987→        setSelectedTask(kanbanTask)
+   988→      } else {
+   989→        // Open with row-based data
+   990→        setSelectedTask({
+   991→          id: row.hkTaskId!,
+   992→          roomId: row.roomId,
+   993→          taskType: 'checkout',
+   994→          status: row.hkDisplayStatus,
+   995→          priority: row.priority,
+   996→          assignedTo: row.assignedTo,
+   997→          scheduledTime: row.scheduledTime || new Date().toISOString(),
+   998→          completedTime: null,
+   999→          estimatedMinutes: row.estimatedMinutes || 30,
+  1000→          notes: row.taskNotes,
+  1001→          room: { id: row.roomId, number: row.roomNumber, floor: row.floor, wing: row.wing, status: row.roomStatus, type: { name: row.roomTypeName, code: row.roomTypeCode } },
+  1002→        })
+  1003→      }
+  1004→    } else {
+  1005→      toast.info(`Room ${row?.roomNumber} — No active task`)
+  1006→    }
+  1007→  }
+  1008→
+  1009→  // Get unique floors for filter
+  1010→  const floors = useMemo(() => {
+  1011→    const f = new Set(tableRows.map((r) => r.floor))
+  1012→    return Array.from(f).sort((a, b) => a - b)
+  1013→  }, [tableRows])
+  1014→
+  1015→  // Get unique room types for filter
+  1016→  const roomTypes = useMemo(() => {
+  1017→    const m = new Map<string, string>()
+  1018→    tableRows.forEach((r) => {
+  1019→      if (!m.has(r.roomTypeCode)) m.set(r.roomTypeCode, r.roomTypeName)
+  1020→    })
+  1021→    return Array.from(m.entries()).map(([code, name]) => ({ value: code, label: name }))
+  1022→  }, [tableRows])
+  1023→
+  1024→  // Get unique reservation statuses
+  1025→  const uniqueResStatuses = useMemo(() => {
+  1026→    const s = new Set(tableRows.map((r) => r.reservationStatus))
+  1027→    return Array.from(s)
+  1028→  }, [tableRows])
+  1029→
+  1030→  // Toggle row selection
+  1031→  const toggleRow = (roomId: string) => {
+  1032→    setSelectedRows((prev) => {
+  1033→      const next = new Set(prev)
+  1034→      if (next.has(roomId)) next.delete(roomId)
+  1035→      else next.add(roomId)
+  1036→      return next
+  1037→    })
+  1038→  }
+  1039→
+  1040→  const toggleAllRows = () => {
+  1041→    if (selectedRows.size === filteredRows.length) {
+  1042→      setSelectedRows(new Set())
+  1043→    } else {
+  1044→      setSelectedRows(new Set(filteredRows.map((r) => r.roomId)))
+  1045→    }
+  1046→  }
+  1047→
+  1048→  const toggleColumn = (id: string) => {
+  1049→    setExpandedColumns((prev) => {
+  1050→      const next = new Set(prev)
+  1051→      if (next.has(id)) next.delete(id)
+  1052→      else next.add(id)
+  1053→      return next
+  1054→    })
+  1055→  }
+  1056→
+  1057→  // Client-side filtered rows
+  1058→  const filteredRows = (() => {
+  1059→    let rows = tableRows
+  1060→    if (filterRoomType) rows = rows.filter((r) => r.roomTypeCode === filterRoomType)
+  1061→    if (filterRoomNumber) rows = rows.filter((r) => r.roomNumber.includes(filterRoomNumber))
+  1062→    if (filterReservation) rows = rows.filter((r) => r.reservationStatus === filterReservation)
+  1063→    return rows
+  1064→  })()
+  1065→
+  1066→  // Unique values derived from tableRows (not filtered)
+  1067→  const uniqueHkStatuses = useMemo(() => {
+  1068→    const s = new Set(tableRows.map((r) => r.hkDisplayStatus))
+  1069→    return Array.from(s)
+  1070→  }, [tableRows])
+  1071→
+  1072→  const uniquePriorities = useMemo(() => {
+  1073→    const s = new Set(tableRows.map((r) => r.priority))
+  1074→    return Array.from(s)
+  1075→  }, [tableRows])
+  1076→
+  1077→  const hasAnyFilter = filterHkStatus || filterPriority || filterFloor || filterRoomType || filterRoomNumber || filterReservation
+  1078→
+  1079→  // Loading state
+  1080→  if ((viewMode === 'table' && tableLoading) || (viewMode !== 'table' && kanbanLoading)) {
+  1081→    return (
+  1082→      <div className="space-y-3">
+  1083→        <div className="h-8 w-full rounded-md bg-muted animate-pulse" />
+  1084→        <div className="h-96 rounded-lg bg-muted animate-pulse" />
+  1085→      </div>
+  1086→    )
+  1087→  }
+  1088→
+  1089→  // ─── TABLE VIEW ──────────────────────────────────────────
+  1090→  const renderTableView = () => (
+  1091→    <div className="space-y-2">
+  1092→      {/* Toolbar: Search */}
+  1093→      <div className="flex items-center justify-between gap-2">
+  1094→        <div className="relative flex-1 max-w-full sm:max-w-sm">
+  1095→          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+  1096→          <Input
+  1097→            placeholder="Search by guest, reservation..."
+  1098→            value={searchQuery}
+  1099→            onChange={(e) => handleSearchChange(e.target.value)}
+  1100→            className="h-8 pl-8 text-xs"
+  1101→          />
+  1102→          {searchQuery && (
+  1103→            <button
+  1104→              className="absolute right-2 top-1/2 -translate-y-1/2"
+  1105→              onClick={() => { setSearchQuery(''); setDebouncedSearch('') }}
+  1106→            >
+  1107→              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+  1108→            </button>
+  1109→          )}
+  1110→        </div>
+  1111→        <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-muted-foreground shrink-0">
+  1112→          <span className="hidden sm:inline">{filteredRows.length} room{filteredRows.length !== 1 ? 's' : ''}</span>
+  1113→          {selectedRows.size > 0 && (
+  1114→            <span className="font-medium text-foreground">· {selectedRows.size} selected</span>
+  1115→          )}
+  1116→          {forceMutatedRooms.size > 0 && (
+  1117→            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300 dark:border-amber-700 gap-0.5">
+  1118→              <ShieldAlert className="h-2.5 w-2.5" /> {forceMutatedRooms.size} locked
+  1119→            </Badge>
+  1120→          )}
+  1121→          {hasAnyFilter && (
+  1122→            <Button
+  1123→              variant="ghost"
+  1124→              size="sm"
+  1125→              className="h-6 px-2 text-[10px] text-muted-foreground"
+  1126→              onClick={() => {
+  1127→                setFilterHkStatus(''); setFilterPriority(''); setFilterFloor('')
+  1128→                setFilterRoomType(''); setFilterRoomNumber(''); setFilterReservation('')
+  1129→              }}
+  1130→            >
+  1131→              <X className="w-2.5 h-2.5 mr-0.5" /> Clear filters
+  1132→            </Button>
+  1133→          )}
+  1134→        </div>
+  1135→      </div>
+  1136→
+  1137→      {/* Bulk Action Bar (2+ selected) */}
+  1138→      {selectedRows.size >= 2 && (
+  1139→        <div className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2 sm:px-3 py-2 flex-wrap overflow-x-auto">
+  1140→          <span className="text-xs font-medium text-primary mr-1">{selectedRows.size} rooms selected</span>
+  1141→          <div className="h-4 w-px bg-border" />
+  1142→          <Button
+  1143→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+  1144→            onClick={() => handleBulkAction('in_progress')}
+  1145→            disabled={bulkStatusMutation.isPending}
+  1146→          >
+  1147→            <PlayCircle className="h-3 w-3" /> Start Cleaning
+  1148→          </Button>
+  1149→          <Button
+  1150→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+  1151→            onClick={() => handleBulkAction('cleaned')}
+  1152→            disabled={bulkStatusMutation.isPending}
+  1153→          >
+  1154→            <CheckCircle className="h-3 w-3" /> Mark Cleaned
+  1155→          </Button>
+  1156→          <Button
+  1157→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+  1158→            onClick={() => handleBulkAction('inspected')}
+  1159→            disabled={bulkStatusMutation.isPending}
+  1160→          >
+  1161→            <ShieldCheck className="h-3 w-3" /> Mark Inspected
+  1162→          </Button>
+  1163→          <Button
+  1164→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+  1165→            onClick={() => handleBulkAction('rush')}
+  1166→            disabled={bulkStatusMutation.isPending}
+  1167→          >
+  1168→            <AlertTriangle className="h-3 w-3" /> Set Rush
+  1169→          </Button>
+  1170→          <Button
+  1171→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+  1172→            onClick={() => handleBulkAction('pending')}
+  1173→            disabled={bulkStatusMutation.isPending}
+  1174→          >
+  1175→            <ArrowUpCircle className="h-3 w-3" /> Reset to Pending
+  1176→          </Button>
+  1177→          <Button
+  1178→            variant="outline" size="sm" className="h-7 text-[11px] gap-1 text-red-600 hover:text-red-600"
+  1179→            onClick={() => handleBulkAction('failed')}
+  1180→            disabled={bulkStatusMutation.isPending}
+  1181→          >
+  1182→            <XCircle className="h-3 w-3" /> Mark Failed
+  1183→          </Button>
+  1184→          <div className="flex-1" />
+  1185→          <Button
+  1186→            variant="ghost" size="sm" className="h-7 text-[11px]"
+  1187→            onClick={() => setSelectedRows(new Set())}
+  1188→          >
+  1189→            <X className="h-3 w-3 mr-1" /> Deselect All
+  1190→          </Button>
+  1191→        </div>
+  1192→      )}
+  1193→
+  1194→      {/* Data Table with sticky header */}
+  1195→      <div className="rounded-lg border bg-card overflow-hidden min-w-[600px] sm:min-w-0">
+  1196→        <div className="max-h-[calc(100dvh-220px)] sm:max-h-[calc(100dvh-270px)] overflow-auto">
+  1197→          <Table>
+  1198→            <TableHeader className="sticky top-0 z-10 bg-card">
+  1199→              <TableRow className="hover:bg-muted/40 min-h-[44px]">
+  1200→                <TableHead className="w-10" />
+  1201→                <TableHead className="w-10">
+  1202→                  <Checkbox
+  1203→                    checked={filteredRows.length > 0 && selectedRows.size === filteredRows.length}
+  1204→                    onCheckedChange={toggleAllRows}
+  1205→                  />
+  1206→                </TableHead>
+  1207→                <TableHead className="text-xs font-semibold">
+  1208→                  <RoomFilterDropdown value={filterRoomNumber} onChange={setFilterRoomNumber} />
+  1209→                </TableHead>
+  1210→                <TableHead className="hidden sm:table-cell">
+  1211→                  <FilterDropdown
+  1212→                    label="Room Type"
+  1213→                    value={filterRoomType}
+  1214→                    onValueChange={setFilterRoomType}
+  1215→                    options={roomTypes.map((rt) => ({ value: rt.value, label: rt.label }))}
+  1216→                  />
+  1217→                </TableHead>
+  1218→                <TableHead>
+  1219→                  <FilterDropdown
+  1220→                    label="HK Status"
+  1221→                    value={filterHkStatus}
+  1222→                    onValueChange={setFilterHkStatus}
+  1223→                    options={uniqueHkStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+  1224→                  />
+  1225→                </TableHead>
+  1226→                <TableHead className="hidden md:table-cell">
+  1227→                  <FilterDropdown
+  1228→                    label="Priority"
+  1229→                    value={filterPriority}
+  1230→                    onValueChange={setFilterPriority}
+  1231→                    options={uniquePriorities.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+  1232→                  />
+  1233→                </TableHead>
+  1234→                <TableHead className="hidden md:table-cell">
+  1235→                  <FilterDropdown
+  1236→                    label="Floor"
+  1237→                    value={filterFloor}
+  1238→                    onValueChange={setFilterFloor}
+  1239→                    options={floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))}
+  1240→                  />
+  1241→                </TableHead>
+  1242→                <TableHead className="hidden lg:table-cell">
+  1243→                  <FilterDropdown
+  1244→                    label="Reservation"
+  1245→                    value={filterReservation}
+  1246→                    onValueChange={setFilterReservation}
+  1247→                    options={uniqueResStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+  1248→                  />
+  1249→                </TableHead>
+  1250→                <TableHead className="text-xs font-semibold hidden lg:table-cell">Comments</TableHead>
+  1251→              </TableRow>
+  1252→            </TableHeader>
+  1253→            <TableBody>
+  1254→                {filteredRows.length === 0 ? (
+  1255→                  <TableRow>
+  1256→                    <TableCell colSpan={9} className="min-h-[44px] h-32 text-center text-muted-foreground text-sm">
+  1257→                      No rooms found
+  1258→                    </TableCell>
+  1259→                  </TableRow>
+  1260→                ) : (
+  1261→                  filteredRows.map((row, idx) => (
+  1262→                    <TableRow
+  1263→                      key={row.roomId}
+  1264→                      className={cn(
+  1265→                        'cursor-pointer transition-colors min-h-[44px]',
+  1266→                        selectedRows.has(row.roomId) && 'bg-primary/5',
+  1267→                        idx % 2 === 1 && !selectedRows.has(row.roomId) && 'bg-muted/20',
+  1268→                        forceMutatedRooms.has(row.roomId) && 'border-l-2 border-l-amber-400'
+  1269→                      )}
+  1270→                      onClick={() => toggleRow(row.roomId)}
+  1271→                    >
+  1272→                      <TableCell onClick={(e) => e.stopPropagation()}>
+  1273→                        <InlineRowActions
+  1274→                          row={row}
+  1275→                          onStatusChange={handleRowStatusChange}
+  1276→                          onViewDetail={handleViewDetail}
+  1277→                          isForceMutated={forceMutatedRooms.has(row.roomId)}
+  1278→                        />
+  1279→                      </TableCell>
+  1280→                      <TableCell onClick={(e) => e.stopPropagation()}>
+  1281→                        <Checkbox
+  1282→                          checked={selectedRows.has(row.roomId)}
+  1283→                          onCheckedChange={() => toggleRow(row.roomId)}
+  1284→                        />
+  1285→                      </TableCell>
+  1286→                      <TableCell>
+  1287→                        <div className="flex items-center gap-2">
+  1288→                          <BedDouble className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+  1289→                          <span className="text-sm font-semibold">{row.roomNumber}</span>
+  1290→                          {row.wing && (
+  1291→                            <span className="text-[10px] text-muted-foreground">({row.wing})</span>
+  1292→                          )}
+  1293→                        </div>
+  1294→                      </TableCell>
+  1295→                      <TableCell className="hidden sm:table-cell">
+  1296→                        <div className="text-xs">
+  1297→                          <span className="font-medium">{row.roomTypeName}</span>
+  1298→                          <span className="text-muted-foreground ml-1">({row.roomTypeCode})</span>
+  1299→                        </div>
+  1300→                      </TableCell>
+  1301→                      <TableCell>
+  1302→                        {hkStatusBadge(row.hkDisplayStatus)}
+  1303→                      </TableCell>
+  1304→                      <TableCell className="hidden md:table-cell">
+  1305→                        <PriorityDot priority={row.priority} />
+  1306→                      </TableCell>
+  1307→                      <TableCell className="hidden md:table-cell">
+  1308→                        <span className="text-xs text-muted-foreground">{row.floor}</span>
+  1309→                      </TableCell>
+  1310→                      <TableCell className="hidden lg:table-cell">
+  1311→                        {resStatusBadge(row.reservationStatus)}
+  1312→                      </TableCell>
+  1313→                      <TableCell className="hidden lg:table-cell">
+  1314→                        <div className="text-xs text-muted-foreground max-w-[120px] sm:max-w-[180px] truncate">
+  1315→                          {row.taskNotes || '—'}
+  1316→                        </div>
+  1317→                      </TableCell>
+  1318→                    </TableRow>
+  1319→                  ))
+  1320→                )}
+  1321→              </TableBody>
+  1322→          </Table>
+  1323→        </div>
+  1324→      </div>
+  1325→    </div>
+  1326→  )
+  1327→
+  1328→  // ─── KANBAN VIEW ─────────────────────────────────────────
+  1329→  const renderKanbanView = () => (
+  1330→    <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5">
+  1331→      {KANBAN_COLUMNS.map((column) => {
+  1332→        const columnTasks = kanbanTasks.filter((t) => t.status === column.id)
+  1333→        const isExpanded = expandedColumns.has(column.id)
+  1334→
+  1335→        return (
+  1336→          <div
+  1337→            key={column.id}
+  1338→            className={cn('rounded-lg border-2 border-t-4 bg-card', column.color)}
+  1339→          >
+  1340→            <button
+  1341→              className="flex w-full items-center justify-between p-3 text-left"
+  1342→              onClick={() => toggleColumn(column.id)}
+  1343→            >
+  1344→              <div className="flex items-center gap-2">
+  1345→                <span className="font-semibold text-sm">{column.label}</span>
+  1346→                <Badge variant="secondary" className="text-xs">{columnTasks.length}</Badge>
+  1347→              </div>
+  1348→            </button>
+  1349→
+  1350→            {isExpanded && (
+  1351→              <ScrollArea className="h-[60vh] sm:h-[500px] px-3 pb-3">
+  1352→                <div className="space-y-2">
+  1353→                  {columnTasks.length === 0 ? (
+  1354→                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+  1355→                      <ClipboardCheck className="h-8 w-8 opacity-20" />
+  1356→                      <p className="mt-2 text-xs">No tasks</p>
+  1357→                    </div>
+  1358→                  ) : (
+  1359→                    columnTasks.map((task) => (
+  1360→                      <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+  1361→                    ))
+  1362→                  )}
+  1363→                </div>
+  1364→              </ScrollArea>
+  1365→            )}
+  1366→          </div>
+  1367→        )
+  1368→      })}
+  1369→    </div>
+  1370→  )
+  1371→
+  1372→  return (
+  1373→    <div className="space-y-3">
+  1374→      {/* View Toggle */}
+  1375→      <div className="flex items-center gap-2">
+  1376→        <Button
+  1377→          variant={viewMode === 'table' ? 'default' : 'outline'}
+  1378→          size="sm"
+  1379→          onClick={() => setViewMode('table')}
+  1380→          className="gap-1.5"
+  1381→        >
+  1382→          <List className="h-4 w-4" />
+  1383→          <span className="hidden sm:inline">Board</span>
+  1384→        </Button>
+  1385→        <Button
+  1386→          variant={viewMode === 'kanban' ? 'default' : 'outline'}
+  1387→          size="sm"
+  1388→          onClick={() => setViewMode('kanban')}
+  1389→          className="gap-1.5"
+  1390→        >
+  1391→          <LayoutGrid className="h-4 w-4" />
+  1392→          <span className="hidden sm:inline">Kanban</span>
+  1393→        </Button>
+  1394→        <Button
+  1395→          variant={viewMode === 'attendant' ? 'default' : 'outline'}
+  1396→          size="sm"
+  1397→          onClick={() => setViewMode('attendant')}
+  1398→          className="gap-1.5"
+  1399→        >
+  1400→          <Users className="h-4 w-4" />
+  1401→          <span className="hidden sm:inline">Attendant</span>
+  1402→        </Button>
+  1403→      </div>
+  1404→
+  1405→      {/* Views */}
+  1406→      {viewMode === 'table' && renderTableView()}
+  1407→      {viewMode === 'kanban' && renderKanbanView()}
+  1408→      {viewMode === 'attendant' && <AttendantView tasks={kanbanTasks} />}
+  1409→
+  1410→      {/* Task Detail Dialog (for Kanban/Attendant/Table) */}
+  1411→      <TaskDetailDialog
+  1412→        task={selectedTask}
+  1413→        open={!!selectedTask}
+  1414→        onOpenChange={(open) => !open && setSelectedTask(null)}
+  1415→      />
+  1416→
+  1417→      {/* Occupied Room Warning Dialog */}
+  1418→      <OccupiedWarningDialog
+  1419→        open={occupiedWarning.open}
+  1420→        onOpenChange={(open) => !open && handleCancelWarning()}
+  1421→        occupiedRooms={occupiedWarning.rooms}
+  1422→        actionLabel={occupiedWarning.pendingAction.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+  1423→        onForce={handleForceFromWarning}
+  1424→        onCancel={handleCancelWarning}
+  1425→      />
+  1426→
+  1427→      {/* Force-Mutated Room Blocked Dialog */}
+  1428→      <ForceMutatedBlockDialog
+  1429→        open={blockedDialog.open}
+  1430→        onOpenChange={(open) => setBlockedDialog(prev => ({ ...prev, open }))}
+  1431→        roomNumber={blockedDialog.roomNumber}
+  1432→        guestName={blockedDialog.guestName}
+  1433→      />
+  1434→    </div>
+  1435→  )
+  1436→}

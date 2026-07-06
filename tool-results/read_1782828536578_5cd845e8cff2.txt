@@ -1,0 +1,1731 @@
+     1→'use client'
+     2→
+     3→import { apiFetch } from '@/lib/api'
+     4→import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+     5→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     6→import {
+     7→  FileText, BedDouble, Shield, CreditCard,
+     8→  Check, Loader2, Search, User, Mail, Phone, Building, CalendarDays,
+     9→  AlertCircle, BadgeCheck, KeyRound, ArrowRight, Plus, Trash2,
+    10→  ArrowLeft, Minus, Users, Clock,
+    11→  Wallet, Info, Star, Crown, Zap, CalendarRange, Eye, Pencil,
+    12→} from 'lucide-react'
+    13→import { toast } from 'sonner'
+    14→
+    15→import { Button } from '@/components/ui/button'
+    16→import { Badge } from '@/components/ui/badge'
+    17→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    18→import { Input } from '@/components/ui/input'
+    19→import { Label } from '@/components/ui/label'
+    20→import { Checkbox } from '@/components/ui/checkbox'
+    21→import { Separator } from '@/components/ui/separator'
+    22→import { Skeleton } from '@/components/ui/skeleton'
+    23→import { Switch } from '@/components/ui/switch'
+    24→import { Textarea } from '@/components/ui/textarea'
+    25→import {
+    26→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    27→} from '@/components/ui/select'
+    28→import { Calendar } from '@/components/ui/calendar'
+    29→import {
+    30→  Popover, PopoverTrigger, PopoverContent,
+    31→} from '@/components/ui/popover'
+    32→import { StatusBadge } from '@/components/shared/status-badge'
+    33→import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
+    34→import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/components/shared/step-indicator'
+    35→import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
+    36→import { invalidate } from '@/lib/queryKeys'
+    37→import { cn } from '@/lib/utils'
+    38→import { useAuthStore, useSettingsStore, useNavigationStore, useFrontDeskContextStore, type CheckInSession } from '@/lib/store'
+    39→import { RoomRatePostingDialog } from './RoomRatePostingDialog'
+    40→
+    41→// ─── Constants ──────────────────────────────────────────────────────────
+    42→
+    43→const DOCUMENT_TYPES = [
+    44→  { value: 'passport', label: 'Passport' },
+    45→  { value: 'national_id', label: 'National ID' },
+    46→  { value: 'drivers_license', label: "Driver's License" },
+    47→  { value: 'visa', label: 'Visa' },
+    48→]
+    49→
+    50→const COUNTRIES = [
+    51→  'Nepal', 'India', 'China', 'USA', 'UK', 'Japan', 'South Korea',
+    52→  'Germany', 'France', 'Australia', 'Canada', 'Singapore', 'Malaysia',
+    53→  'Thailand', 'Sri Lanka', 'Bangladesh', 'Pakistan', 'UAE', 'Saudi Arabia',
+    54→  'Netherlands', 'Italy', 'Spain', 'Brazil', 'Russia', 'Other',
+    55→]
+    56→
+    57→const PAYMENT_METHODS = [
+    58→  { value: 'cash', label: 'Cash' },
+    59→  { value: 'card', label: 'Card' },
+    60→  { value: 'bank_transfer', label: 'Bank Transfer' },
+    61→]
+    62→
+    63→const PURPOSE_OF_VISIT = [
+    64→  { value: 'business', label: 'Business' },
+    65→  { value: 'leisure', label: 'Leisure' },
+    66→  { value: 'transit', label: 'Transit' },
+    67→  { value: 'medical', label: 'Medical' },
+    68→  { value: 'other', label: 'Other' },
+    69→]
+    70→
+    71→const PHASE2_STEPS: StepConfig[] = [
+    72→  { label: 'Guest & Stay', icon: User },
+    73→  { label: 'Room & Rate', icon: BedDouble },
+    74→  { label: 'Payment', icon: CreditCard },
+    75→]
+    76→
+    77→const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    78→
+    79→// ─── Types ──────────────────────────────────────────────────────────────
+    80→
+    81→interface ReservationData {
+    82→  id: string
+    83→  confirmationNo: string
+    84→  status: string
+    85→  reservationType: string | null
+    86→  adults: number
+    87→  children: number
+    88→  checkIn: string
+    89→  checkOut: string
+    90→  roomRate: number
+    91→  totalAmount: number
+    92→  specialRequests: string | null
+    93→  source: string | null
+    94→  company: string | null
+    95→  guaranteed: boolean
+    96→  roomTypeId: string | null
+    97→  ratePlanId: string | null
+    98→  guest: {
+    99→    id: string
+   100→    firstName: string
+   101→    lastName: string
+   102→    email: string | null
+   103→    phone: string | null
+   104→    nationality: string | null
+   105→    vipLevel: string
+   106→    idType: string | null
+   107→    idNumber: string | null
+   108→  } | null
+   109→  room: {
+   110→    id: string
+   111→    number: string
+   112→    floor: number
+   113→    wing: string | null
+   114→    status: string
+   115→    type: {
+   116→      id: string
+   117→      name: string
+   118→      code: string
+   119→      bedConfig: string
+   120→      areaSqFt: number | null
+   121→      view: string | null
+   122→      amenities: string | null
+   123→      baseOccupancy: number
+   124→      maxOccupancy: number
+   125→    }
+   126→  } | null
+   127→}
+   128→
+   129→interface RoomData {
+   130→  id: string
+   131→  number: string
+   132→  floor: number
+   133→  wing: string | null
+   134→  status: string
+   135→  type: {
+   136→    id: string
+   137→    name: string
+   138→    code: string
+   139→    bedConfig: string
+   140→    areaSqFt: number | null
+   141→    view: string | null
+   142→    amenities: string | null
+   143→    baseOccupancy: number
+   144→    maxOccupancy: number
+   145→  }
+   146→}
+   147→
+   148→interface RatePlanData {
+   149→  id: string
+   150→  name: string
+   151→  code: string
+   152→  baseRate: number
+   153→  channel: string | null
+   154→}
+   155→
+   156→interface GuestDocument {
+   157→  id: string
+   158→  docType: string
+   159→  docNumber: string
+   160→  issueCountry: string
+   161→  issueDate: string
+   162→  expiryDate: string
+   163→  placeOfIssue: string
+   164→}
+   165→
+   166→interface CheckInResult {
+   167→  reservation: ReservationData
+   168→  message: string
+   169→}
+   170→
+   171→// ─── Component ──────────────────────────────────────────────────────────
+   172→
+   173→export function CheckInProcess({ onBack }: { onBack: () => void }) {
+   174→  const queryClient = useQueryClient()
+   175→  const { user } = useAuthStore()
+   176→  const { settings } = useSettingsStore()
+   177→  const { checkInSession, clearCheckInSession } = useFrontDeskContextStore()
+   178→  const mainContentRef = useRef<HTMLDivElement>(null)
+   179→
+   180→  const today = getTodayString()
+   181→
+   182→  // ─── Step state ───────────────────────────────────────────────
+   183→  const [currentStep, setCurrentStep] = useState(checkInSession?.startAtStep || 1)
+   184→
+   185→  // ─── Reservation data ─────────────────────────────────────────
+   186→  const sessionReservation = checkInSession?.reservationData as unknown as ReservationData | null
+   187→  const [confirmedReservationId] = useState<string | null>(checkInSession?.reservationId || null)
+   188→  const isDirectWalkIn = checkInSession?.isDirectWalkIn || false
+   189→
+   190→  // ─── Walk-in guest fields ──────────────────────────────────────
+   191→  const [guestFirstName, setGuestFirstName] = useState(checkInSession?.walkInGuest?.firstName || '')
+   192→  const [guestLastName, setGuestLastName] = useState(checkInSession?.walkInGuest?.lastName || '')
+   193→  const [guestEmail, setGuestEmail] = useState(checkInSession?.walkInGuest?.email || '')
+   194→  const [guestPhone, setGuestPhone] = useState(checkInSession?.walkInGuest?.phone || '')
+   195→  const [guestNationality, setGuestNationality] = useState(checkInSession?.walkInGuest?.nationality || '')
+   196→  const [guestIdType, setGuestIdType] = useState('')
+   197→  const [guestIdNumber, setGuestIdNumber] = useState('')
+   198→
+   199→  // ─── Room & Rate ───────────────────────────────────────────────
+   200→  const [selectedRoomId, setSelectedRoomId] = useState<string>(sessionReservation?.room?.id || '')
+   201→  const [roomSearchFilter, setRoomSearchFilter] = useState('')
+   202→  const [roomTypeFilter, setRoomTypeFilter] = useState<string>('')
+   203→  const [roomFloorFilter, setRoomFloorFilter] = useState<string>('')
+   204→  const [selectedRatePlanId, setSelectedRatePlanId] = useState<string>(sessionReservation?.ratePlanId || '')
+   205→  const [roomRate, setRoomRate] = useState<number>(sessionReservation?.roomRate || 0)
+   206→  const [checkInDate, setCheckInDate] = useState(
+   207→    checkInSession?.walkInDates?.checkIn || sessionReservation?.checkIn?.split('T')[0] || today
+   208→  )
+   209→  const [checkOutDate, setCheckOutDate] = useState(
+   210→    checkInSession?.walkInDates?.checkOut || sessionReservation?.checkOut?.split('T')[0] || (() => {
+   211→      const d = new Date()
+   212→      d.setDate(d.getDate() + 1)
+   213→      return toDateOnly(d)
+   214→    })()
+   215→  )
+   216→  const [adults, setAdults] = useState(
+   217→    checkInSession?.walkInDates?.adults || sessionReservation?.adults || 2
+   218→  )
+   219→  const [children, setChildren] = useState(
+   220→    checkInSession?.walkInDates?.children || sessionReservation?.children || 0
+   221→  )
+   222→
+   223→  // ─── Guest & Stay extras (step 1) ──────────────────────────────
+   224→  const [specialRequests, setSpecialRequests] = useState(sessionReservation?.specialRequests || '')
+   225→  const [purposeOfVisit, setPurposeOfVisit] = useState('')
+   226→  const [guestInfoEditable, setGuestInfoEditable] = useState(false)
+   227→  const [guestNotes, setGuestNotes] = useState('')
+   228→
+   229→  // ─── Documents ────────────────────────────────────────────────
+   230→  const [collectDocuments, setCollectDocuments] = useState(false)
+   231→  const [documents, setDocuments] = useState<GuestDocument[]>([])
+   232→  const [editingDoc, setEditingDoc] = useState<Partial<GuestDocument>>({})
+   233→
+   234→  // ─── Payment ───────────────────────────────────────────────────
+   235→  const [collectAdvance, setCollectAdvance] = useState(false)
+   236→  const [advanceAmount, setAdvanceAmount] = useState<string>('')
+   237→  const [advanceMethod, setAdvanceMethod] = useState<string>('')
+   238→  const [advanceReference, setAdvanceReference] = useState('')
+   239→  const [confirmChecked, setConfirmChecked] = useState(false)
+   240→
+   241→  // ─── Success ──────────────────────────────────────────────────
+   242→  const [checkInResult, setCheckInResult] = useState<CheckInResult | null>(null)
+   243→  const [keyCardIssued, setKeyCardIssued] = useState(false)
+   244→  const [showRatePosting, setShowRatePosting] = useState(false)
+   245→
+   246→  // ─── Data queries ──────────────────────────────────────────────
+   247→
+   248→  const {
+   249→    data: reservationData,
+   250→    isLoading: reservationLoading,
+   251→  } = useQuery({
+   252→    queryKey: ['reservation', confirmedReservationId],
+   253→    queryFn: async () => {
+   254→      if (!confirmedReservationId) return null
+   255→      const data = await apiFetch(`/api/reservations/${confirmedReservationId}`) as { reservation: ReservationData }
+   256→      return data.reservation
+   257→    },
+   258→    enabled: !!confirmedReservationId,
+   259→  })
+   260→
+   261→  // Guest stay history
+   262→  const { data: guestStayHistory } = useQuery({
+   263→    queryKey: ['guest-stays', reservationData?.guest?.id],
+   264→    queryFn: async () => {
+   265→      if (!reservationData?.guest?.id) return null
+   266→      try {
+   267→        return await apiFetch(`/api/guests/${reservationData.guest.id}/stays`) as Array<{ id: string; checkIn: string; checkOut: string; roomNumber: string; guestName?: string; status?: string }>
+   268→      } catch {
+   269→        return null
+   270→      }
+   271→    },
+   272→    enabled: !!reservationData?.guest?.id,
+   273→  })
+   274→
+   275→  // Rooms list
+   276→  const { data: roomsData } = useQuery({
+   277→    queryKey: ['rooms-available'],
+   278→    queryFn: async () => {
+   279→      return apiFetch('/api/rooms?status=vacant_clean,inspected') as Promise<{
+   280→        rooms: RoomData[]
+   281→        roomTypes: Array<{
+   282→          id: string; name: string; code: string; baseOccupancy: number
+   283→          maxOccupancy: number; bedConfig: string; areaSqFt: number | null
+   284→          view: string | null; amenities: string | null
+   285→          ratePlans: RatePlanData[]
+   286→        }>
+   287→      }>
+   288→    },
+   289→  })
+   290→
+   291→  // ─── Check-in mutation ─────────────────────────────────────────
+   292→  const checkInMutation = useMutation({
+   293→    mutationFn: async (payload: Record<string, unknown>) => {
+   294→      return apiFetch('/api/check-in', {
+   295→        method: 'POST',
+   296→        headers: { 'Content-Type': 'application/json' },
+   297→        body: JSON.stringify(payload),
+   298→      }) as Promise<CheckInResult>
+   299→    },
+   300→    onSuccess: (data) => {
+   301→      setCheckInResult(data)
+   302→      setCurrentStep(4) // success screen marker
+   303→      toast.success('Guest checked in successfully!')
+   304→      invalidate.afterCheckIn(queryClient)
+   305→      queryClient.invalidateQueries({ queryKey: ['rooms-available'] })
+   306→    },
+   307→    onError: (err: Error) => {
+   308→      toast.error(err.message || 'Check-in failed')
+   309→    },
+   310→  })
+   311→
+   312→  // ─── Derived values ─────────────────────────────────────────────
+   313→
+   314→  const nights = useMemo(() => nightsBetween(checkInDate, checkOutDate), [checkInDate, checkOutDate])
+   315→  const taxRate = settings?.taxRate ?? 13
+   316→  const serviceChargeRate = settings?.serviceCharge ?? 10
+   317→  const subtotal = roomRate * nights
+   318→  const taxAmount = subtotal * (taxRate / 100)
+   319→  const serviceChargeAmount = subtotal * (serviceChargeRate / 100)
+   320→  const grandTotal = subtotal + taxAmount + serviceChargeAmount
+   321→  const advanceNum = parseFloat(advanceAmount) || 0
+   322→  const balanceDue = grandTotal - advanceNum
+   323→
+   324→  const selectedRoom = useMemo(() => {
+   325→    if (!roomsData || !selectedRoomId) return null
+   326→    return roomsData.rooms.find(r => r.id === selectedRoomId) || null
+   327→  }, [roomsData, selectedRoomId])
+   328→
+   329→  const selectedRoomType = useMemo(() => {
+   330→    if (!roomsData || !selectedRoom) return null
+   331→    return roomsData.roomTypes.find(rt => rt.id === selectedRoom.type.id) || null
+   332→  }, [roomsData, selectedRoom])
+   333→
+   334→  const ratePlans = useMemo(() => {
+   335→    if (!selectedRoomType) return []
+   336→    return selectedRoomType.ratePlans || []
+   337→  }, [selectedRoomType])
+   338→
+   339→  const selectedRatePlan = useMemo(() => {
+   340→    return ratePlans.find(rp => rp.id === selectedRatePlanId) || null
+   341→  }, [ratePlans, selectedRatePlanId])
+   342→
+   343→  // All available rooms of the selected room's type
+   344→  const sameTypeRooms = useMemo(() => {
+   345→    if (!roomsData || !selectedRoom) return []
+   346→    return roomsData.rooms.filter(
+   347→      r => r.type.id === selectedRoom.type.id && (r.status === 'vacant_clean' || r.status === 'inspected')
+   348→    )
+   349→  }, [roomsData, selectedRoom])
+   350→
+   351→  // Filtered rooms
+   352→  const filteredRooms = useMemo(() => {
+   353→    if (!roomsData) return []
+   354→    let available = roomsData.rooms.filter(
+   355→      r => r.status === 'vacant_clean' || r.status === 'inspected'
+   356→    )
+   357→    if (roomTypeFilter) {
+   358→      available = available.filter(r => r.type.id === roomTypeFilter)
+   359→    }
+   360→    if (roomFloorFilter) {
+   361→      available = available.filter(r => String(r.floor) === roomFloorFilter)
+   362→    }
+   363→    if (!roomSearchFilter) return available
+   364→    const f = roomSearchFilter.toLowerCase()
+   365→    return available.filter(r =>
+   366→      r.number.toLowerCase().includes(f) ||
+   367→      r.type.name.toLowerCase().includes(f) ||
+   368→      r.type.code.toLowerCase().includes(f) ||
+   369→      (r.wing && r.wing.toLowerCase().includes(f))
+   370→    )
+   371→  }, [roomsData, roomSearchFilter, roomTypeFilter, roomFloorFilter])
+   372→
+   373→  // Room counts by type
+   374→  const roomCountsByType = useMemo(() => {
+   375→    if (!roomsData) return {} as Record<string, number>
+   376→    const counts: Record<string, number> = {}
+   377→    for (const r of roomsData.rooms) {
+   378→      if (r.status === 'vacant_clean' || r.status === 'inspected') {
+   379→        counts[r.type.id] = (counts[r.type.id] || 0) + 1
+   380→      }
+   381→    }
+   382→    return counts
+   383→  }, [roomsData])
+   384→
+   385→  // Unique floors
+   386→  const uniqueFloors = useMemo(() => {
+   387→    if (!roomsData) return []
+   388→    const floors = new Set(roomsData.rooms.map(r => r.floor))
+   389→    return Array.from(floors).sort((a, b) => a - b)
+   390→  }, [roomsData])
+   391→
+   392→  // Occupancy check
+   393→  const totalOccupancy = adults + children
+   394→  const maxOccupancy = selectedRoom?.type.maxOccupancy || 0
+   395→  const occupancyExceeded = maxOccupancy > 0 && totalOccupancy > maxOccupancy
+   396→
+   397→  // Nights display
+   398→  const nightsDisplay = useMemo(() => {
+   399→    const ci = fromDateOnly(checkInDate)
+   400→    const co = fromDateOnly(checkOutDate)
+   401→    const ciDay = DAY_NAMES[ci.getDay()]
+   402→    const coDay = DAY_NAMES[co.getDay()]
+   403→    return `${nights} night${nights > 1 ? 's' : ''} (${ciDay} ${formatDateShort(checkInDate)} → ${coDay} ${formatDateShort(checkOutDate)})`
+   404→  }, [checkInDate, checkOutDate, nights])
+   405→
+   406→  // Sidebar data
+   407→  const sidebarGuestName = useMemo(() => {
+   408→    if (reservationData?.guest) {
+   409→      return `${reservationData.guest.firstName} ${reservationData.guest.lastName}`
+   410→    }
+   411→    if (isDirectWalkIn && (guestFirstName || guestLastName)) {
+   412→      return `${guestFirstName} ${guestLastName}`.trim()
+   413→    }
+   414→    return null
+   415→  }, [reservationData, isDirectWalkIn, guestFirstName, guestLastName])
+   416→
+   417→  const sidebarVipLevel = useMemo(() => {
+   418→    return reservationData?.guest?.vipLevel || null
+   419→  }, [reservationData])
+   420→
+   421→  const sidebarGuestContact = useMemo(() => {
+   422→    if (reservationData?.guest) {
+   423→      return { email: reservationData.guest.email, phone: reservationData.guest.phone }
+   424→    }
+   425→    if (isDirectWalkIn) {
+   426→      return { email: guestEmail || null, phone: guestPhone || null }
+   427→    }
+   428→    return { email: null, phone: null }
+   429→  }, [reservationData, isDirectWalkIn, guestEmail, guestPhone])
+   430→
+   431→  // ─── Handlers ──────────────────────────────────────────────────
+   432→
+   433→  const handleSelectRoom = useCallback((roomId: string) => {
+   434→    setSelectedRoomId(roomId)
+   435→    const room = roomsData?.rooms.find(r => r.id === roomId)
+   436→    if (room) {
+   437→      const rt = roomsData?.roomTypes.find(r => r.id === room.type.id)
+   438→      if (rt?.ratePlans && rt.ratePlans.length > 0) {
+   439→        setSelectedRatePlanId(rt.ratePlans[0].id)
+   440→        setRoomRate(rt.ratePlans[0].baseRate)
+   441→      } else {
+   442→        setRoomRate(0)
+   443→      }
+   444→    }
+   445→  }, [roomsData])
+   446→
+   447→  const handleRatePlanChange = useCallback((rpId: string) => {
+   448→    setSelectedRatePlanId(rpId)
+   449→    const rp = ratePlans.find(r => r.id === rpId)
+   450→    if (rp) setRoomRate(rp.baseRate)
+   451→  }, [ratePlans])
+   452→
+   453→  const handleAddDocument = useCallback(() => {
+   454→    if (!editingDoc.docType) {
+   455→      toast.error('Please select a document type')
+   456→      return
+   457→    }
+   458→    const newDoc: GuestDocument = {
+   459→      id: crypto.randomUUID(),
+   460→      docType: editingDoc.docType || '',
+   461→      docNumber: editingDoc.docNumber || '',
+   462→      issueCountry: editingDoc.issueCountry || '',
+   463→      issueDate: editingDoc.issueDate || '',
+   464→      expiryDate: editingDoc.expiryDate || '',
+   465→      placeOfIssue: editingDoc.placeOfIssue || '',
+   466→    }
+   467→    setDocuments(prev => [...prev, newDoc])
+   468→    setEditingDoc({})
+   469→  }, [editingDoc])
+   470→
+   471→  const handleRemoveDocument = useCallback((docId: string) => {
+   472→    setDocuments(prev => prev.filter(d => d.id !== docId))
+   473→  }, [])
+   474→
+   475→  const handleCompleteCheckIn = useCallback(() => {
+   476→    if (!selectedRoomId) {
+   477→      toast.error('Please select a room')
+   478→      return
+   479→    }
+   480→    if (!confirmChecked) {
+   481→      toast.error('Please confirm all details are correct')
+   482→      return
+   483→    }
+   484→
+   485→    const payload: Record<string, unknown> = {
+   486→      source: confirmedReservationId ? 'reservation' : 'direct',
+   487→      roomId: selectedRoomId,
+   488→      roomTypeId: selectedRoom?.type.id,
+   489→      ratePlanId: selectedRatePlanId || undefined,
+   490→      adults,
+   491→      children,
+   492→      roomRate,
+   493→      advanceAmount: collectAdvance && advanceNum > 0 ? advanceNum : undefined,
+   494→      advanceMethod: collectAdvance && advanceNum > 0 ? (advanceMethod || 'cash') : undefined,
+   495→      advanceReference: collectAdvance && advanceNum > 0 ? advanceReference : undefined,
+   496→      documents: collectDocuments && documents.length > 0
+   497→        ? documents.map(d => ({
+   498→            docType: d.docType,
+   499→            docNumber: d.docNumber || undefined,
+   500→            issueCountry: d.issueCountry || undefined,
+   501→            issueDate: d.issueDate || undefined,
+   502→            expiryDate: d.expiryDate || undefined,
+   503→            placeOfIssue: d.placeOfIssue || undefined,
+   504→          }))
+   505→        : undefined,
+   506→      checkedInBy: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'System',
+   507→    }
+   508→
+   509→    if (confirmedReservationId) {
+   510→      payload.reservationId = confirmedReservationId
+   511→    } else {
+   512→      payload.guest = {
+   513→        firstName: guestFirstName,
+   514→        lastName: guestLastName,
+   515→        email: guestEmail || undefined,
+   516→        phone: guestPhone || undefined,
+   517→        nationality: guestNationality || undefined,
+   518→        idType: guestIdType || undefined,
+   519→        idNumber: guestIdNumber || undefined,
+   520→      }
+   521→      payload.checkIn = checkInDate
+   522→      payload.checkOut = checkOutDate
+   523→    }
+   524→
+   525→    checkInMutation.mutate(payload)
+   526→  }, [
+   527→    confirmedReservationId, selectedRoomId, selectedRoom, selectedRatePlanId,
+   528→    adults, children, roomRate, collectAdvance, advanceNum, advanceMethod, advanceReference,
+   529→    collectDocuments, documents, user, guestFirstName, guestLastName,
+   530→    guestEmail, guestPhone, guestNationality, guestIdType, guestIdNumber,
+   531→    checkInDate, checkOutDate, confirmChecked, checkInMutation,
+   532→  ])
+   533→
+   534→  const handleStepClick = useCallback((step: number) => {
+   535→    if (step < currentStep) setCurrentStep(step)
+   536→  }, [currentStep])
+   537→
+   538→  const handleNext = useCallback(() => {
+   539→    if (currentStep === 1) {
+   540→      if (isDirectWalkIn && (!guestFirstName || !guestLastName)) {
+   541→        toast.error('Please enter guest name for walk-in')
+   542→        return
+   543→      }
+   544→    }
+   545→    if (currentStep === 2) {
+   546→      if (!selectedRoomId) {
+   547→        toast.error('Please select a room')
+   548→        return
+   549→      }
+   550→      if (roomRate <= 0) {
+   551→        toast.error('Please set a valid room rate')
+   552→        return
+   553→      }
+   554→    }
+   555→    setCurrentStep(prev => Math.min(prev + 1, 3))
+   556→  }, [currentStep, isDirectWalkIn, guestFirstName, guestLastName, selectedRoomId, roomRate])
+   557→
+   558→  const handleBack = useCallback(() => {
+   559→    if (currentStep === 1) {
+   560→      // Go back to lookup page
+   561→      onBack()
+   562→      return
+   563→    }
+   564→    setCurrentStep(prev => Math.max(prev - 1, 1))
+   565→  }, [currentStep, onBack])
+   566→
+   567→  const handlePhaseBack = useCallback(() => {
+   568→    onBack()
+   569→  }, [onBack])
+   570→
+   571→  const handleProceedRatePosting = useCallback(() => {
+   572→    if (checkInResult?.reservation?.id) {
+   573→      setShowRatePosting(true)
+   574→    }
+   575→  }, [checkInResult])
+   576→
+   577→  const handleQuickAdvance = useCallback((value: number | string) => {
+   578→    if (value === 'none') {
+   579→      setAdvanceAmount('0')
+   580→    } else if (value === 'full') {
+   581→      setAdvanceAmount(String(Math.round(grandTotal)))
+   582→    } else if (value === '1night') {
+   583→      setAdvanceAmount(String(Math.round(roomRate)))
+   584→    } else {
+   585→      setAdvanceAmount(String(Math.round(grandTotal * (Number(value) / 100))))
+   586→    }
+   587→  }, [grandTotal, roomRate])
+   588→
+   589→  // ─── Helpers ────────────────────────────────────────────────────
+   590→  const parseAmenities = (amenities: string | null): string[] => {
+   591→    if (!amenities) return []
+   592→    try { return JSON.parse(amenities) } catch { return [] }
+   593→  }
+   594→
+   595→  const formatDocType = (type: string) => {
+   596→    return DOCUMENT_TYPES.find(d => d.value === type)?.label || type
+   597→  }
+   598→
+   599→  // ─── Number Stepper (inline) ────────────────────────────────
+   600→  const NumberStepper = useCallback(({ label, value, min, max, onChange }: {
+   601→    label: string; value: number; min: number; max: number; onChange: (v: number) => void
+   602→  }) => (
+   603→    <div className="flex items-center h-10 rounded-lg border border-border bg-background px-3 gap-2 flex-1">
+   604→      <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">{label}</span>
+   605→      <div className="flex items-center gap-0 ml-auto">
+   606→        <button
+   607→          type="button"
+   608→          onClick={() => onChange(Math.max(min, value - 1))}
+   609→          className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-muted transition-colors"
+   610→        >
+   611→          <Minus className="w-3 h-3" />
+   612→        </button>
+   613→        <span className="w-8 text-center text-sm font-semibold tabular-nums">{value}</span>
+   614→        <button
+   615→          type="button"
+   616→          onClick={() => onChange(Math.min(max, value + 1))}
+   617→          className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-muted transition-colors"
+   618→        >
+   619→          <Plus className="w-3 h-3" />
+   620→        </button>
+   621→      </div>
+   622→    </div>
+   623→  ), [])
+   624→
+   625→  // ═══════════════════════════════════════════════════════════════
+   626→  // SIDEBAR
+   627→  // ═══════════════════════════════════════════════════════════════
+   628→
+   629→  const renderSidebar = () => (
+   630→    <aside className="w-full lg:w-72 xl:w-80 shrink-0 space-y-2 lg:sticky lg:top-0 lg:self-start">
+   631→      {/* Guest Card */}
+   632→      <Card className="overflow-hidden">
+   633→        <div className="bg-gradient-to-r from-teal-600 to-teal-700 dark:from-teal-700 dark:to-teal-800 px-3 py-2">
+   634→          <p className="text-[10px] font-semibold uppercase tracking-wider text-teal-100">Guest</p>
+   635→        </div>
+   636→        <CardContent className="p-2.5 space-y-1.5">
+   637→          {sidebarGuestName ? (
+   638→            <>
+   639→              <div className="flex items-center gap-2">
+   640→                <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center shrink-0">
+   641→                  <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+   642→                </div>
+   643→                <div className="min-w-0">
+   644→                  <p className="text-sm font-semibold truncate">{sidebarGuestName}</p>
+   645→                  {sidebarVipLevel && sidebarVipLevel !== 'none' && (
+   646→                    <Badge className="mt-0.5 h-4 text-[9px] px-1.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800">
+   647→                      <Crown className="w-2.5 h-2.5 mr-0.5" /> VIP
+   648→                    </Badge>
+   649→                  )}
+   650→                </div>
+   651→              </div>
+   652→              {(sidebarGuestContact.email || sidebarGuestContact.phone) && (
+   653→                <div className="space-y-0.5">
+   654→                  {sidebarGuestContact.email && (
+   655→                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+   656→                      <Mail className="w-3 h-3" />
+   657→                      <span className="truncate">{sidebarGuestContact.email}</span>
+   658→                    </p>
+   659→                  )}
+   660→                  {sidebarGuestContact.phone && (
+   661→                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+   662→                      <Phone className="w-3 h-3" />
+   663→                      <span>{sidebarGuestContact.phone}</span>
+   664→                    </p>
+   665→                  )}
+   666→                </div>
+   667→              )}
+   668→            </>
+   669→          ) : (
+   670→            <p className="text-xs text-muted-foreground italic">No guest selected yet</p>
+   671→          )}
+   672→        </CardContent>
+   673→      </Card>
+   674→
+   675→      {/* Room Card */}
+   676→      <Card className="overflow-hidden">
+   677→        <div className="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 px-3 py-2">
+   678→          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">Room</p>
+   679→        </div>
+   680→        <CardContent className="p-2.5 space-y-2">
+   681→          {selectedRoom ? (
+   682→            <>
+   683→              <div className="flex items-center gap-2">
+   684→                <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+   685→                  <span className="text-sm font-bold text-white">{selectedRoom.number}</span>
+   686→                </div>
+   687→                <div className="min-w-0 flex-1">
+   688→                  <p className="text-sm font-semibold">{selectedRoom.type.name}</p>
+   689→                  <p className="text-xs text-muted-foreground">
+   690→                    Floor {selectedRoom.floor}{selectedRoom.wing ? ` · ${selectedRoom.wing} Wing` : ''} · {selectedRoom.type.bedConfig}
+   691→                  </p>
+   692→                </div>
+   693→              </div>
+   694→              <StatusBadge status={selectedRoom.status} />
+   695→              {/* Amenity badges */}
+   696→              {selectedRoom.type.amenities && parseAmenities(selectedRoom.type.amenities).length > 0 && (
+   697→                <div className="flex flex-wrap gap-1 pt-1">
+   698→                  {parseAmenities(selectedRoom.type.amenities).slice(0, 4).map((a, i) => (
+   699→                    <Badge key={i} variant="secondary" className="text-[9px] h-4 px-1.5">{a}</Badge>
+   700→                  ))}
+   701→                </div>
+   702→              )}
+   703→            </>
+   704→          ) : (
+   705→            <p className="text-xs text-muted-foreground italic">No room assigned yet</p>
+   706→          )}
+   707→        </CardContent>
+   708→      </Card>
+   709→
+   710→      {/* Stay Info */}
+   711→      <Card className="overflow-hidden">
+   712→        <div className="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900 px-3 py-2">
+   713→          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-300">Stay</p>
+   714→        </div>
+   715→        <CardContent className="p-2.5 space-y-2">
+   716→          <div className="flex items-center justify-between text-xs">
+   717→            <span className="text-muted-foreground">Check-in</span>
+   718→            <span className="font-medium">{formatDate(checkInDate)}</span>
+   719→          </div>
+   720→          <div className="flex items-center justify-between text-xs">
+   721→            <span className="text-muted-foreground">Check-out</span>
+   722→            <span className="font-medium">{formatDate(checkOutDate)}</span>
+   723→          </div>
+   724→          <Separator />
+   725→          <div className="flex items-center justify-between text-xs">
+   726→            <span className="text-muted-foreground">Nights</span>
+   727→            <Badge variant="secondary" className="h-5 text-[10px] font-semibold">{nights}</Badge>
+   728→          </div>
+   729→          <div className="flex items-center justify-between text-xs">
+   730→            <span className="text-muted-foreground">Rate/night</span>
+   731→            <span className="font-semibold tabular-nums">{formatCurrency(roomRate)}</span>
+   732→          </div>
+   733→        </CardContent>
+   734→      </Card>
+   735→
+   736→      {/* Cost Summary */}
+   737→      <Card className="overflow-hidden">
+   738→        <div className="bg-gradient-to-r from-emerald-700 to-emerald-800 dark:from-emerald-800 dark:to-emerald-900 px-3 py-2">
+   739→          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-100">Cost Summary</p>
+   740→        </div>
+   741→        <CardContent className="p-2.5 space-y-1.5">
+   742→          <div className="flex items-center justify-between text-xs">
+   743→            <span className="text-muted-foreground">Room ({nights}n × {formatCurrency(roomRate)})</span>
+   744→            <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+   745→          </div>
+   746→          <div className="flex items-center justify-between text-xs">
+   747→            <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+   748→            <span className="tabular-nums">{formatCurrency(Math.round(taxAmount))}</span>
+   749→          </div>
+   750→          <div className="flex items-center justify-between text-xs">
+   751→            <span className="text-muted-foreground">Service ({serviceChargeRate}%)</span>
+   752→            <span className="tabular-nums">{formatCurrency(Math.round(serviceChargeAmount))}</span>
+   753→          </div>
+   754→          <Separator />
+   755→          <div className="flex items-center justify-between">
+   756→            <span className="text-sm font-bold">Total</span>
+   757→            <span className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+   758→              {formatCurrency(Math.round(grandTotal))}
+   759→            </span>
+   760→          </div>
+   761→          {collectAdvance && advanceNum > 0 && (
+   762→            <>
+   763→              <Separator />
+   764→              <div className="flex items-center justify-between text-xs">
+   765→                <span className="text-muted-foreground">Advance Paid</span>
+   766→                <span className="tabular-nums text-teal-600 dark:text-teal-400 font-medium">-{formatCurrency(Math.round(advanceNum))}</span>
+   767→              </div>
+   768→              <div className="flex items-center justify-between">
+   769→                <span className="text-xs font-medium">Balance Due</span>
+   770→                <span className={cn(
+   771→                  'text-sm font-bold tabular-nums',
+   772→                  balanceDue > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+   773→                )}>
+   774→                  {formatCurrency(Math.round(balanceDue))}
+   775→                </span>
+   776→              </div>
+   777→            </>
+   778→          )}
+   779→        </CardContent>
+   780→      </Card>
+   781→    </aside>
+   782→  )
+   783→
+   784→  // ═══════════════════════════════════════════════════════════════
+   785→  // STEP 1: Guest & Stay Verification
+   786→  // ═══════════════════════════════════════════════════════════════
+   787→
+   788→  const renderStep1 = () => {
+   789→    const isReservation = !!confirmedReservationId && reservationData
+   790→    const canEdit = isDirectWalkIn || guestInfoEditable
+   791→
+   792→    return (
+   793→      <StepContent title="Guest & Stay Verification" description="Verify guest details and stay information" icon={User}>
+   794→        {/* Guest Profile Card (for reservations with guest) */}
+   795→        {isReservation && reservationData?.guest && (
+   796→          <Card className="p-2.5">
+   797→            <div className="flex items-center gap-3">
+   798→              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold shrink-0 shadow-sm">
+   799→                {reservationData.guest.firstName[0]}{reservationData.guest.lastName[0]}
+   800→              </div>
+   801→              <div className="min-w-0 flex-1">
+   802→                <div className="flex items-center gap-2 flex-wrap">
+   803→                  <p className="text-sm font-bold">{reservationData.guest.firstName} {reservationData.guest.lastName}</p>
+   804→                  {reservationData.guest.vipLevel && reservationData.guest.vipLevel !== 'none' && (
+   805→                    <Badge className="h-5 text-[10px] px-1.5 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800">
+   806→                      <Crown className="w-3 h-3 mr-0.5" /> VIP {reservationData.guest.vipLevel}
+   807→                    </Badge>
+   808→                  )}
+   809→                </div>
+   810→                <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+   811→                  {reservationData.guest.email && (
+   812→                    <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{reservationData.guest.email}</span>
+   813→                  )}
+   814→                  {reservationData.guest.phone && (
+   815→                    <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{reservationData.guest.phone}</span>
+   816→                  )}
+   817→                  {reservationData.guest.nationality && (
+   818→                    <span className="flex items-center gap-1"><Building className="w-3 h-3" />{reservationData.guest.nationality}</span>
+   819→                  )}
+   820→                </div>
+   821→              </div>
+   822→            </div>
+   823→            {/* Guest stay history badges */}
+   824→            {guestStayHistory && guestStayHistory.length > 0 && (
+   825→              <div className="mt-2 pt-2 border-t">
+   826→                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+   827→                  <Star className="w-3 h-3 inline mr-1" />
+   828→                  Returning Guest — {guestStayHistory.length} previous stay{guestStayHistory.length > 1 ? 's' : ''}
+   829→                </p>
+   830→                <div className="flex flex-wrap gap-1">
+   831→                  {guestStayHistory.slice(0, 5).map((stay, i) => (
+   832→                    <Badge key={stay.id || i} variant="secondary" className="text-[10px] h-5">
+   833→                      Room {stay.roomNumber} · {formatDateShort(stay.checkIn)}
+   834→                    </Badge>
+   835→                  ))}
+   836→                  {guestStayHistory.length > 5 && (
+   837→                    <Badge variant="outline" className="text-[10px] h-5">+{guestStayHistory.length - 5} more</Badge>
+   838→                  )}
+   839→                </div>
+   840→              </div>
+   841→            )}
+   842→          </Card>
+   843→        )}
+   844→
+   845→        {/* Guest Information Card */}
+   846→        <Card className="p-2.5">
+   847→          <div className="flex items-center justify-between mb-2">
+   848→            <div className="flex items-center gap-2">
+   849→              <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+   850→              <h4 className="text-sm font-semibold">Guest Information</h4>
+   851→            </div>
+   852→            {isReservation && !isDirectWalkIn && (
+   853→              <Button
+   854→                variant="ghost"
+   855→                size="sm"
+   856→                className="h-7 text-xs"
+   857→                onClick={() => setGuestInfoEditable(!guestInfoEditable)}
+   858→              >
+   859→                <Pencil className="w-3 h-3 mr-1" />
+   860→                {guestInfoEditable ? 'Lock' : 'Edit'}
+   861→              </Button>
+   862→            )}
+   863→          </div>
+   864→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+   865→            <div className="space-y-1">
+   866→              <Label className="text-xs">First Name</Label>
+   867→              {canEdit ? (
+   868→                <Input value={guestFirstName} onChange={e => setGuestFirstName(e.target.value)} className="h-9 text-sm" />
+   869→              ) : (
+   870→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm font-medium">
+   871→                  {reservationData?.guest?.firstName || '—'}
+   872→                </div>
+   873→              )}
+   874→            </div>
+   875→            <div className="space-y-1">
+   876→              <Label className="text-xs">Last Name</Label>
+   877→              {canEdit ? (
+   878→                <Input value={guestLastName} onChange={e => setGuestLastName(e.target.value)} className="h-9 text-sm" />
+   879→              ) : (
+   880→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm font-medium">
+   881→                  {reservationData?.guest?.lastName || '—'}
+   882→                </div>
+   883→              )}
+   884→            </div>
+   885→            <div className="space-y-1">
+   886→              <Label className="text-xs">Email</Label>
+   887→              {canEdit ? (
+   888→                <Input type="email" value={guestEmail} onChange={e => setGuestEmail(e.target.value)} className="h-9 text-sm" />
+   889→              ) : (
+   890→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+   891→                  {reservationData?.guest?.email || '—'}
+   892→                </div>
+   893→              )}
+   894→            </div>
+   895→            <div className="space-y-1">
+   896→              <Label className="text-xs">Phone</Label>
+   897→              {canEdit ? (
+   898→                <Input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} className="h-9 text-sm" />
+   899→              ) : (
+   900→                <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+   901→                  {reservationData?.guest?.phone || '—'}
+   902→                </div>
+   903→              )}
+   904→            </div>
+   905→          </div>
+   906→        </Card>
+   907→
+   908→        {/* Stay Dates Card */}
+   909→        <Card className="p-2.5">
+   910→          <div className="flex items-center gap-2 mb-2">
+   911→            <CalendarDays className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+   912→            <h4 className="text-sm font-semibold">Stay Dates</h4>
+   913→          </div>
+   914→          {isReservation && !isDirectWalkIn ? (
+   915→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+   916→              <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+   917→                <CalendarDays className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+   918→                {formatDate(checkInDate)}
+   919→              </div>
+   920→              <div className="h-9 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
+   921→                <CalendarDays className="w-3.5 h-3.5 mr-2 text-muted-foreground" />
+   922→                {formatDate(checkOutDate)}
+   923→              </div>
+   924→            </div>
+   925→          ) : (
+   926→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+   927→              <div className="space-y-1">
+   928→                <Label className="text-xs">Check-in Date</Label>
+   929→                <Popover>
+   930→                  <PopoverTrigger asChild>
+   931→                    <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+   932→                      <CalendarDays className="mr-2 h-3.5 w-3.5" />
+   933→                      {formatDate(checkInDate)}
+   934→                    </Button>
+   935→                  </PopoverTrigger>
+   936→                  <PopoverContent className="w-auto p-0" align="start">
+   937→                    <Calendar mode="single" selected={fromDateOnly(checkInDate)} onSelect={d => d && setCheckInDate(toDateOnly(d))} initialFocus />
+   938→                  </PopoverContent>
+   939→                </Popover>
+   940→              </div>
+   941→              <div className="space-y-1">
+   942→                <Label className="text-xs">Check-out Date</Label>
+   943→                <Popover>
+   944→                  <PopoverTrigger asChild>
+   945→                    <Button variant="outline" className="h-9 text-sm w-full justify-start font-normal">
+   946→                      <CalendarDays className="mr-2 h-3.5 w-3.5" />
+   947→                      {formatDate(checkOutDate)}
+   948→                    </Button>
+   949→                  </PopoverTrigger>
+   950→                  <PopoverContent className="w-auto p-0" align="start">
+   951→                    <Calendar mode="single" selected={fromDateOnly(checkOutDate)} onSelect={d => d && setCheckOutDate(toDateOnly(d))} initialFocus />
+   952→                  </PopoverContent>
+   953→                </Popover>
+   954→              </div>
+   955→            </div>
+   956→          )}
+   957→
+   958→          {/* Wide occupancy boxes with flex-1 */}
+   959→          <div className="grid grid-cols-2 gap-2 mt-2">
+   960→            <NumberStepper label="Adults" value={adults} min={1} max={10} onChange={setAdults} />
+   961→            <NumberStepper label="Children" value={children} min={0} max={10} onChange={setChildren} />
+   962→          </div>
+   963→          <div className="flex items-center h-10 rounded-lg border border-border bg-muted/40 px-3 mt-2">
+   964→            <span className="text-xs text-muted-foreground font-medium">Nights:</span>
+   965→            <span className="ml-auto text-sm font-semibold tabular-nums">{nightsDisplay}</span>
+   966→          </div>
+   967→        </Card>
+   968→
+   969→        {/* Special Requests, Purpose, Guest Notes */}
+   970→        <Card className="p-2.5">
+   971→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+   972→            <div className="space-y-1">
+   973→              <Label className="text-xs">Purpose of Visit</Label>
+   974→              <Select value={purposeOfVisit} onValueChange={setPurposeOfVisit}>
+   975→                <SelectTrigger className="h-9 text-sm">
+   976→                  <SelectValue placeholder="Select purpose" />
+   977→                </SelectTrigger>
+   978→                <SelectContent>
+   979→                  {PURPOSE_OF_VISIT.map(p => (
+   980→                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+   981→                  ))}
+   982→                </SelectContent>
+   983→              </Select>
+   984→            </div>
+   985→            <div className="space-y-1">
+   986→              <Label className="text-xs">Special Requests</Label>
+   987→              <Textarea
+   988→                value={specialRequests}
+   989→                onChange={e => setSpecialRequests(e.target.value)}
+   990→                placeholder="Any special requests..."
+   991→                className="text-sm min-h-[36px] resize-none"
+   992→                rows={1}
+   993→              />
+   994→            </div>
+   995→          </div>
+   996→        </Card>
+   997→
+   998→        {/* Guest Notes */}
+   999→        {(guestNotes || reservationData?.specialRequests) && (
+  1000→          <Card className="p-2.5 bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-800">
+  1001→            <div className="flex items-center gap-2 mb-1.5">
+  1002→              <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+  1003→              <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wider">Guest Notes</h4>
+  1004→            </div>
+  1005→            <p className="text-xs text-muted-foreground">
+  1006→              {specialRequests || reservationData?.specialRequests || 'No notes available.'}
+  1007→            </p>
+  1008→          </Card>
+  1009→        )}
+  1010→      </StepContent>
+  1011→    )
+  1012→  }
+  1013→
+  1014→  // ═══════════════════════════════════════════════════════════════
+  1015→  // STEP 2: Room & Rate
+  1016→  // ═══════════════════════════════════════════════════════════════
+  1017→
+  1018→  const renderStep2 = () => (
+  1019→    <StepContent title="Room & Rate" description="Select a room and set the rate plan" icon={BedDouble}>
+  1020→      {/* If reservation already has a room */}
+  1021→      {confirmedReservationId && reservationData?.room && !selectedRoomId && (
+  1022→        <Card className="p-2.5 border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20">
+  1023→          <div className="flex items-center justify-between gap-2">
+  1024→            <div className="flex items-center gap-2">
+  1025→              <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+  1026→                <span className="text-sm font-bold text-white">{reservationData.room.number}</span>
+  1027→              </div>
+  1028→              <div>
+  1029→                <p className="text-sm font-semibold">{reservationData.room.type.name}</p>
+  1030→                <p className="text-xs text-muted-foreground">
+  1031→                  Floor {reservationData.room.floor} · {reservationData.room.type.bedConfig}
+  1032→                </p>
+  1033→              </div>
+  1034→            </div>
+  1035→            <Button variant="outline" size="sm" onClick={() => handleSelectRoom(reservationData.room!.id)}>
+  1036→              Use Assigned Room
+  1037→            </Button>
+  1038→          </div>
+  1039→        </Card>
+  1040→      )}
+  1041→
+  1042→      {/* Room Filter Bar */}
+  1043→      <Card className="p-2.5">
+  1044→        <div className="flex items-center gap-2 mb-2">
+  1045→          <BedDouble className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1046→          <h4 className="text-sm font-semibold">Available Rooms</h4>
+  1047→          {roomsData && (
+  1048→            <Badge variant="secondary" className="text-[10px] h-4">{filteredRooms.length} rooms</Badge>
+  1049→          )}
+  1050→        </div>
+  1051→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+  1052→          <div className="relative">
+  1053→            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+  1054→            <Input
+  1055→              placeholder="Search rooms..."
+  1056→              value={roomSearchFilter}
+  1057→              onChange={e => setRoomSearchFilter(e.target.value)}
+  1058→              className="pl-8 h-8 text-xs"
+  1059→            />
+  1060→          </div>
+  1061→          {roomsData && (
+  1062→            <Select value={roomTypeFilter} onValueChange={v => setRoomTypeFilter(v === 'all' ? '' : v)}>
+  1063→              <SelectTrigger className="h-8 text-xs">
+  1064→                <SelectValue placeholder="Room Type" />
+  1065→              </SelectTrigger>
+  1066→              <SelectContent>
+  1067→                <SelectItem value="all">All Types</SelectItem>
+  1068→                {roomsData.roomTypes.map(rt => (
+  1069→                  <SelectItem key={rt.id} value={rt.id}>
+  1070→                    {rt.name} ({roomCountsByType[rt.id] || 0})
+  1071→                  </SelectItem>
+  1072→                ))}
+  1073→              </SelectContent>
+  1074→            </Select>
+  1075→          )}
+  1076→          {uniqueFloors.length > 0 && (
+  1077→            <Select value={roomFloorFilter} onValueChange={v => setRoomFloorFilter(v === 'all' ? '' : v)}>
+  1078→              <SelectTrigger className="h-8 text-xs">
+  1079→                <SelectValue placeholder="Floor" />
+  1080→              </SelectTrigger>
+  1081→              <SelectContent>
+  1082→                <SelectItem value="all">All Floors</SelectItem>
+  1083→                {uniqueFloors.map(f => (
+  1084→                  <SelectItem key={String(f)} value={String(f)}>Floor {f}</SelectItem>
+  1085→                ))}
+  1086→              </SelectContent>
+  1087→            </Select>
+  1088→          )}
+  1089→        </div>
+  1090→
+  1091→        {/* Room Grid */}
+  1092→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-72 overflow-y-auto">
+  1093→          {filteredRooms.length === 0 && (
+  1094→            <div className="col-span-full py-8 text-center">
+  1095→              <BedDouble className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+  1096→              <p className="text-sm text-muted-foreground">No available rooms found</p>
+  1097→            </div>
+  1098→          )}
+  1099→          {filteredRooms.map(room => {
+  1100→            const rt = roomsData?.roomTypes.find(r => r.id === room.type.id)
+  1101→            const baseRate = rt?.ratePlans?.[0]?.baseRate
+  1102→            const amenities = parseAmenities(room.type.amenities)
+  1103→            return (
+  1104→              <button
+  1105→                key={room.id}
+  1106→                type="button"
+  1107→                onClick={() => handleSelectRoom(room.id)}
+  1108→                className={cn(
+  1109→                  'relative p-2.5 rounded-xl border text-left transition-all',
+  1110→                  selectedRoomId === room.id
+  1111→                    ? 'border-teal-400 ring-2 ring-teal-400/20 bg-teal-50/50 dark:bg-teal-950/20 shadow-sm'
+  1112→                    : 'border-border hover:bg-muted/50 hover:border-muted-foreground/30'
+  1113→                )}
+  1114→              >
+  1115→                {selectedRoomId === room.id && (
+  1116→                  <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-teal-500 flex items-center justify-center">
+  1117→                    <Check className="w-3 h-3 text-white" strokeWidth={3} />
+  1118→                  </div>
+  1119→                )}
+  1120→                <p className="text-lg font-bold tabular-nums">{room.number}</p>
+  1121→                <p className="text-xs text-muted-foreground mt-0.5 truncate">{room.type.name}</p>
+  1122→                <p className="text-[10px] text-muted-foreground">
+  1123→                  Floor {room.floor}{room.wing ? ` · ${room.wing}` : ''} · {room.type.bedConfig}
+  1124→                </p>
+  1125→                {/* Amenity badges */}
+  1126→                {amenities.length > 0 && (
+  1127→                  <div className="flex flex-wrap gap-0.5 mt-1">
+  1128→                    {amenities.slice(0, 3).map((a, i) => (
+  1129→                      <Badge key={i} variant="secondary" className="text-[8px] h-3.5 px-1">{a}</Badge>
+  1130→                    ))}
+  1131→                    {amenities.length > 3 && (
+  1132→                      <span className="text-[8px] text-muted-foreground">+{amenities.length - 3}</span>
+  1133→                    )}
+  1134→                  </div>
+  1135→                )}
+  1136→                {baseRate != null && (
+  1137→                  <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums">
+  1138→                    {formatCurrency(baseRate)}/n
+  1139→                  </p>
+  1140→                )}
+  1141→              </button>
+  1142→            )
+  1143→          })}
+  1144→        </div>
+  1145→      </Card>
+  1146→
+  1147→      {/* Room Type Comparison: show all rooms of the same type */}
+  1148→      {selectedRoom && sameTypeRooms.length > 1 && (
+  1149→        <Card className="p-2.5">
+  1150→          <div className="flex items-center gap-2 mb-2">
+  1151→            <BedDouble className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1152→            <h4 className="text-sm font-semibold">
+  1153→              {selectedRoom.type.name} Rooms
+  1154→            </h4>
+  1155→            <Badge variant="secondary" className="text-[10px] h-4">{sameTypeRooms.length} available</Badge>
+  1156→          </div>
+  1157→          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+  1158→            {sameTypeRooms.map(room => (
+  1159→              <button
+  1160→                key={room.id}
+  1161→                type="button"
+  1162→                onClick={() => handleSelectRoom(room.id)}
+  1163→                className={cn(
+  1164→                  'p-2.5 rounded-lg border text-left transition-all',
+  1165→                  selectedRoomId === room.id
+  1166→                    ? 'border-teal-400 bg-teal-50/50 dark:bg-teal-950/20'
+  1167→                    : 'border-border hover:bg-muted/50'
+  1168→                )}
+  1169→              >
+  1170→                <div className="flex items-center gap-2">
+  1171→                  <span className="text-sm font-bold tabular-nums">{room.number}</span>
+  1172→                  {selectedRoomId === room.id && <Check className="w-3.5 h-3.5 text-teal-600 ml-auto" />}
+  1173→                </div>
+  1174→                <p className="text-[10px] text-muted-foreground mt-0.5">
+  1175→                  Floor {room.floor}{room.wing ? ` · ${room.wing}` : ''}
+  1176→                </p>
+  1177→                {room.type.view && (
+  1178→                  <p className="text-[10px] text-muted-foreground">{room.type.view}</p>
+  1179→                )}
+  1180→              </button>
+  1181→            ))}
+  1182→          </div>
+  1183→        </Card>
+  1184→      )}
+  1185→
+  1186→      {/* Rate Plan Selection & Comparison */}
+  1187→      {selectedRoomType && (
+  1188→        <Card className="p-2.5">
+  1189→          <div className="flex items-center gap-2 mb-2">
+  1190→            <CreditCard className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1191→            <h4 className="text-sm font-semibold">Rate Plan</h4>
+  1192→          </div>
+  1193→
+  1194→          {/* Rate plan comparison cards */}
+  1195→          {ratePlans.length > 1 && (
+  1196→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+  1197→              {ratePlans.map(rp => {
+  1198→                const rpSubtotal = rp.baseRate * nights
+  1199→                const isSelected = selectedRatePlanId === rp.id
+  1200→                return (
+  1201→                  <button
+  1202→                    key={rp.id}
+  1203→                    type="button"
+  1204→                    onClick={() => handleRatePlanChange(rp.id)}
+  1205→                    className={cn(
+  1206→                      'p-2.5 rounded-lg border text-left transition-all',
+  1207→                      isSelected
+  1208→                        ? 'border-teal-400 ring-2 ring-teal-400/20 bg-teal-50/50 dark:bg-teal-950/20'
+  1209→                        : 'border-border hover:bg-muted/50'
+  1210→                    )}
+  1211→                  >
+  1212→                    <div className="flex items-center justify-between">
+  1213→                      <p className="text-xs font-semibold">{rp.name}</p>
+  1214→                      {isSelected && <Check className="w-3.5 h-3.5 text-teal-600" />}
+  1215→                    </div>
+  1216→                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 tabular-nums mt-0.5">
+  1217→                      {formatCurrency(rp.baseRate)}/night
+  1218→                    </p>
+  1219→                    <p className="text-[10px] text-muted-foreground">
+  1220→                      {nights}n × {formatCurrency(rp.baseRate)} = <span className="font-medium">{formatCurrency(rpSubtotal)}</span>
+  1221→                    </p>
+  1222→                    {rp.channel && (
+  1223→                      <Badge variant="secondary" className="text-[9px] h-4 mt-1">{rp.channel}</Badge>
+  1224→                    )}
+  1225→                  </button>
+  1226→                )
+  1227→              })}
+  1228→            </div>
+  1229→          )}
+  1230→
+  1231→          {/* Single rate plan dropdown */}
+  1232→          {ratePlans.length <= 1 && ratePlans.length > 0 && (
+  1233→            <Select value={selectedRatePlanId} onValueChange={handleRatePlanChange}>
+  1234→              <SelectTrigger className="h-9 text-sm">
+  1235→                <SelectValue placeholder="Select rate plan" />
+  1236→              </SelectTrigger>
+  1237→              <SelectContent>
+  1238→                {ratePlans.map(rp => (
+  1239→                  <SelectItem key={rp.id} value={rp.id}>
+  1240→                    {rp.name} — {formatCurrency(rp.baseRate)}/night
+  1241→                  </SelectItem>
+  1242→                ))}
+  1243→              </SelectContent>
+  1244→            </Select>
+  1245→          )}
+  1246→
+  1247→          {/* Inline subtotal */}
+  1248→          {roomRate > 0 && (
+  1249→            <div className="flex items-center justify-between mt-2 p-2 rounded-lg bg-muted/30">
+  1250→              <span className="text-xs text-muted-foreground">Subtotal ({nights} nights)</span>
+  1251→              <span className="font-semibold text-teal-600 dark:text-teal-400 tabular-nums">{formatCurrency(subtotal)}</span>
+  1252→            </div>
+  1253→          )}
+  1254→        </Card>
+  1255→      )}
+  1256→
+  1257→      {/* Occupancy Warning */}
+  1258→      {occupancyExceeded && (
+  1259→        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+  1260→          <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+  1261→          <p className="text-xs text-amber-700 dark:text-amber-400">
+  1262→            Occupancy ({totalOccupancy}) exceeds room maximum ({maxOccupancy}). Extra guests may require additional charges.
+  1263→          </p>
+  1264→        </div>
+  1265→      )}
+  1266→    </StepContent>
+  1267→  )
+  1268→
+  1269→  // ═══════════════════════════════════════════════════════════════
+  1270→  // STEP 3: Payment & Confirm
+  1271→  // ═══════════════════════════════════════════════════════════════
+  1272→
+  1273→  const renderStep3 = () => {
+  1274→    const resGuest = confirmedReservationId && reservationData?.guest ? reservationData.guest : null
+  1275→    const walkInGuest = isDirectWalkIn && guestFirstName ? {
+  1276→      firstName: guestFirstName,
+  1277→      lastName: guestLastName,
+  1278→      nationality: guestNationality || null,
+  1279→    } : null
+  1280→    const displayGuest = resGuest || walkInGuest
+  1281→
+  1282→    return (
+  1283→      <StepContent title="Payment & Confirm" description="Review charges and complete check-in" icon={CreditCard}>
+  1284→        {/* Advance Payment Toggle */}
+  1285→        <Card className="p-2.5">
+  1286→          <div className="flex items-center justify-between">
+  1287→            <div className="flex items-center gap-2">
+  1288→              <Wallet className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1289→              <Label htmlFor="collect-advance" className="text-sm cursor-pointer font-medium">
+  1290→                Collect Advance Payment
+  1291→              </Label>
+  1292→            </div>
+  1293→            <Switch
+  1294→              id="collect-advance"
+  1295→              checked={collectAdvance}
+  1296→              onCheckedChange={v => {
+  1297→                setCollectAdvance(!!v)
+  1298→                if (!v) setAdvanceAmount('')
+  1299→              }}
+  1300→            />
+  1301→          </div>
+  1302→        </Card>
+  1303→
+  1304→        {/* Payment Form */}
+  1305→        {collectAdvance && (
+  1306→          <Card className="p-2.5">
+  1307→            <CardTitle className="text-sm mb-2">Payment Details</CardTitle>
+  1308→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  1309→              <div className="space-y-1">
+  1310→                <Label className="text-xs">Amount</Label>
+  1311→                <Input type="number" value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)} placeholder={String(Math.round(grandTotal))} className="h-8 text-sm" />
+  1312→              </div>
+  1313→              <div className="space-y-1">
+  1314→                <Label className="text-xs">Payment Method</Label>
+  1315→                <Select value={advanceMethod} onValueChange={setAdvanceMethod}>
+  1316→                  <SelectTrigger className="h-8 text-sm">
+  1317→                    <SelectValue placeholder="Select method" />
+  1318→                  </SelectTrigger>
+  1319→                  <SelectContent>
+  1320→                    {PAYMENT_METHODS.map(pm => (
+  1321→                      <SelectItem key={pm.value} value={pm.value}>{pm.label}</SelectItem>
+  1322→                    ))}
+  1323→                  </SelectContent>
+  1324→                </Select>
+  1325→              </div>
+  1326→            </div>
+  1327→            <div className="mt-2">
+  1328→              <Label className="text-xs text-muted-foreground mb-1.5 block">Quick Amount</Label>
+  1329→              <div className="flex flex-wrap gap-1.5">
+  1330→                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance('full')}>Full Amount</Button>
+  1331→                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance('50')}>50%</Button>
+  1332→                <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => handleQuickAdvance('1night')}>1 Night Rate</Button>
+  1333→              </div>
+  1334→            </div>
+  1335→            <div className="mt-2 space-y-1">
+  1336→              <Label className="text-xs">Reference Number</Label>
+  1337→              <Input value={advanceReference} onChange={e => setAdvanceReference(e.target.value)} placeholder="Optional reference" className="h-8 text-sm" />
+  1338→            </div>
+  1339→          </Card>
+  1340→        )}
+  1341→
+  1342→        {/* Document Collection */}
+  1343→        <Card className="p-2.5">
+  1344→          <div className="flex items-center justify-between">
+  1345→            <div className="flex items-center gap-2">
+  1346→              <Shield className="w-4 h-4 text-muted-foreground" />
+  1347→              <Label htmlFor="collect-docs" className="text-sm cursor-pointer font-medium">
+  1348→                Collect Guest Documents
+  1349→              </Label>
+  1350→            </div>
+  1351→            <Switch id="collect-docs" checked={collectDocuments} onCheckedChange={v => setCollectDocuments(!!v)} />
+  1352→          </div>
+  1353→        </Card>
+  1354→
+  1355→        {collectDocuments && (
+  1356→          <Card className="p-2.5">
+  1357→            <CardTitle className="text-sm mb-2">Add Document</CardTitle>
+  1358→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+  1359→              <div className="space-y-1">
+  1360→                <Label className="text-xs">Document Type *</Label>
+  1361→                <Select value={editingDoc.docType || ''} onValueChange={v => setEditingDoc(prev => ({ ...prev, docType: v }))}>
+  1362→                  <SelectTrigger className="h-8 text-sm">
+  1363→                    <SelectValue placeholder="Select type" />
+  1364→                  </SelectTrigger>
+  1365→                  <SelectContent>
+  1366→                    {DOCUMENT_TYPES.map(dt => (
+  1367→                      <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
+  1368→                    ))}
+  1369→                  </SelectContent>
+  1370→                </Select>
+  1371→              </div>
+  1372→              <div className="space-y-1">
+  1373→                <Label className="text-xs">Document Number</Label>
+  1374→                <Input value={editingDoc.docNumber || ''} onChange={e => setEditingDoc(prev => ({ ...prev, docNumber: e.target.value }))} placeholder="Enter document number" className="h-8 text-sm" />
+  1375→              </div>
+  1376→              <div className="space-y-1">
+  1377→                <Label className="text-xs">Issue Country</Label>
+  1378→                <Select value={editingDoc.issueCountry || ''} onValueChange={v => setEditingDoc(prev => ({ ...prev, issueCountry: v }))}>
+  1379→                  <SelectTrigger className="h-8 text-sm">
+  1380→                    <SelectValue placeholder="Select country" />
+  1381→                  </SelectTrigger>
+  1382→                  <SelectContent>
+  1383→                    {COUNTRIES.map(c => (
+  1384→                      <SelectItem key={c} value={c}>{c}</SelectItem>
+  1385→                    ))}
+  1386→                  </SelectContent>
+  1387→                </Select>
+  1388→              </div>
+  1389→              <div className="space-y-1">
+  1390→                <Label className="text-xs">Expiry Date</Label>
+  1391→                <Input type="date" value={editingDoc.expiryDate || ''} onChange={e => setEditingDoc(prev => ({ ...prev, expiryDate: e.target.value }))} className="h-8 text-sm" />
+  1392→              </div>
+  1393→            </div>
+  1394→            <Button variant="outline" size="sm" className="mt-2" onClick={handleAddDocument}>
+  1395→              <Plus className="w-3.5 h-3.5 mr-1.5" />
+  1396→              Add Document
+  1397→            </Button>
+  1398→            {documents.length > 0 && (
+  1399→              <div className="mt-2 space-y-1.5">
+  1400→                {documents.map((doc, idx) => (
+  1401→                  <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border text-sm">
+  1402→                    <div className="flex items-center gap-2 min-w-0">
+  1403→                      <Badge variant="outline" className="text-xs shrink-0">#{idx + 1}</Badge>
+  1404→                      <span className="text-xs font-medium">{formatDocType(doc.docType)}</span>
+  1405→                      {doc.docNumber && <span className="text-xs text-muted-foreground truncate">{doc.docNumber}</span>}
+  1406→                    </div>
+  1407→                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500" onClick={() => handleRemoveDocument(doc.id)}>
+  1408→                      <Trash2 className="w-3 h-3" />
+  1409→                    </Button>
+  1410→                  </div>
+  1411→                ))}
+  1412→              </div>
+  1413→            )}
+  1414→          </Card>
+  1415→        )}
+  1416→
+  1417→        {/* Stay Summary Card */}
+  1418→        <Card className="p-2.5">
+  1419→          <div className="flex items-center gap-2 mb-2">
+  1420→            <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1421→            <h4 className="text-sm font-semibold">Stay Summary</h4>
+  1422→          </div>
+  1423→          <div className="space-y-2 text-xs">
+  1424→            {displayGuest && (
+  1425→              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+  1426→                <User className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+  1427→                <span className="font-medium">{displayGuest.firstName} {displayGuest.lastName}</span>
+  1428→                {displayGuest.nationality && <span className="text-muted-foreground">· {displayGuest.nationality}</span>}
+  1429→              </div>
+  1430→            )}
+  1431→            {selectedRoom && (
+  1432→              <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30">
+  1433→                <BedDouble className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+  1434→                <span className="font-medium">{selectedRoom.number}</span>
+  1435→                <RoomTypeBedBadge typeName={selectedRoom.type.name} bedConfig={selectedRoom.type.bedConfig} typeCode={selectedRoom.type.code} pax={adults + children} inline />
+  1436→                <span className="text-muted-foreground text-xs">(Floor {selectedRoom.floor})</span>
+  1437→              </div>
+  1438→            )}
+  1439→            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+  1440→              <span className="text-muted-foreground">Stay</span>
+  1441→              <div className="flex items-center gap-2">
+  1442→                <span className="font-medium">{formatDate(checkInDate)}</span>
+  1443→                <ArrowRight className="w-3 h-3 text-muted-foreground" />
+  1444→                <span className="font-medium">{formatDate(checkOutDate)}</span>
+  1445→                <Badge variant="secondary" className="h-4 text-[10px] font-semibold">{nights}n</Badge>
+  1446→              </div>
+  1447→            </div>
+  1448→
+  1449→            <Separator />
+  1450→            <div className="space-y-1.5">
+  1451→              <div className="flex items-center justify-between">
+  1452→                <span className="text-muted-foreground">Room charges</span>
+  1453→                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
+  1454→              </div>
+  1455→              <div className="flex items-center justify-between">
+  1456→                <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+  1457→                <span className="tabular-nums">{formatCurrency(Math.round(taxAmount))}</span>
+  1458→              </div>
+  1459→              <div className="flex items-center justify-between">
+  1460→                <span className="text-muted-foreground">Service Charge ({serviceChargeRate}%)</span>
+  1461→                <span className="tabular-nums">{formatCurrency(Math.round(serviceChargeAmount))}</span>
+  1462→              </div>
+  1463→              <Separator />
+  1464→              <div className="flex items-center justify-between text-sm">
+  1465→                <span className="font-bold">Total</span>
+  1466→                <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+  1467→                  {formatCurrency(Math.round(grandTotal))}
+  1468→                </span>
+  1469→              </div>
+  1470→            </div>
+  1471→
+  1472→            {specialRequests && (
+  1473→              <>
+  1474→                <Separator />
+  1475→                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
+  1476→                  <p className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-1">Special Requests</p>
+  1477→                  <p className="text-xs">{specialRequests}</p>
+  1478→                </div>
+  1479→              </>
+  1480→            )}
+  1481→            {reservationData?.specialRequests && !specialRequests && (
+  1482→              <>
+  1483→                <Separator />
+  1484→                <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800">
+  1485→                  <p className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium mb-1">Special Requests</p>
+  1486→                  <p className="text-xs">{reservationData.specialRequests}</p>
+  1487→                </div>
+  1488→              </>
+  1489→            )}
+  1490→          </div>
+  1491→        </Card>
+  1492→
+  1493→        {/* Confirmation Checkbox */}
+  1494→        <Card className="p-2.5">
+  1495→          <div className="flex items-start gap-2">
+  1496→            <Checkbox
+  1497→              id="confirm-details"
+  1498→              checked={confirmChecked}
+  1499→              onCheckedChange={v => setConfirmChecked(!!v)}
+  1500→              className="mt-0.5"
+  1501→            />
+  1502→            <Label htmlFor="confirm-details" className="text-xs leading-relaxed cursor-pointer">
+  1503→              I confirm all details are correct and the guest identity has been verified
+  1504→            </Label>
+  1505→          </div>
+  1506→        </Card>
+  1507→      </StepContent>
+  1508→    )
+  1509→  }
+  1510→
+  1511→  // ═══════════════════════════════════════════════════════════════
+  1512→  // SUCCESS SCREEN
+  1513→  // ═══════════════════════════════════════════════════════════════
+  1514→
+  1515→  const renderSuccess = () => {
+  1516→    const res = checkInResult?.reservation
+  1517→    const guestName = res?.guest ? `${res.guest.firstName} ${res.guest.lastName}` : '—'
+  1518→    const roomNumber = res?.room?.number || '—'
+  1519→    const roomTypeName = res?.room?.type?.name || '—'
+  1520→
+  1521→    return (
+  1522→      <div className="flex flex-col items-center py-6 sm:py-10 px-4">
+  1523→        {/* Animated success icon */}
+  1524→        <div className="relative mb-8">
+  1525→          <div className="absolute inset-0 -m-6 rounded-full bg-emerald-500/10 blur-2xl" />
+  1526→          <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-900/60 dark:to-emerald-950/40 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+  1527→            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-inner">
+  1528→              <Check className="w-8 h-8 text-white" strokeWidth={3} />
+  1529→            </div>
+  1530→          </div>
+  1531→        </div>
+  1532→
+  1533→        <h2 className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mb-1.5">
+  1534→          Guest Checked In Successfully
+  1535→        </h2>
+  1536→        <p className="text-sm text-muted-foreground mb-8 text-center max-w-sm">
+  1537→          The guest has been checked in. Room key card details are shown below.
+  1538→        </p>
+  1539→
+  1540→        {/* Room Key Card Visual */}
+  1541→        <div className={cn(
+  1542→          'w-full max-w-sm rounded-2xl overflow-hidden mb-8 shadow-lg transition-all',
+  1543→          keyCardIssued ? 'shadow-emerald-500/20' : 'shadow-slate-300/40 dark:shadow-slate-800/40'
+  1544→        )}>
+  1545→          <div className={cn(
+  1546→            'px-5 pt-5 pb-3 transition-colors',
+  1547→            keyCardIssued
+  1548→              ? 'bg-gradient-to-br from-emerald-500 to-emerald-600'
+  1549→              : 'bg-gradient-to-br from-slate-600 to-slate-800'
+  1550→          )}>
+  1551→            <p className="text-[10px] uppercase tracking-[0.2em] text-white/70">Room Key</p>
+  1552→            <p className="text-3xl font-bold text-white mt-1 tabular-nums">{roomNumber}</p>
+  1553→            <p className="text-xs text-white/80 mt-0.5">{roomTypeName}</p>
+  1554→          </div>
+  1555→          <div className="px-4 py-3 bg-white dark:bg-card space-y-3">
+  1556→            <div className="flex items-center gap-3">
+  1557→              <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center">
+  1558→                <User className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+  1559→              </div>
+  1560→              <div>
+  1561→                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Guest</p>
+  1562→                <p className="text-sm font-semibold">{guestName}</p>
+  1563→              </div>
+  1564→            </div>
+  1565→            <Separator />
+  1566→            <div className="grid grid-cols-2 gap-3">
+  1567→              <div>
+  1568→                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-in</p>
+  1569→                <p className="text-xs font-medium">{res?.checkIn ? formatDate(res.checkIn) : '—'}</p>
+  1570→              </div>
+  1571→              <div>
+  1572→                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-out</p>
+  1573→                <p className="text-xs font-medium">{res?.checkOut ? formatDate(res.checkOut) : '—'}</p>
+  1574→              </div>
+  1575→            </div>
+  1576→            <div className="flex items-center gap-2 pt-1">
+  1577→              {keyCardIssued ? (
+  1578→                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800 h-5 text-[10px] gap-1">
+  1579→                  <KeyRound className="w-2.5 h-2.5" /> Room Key Issued
+  1580→                </Badge>
+  1581→              ) : (
+  1582→                <Badge className="bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800 h-5 text-[10px] gap-1">
+  1583→                  <KeyRound className="w-2.5 h-2.5" /> Pending Key
+  1584→                </Badge>
+  1585→              )}
+  1586→            </div>
+  1587→          </div>
+  1588→        </div>
+  1589→
+  1590→        {/* Key card checkbox */}
+  1591→        <div className="flex items-center gap-2.5 mb-6">
+  1592→          <Checkbox
+  1593→            id="key-card"
+  1594→            checked={keyCardIssued}
+  1595→            onCheckedChange={v => setKeyCardIssued(!!v)}
+  1596→            className={cn(
+  1597→              'transition-colors',
+  1598→              keyCardIssued && 'data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500'
+  1599→            )}
+  1600→          />
+  1601→          <Label htmlFor="key-card" className="text-sm cursor-pointer flex items-center gap-1.5 select-none">
+  1602→            <KeyRound className="w-3.5 h-3.5" />
+  1603→            I have issued the room key card
+  1604→          </Label>
+  1605→        </div>
+  1606→
+  1607→        {/* Action buttons */}
+  1608→        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+  1609→          <Button
+  1610→            className="flex-1 h-11 text-sm font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
+  1611→            onClick={handleProceedRatePosting}
+  1612→          >
+  1613→            <CreditCard className="w-4 h-4 mr-2" />
+  1614→            Post Room Charges
+  1615→          </Button>
+  1616→          <Button
+  1617→            variant="outline"
+  1618→            className="flex-1 h-11 text-sm font-medium"
+  1619→            onClick={onBack}
+  1620→          >
+  1621→            <ArrowRight className="w-4 h-4 mr-2" />
+  1622→            Back to Front Desk
+  1623→          </Button>
+  1624→        </div>
+  1625→      </div>
+  1626→    )
+  1627→  }
+  1628→
+  1629→  // ═══════════════════════════════════════════════════════════════
+  1630→  // MAIN RENDER
+  1631→  // ═══════════════════════════════════════════════════════════════
+  1632→
+  1633→  // Show loading if we need reservation data
+  1634→  if (confirmedReservationId && reservationLoading) {
+  1635→    return (
+  1636→      <div className="flex flex-col h-full bg-background">
+  1637→        <div className="shrink-0 border-b bg-card">
+  1638→          <div className="flex items-center justify-between px-3 sm:px-6 py-2.5">
+  1639→            <button type="button" onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+  1640→              <ArrowLeft className="w-4 h-4" />
+  1641→              <span className="hidden sm:inline">Back</span>
+  1642→            </button>
+  1643→            <h1 className="text-base sm:text-lg font-semibold text-foreground">Guest Check-In</h1>
+  1644→            <div className="w-16" />
+  1645→          </div>
+  1646→        </div>
+  1647→        <div className="flex-1 flex items-center justify-center">
+  1648→          <div className="text-center">
+  1649→            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mx-auto mb-3" />
+  1650→            <p className="text-sm text-muted-foreground">Loading reservation data...</p>
+  1651→          </div>
+  1652→        </div>
+  1653→      </div>
+  1654→    )
+  1655→  }
+  1656→
+  1657→  return (
+  1658→    <div className="flex flex-col h-full bg-background">
+  1659→      {/* Header */}
+  1660→      <div className="shrink-0 border-b bg-card">
+  1661→        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5">
+  1662→          <button
+  1663→            type="button"
+  1664→            onClick={handlePhaseBack}
+  1665→            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+  1666→          >
+  1667→            <ArrowLeft className="w-4 h-4" />
+  1668→            <span className="hidden sm:inline">Back</span>
+  1669→          </button>
+  1670→          <h1 className="text-base sm:text-lg font-semibold text-foreground">Guest Check-In</h1>
+  1671→          <div className="w-16" /> {/* Spacer for symmetry */}
+  1672→        </div>
+  1673→        {/* Step Indicator */}
+  1674→        <StepIndicator
+  1675→          steps={PHASE2_STEPS}
+  1676→          currentStep={Math.min(currentStep, 3)}
+  1677→          onStepClick={handleStepClick}
+  1678→        />
+  1679→      </div>
+  1680→
+  1681→      {/* Content */}
+  1682→      <div className="flex-1 overflow-y-auto" ref={mainContentRef}>
+  1683→        {currentStep < 4 ? (
+  1684→          <div className="flex flex-col lg:flex-row gap-2 p-3 sm:p-4 max-w-7xl mx-auto">
+  1685→            {/* Main Form */}
+  1686→            <main className="flex-1 min-w-0 space-y-2">
+  1687→              {currentStep === 1 && renderStep1()}
+  1688→              {currentStep === 2 && renderStep2()}
+  1689→              {currentStep === 3 && renderStep3()}
+  1690→            </main>
+  1691→            {/* Sidebar */}
+  1692→            {renderSidebar()}
+  1693→          </div>
+  1694→        ) : (
+  1695→          <div className="max-w-7xl mx-auto p-3 sm:p-4">
+  1696→            {renderSuccess()}
+  1697→          </div>
+  1698→        )}
+  1699→      </div>
+  1700→
+  1701→      {/* Navigation Footer */}
+  1702→      {currentStep < 4 && (
+  1703→        <StepNav
+  1704→          currentStep={currentStep}
+  1705→          totalSteps={3}
+  1706→          onBack={handleBack}
+  1707→          onNext={handleNext}
+  1708→          onSubmit={handleCompleteCheckIn}
+  1709→          submitLabel="Complete Check-In"
+  1710→          isSubmitting={checkInMutation.isPending}
+  1711→          submitDisabled={!confirmChecked || checkInMutation.isPending}
+  1712→        />
+  1713→      )}
+  1714→
+  1715→      {/* Room Rate Posting Dialog */}
+  1716→      {showRatePosting && checkInResult?.reservation && (
+  1717→        <RoomRatePostingDialog
+  1718→          open={showRatePosting}
+  1719→          onOpenChange={setShowRatePosting}
+  1720→          reservationId={checkInResult.reservation.id}
+  1721→          roomNumber={checkInResult.reservation.room?.number || ''}
+  1722→          roomTypeName={checkInResult.reservation.room?.type?.name || ''}
+  1723→          roomRate={checkInResult.reservation.roomRate || 0}
+  1724→          checkIn={checkInResult.reservation.checkIn}
+  1725→          checkOut={checkInResult.reservation.checkOut}
+  1726→          reservationConfirmationNo={checkInResult.reservation.confirmationNo}
+  1727→        />
+  1728→      )}
+  1729→    </div>
+  1730→  )
+  1731→}

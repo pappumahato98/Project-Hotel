@@ -1,0 +1,1051 @@
+     1→'use client'
+     2→import { toast } from 'sonner'
+     3→
+     4→import { useState, useMemo, useCallback } from 'react'
+     5→import { apiFetch } from '@/lib/api'
+     6→import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Checkbox } from '@/components/ui/checkbox'
+    11→import { Input } from '@/components/ui/input'
+    12→import { Skeleton } from '@/components/ui/skeleton'
+    13→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+    14→import { Separator } from '@/components/ui/separator'
+    15→import {
+    16→  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
+    17→} from '@/components/ui/table'
+    18→import {
+    19→  Popover, PopoverTrigger, PopoverContent,
+    20→} from '@/components/ui/popover'
+    21→import {
+    22→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+    23→} from '@/components/ui/dropdown-menu'
+    24→import {
+    25→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    26→} from '@/components/ui/select'
+    27→import {
+    28→  Search, Filter, X, ChevronDown, BedDouble, Clock, User, AlertTriangle, Star,
+    29→  ClipboardCheck, Users, CheckCircle2, Circle, Sparkles, Eye, Trash2,
+    30→  LayoutGrid, List, MoreHorizontal, PlayCircle, CheckCircle, ShieldCheck,
+    31→  ArrowUpCircle, XCircle
+    32→} from 'lucide-react'
+    33→import { ScrollArea } from '@/components/ui/scroll-area'
+    34→import { StatusBadge } from '@/components/shared/status-badge'
+    35→import { cn } from '@/lib/utils'
+    36→
+    37→// ── Types ────────────────────────────────────────────────────
+    38→interface HkTask {
+    39→  id: string
+    40→  roomId: string
+    41→  taskType: string
+    42→  status: string
+    43→  priority: string
+    44→  assignedTo: string | null
+    45→  scheduledTime: string
+    46→  completedTime: string | null
+    47→  estimatedMinutes: number
+    48→  notes: string | null
+    49→  room: {
+    50→    id: string
+    51→    number: string
+    52→    floor: number
+    53→    wing: string | null
+    54→    status: string
+    55→    type: { name: string; code: string }
+    56→  }
+    57→}
+    58→
+    59→interface HkSummary {
+    60→  total: number
+    61→  pending: number
+    62→  assigned: number
+    63→  inProgress: number
+    64→  cleaned: number
+    65→  inspected: number
+    66→  failed: number
+    67→}
+    68→
+    69→
+    70→interface RoomRow {
+    71→  roomId: string
+    72→  roomNumber: string
+    73→  floor: number
+    74→  wing: string | null
+    75→  roomTypeName: string
+    76→  roomTypeCode: string
+    77→  bedConfig: string
+    78→  maxOccupancy: number
+    79→  roomStatus: string
+    80→  hkDisplayStatus: string
+    81→  hkTaskId: string | null
+    82→  priority: string
+    83→  assignedTo: string | null
+    84→  taskNotes: string | null
+    85→  scheduledTime: string | null
+    86→  estimatedMinutes: number | null
+    87→  reservationStatus: string
+    88→  guestName: string | null
+    89→  specialRequests: string | null
+    90→  confirmationNo: string | null
+    91→  hasTask: boolean
+    92→}
+    93→
+    94→// ── HK Status Colors ─────────────────────────────────────────
+    95→function hkStatusBadge(status: string) {
+    96→  const map: Record<string, { classes: string; label: string }> = {
+    97→    clean: { classes: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800', label: 'Clean' },
+    98→    dirty: { classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Dirty' },
+    99→    cleaning: { classes: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Cleaning' },
+   100→    cleaned: { classes: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800', label: 'Cleaned' },
+   101→    change_over: { classes: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800', label: 'Change Over' },
+   102→    pending: { classes: 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-800', label: 'Pending' },
+   103→    assigned: { classes: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800', label: 'Assigned' },
+   104→    inspected: { classes: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800', label: 'Inspected' },
+   105→    failed: { classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Failed' },
+   106→    occupied: { classes: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Occupied' },
+   107→    out_of_order: { classes: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800', label: 'Out of Order' },
+   108→  }
+   109→  const s = map[status] || { classes: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: status }
+   110→  return <Badge variant="outline" className={cn('text-[11px] font-semibold px-2 py-0', s.classes)}>{s.label}</Badge>
+   111→}
+   112→
+   113→// ── Reservation Status Colors ────────────────────────────────
+   114→function resStatusBadge(status: string) {
+   115→  const map: Record<string, { classes: string; label: string }> = {
+   116→    occupied: { classes: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800', label: 'Occupied' },
+   117→    vacant: { classes: 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-800', label: 'Vacant' },
+   118→    due_in: { classes: 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-800', label: 'Due In' },
+   119→    confirmed: { classes: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800', label: 'Confirmed' },
+   120→    checked_out: { classes: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: 'Checked Out' },
+   121→    no_show: { classes: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800', label: 'No Show' },
+   122→  }
+   123→  const s = map[status] || { classes: 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700', label: status }
+   124→  return <Badge variant="outline" className={cn('text-[11px] font-semibold px-2 py-0', s.classes)}>{s.label}</Badge>
+   125→}
+   126→
+   127→// ── Priority Indicator ───────────────────────────────────────
+   128→function PriorityDot({ priority }: { priority: string }) {
+   129→  const config: Record<string, { dot: string; label: string }> = {
+   130→    vip: { dot: 'bg-amber-500', label: 'VIP' },
+   131→    rush: { dot: 'bg-red-500', label: 'Rush' },
+   132→    high: { dot: 'bg-orange-500', label: 'High' },
+   133→    normal: { dot: 'bg-emerald-500', label: 'Normal' },
+   134→    low: { dot: 'bg-gray-400', label: 'Low' },
+   135→  }
+   136→  const c = config[priority] || config.normal
+   137→  return (
+   138→    <div className="flex items-center gap-1.5">
+   139→      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', c.dot)} />
+   140→      <span className="text-xs text-muted-foreground">{c.label}</span>
+   141→    </div>
+   142→  )
+   143→}
+   144→
+   145→// ── Helpers ──────────────────────────────────────────────────
+   146→function formatTaskType(type: string): string {
+   147→  const map: Record<string, string> = {
+   148→    checkout: 'Checkout', stayover: 'Stayover', turndown: 'Turndown',
+   149→    deep_clean: 'Deep Clean', maintenance: 'Maintenance',
+   150→  }
+   151→  return map[type] || type
+   152→}
+   153→
+   154→function formatTime(iso: string): string {
+   155→  const d = new Date(iso)
+   156→  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+   157→}
+   158→
+   159→function priorityColor(priority: string): string {
+   160→  switch (priority) {
+   161→    case 'vip': return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+   162→    case 'rush': return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800'
+   163→    case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800'
+   164→    default: return 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-200 dark:border-gray-700'
+   165→  }
+   166→}
+   167→
+   168→const CLEANING_CHECKLIST = [
+   169→  'Strip bed linens', 'Replace with fresh linens', 'Empty trash bins', 'Clean bathroom surfaces',
+   170→  'Restock towels & amenities', 'Dust all surfaces', 'Vacuum/sweep floors', 'Clean windows & mirrors',
+   171→  'Check minibar & restock', 'Verify AC/TV functionality', 'Remove personal items left behind', 'Report any damages',
+   172→]
+   173→
+   174→// ── Filter Dropdown Component ────────────────────────────────
+   175→function FilterDropdown({
+   176→  label,
+   177→  options,
+   178→  value,
+   179→  onValueChange,
+   180→}: {
+   181→  label: string
+   182→  options: { value: string; label: string }[]
+   183→  value: string
+   184→  onValueChange: (v: string) => void
+   185→}) {
+   186→  return (
+   187→    <Popover>
+   188→      <PopoverTrigger asChild>
+   189→        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
+   190→          {label}
+   191→          {value && (
+   192→            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+   193→          )}
+   194→          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+   195→        </Button>
+   196→      </PopoverTrigger>
+   197→      <PopoverContent className="w-40 p-1" align="start">
+   198→        <div className="space-y-0.5">
+   199→          {options.map((opt) => (
+   200→            <button
+   201→              key={opt.value}
+   202→              className={cn(
+   203→                'w-full text-left px-2 py-1.5 rounded-md text-xs transition-colors',
+   204→                value === opt.value
+   205→                  ? 'bg-primary text-primary-foreground'
+   206→                  : 'hover:bg-muted'
+   207→              )}
+   208→              onClick={() => onValueChange(value === opt.value ? '' : opt.value)}
+   209→            >
+   210→              {opt.label}
+   211→            </button>
+   212→          ))}
+   213→        </div>
+   214→      </PopoverContent>
+   215→    </Popover>
+   216→  )
+   217→}
+   218→
+   219→// ── Room Search Filter (text-based popover) ──────────────────
+   220→function RoomFilterDropdown({
+   221→  value,
+   222→  onChange,
+   223→}: {
+   224→  value: string
+   225→  onChange: (v: string) => void
+   226→}) {
+   227→  return (
+   228→    <Popover>
+   229→      <PopoverTrigger asChild>
+   230→        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs font-normal">
+   231→          Room
+   232→          {value && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+   233→          <ChevronDown className="w-3 h-3 text-muted-foreground" />
+   234→        </Button>
+   235→      </PopoverTrigger>
+   236→      <PopoverContent className="w-48 p-2" align="start">
+   237→        <div className="flex items-center gap-2">
+   238→          <Input
+   239→            placeholder="Room number..."
+   240→            value={value}
+   241→            onChange={(e) => onChange(e.target.value)}
+   242→            className="h-7 text-xs"
+   243→            autoFocus
+   244→          />
+   245→          {value && (
+   246→            <button onClick={() => onChange('')} className="shrink-0">
+   247→              <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+   248→            </button>
+   249→          )}
+   250→        </div>
+   251→      </PopoverContent>
+   252→    </Popover>
+   253→  )
+   254→}
+   255→
+   256→// ── Task Detail Dialog ───────────────────────────────────────
+   257→function TaskDetailDialog({ task, open, onOpenChange }: { task: HkTask | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+   258→  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
+   259→  const queryClient = useQueryClient()
+   260→
+   261→  const updateStatusMutation = useMutation({
+   262→    mutationFn: (body: { id: string; status: string; inspectedBy?: string }) =>
+   263→      apiFetch('/api/housekeeping', { method: 'POST', body }),
+   264→    onSuccess: () => {
+   265→      toast.success('Task status updated')
+   266→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   267→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   268→      onOpenChange(false)
+   269→    },
+   270→  })
+   271→
+   272→  if (!task) return null
+   273→
+   274→  const toggleCheck = (item: string) => {
+   275→    setCheckedItems((prev) => ({ ...prev, [item]: !prev[item] }))
+   276→  }
+   277→  const checkedCount = Object.values(checkedItems).filter(Boolean).length
+   278→
+   279→  return (
+   280→    <Dialog open={open} onOpenChange={onOpenChange}>
+   281→      <DialogContent className="sm:max-w-lg">
+   282→        <DialogHeader>
+   283→          <DialogTitle className="flex items-center gap-2">
+   284→            Room {task.room.number} — {formatTaskType(task.taskType)}
+   285→          </DialogTitle>
+   286→          <DialogDescription>
+   287→            Floor {task.room.floor}{task.room.wing ? ` · ${task.room.wing} Wing` : ''} · {task.room.type.name}
+   288→          </DialogDescription>
+   289→        </DialogHeader>
+   290→
+   291→        <div className="space-y-4">
+   292→          <div className="grid grid-cols-2 gap-3">
+   293→            <div className="rounded-lg border p-3 space-y-1">
+   294→              <p className="text-xs text-muted-foreground">Priority</p>
+   295→              <Badge variant="outline" className={cn(priorityColor(task.priority))}>
+   296→                {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+   297→              </Badge>
+   298→            </div>
+   299→            <div className="rounded-lg border p-3 space-y-1">
+   300→              <p className="text-xs text-muted-foreground">Status</p>
+   301→              <StatusBadge status={task.status} />
+   302→            </div>
+   303→            <div className="rounded-lg border p-3 space-y-1">
+   304→              <p className="text-xs text-muted-foreground">Assigned To</p>
+   305→              <p className="text-sm font-medium">{task.assignedTo || 'Unassigned'}</p>
+   306→            </div>
+   307→            <div className="rounded-lg border p-3 space-y-1">
+   308→              <p className="text-xs text-muted-foreground">Est. Time</p>
+   309→              <p className="text-sm font-medium">{task.estimatedMinutes} min</p>
+   310→            </div>
+   311→          </div>
+   312→
+   313→          <div className="space-y-2">
+   314→            <div className="flex items-center justify-between">
+   315→              <p className="text-sm font-semibold">Cleaning Checklist</p>
+   316→              <span className="text-xs text-muted-foreground">{checkedCount}/{CLEANING_CHECKLIST.length}</span>
+   317→            </div>
+   318→            <div className="rounded-lg border divide-y max-h-64 overflow-y-auto">
+   319→              {CLEANING_CHECKLIST.map((item) => (
+   320→                <label
+   321→                  key={item}
+   322→                  className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/50 cursor-pointer transition-colors"
+   323→                >
+   324→                  <Checkbox
+   325→                    checked={checkedItems[item] || false}
+   326→                    onCheckedChange={() => toggleCheck(item)}
+   327→                  />
+   328→                  <span className={checkedItems[item] ? 'line-through text-muted-foreground' : ''}>
+   329→                    {item}
+   330→                  </span>
+   331→                </label>
+   332→              ))}
+   333→            </div>
+   334→          </div>
+   335→
+   336→          {task.notes && (
+   337→            <div className="rounded-lg border p-3">
+   338→              <p className="text-xs text-muted-foreground mb-1">Notes</p>
+   339→              <p className="text-sm">{task.notes}</p>
+   340→            </div>
+   341→          )}
+   342→
+   343→          {/* Status Actions */}
+   344→          <div className="flex gap-2 pt-2">
+   345→            {task.status === 'pending' && (
+   346→              <Button
+   347→                size="sm"
+   348→                variant="outline"
+   349→                className="flex-1"
+   350→                onClick={() => updateStatusMutation.mutate({ id: task.id, status: 'in_progress' })}
+   351→                disabled={updateStatusMutation.isPending}
+   352→              >
+   353→                <Clock className="w-3.5 h-3.5 mr-1.5" /> Start Cleaning
+   354→              </Button>
+   355→            )}
+   356→            {task.status === 'in_progress' && (
+   357→              <Button
+   358→                size="sm"
+   359→                className="flex-1"
+   360→                onClick={() => updateStatusMutation.mutate({ id: task.id, status: 'cleaned' })}
+   361→                disabled={updateStatusMutation.isPending}
+   362→              >
+   363→                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Mark Cleaned
+   364→              </Button>
+   365→            )}
+   366→            {task.status === 'cleaned' && (
+   367→              <Button
+   368→                size="sm"
+   369→                className="flex-1"
+   370→                onClick={() => updateStatusMutation.mutate({ id: task.id, status: 'inspected', inspectedBy: 'Admin' })}
+   371→                disabled={updateStatusMutation.isPending}
+   372→              >
+   373→                <Eye className="w-3.5 h-3.5 mr-1.5" /> Mark Inspected
+   374→              </Button>
+   375→            )}
+   376→          </div>
+   377→        </div>
+   378→      </DialogContent>
+   379→    </Dialog>
+   380→  )
+   381→}
+   382→
+   383→// ── Attendant View ───────────────────────────────────────────
+   384→function AttendantView({ tasks }: { tasks: HkTask[] }) {
+   385→  const attendants = new Map<string, HkTask[]>()
+   386→  tasks.forEach((task) => {
+   387→    const name = task.assignedTo || 'Unassigned'
+   388→    if (!attendants.has(name)) attendants.set(name, [])
+   389→    attendants.get(name)!.push(task)
+   390→  })
+   391→
+   392→  return (
+   393→    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+   394→      {Array.from(attendants.entries()).map(([name, attTasks]) => (
+   395→        <Card key={name}>
+   396→          <CardContent className="p-3 space-y-2">
+   397→            <div className="flex items-center gap-3">
+   398→              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-sm font-medium">
+   399→                {name.charAt(0)}
+   400→              </div>
+   401→              <div>
+   402→                <p className="text-sm font-semibold">{name}</p>
+   403→                <p className="text-xs text-muted-foreground">{attTasks.length} tasks assigned</p>
+   404→              </div>
+   405→            </div>
+   406→            {attTasks.map((task) => (
+   407→              <div key={task.id} className="flex items-center justify-between rounded-md border p-2 text-sm">
+   408→                <div className="flex items-center gap-2">
+   409→                  <BedDouble className="h-3.5 w-3.5 text-muted-foreground" />
+   410→                  <span className="font-medium">Room {task.room.number}</span>
+   411→                </div>
+   412→                <StatusBadge status={task.status} />
+   413→              </div>
+   414→            ))}
+   415→          </CardContent>
+   416→        </Card>
+   417→      ))}
+   418→    </div>
+   419→  )
+   420→}
+   421→
+   422→// ── Board View (Kanban - old) ────────────────────────────────
+   423→const KANBAN_COLUMNS: { id: string; label: string; color: string }[] = [
+   424→  { id: 'pending', label: 'Pending', color: 'border-yellow-400' },
+   425→  { id: 'in_progress', label: 'In Progress', color: 'border-amber-400' },
+   426→  { id: 'cleaned', label: 'Cleaned', color: 'border-green-400' },
+   427→  { id: 'inspected', label: 'Inspected', color: 'border-purple-400' },
+   428→  { id: 'failed', label: 'Failed', color: 'border-red-400' },
+   429→]
+   430→
+   431→function TaskCard({ task, onClick }: { task: HkTask; onClick: () => void }) {
+   432→  return (
+   433→    <Card className="cursor-pointer transition-all hover:shadow-md hover:border-primary/20 group" onClick={onClick}>
+   434→      <CardContent className="p-3 space-y-2">
+   435→        <div className="flex items-center justify-between">
+   436→          <div className="flex items-center gap-2">
+   437→            <BedDouble className="h-4 w-4 text-muted-foreground" />
+   438→            <span className="font-semibold text-sm">Room {task.room.number}</span>
+   439→            <Badge variant="outline" className="text-xs font-normal">{formatTaskType(task.taskType)}</Badge>
+   440→          </div>
+   441→        </div>
+   442→        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   443→          {task.assignedTo && (
+   444→            <div className="flex items-center gap-1">
+   445→              <User className="h-3 w-3" />
+   446→              <span>{task.assignedTo}</span>
+   447→            </div>
+   448→          )}
+   449→          <Badge variant="outline" className={cn('text-xs', priorityColor(task.priority))}>
+   450→            {task.priority === 'vip' && <Star className="h-3 w-3 mr-0.5 fill-current" />}
+   451→            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+   452→          </Badge>
+   453→        </div>
+   454→        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+   455→          <Clock className="h-3 w-3" />
+   456→          <span>{task.estimatedMinutes} min</span>
+   457→          <span className="text-muted-foreground/60">·</span>
+   458→          <span>{formatTime(task.scheduledTime)}</span>
+   459→        </div>
+   460→      </CardContent>
+   461→    </Card>
+   462→  )
+   463→}
+   464→
+   465→// ── Row Action Menu ──────────────────────────────────────────
+   466→function RowActionMenu({
+   467→  row,
+   468→  onStatusChange,
+   469→  onViewDetail,
+   470→}: {
+   471→  row: RoomRow
+   472→  onStatusChange: (roomId: string, taskId: string | null, newStatus: string) => void
+   473→  onViewDetail: (roomId: string) => void
+   474→}) {
+   475→  return (
+   476→    <DropdownMenu>
+   477→      <DropdownMenuTrigger asChild>
+   478→        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => e.stopPropagation()}>
+   479→          <MoreHorizontal className="h-3.5 w-3.5" />
+   480→        </Button>
+   481→      </DropdownMenuTrigger>
+   482→      <DropdownMenuContent align="start" className="w-44">
+   483→        <DropdownMenuItem
+   484→          onClick={(e) => { e.stopPropagation(); onViewDetail(row.roomId) }}
+   485→          className="gap-2 text-xs"
+   486→        >
+   487→          <Eye className="h-3.5 w-3.5" /> View Details
+   488→        </DropdownMenuItem>
+   489→        <DropdownMenuSeparator />
+   490→        {(row.hkDisplayStatus === 'pending' || row.hkDisplayStatus === 'assigned') && (
+   491→          <DropdownMenuItem
+   492→            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'in_progress') }}
+   493→            className="gap-2 text-xs"
+   494→          >
+   495→            <PlayCircle className="h-3.5 w-3.5" /> Start Cleaning
+   496→          </DropdownMenuItem>
+   497→        )}
+   498→        {(row.hkDisplayStatus === 'cleaning' || row.hkDisplayStatus === 'in_progress') && (
+   499→          <DropdownMenuItem
+   500→            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'cleaned') }}
+   501→            className="gap-2 text-xs"
+   502→          >
+   503→            <CheckCircle className="h-3.5 w-3.5" /> Mark Cleaned
+   504→          </DropdownMenuItem>
+   505→        )}
+   506→        {row.hkDisplayStatus === 'cleaned' && (
+   507→          <DropdownMenuItem
+   508→            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'inspected') }}
+   509→            className="gap-2 text-xs"
+   510→          >
+   511→            <ShieldCheck className="h-3.5 w-3.5" /> Mark Inspected
+   512→          </DropdownMenuItem>
+   513→        )}
+   514→        {row.hkDisplayStatus === 'failed' && (
+   515→          <DropdownMenuItem
+   516→            onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'pending') }}
+   517→            className="gap-2 text-xs"
+   518→          >
+   519→            <ArrowUpCircle className="h-3.5 w-3.5" /> Reset to Pending
+   520→          </DropdownMenuItem>
+   521→        )}
+   522→        <DropdownMenuSeparator />
+   523→        <DropdownMenuItem
+   524→          onClick={(e) => { e.stopPropagation(); onStatusChange(row.roomId, row.hkTaskId, 'rush') }}
+   525→          className="gap-2 text-xs"
+   526→        >
+   527→          <AlertTriangle className="h-3.5 w-3.5" /> Set Rush Priority
+   528→        </DropdownMenuItem>
+   529→      </DropdownMenuContent>
+   530→    </DropdownMenu>
+   531→  )
+   532→}
+   533→
+   534→// ── Main Component ───────────────────────────────────────────
+   535→export function TaskBoardView() {
+   536→  const [selectedTask, setSelectedTask] = useState<HkTask | null>(null)
+   537→  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'attendant'>('table')
+   538→
+   539→  // Table view filters
+   540→  const [searchQuery, setSearchQuery] = useState('')
+   541→  const [filterHkStatus, setFilterHkStatus] = useState('')
+   542→  const [filterPriority, setFilterPriority] = useState('')
+   543→  const [filterFloor, setFilterFloor] = useState('')
+   544→  const [filterRoomType, setFilterRoomType] = useState('')
+   545→  const [filterRoomNumber, setFilterRoomNumber] = useState('')
+   546→  const [filterReservation, setFilterReservation] = useState('')
+   547→  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+   548→  const [debouncedSearch, setDebouncedSearch] = useState('')
+   549→
+   550→  // Kanban expanded state
+   551→  const [expandedColumns, setExpandedColumns] = useState<Set<string>>(
+   552→    new Set(KANBAN_COLUMNS.map((c) => c.id))
+   553→  )
+   554→
+   555→  // Debounce search
+   556→  const [searchTimer, setSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
+   557→  const handleSearchChange = useCallback((v: string) => {
+   558→    setSearchQuery(v)
+   559→    if (searchTimer) clearTimeout(searchTimer)
+   560→    const timer = setTimeout(() => setDebouncedSearch(v), 300)
+   561→    setSearchTimer(timer)
+   562→  }, [searchTimer])
+   563→
+   564→  // Table data query
+   565→  const { data: tableData, isLoading: tableLoading } = useQuery<{ rows: RoomRow[] }>({
+   566→    queryKey: ['housekeeping-rooms', filterHkStatus, filterPriority, filterFloor, debouncedSearch],
+   567→    queryFn: () => {
+   568→      const params = new URLSearchParams()
+   569→      if (filterHkStatus) params.set('hkStatus', filterHkStatus)
+   570→      if (filterPriority) params.set('priority', filterPriority)
+   571→      if (filterFloor) params.set('floor', filterFloor)
+   572→      if (debouncedSearch) params.set('search', debouncedSearch)
+   573→      const qs = params.toString()
+   574→      return apiFetch(`/api/housekeeping/rooms${qs ? `?${qs}` : ''}`) as Promise<{ rows: RoomRow[] }>
+   575→    },
+   576→    enabled: viewMode === 'table',
+   577→  })
+   578→
+   579→  // Kanban data query
+   580→  const { data: kanbanData, isLoading: kanbanLoading } = useQuery<{
+   581→    tasks: HkTask[]
+   582→    summary: HkSummary
+   583→  }>({
+   584→    queryKey: ['housekeeping-tasks'],
+   585→    queryFn: () => apiFetch('/api/housekeeping') as Promise<{ tasks: HkTask[]; summary: HkSummary }>,
+   586→    enabled: viewMode !== 'table',
+   587→  })
+   588→
+   589→  const queryClient = useQueryClient()
+   590→
+   591→  const tableRows = tableData?.rows || []
+   592→  const kanbanTasks = kanbanData?.tasks || []
+   593→
+   594→  // Row status change mutation
+   595→  const rowStatusMutation = useMutation({
+   596→    mutationFn: ({ taskId, status }: { taskId: string | null; status: string }) =>
+   597→      apiFetch('/api/housekeeping', { method: 'POST', body: { id: taskId, status } }),
+   598→    onSuccess: () => {
+   599→      toast.success('Status updated')
+   600→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   601→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   602→    },
+   603→  })
+   604→
+   605→  const bulkStatusMutation = useMutation({
+   606→    mutationFn: ({ roomIds, status }: { roomIds: string[]; status: string }) =>
+   607→      Promise.all(
+   608→        roomIds.map((id) => {
+   609→          const row = tableRows.find((r) => r.roomId === id)
+   610→          return apiFetch('/api/housekeeping', {
+   611→            method: 'POST',
+   612→            body: { id: row?.hkTaskId || null, status },
+   613→          })
+   614→        })
+   615→      ),
+   616→    onSuccess: () => {
+   617→      toast.success(`${selectedRows.size} rooms updated`)
+   618→      setSelectedRows(new Set())
+   619→      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
+   620→      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
+   621→    },
+   622→  })
+   623→
+   624→  const handleRowStatusChange = (roomId: string, taskId: string | null, newStatus: string) => {
+   625→    if (newStatus === 'rush') {
+   626→      // Priority change via task update
+   627→      rowStatusMutation.mutate({ taskId, status: 'in_progress' })
+   628→      toast.info(`Priority set to Rush for room ${tableRows.find((r) => r.roomId === roomId)?.roomNumber}`)
+   629→      return
+   630→    }
+   631→    if (!taskId) {
+   632→      toast.info('No active task for this room')
+   633→      return
+   634→    }
+   635→    rowStatusMutation.mutate({ taskId, status: newStatus })
+   636→  }
+   637→
+   638→  // Handle row detail view
+   639→  const handleViewDetail = (roomId: string) => {
+   640→    const row = tableRows.find((r) => r.roomId === roomId)
+   641→    if (row?.hkTaskId) {
+   642→      // Find the task in kanban data or refetch
+   643→      toast.info(`Room ${row.roomNumber} — ${row.hkDisplayStatus.replace('_', ' ')}`)
+   644→    } else {
+   645→      toast.info(`Room ${row?.roomNumber} — No active task`)
+   646→    }
+   647→  }
+   648→
+   649→  // Get unique floors for filter
+   650→  const floors = useMemo(() => {
+   651→    const f = new Set(tableRows.map((r) => r.floor))
+   652→    return Array.from(f).sort((a, b) => a - b)
+   653→  }, [tableRows])
+   654→
+   655→  // Get unique room types for filter
+   656→  const roomTypes = useMemo(() => {
+   657→    const m = new Map<string, string>()
+   658→    tableRows.forEach((r) => {
+   659→      if (!m.has(r.roomTypeCode)) m.set(r.roomTypeCode, r.roomTypeName)
+   660→    })
+   661→    return Array.from(m.entries()).map(([code, name]) => ({ value: code, label: name }))
+   662→  }, [tableRows])
+   663→
+   664→  // Get unique reservation statuses
+   665→  const uniqueResStatuses = useMemo(() => {
+   666→    const s = new Set(tableRows.map((r) => r.reservationStatus))
+   667→    return Array.from(s)
+   668→  }, [tableRows])
+   669→
+   670→  // Toggle row selection
+   671→  const toggleRow = (roomId: string) => {
+   672→    setSelectedRows((prev) => {
+   673→      const next = new Set(prev)
+   674→      if (next.has(roomId)) next.delete(roomId)
+   675→      else next.add(roomId)
+   676→      return next
+   677→    })
+   678→  }
+   679→
+   680→  const toggleAllRows = () => {
+   681→    if (selectedRows.size === filteredRows.length) {
+   682→      setSelectedRows(new Set())
+   683→    } else {
+   684→      setSelectedRows(new Set(filteredRows.map((r) => r.roomId)))
+   685→    }
+   686→  }
+   687→
+   688→  const toggleColumn = (id: string) => {
+   689→    setExpandedColumns((prev) => {
+   690→      const next = new Set(prev)
+   691→      if (next.has(id)) next.delete(id)
+   692→      else next.add(id)
+   693→      return next
+   694→    })
+   695→  }
+   696→
+   697→  // Client-side filtered rows
+   698→  const filteredRows = (() => {
+   699→    let rows = tableRows
+   700→    if (filterRoomType) rows = rows.filter((r) => r.roomTypeCode === filterRoomType)
+   701→    if (filterRoomNumber) rows = rows.filter((r) => r.roomNumber.includes(filterRoomNumber))
+   702→    if (filterReservation) rows = rows.filter((r) => r.reservationStatus === filterReservation)
+   703→    return rows
+   704→  })()
+   705→
+   706→  // Unique values derived from tableRows (not filtered)
+   707→  const uniqueHkStatuses = useMemo(() => {
+   708→    const s = new Set(tableRows.map((r) => r.hkDisplayStatus))
+   709→    return Array.from(s)
+   710→  }, [tableRows])
+   711→
+   712→  const uniquePriorities = useMemo(() => {
+   713→    const s = new Set(tableRows.map((r) => r.priority))
+   714→    return Array.from(s)
+   715→  }, [tableRows])
+   716→
+   717→  const hasAnyFilter = filterHkStatus || filterPriority || filterFloor || filterRoomType || filterRoomNumber || filterReservation
+   718→
+   719→  // Loading state
+   720→  if ((viewMode === 'table' && tableLoading) || (viewMode !== 'table' && kanbanLoading)) {
+   721→    return (
+   722→      <div className="space-y-3">
+   723→        <div className="h-8 w-full rounded-md bg-muted animate-pulse" />
+   724→        <div className="h-96 rounded-lg bg-muted animate-pulse" />
+   725→      </div>
+   726→    )
+   727→  }
+   728→
+   729→  // ─── TABLE VIEW ──────────────────────────────────────────
+   730→  const renderTableView = () => (
+   731→    <div className="space-y-2">
+   732→      {/* Toolbar: Search */}
+   733→      <div className="flex items-center justify-between">
+   734→        <div className="relative flex-1 max-w-sm">
+   735→          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+   736→          <Input
+   737→            placeholder="Search by guest, reservation..."
+   738→            value={searchQuery}
+   739→            onChange={(e) => handleSearchChange(e.target.value)}
+   740→            className="h-8 pl-8 text-xs"
+   741→          />
+   742→          {searchQuery && (
+   743→            <button
+   744→              className="absolute right-2 top-1/2 -translate-y-1/2"
+   745→              onClick={() => { setSearchQuery(''); setDebouncedSearch('') }}
+   746→            >
+   747→              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+   748→            </button>
+   749→          )}
+   750→        </div>
+   751→        <div className="flex items-center gap-2 text-xs text-muted-foreground ml-3">
+   752→          <span>{filteredRows.length} room{filteredRows.length !== 1 ? 's' : ''}</span>
+   753→          {selectedRows.size > 0 && (
+   754→            <span className="font-medium text-foreground">· {selectedRows.size} selected</span>
+   755→          )}
+   756→          {hasAnyFilter && (
+   757→            <Button
+   758→              variant="ghost"
+   759→              size="sm"
+   760→              className="h-6 px-2 text-[10px] text-muted-foreground"
+   761→              onClick={() => {
+   762→                setFilterHkStatus(''); setFilterPriority(''); setFilterFloor('')
+   763→                setFilterRoomType(''); setFilterRoomNumber(''); setFilterReservation('')
+   764→              }}
+   765→            >
+   766→              <X className="w-2.5 h-2.5 mr-0.5" /> Clear filters
+   767→            </Button>
+   768→          )}
+   769→        </div>
+   770→      </div>
+   771→
+   772→      {/* Bulk Action Bar (2+ selected) */}
+   773→      {selectedRows.size >= 2 && (
+   774→        <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+   775→          <span className="text-xs font-medium text-primary mr-1">{selectedRows.size} rooms selected</span>
+   776→          <div className="h-4 w-px bg-border" />
+   777→          <Button
+   778→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+   779→            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'in_progress' })}
+   780→            disabled={bulkStatusMutation.isPending}
+   781→          >
+   782→            <PlayCircle className="h-3 w-3" /> Start Cleaning
+   783→          </Button>
+   784→          <Button
+   785→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+   786→            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'cleaned' })}
+   787→            disabled={bulkStatusMutation.isPending}
+   788→          >
+   789→            <CheckCircle className="h-3 w-3" /> Mark Cleaned
+   790→          </Button>
+   791→          <Button
+   792→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+   793→            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'inspected' })}
+   794→            disabled={bulkStatusMutation.isPending}
+   795→          >
+   796→            <ShieldCheck className="h-3 w-3" /> Mark Inspected
+   797→          </Button>
+   798→          <Button
+   799→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+   800→            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'rush' })}
+   801→            disabled={bulkStatusMutation.isPending}
+   802→          >
+   803→            <AlertTriangle className="h-3 w-3" /> Set Rush
+   804→          </Button>
+   805→          <Button
+   806→            variant="outline" size="sm" className="h-7 text-[11px] gap-1"
+   807→            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'pending' })}
+   808→            disabled={bulkStatusMutation.isPending}
+   809→          >
+   810→            <ArrowUpCircle className="h-3 w-3" /> Reset to Pending
+   811→          </Button>
+   812→          <Button
+   813→            variant="outline" size="sm" className="h-7 text-[11px] gap-1 text-red-600 hover:text-red-600"
+   814→            onClick={() => bulkStatusMutation.mutate({ roomIds: Array.from(selectedRows), status: 'failed' })}
+   815→            disabled={bulkStatusMutation.isPending}
+   816→          >
+   817→            <XCircle className="h-3 w-3" /> Mark Failed
+   818→          </Button>
+   819→          <div className="flex-1" />
+   820→          <Button
+   821→            variant="ghost" size="sm" className="h-7 text-[11px]"
+   822→            onClick={() => setSelectedRows(new Set())}
+   823→          >
+   824→            <X className="h-3 w-3 mr-1" /> Deselect All
+   825→          </Button>
+   826→        </div>
+   827→      )}
+   828→
+   829→      {/* Data Table with sticky header */}
+   830→      <div className="rounded-lg border bg-card overflow-hidden">
+   831→        <div className="max-h-[calc(100vh-280px)] overflow-auto">
+   832→          <Table>
+   833→            <TableHeader className="sticky top-0 z-10 bg-card">
+   834→              <TableRow className="hover:bg-muted/40">
+   835→                <TableHead className="w-10" />
+   836→                <TableHead className="w-10">
+   837→                  <Checkbox
+   838→                    checked={filteredRows.length > 0 && selectedRows.size === filteredRows.length}
+   839→                    onCheckedChange={toggleAllRows}
+   840→                  />
+   841→                </TableHead>
+   842→                <TableHead className="text-xs font-semibold">
+   843→                  <RoomFilterDropdown value={filterRoomNumber} onChange={setFilterRoomNumber} />
+   844→                </TableHead>
+   845→                <TableHead>
+   846→                  <FilterDropdown
+   847→                    label="Room Type"
+   848→                    value={filterRoomType}
+   849→                    onValueChange={setFilterRoomType}
+   850→                    options={roomTypes.map((rt) => ({ value: rt.value, label: rt.label }))}
+   851→                  />
+   852→                </TableHead>
+   853→                <TableHead>
+   854→                  <FilterDropdown
+   855→                    label="HK Status"
+   856→                    value={filterHkStatus}
+   857→                    onValueChange={setFilterHkStatus}
+   858→                    options={uniqueHkStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+   859→                  />
+   860→                </TableHead>
+   861→                <TableHead>
+   862→                  <FilterDropdown
+   863→                    label="Priority"
+   864→                    value={filterPriority}
+   865→                    onValueChange={setFilterPriority}
+   866→                    options={uniquePriorities.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))}
+   867→                  />
+   868→                </TableHead>
+   869→                <TableHead>
+   870→                  <FilterDropdown
+   871→                    label="Floor"
+   872→                    value={filterFloor}
+   873→                    onValueChange={setFilterFloor}
+   874→                    options={floors.map((f) => ({ value: String(f), label: `Floor ${f}` }))}
+   875→                  />
+   876→                </TableHead>
+   877→                <TableHead className="text-xs font-semibold">
+   878→                  <FilterDropdown
+   879→                    label="Reservation"
+   880→                    value={filterReservation}
+   881→                    onValueChange={setFilterReservation}
+   882→                    options={uniqueResStatuses.map((s) => ({ value: s, label: s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') }))}
+   883→                  />
+   884→                </TableHead>
+   885→                <TableHead className="text-xs font-semibold">Comments</TableHead>
+   886→              </TableRow>
+   887→            </TableHeader>
+   888→            <TableBody>
+   889→                {filteredRows.length === 0 ? (
+   890→                  <TableRow>
+   891→                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground text-sm">
+   892→                      No rooms found
+   893→                    </TableCell>
+   894→                  </TableRow>
+   895→                ) : (
+   896→                  filteredRows.map((row, idx) => (
+   897→                    <TableRow
+   898→                      key={row.roomId}
+   899→                      className={cn(
+   900→                        'cursor-pointer transition-colors',
+   901→                        selectedRows.has(row.roomId) && 'bg-primary/5',
+   902→                        idx % 2 === 1 && !selectedRows.has(row.roomId) && 'bg-muted/20'
+   903→                      )}
+   904→                      onClick={() => toggleRow(row.roomId)}
+   905→                    >
+   906→                      <TableCell onClick={(e) => e.stopPropagation()}>
+   907→                        <RowActionMenu
+   908→                          row={row}
+   909→                          onStatusChange={handleRowStatusChange}
+   910→                          onViewDetail={handleViewDetail}
+   911→                        />
+   912→                      </TableCell>
+   913→                      <TableCell onClick={(e) => e.stopPropagation()}>
+   914→                        <Checkbox
+   915→                          checked={selectedRows.has(row.roomId)}
+   916→                          onCheckedChange={() => toggleRow(row.roomId)}
+   917→                        />
+   918→                      </TableCell>
+   919→                      <TableCell>
+   920→                        <div className="flex items-center gap-2">
+   921→                          <BedDouble className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+   922→                          <span className="text-sm font-semibold">{row.roomNumber}</span>
+   923→                          {row.wing && (
+   924→                            <span className="text-[10px] text-muted-foreground">({row.wing})</span>
+   925→                          )}
+   926→                        </div>
+   927→                      </TableCell>
+   928→                      <TableCell>
+   929→                        <div className="text-xs">
+   930→                          <span className="font-medium">{row.roomTypeName}</span>
+   931→                          <span className="text-muted-foreground ml-1">({row.roomTypeCode})</span>
+   932→                        </div>
+   933→                      </TableCell>
+   934→                      <TableCell>
+   935→                        {hkStatusBadge(row.hkDisplayStatus)}
+   936→                      </TableCell>
+   937→                      <TableCell>
+   938→                        <PriorityDot priority={row.priority} />
+   939→                      </TableCell>
+   940→                      <TableCell>
+   941→                        <span className="text-xs text-muted-foreground">{row.floor}</span>
+   942→                      </TableCell>
+   943→                      <TableCell>
+   944→                        {resStatusBadge(row.reservationStatus)}
+   945→                      </TableCell>
+   946→                      <TableCell>
+   947→                        <div className="text-xs text-muted-foreground max-w-[180px] truncate">
+   948→                          {row.taskNotes || '—'}
+   949→                        </div>
+   950→                      </TableCell>
+   951→                    </TableRow>
+   952→                  ))
+   953→                )}
+   954→              </TableBody>
+   955→          </Table>
+   956→        </div>
+   957→      </div>
+   958→    </div>
+   959→  )
+   960→
+   961→  // ─── KANBAN VIEW ─────────────────────────────────────────
+   962→  const renderKanbanView = () => (
+   963→    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+   964→      {KANBAN_COLUMNS.map((column) => {
+   965→        const columnTasks = kanbanTasks.filter((t) => t.status === column.id)
+   966→        const isExpanded = expandedColumns.has(column.id)
+   967→
+   968→        return (
+   969→          <div
+   970→            key={column.id}
+   971→            className={cn('rounded-lg border-2 border-t-4 bg-card', column.color)}
+   972→          >
+   973→            <button
+   974→              className="flex w-full items-center justify-between p-3 text-left"
+   975→              onClick={() => toggleColumn(column.id)}
+   976→            >
+   977→              <div className="flex items-center gap-2">
+   978→                <span className="font-semibold text-sm">{column.label}</span>
+   979→                <Badge variant="secondary" className="text-xs">{columnTasks.length}</Badge>
+   980→              </div>
+   981→            </button>
+   982→
+   983→            {isExpanded && (
+   984→              <ScrollArea className="h-[500px] px-3 pb-3">
+   985→                <div className="space-y-2">
+   986→                  {columnTasks.length === 0 ? (
+   987→                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+   988→                      <ClipboardCheck className="h-8 w-8 opacity-20" />
+   989→                      <p className="mt-2 text-xs">No tasks</p>
+   990→                    </div>
+   991→                  ) : (
+   992→                    columnTasks.map((task) => (
+   993→                      <TaskCard key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+   994→                    ))
+   995→                  )}
+   996→                </div>
+   997→              </ScrollArea>
+   998→            )}
+   999→          </div>
+  1000→        )
+  1001→      })}
+  1002→    </div>
+  1003→  )
+  1004→
+  1005→  return (
+  1006→    <div className="space-y-3">
+  1007→      {/* View Toggle */}
+  1008→      <div className="flex items-center gap-2">
+  1009→        <Button
+  1010→          variant={viewMode === 'table' ? 'default' : 'outline'}
+  1011→          size="sm"
+  1012→          onClick={() => setViewMode('table')}
+  1013→          className="gap-1.5"
+  1014→        >
+  1015→          <List className="h-4 w-4" />
+  1016→          Board
+  1017→        </Button>
+  1018→        <Button
+  1019→          variant={viewMode === 'kanban' ? 'default' : 'outline'}
+  1020→          size="sm"
+  1021→          onClick={() => setViewMode('kanban')}
+  1022→          className="gap-1.5"
+  1023→        >
+  1024→          <LayoutGrid className="h-4 w-4" />
+  1025→          Kanban
+  1026→        </Button>
+  1027→        <Button
+  1028→          variant={viewMode === 'attendant' ? 'default' : 'outline'}
+  1029→          size="sm"
+  1030→          onClick={() => setViewMode('attendant')}
+  1031→          className="gap-1.5"
+  1032→        >
+  1033→          <Users className="h-4 w-4" />
+  1034→          Attendant
+  1035→        </Button>
+  1036→      </div>
+  1037→
+  1038→      {/* Views */}
+  1039→      {viewMode === 'table' && renderTableView()}
+  1040→      {viewMode === 'kanban' && renderKanbanView()}
+  1041→      {viewMode === 'attendant' && <AttendantView tasks={kanbanTasks} />}
+  1042→
+  1043→      {/* Task Detail Dialog (for Kanban/Attendant) */}
+  1044→      <TaskDetailDialog
+  1045→        task={selectedTask}
+  1046→        open={!!selectedTask}
+  1047→        onOpenChange={(open) => !open && setSelectedTask(null)}
+  1048→      />
+  1049→    </div>
+  1050→  )
+  1051→}

@@ -131,7 +131,7 @@ export async function POST(request: Request) {
 
     // ─── Claim Lost & Found ──────────────────────────────
     if (action === 'claim-lost-found') {
-      const { id, claimedBy } = body
+      const { id, claimedBy, identityVerified, claimAttachment } = body
 
       const item = await db.lostFound.update({
         where: { id },
@@ -139,6 +139,8 @@ export async function POST(request: Request) {
           status: 'claimed',
           claimedBy,
           claimDate: new Date(),
+          identityVerified: identityVerified === true,
+          claimAttachment: claimAttachment || null,
         },
       })
 

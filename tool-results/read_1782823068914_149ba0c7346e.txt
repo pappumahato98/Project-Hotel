@@ -1,0 +1,586 @@
+     1→'use client'
+     2→
+     3→import { toast } from 'sonner'
+     4→import { useState } from 'react'
+     5→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     6→import { apiFetch } from '@/lib/api'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Input } from '@/components/ui/input'
+    11→import { Label } from '@/components/ui/label'
+    12→import { Switch } from '@/components/ui/switch'
+    13→import { Progress } from '@/components/ui/progress'
+    14→import {
+    15→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    16→} from '@/components/ui/table'
+    17→import {
+    18→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    19→} from '@/components/ui/select'
+    20→import {
+    21→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    22→} from '@/components/ui/dialog'
+    23→import {
+    24→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    25→} from '@/components/ui/alert-dialog'
+    26→import { Skeleton } from '@/components/ui/skeleton'
+    27→import { ScrollArea } from '@/components/ui/scroll-area'
+    28→import { Search, AlertTriangle, Package, DollarSign, Plus, Pencil, Trash2, X } from 'lucide-react'
+    29→import { formatNPR, cn } from '@/lib/utils'
+    30→
+    31→// ── Types ────────────────────────────────────────────────────
+    32→interface InventoryItem {
+    33→  id: string
+    34→  name: string
+    35→  category: string
+    36→  unit: string
+    37→  currentStock: number
+    38→  reorderPoint: number
+    39→  unitCost: number
+    40→  supplier?: string
+    41→  location?: string
+    42→  minStock: number
+    43→  maxStock: number
+    44→  active: boolean
+    45→}
+    46→
+    47→const UNITS = ['pcs', 'kg', 'ltr', 'mtr', 'box', 'pack', 'set']
+    48→
+    49→const EMPTY_FORM = {
+    50→  name: '',
+    51→  category: '',
+    52→  unit: 'pcs',
+    53→  currentStock: 0,
+    54→  reorderPoint: 0,
+    55→  minStock: 0,
+    56→  maxStock: 0,
+    57→  unitCost: 0,
+    58→  supplier: '',
+    59→  location: '',
+    60→  active: true,
+    61→}
+    62→
+    63→type ItemForm = typeof EMPTY_FORM
+    64→
+    65→// ── API helpers ──────────────────────────────────────────────
+    66→function fetchInventory(category?: string) {
+    67→  const params = new URLSearchParams()
+    68→  if (category) params.set('category', category)
+    69→  return apiFetch(`/api/inventory?${params.toString()}`)
+    70→}
+    71→
+    72→// ── Component ────────────────────────────────────────────────
+    73→export function StockView() {
+    74→  const queryClient = useQueryClient()
+    75→  const [filterCategory, setFilterCategory] = useState('')
+    76→  const [searchQuery, setSearchQuery] = useState('')
+    77→
+    78→  // Dialog states
+    79→  const [createOpen, setCreateOpen] = useState(false)
+    80→  const [editOpen, setEditOpen] = useState(false)
+    81→  const [deleteOpen, setDeleteOpen] = useState(false)
+    82→  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+    83→  const [form, setForm] = useState<ItemForm>(EMPTY_FORM)
+    84→
+    85→  // ── Queries ─────────────────────────────────────────────────
+    86→  const { data, isLoading } = useQuery({
+    87→    queryKey: ['inventory', filterCategory],
+    88→    queryFn: () => fetchInventory(filterCategory || undefined),
+    89→  })
+    90→
+    91→  const filteredItems = data?.items?.filter((item: InventoryItem) => {
+    92→    if (!searchQuery) return true
+    93→    const q = searchQuery.toLowerCase()
+    94→    return item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || item.supplier?.toLowerCase().includes(q)
+    95→  })
+    96→
+    97→  // ── Mutations ───────────────────────────────────────────────
+    98→  const createMutation = useMutation({
+    99→    mutationFn: async (body: ItemForm) => {
+   100→      return apiFetch('/api/inventory', {
+   101→        method: 'POST',
+   102→        headers: { 'Content-Type': 'application/json' },
+   103→        body: JSON.stringify(body),
+   104→      })
+   105→    },
+   106→    onSuccess: () => {
+   107→      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+   108→      toast.success('Item created successfully')
+   109→      setCreateOpen(false)
+   110→      setForm(EMPTY_FORM)
+   111→    },
+   112→    onError: () => toast.error('Failed to create item'),
+   113→  })
+   114→
+   115→  const updateMutation = useMutation({
+   116→    mutationFn: async ({ id, ...body }: InventoryItem & { id: string }) => {
+   117→      return apiFetch(`/api/inventory/${id}`, {
+   118→        method: 'PATCH',
+   119→        headers: { 'Content-Type': 'application/json' },
+   120→        body: JSON.stringify(body),
+   121→      })
+   122→    },
+   123→    onSuccess: () => {
+   124→      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+   125→      toast.success('Item updated successfully')
+   126→      setEditOpen(false)
+   127→      setSelectedItem(null)
+   128→      setForm(EMPTY_FORM)
+   129→    },
+   130→    onError: () => toast.error('Failed to update item'),
+   131→  })
+   132→
+   133→  const deleteMutation = useMutation({
+   134→    mutationFn: async (id: string) => {
+   135→      return apiFetch(`/api/inventory/${id}`, { method: 'DELETE' })
+   136→    },
+   137→    onSuccess: () => {
+   138→      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+   139→      toast.success('Item deleted successfully')
+   140→      setDeleteOpen(false)
+   141→      setSelectedItem(null)
+   142→    },
+   143→    onError: () => toast.error('Failed to delete item'),
+   144→  })
+   145→
+   146→  // ── Helpers ─────────────────────────────────────────────────
+   147→  const openCreate = () => {
+   148→    setForm(EMPTY_FORM)
+   149→    setCreateOpen(true)
+   150→  }
+   151→
+   152→  const openEdit = (item: InventoryItem) => {
+   153→    setSelectedItem(item)
+   154→    setForm({
+   155→      name: item.name,
+   156→      category: item.category,
+   157→      unit: item.unit,
+   158→      currentStock: item.currentStock,
+   159→      reorderPoint: item.reorderPoint,
+   160→      minStock: item.minStock,
+   161→      maxStock: item.maxStock,
+   162→      unitCost: item.unitCost,
+   163→      supplier: item.supplier || '',
+   164→      location: item.location || '',
+   165→      active: item.active,
+   166→    })
+   167→    setEditOpen(true)
+   168→  }
+   169→
+   170→  const openDelete = (item: InventoryItem) => {
+   171→    setSelectedItem(item)
+   172→    setDeleteOpen(true)
+   173→  }
+   174→
+   175→  const getStockPercentage = (item: InventoryItem) => {
+   176→    if (item.maxStock <= 0) return 0
+   177→    return Math.min(100, Math.round((item.currentStock / item.maxStock) * 100))
+   178→  }
+   179→
+   180→  // ── Render ───────────────────────────────────────────────────
+   181→  return (
+   182→    <div className="space-y-2">
+   183→      {/* Header */}
+   184→      <div className="flex items-center justify-between">
+   185→        <div>
+   186→          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Stock Levels</h1>
+   187→          <p className="text-xs text-muted-foreground">Current inventory status and stock levels</p>
+   188→        </div>
+   189→        <div className="flex items-center gap-2">
+   190→          <Badge variant="outline" className="text-[11px]">
+   191→            {data?.total ?? 0} items
+   192→          </Badge>
+   193→          <Button className="gap-1" onClick={openCreate}>
+   194→            <Plus className="h-4 w-4" />
+   195→            Add Item
+   196→          </Button>
+   197→        </div>
+   198→      </div>
+   199→
+   200→      {/* Summary Cards */}
+   201→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+   202→        <Card className="p-2.5">
+   203→          <div className="flex items-center gap-2">
+   204→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
+   205→              <Package className="h-5 w-5 text-blue-600" />
+   206→            </div>
+   207→            <div>
+   208→              <p className="text-xs text-muted-foreground">Total Items</p>
+   209→              <p className="text-lg font-bold">{data?.total ?? '—'}</p>
+   210→            </div>
+   211→          </div>
+   212→        </Card>
+   213→        <Card className="p-2.5">
+   214→          <div className="flex items-center gap-2">
+   215→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 dark:bg-red-950">
+   216→              <AlertTriangle className="h-5 w-5 text-red-600" />
+   217→            </div>
+   218→            <div>
+   219→              <p className="text-xs text-muted-foreground">Low Stock</p>
+   220→              <p className="text-lg font-bold text-red-600">{data?.lowStockItems?.length ?? '—'}</p>
+   221→            </div>
+   222→          </div>
+   223→        </Card>
+   224→        <Card className="p-2.5">
+   225→          <div className="flex items-center gap-2">
+   226→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
+   227→              <DollarSign className="h-5 w-5 text-green-600" />
+   228→            </div>
+   229→            <div>
+   230→              <p className="text-xs text-muted-foreground">Total Value</p>
+   231→              <p className="text-lg font-bold">{data ? formatNPR(data.totalValue) : '—'}</p>
+   232→            </div>
+   233→          </div>
+   234→        </Card>
+   235→        <Card className="p-2.5">
+   236→          <div className="flex items-center gap-2">
+   237→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
+   238→              <Package className="h-5 w-5 text-purple-600" />
+   239→            </div>
+   240→            <div>
+   241→              <p className="text-xs text-muted-foreground">Categories</p>
+   242→              <p className="text-lg font-bold">{data?.categories?.length ?? '—'}</p>
+   243→            </div>
+   244→          </div>
+   245→        </Card>
+   246→      </div>
+   247→
+   248→      {/* Low Stock Alert */}
+   249→      {data?.lowStockItems?.length > 0 && (
+   250→        <Card className="border-red-200 dark:border-red-900">
+   251→          <CardContent className="p-2">
+   252→            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+   253→              <AlertTriangle className="h-4 w-4" />
+   254→              <span className="text-sm font-medium">
+   255→                {data.lowStockItems.length} items are at or below reorder point
+   256→              </span>
+   257→            </div>
+   258→            <div className="flex flex-wrap gap-2 mt-2">
+   259→              {data.lowStockItems.slice(0, 5).map((item: InventoryItem) => (
+   260→                <Badge key={item.id} variant="outline" className="border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+   261→                  {item.name}: {item.currentStock} {item.unit}
+   262→                </Badge>
+   263→              ))}
+   264→              {data.lowStockItems.length > 5 && (
+   265→                <Badge variant="outline">+{data.lowStockItems.length - 5} more</Badge>
+   266→              )}
+   267→            </div>
+   268→          </CardContent>
+   269→        </Card>
+   270→      )}
+   271→
+   272→      {/* Filters */}
+   273→      <div className="flex flex-wrap items-center gap-2">
+   274→        <div className="relative flex-1 min-w-[200px] max-w-sm">
+   275→          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+   276→          <Input
+   277→            placeholder="Search items..."
+   278→            value={searchQuery}
+   279→            onChange={(e) => setSearchQuery(e.target.value)}
+   280→            className={cn('h-7 text-xs pl-9', searchQuery && 'pr-7')}
+   281→          />
+   282→          {searchQuery && (
+   283→            <button
+   284→              type="button"
+   285→              className="absolute right-1.5 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+   286→              onClick={() => setSearchQuery('')}
+   287→            >
+   288→              <X className="size-3" strokeWidth={2.5} />
+   289→            </button>
+   290→          )}
+   291→        </div>
+   292→        <div className="relative">
+   293→          <select
+   294→            value={filterCategory}
+   295→            onChange={(e) => setFilterCategory(e.target.value)}
+   296→            className={cn('h-7 rounded-md border bg-background px-3 text-xs appearance-none', filterCategory && 'pr-8')}
+   297→          >
+   298→            <option value="">All Categories</option>
+   299→            {data?.categories?.map((cat: string) => (
+   300→              <option key={cat} value={cat}>{cat}</option>
+   301→            ))}
+   302→          </select>
+   303→          {filterCategory && (
+   304→            <button
+   305→              type="button"
+   306→              className="absolute right-1 top-1/2 -translate-y-1/2 size-5 inline-flex items-center justify-center rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors z-10"
+   307→              onClick={() => setFilterCategory('')}
+   308→            >
+   309→              <X className="size-3" strokeWidth={2.5} />
+   310→            </button>
+   311→          )}
+   312→        </div>
+   313→        {(searchQuery || filterCategory) && (
+   314→          <button
+   315→            type="button"
+   316→            onClick={() => { setSearchQuery(''); setFilterCategory('') }}
+   317→            className="inline-flex items-center justify-center size-7 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+   318→            title="Clear all filters"
+   319→          >
+   320→            <X className="size-3.5" strokeWidth={2.5} />
+   321→          </button>
+   322→        )}
+   323→      </div>
+   324→
+   325→      {/* Stock Table */}
+   326→      <Card className="py-0">
+   327→        <CardContent className="p-0">
+   328→          <ScrollArea className="max-h-[500px]">
+   329→            <Table>
+   330→              <TableHeader>
+   331→                <TableRow>
+   332→                  <TableHead>Item</TableHead>
+   333→                  <TableHead>Category</TableHead>
+   334→                  <TableHead className="text-center">Current Stock</TableHead>
+   335→                  <TableHead className="hidden md:table-cell">Reorder Point</TableHead>
+   336→                  <TableHead className="text-right hidden lg:table-cell">Unit Cost</TableHead>
+   337→                  <TableHead className="hidden md:table-cell">Stock Level</TableHead>
+   338→                  <TableHead>Status</TableHead>
+   339→                  <TableHead className="w-[80px]">Actions</TableHead>
+   340→                </TableRow>
+   341→              </TableHeader>
+   342→              <TableBody>
+   343→                {isLoading ? (
+   344→                  Array.from({ length: 10 }).map((_, i) => (
+   345→                    <TableRow key={i}>
+   346→                      {Array.from({ length: 8 }).map((_, j) => (
+   347→                        <TableCell key={j}>
+   348→                          <Skeleton className="h-4 w-[80px]" />
+   349→                        </TableCell>
+   350→                      ))}
+   351→                    </TableRow>
+   352→                  ))
+   353→                ) : filteredItems?.length === 0 ? (
+   354→                  <TableRow>
+   355→                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+   356→                      No inventory items found.
+   357→                    </TableCell>
+   358→                  </TableRow>
+   359→                ) : (
+   360→                  filteredItems?.map((item: InventoryItem) => (
+   361→                    <TableRow key={item.id} className={cn(item.currentStock <= item.reorderPoint && 'bg-red-50/50 dark:bg-red-950/20')}>
+   362→                      <TableCell className="font-medium">
+   363→                        <div className="flex items-center gap-2">
+   364→                          {item.currentStock <= item.reorderPoint && (
+   365→                            <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+   366→                          )}
+   367→                          {item.name}
+   368→                        </div>
+   369→                      </TableCell>
+   370→                      <TableCell className="text-xs">{item.category}</TableCell>
+   371→                      <TableCell className="text-center font-medium">
+   372→                        <span className={cn(item.currentStock <= item.reorderPoint && 'text-red-600')}>
+   373→                          {item.currentStock}
+   374→                        </span>
+   375→                        <span className="text-muted-foreground ml-1 text-xs">{item.unit}</span>
+   376→                      </TableCell>
+   377→                      <TableCell className="hidden md:table-cell text-xs text-center">
+   378→                        {item.reorderPoint} {item.unit}
+   379→                      </TableCell>
+   380→                      <TableCell className="text-right hidden lg:table-cell">{formatNPR(item.unitCost)}</TableCell>
+   381→                      <TableCell className="hidden md:table-cell">
+   382→                        <Progress
+   383→                          value={getStockPercentage(item)}
+   384→                          className="h-2 w-24"
+   385→                        />
+   386→                        <span className="text-xs text-muted-foreground ml-1">
+   387→                          {getStockPercentage(item)}%
+   388→                        </span>
+   389→                      </TableCell>
+   390→                      <TableCell>
+   391→                        <Badge variant="outline" className={cn(
+   392→                          item.currentStock <= item.reorderPoint
+   393→                            ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300'
+   394→                            : item.currentStock <= item.minStock * 1.5
+   395→                              ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300'
+   396→                              : 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300'
+   397→                        )}>
+   398→                          {item.currentStock <= item.reorderPoint ? 'Low' : item.currentStock <= item.minStock * 1.5 ? 'Warning' : 'Good'}
+   399→                        </Badge>
+   400→                      </TableCell>
+   401→                      <TableCell>
+   402→                        <div className="flex items-center gap-1">
+   403→                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(item)}>
+   404→                            <Pencil className="h-3.5 w-3.5" />
+   405→                          </Button>
+   406→                          <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => openDelete(item)}>
+   407→                            <Trash2 className="h-3.5 w-3.5" />
+   408→                          </Button>
+   409→                        </div>
+   410→                      </TableCell>
+   411→                    </TableRow>
+   412→                  ))
+   413→                )}
+   414→              </TableBody>
+   415→            </Table>
+   416→          </ScrollArea>
+   417→        </CardContent>
+   418→      </Card>
+   419→
+   420→      {/* ── Create Item Dialog ─────────────────────────────────── */}
+   421→      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   422→        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+   423→          <DialogHeader>
+   424→            <DialogTitle>Add Inventory Item</DialogTitle>
+   425→            <DialogDescription>Create a new item in the inventory.</DialogDescription>
+   426→          </DialogHeader>
+   427→          <div className="space-y-4">
+   428→            <div className="grid gap-4 sm:grid-cols-2">
+   429→              <div className="space-y-2 sm:col-span-2">
+   430→                <Label>Item Name *</Label>
+   431→                <Input placeholder="e.g., Bath Towel" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+   432→              </div>
+   433→              <div className="space-y-2">
+   434→                <Label>Category *</Label>
+   435→                <Input placeholder="e.g., Linen" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+   436→              </div>
+   437→              <div className="space-y-2">
+   438→                <Label>Unit *</Label>
+   439→                <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
+   440→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   441→                  <SelectContent>
+   442→                    {UNITS.map((u) => (
+   443→                      <SelectItem key={u} value={u}>{u.toUpperCase()}</SelectItem>
+   444→                    ))}
+   445→                  </SelectContent>
+   446→                </Select>
+   447→              </div>
+   448→              <div className="space-y-2">
+   449→                <Label>Current Stock</Label>
+   450→                <Input type="number" value={form.currentStock} onChange={(e) => setForm((f) => ({ ...f, currentStock: Number(e.target.value) }))} />
+   451→              </div>
+   452→              <div className="space-y-2">
+   453→                <Label>Reorder Point</Label>
+   454→                <Input type="number" value={form.reorderPoint} onChange={(e) => setForm((f) => ({ ...f, reorderPoint: Number(e.target.value) }))} />
+   455→              </div>
+   456→              <div className="space-y-2">
+   457→                <Label>Min Stock</Label>
+   458→                <Input type="number" value={form.minStock} onChange={(e) => setForm((f) => ({ ...f, minStock: Number(e.target.value) }))} />
+   459→              </div>
+   460→              <div className="space-y-2">
+   461→                <Label>Max Stock</Label>
+   462→                <Input type="number" value={form.maxStock} onChange={(e) => setForm((f) => ({ ...f, maxStock: Number(e.target.value) }))} />
+   463→              </div>
+   464→              <div className="space-y-2">
+   465→                <Label>Unit Cost</Label>
+   466→                <Input type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm((f) => ({ ...f, unitCost: Number(e.target.value) }))} />
+   467→              </div>
+   468→              <div className="space-y-2">
+   469→                <Label>Supplier</Label>
+   470→                <Input placeholder="e.g., ABC Supplies" value={form.supplier} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} />
+   471→              </div>
+   472→              <div className="space-y-2">
+   473→                <Label>Location</Label>
+   474→                <Input placeholder="e.g., Store Room A" value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+   475→              </div>
+   476→            </div>
+   477→            <div className="flex items-center gap-3">
+   478→              <Switch checked={form.active} onCheckedChange={(checked) => setForm((f) => ({ ...f, active: checked }))} />
+   479→              <Label>Active</Label>
+   480→            </div>
+   481→          </div>
+   482→          <DialogFooter>
+   483→            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+   484→            <Button onClick={() => createMutation.mutate(form)} disabled={!form.name || !form.category || createMutation.isPending}>
+   485→              {createMutation.isPending ? 'Creating...' : 'Create Item'}
+   486→            </Button>
+   487→          </DialogFooter>
+   488→        </DialogContent>
+   489→      </Dialog>
+   490→
+   491→      {/* ── Edit Item Dialog ──────────────────────────────────── */}
+   492→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   493→        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+   494→          <DialogHeader>
+   495→            <DialogTitle>Edit Inventory Item</DialogTitle>
+   496→            <DialogDescription>Update item details.</DialogDescription>
+   497→          </DialogHeader>
+   498→          <div className="space-y-4">
+   499→            <div className="grid gap-4 sm:grid-cols-2">
+   500→              <div className="space-y-2 sm:col-span-2">
+   501→                <Label>Item Name *</Label>
+   502→                <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+   503→              </div>
+   504→              <div className="space-y-2">
+   505→                <Label>Category *</Label>
+   506→                <Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+   507→              </div>
+   508→              <div className="space-y-2">
+   509→                <Label>Unit *</Label>
+   510→                <Select value={form.unit} onValueChange={(v) => setForm((f) => ({ ...f, unit: v }))}>
+   511→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   512→                  <SelectContent>
+   513→                    {UNITS.map((u) => (
+   514→                      <SelectItem key={u} value={u}>{u.toUpperCase()}</SelectItem>
+   515→                    ))}
+   516→                  </SelectContent>
+   517→                </Select>
+   518→              </div>
+   519→              <div className="space-y-2">
+   520→                <Label>Current Stock</Label>
+   521→                <Input type="number" value={form.currentStock} onChange={(e) => setForm((f) => ({ ...f, currentStock: Number(e.target.value) }))} />
+   522→              </div>
+   523→              <div className="space-y-2">
+   524→                <Label>Reorder Point</Label>
+   525→                <Input type="number" value={form.reorderPoint} onChange={(e) => setForm((f) => ({ ...f, reorderPoint: Number(e.target.value) }))} />
+   526→              </div>
+   527→              <div className="space-y-2">
+   528→                <Label>Min Stock</Label>
+   529→                <Input type="number" value={form.minStock} onChange={(e) => setForm((f) => ({ ...f, minStock: Number(e.target.value) }))} />
+   530→              </div>
+   531→              <div className="space-y-2">
+   532→                <Label>Max Stock</Label>
+   533→                <Input type="number" value={form.maxStock} onChange={(e) => setForm((f) => ({ ...f, maxStock: Number(e.target.value) }))} />
+   534→              </div>
+   535→              <div className="space-y-2">
+   536→                <Label>Unit Cost</Label>
+   537→                <Input type="number" step="0.01" value={form.unitCost} onChange={(e) => setForm((f) => ({ ...f, unitCost: Number(e.target.value) }))} />
+   538→              </div>
+   539→              <div className="space-y-2">
+   540→                <Label>Supplier</Label>
+   541→                <Input value={form.supplier} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} />
+   542→              </div>
+   543→              <div className="space-y-2">
+   544→                <Label>Location</Label>
+   545→                <Input value={form.location} onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))} />
+   546→              </div>
+   547→            </div>
+   548→            <div className="flex items-center gap-3">
+   549→              <Switch checked={form.active} onCheckedChange={(checked) => setForm((f) => ({ ...f, active: checked }))} />
+   550→              <Label>Active</Label>
+   551→            </div>
+   552→          </div>
+   553→          <DialogFooter>
+   554→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   555→            <Button onClick={() => selectedItem && updateMutation.mutate({ id: selectedItem.id, ...form })} disabled={!form.name || !form.category || updateMutation.isPending}>
+   556→              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+   557→            </Button>
+   558→          </DialogFooter>
+   559→        </DialogContent>
+   560→      </Dialog>
+   561→
+   562→      {/* ── Delete Confirmation Dialog ─────────────────────────── */}
+   563→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+   564→        <AlertDialogContent>
+   565→          <AlertDialogHeader>
+   566→            <AlertDialogTitle>Delete Item</AlertDialogTitle>
+   567→            <AlertDialogDescription>
+   568→              Are you sure you want to delete &ldquo;{selectedItem?.name}&rdquo;? This action cannot be undone.
+   569→            </AlertDialogDescription>
+   570→          </AlertDialogHeader>
+   571→          <AlertDialogFooter>
+   572→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   573→            <AlertDialogAction
+   574→              className="bg-red-600 hover:bg-red-700"
+   575→              onClick={() => selectedItem && deleteMutation.mutate(selectedItem.id)}
+   576→              disabled={deleteMutation.isPending}
+   577→            >
+   578→              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+   579→            </AlertDialogAction>
+   580→          </AlertDialogFooter>
+   581→        </AlertDialogContent>
+   582→      </AlertDialog>
+   583→    </div>
+   584→  )
+   585→}
+   586→

@@ -1,0 +1,502 @@
+     1→   500→   500→      setWakeUpNote(existing.note)
+     2→   501→   501→    } else {
+     3→   502→   502→      setWakeUpTime('')
+     4→   503→   503→      setWakeUpNote('')
+     5→   504→   504→    }
+     6→   505→   505→    setWakeUpDialogOpen(true)
+     7→   506→   506→  }
+     8→   507→   507→
+     9→   508→   508→  function submitWakeUpCall() {
+    10→   509→   509→    if (!selectedReservation || !wakeUpTime) return
+    11→   510→   510→    const existing = wakeUpCalls[selectedReservation.id]
+    12→   511→   511→    if (existing?.set) {
+    13→   512→   512→      setWakeUpCalls((prev) => {
+    14→   513→   513→        const next = { ...prev }
+    15→   514→   514→        delete next[selectedReservation.id]
+    16→   515→   515→        return next
+    17→   516→   516→      })
+    18→   517→   517→      toast.success(`Wake-up call cancelled for Room ${selectedReservation.room.number}`)
+    19→   518→   518→    } else {
+    20→   519→   519→      setWakeUpCalls((prev) => ({
+    21→   520→   520→        ...prev,
+    22→   521→   521→        [selectedReservation.id]: { time: wakeUpTime, note: wakeUpNote, set: true },
+    23→   522→   522→      }))
+    24→   523→   523→      toast.success(`Wake-up call set for ${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName} at ${wakeUpTime}`, {
+    25→   524→   524→        description: `Room ${selectedReservation.room.number}`,
+    26→   525→   525→      })
+    27→   526→   526→    }
+    28→   527→   527→    setWakeUpDialogOpen(false)
+    29→   528→   528→  }
+    30→   529→   529→
+    31→   530→   530→  // Toggle inline row expansion
+    32→   531→   531→  const handleRowClick = useCallback((reservation: InHouseReservation) => {
+    33→   532→   532→    setSelectedReservation(reservation)
+    34→   533→   533→    setExpandedRowId(prev => prev === reservation.id ? null : reservation.id)
+    35→   534→   534→  }, [])
+    36→   535→   535→
+    37→   536→   536→  // Open full detail dialog
+    38→   537→   537→  const handleViewFullDetails = useCallback((reservation: InHouseReservation) => {
+    39→   538→   538→    setSelectedReservation(reservation)
+    40→   539→   539→    setDetailDialogOpen(true)
+    41→   540→   540→  }, [])
+    42→   541→   541→
+    43→   542→   542→  // ── Computed values for dialogs ────────────────────────────
+    44→   543→   543→
+    45→   544→   544→  const extendNightsDiff = useMemo(() => {
+    46→   545→   545→    if (!selectedReservation || !newCheckOut) return 0
+    47→   546→   546→    const currentNights = nightsBetween(selectedReservation.checkIn, selectedReservation.checkOut)
+    48→   547→   547→    const newNights = nightsBetween(selectedReservation.checkIn, newCheckOut)
+    49→   548→   548→    return newNights - currentNights
+    50→   549→   549→  }, [selectedReservation, newCheckOut])
+    51→   550→   550→
+    52→   551→   551→  const extendAdditionalCharge = useMemo(() => {
+    53→   552→   552→    if (!selectedReservation || extendNightsDiff <= 0) return 0
+    54→   553→   553→    return extendNightsDiff * selectedReservation.roomRate
+    55→   554→   554→  }, [selectedReservation, extendNightsDiff])
+    56→   555→   555→
+    57→   556→   556→  const earlyCheckoutRefund = useMemo(() => {
+    58→   557→   557→    if (!selectedReservation || !earlyCheckOutDate) return 0
+    59→   558→   558→    const currentNights = nightsBetween(selectedReservation.checkIn, selectedReservation.checkOut)
+    60→   559→   559→    const newNights = nightsBetween(selectedReservation.checkIn, earlyCheckOutDate)
+    61→   560→   560→    const nightsRemoved = currentNights - newNights
+    62→   561→   561→    if (nightsRemoved <= 0) return 0
+    63→   562→   562→    return nightsRemoved * selectedReservation.roomRate
+    64→   563→   563→  }, [selectedReservation, earlyCheckOutDate])
+    65→   564→   564→
+    66→   565→   565→  function getCreditStatus(reservation: InHouseReservation) {
+    67→   566→   566→    const balance = reservation.folios[0]?.balance || 0
+    68→   567→   567→    const pct = (balance / reservation.creditLimit) * 100
+    69→   568→   568→    if (pct >= 100) return { status: 'breach', pct, color: 'text-red-600' }
+    70→   569→   569→    if (pct >= 80) return { status: 'warning', pct, color: 'text-amber-600' }
+    71→   570→   570→    return { status: 'ok', pct, color: 'text-green-600' }
+    72→   571→   571→  }
+    73→   572→   572→
+    74→   573→   573→  // ── Render ──────────────────────────────────────────────────
+    75→   574→   574→  return (
+    76→   575→   575→    <div className="flex flex-col gap-2">
+    77→   576→   576→      {/* Header */}
+    78→   577→   577→      <div>
+    79→   578→   578→        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">In-House Guests</h2>
+    80→   579→   579→        <p className="text-xs text-muted-foreground">
+    81→   580→   580→          Currently checked-in guests and their folio status
+    82→   581→   581→        </p>
+    83→   582→   582→      </div>
+    84→   583→   583→
+    85→   584→   584→      {/* Filter Row */}
+    86→   585→   585→      <Card className="py-0">
+    87→   586→   586→        <CardContent className="p-2">
+    88→   587→   587→          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+    89→   588→   588→            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+    90→   589→   589→              <Filter className="size-3.5" />
+    91→   590→   590→              Filters
+    92→   591→   591→            </div>
+    93→   592→   592→            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-1">
+    94→   593→   593→              <div className="flex items-center gap-1.5">
+    95→   594→   594→                <Label htmlFor="floor-filter" className="text-xs whitespace-nowrap">Floor:</Label>
+    96→   595→   595→                <Select value={floorFilter} onValueChange={setFloorFilter}>
+    97→   596→   596→                  <SelectTrigger className="w-[100px] h-7 text-xs data-[size=default]:h-7">
+    98→   597→   597→                    <SelectValue placeholder="All Floors" />
+    99→   598→   598→                  </SelectTrigger>
+   100→   599→   599→                  <SelectContent>
+   101→   600→   600→                    <SelectItem value="all">All Floors</SelectItem>
+   102→   601→   601→                    {floors.map((floor) => (
+   103→   602→   602→                      <SelectItem key={floor} value={String(floor)}>
+   104→   603→   603→                        Floor {floor}
+   105→   604→   604→                      </SelectItem>
+   106→   605→   605→                    ))}
+   107→   606→   606→                  </SelectContent>
+   108→   607→   607→                </Select>
+   109→   608→   608→              </div>
+   110→   609→   609→              <div className="flex items-center gap-1.5">
+   111→   610→   610→                <Label htmlFor="vip-filter" className="text-xs whitespace-nowrap">VIP Only:</Label>
+   112→   611→   611→                <Switch
+   113→   612→   612→                  id="vip-filter"
+   114→   613→   613→                  checked={vipOnlyFilter}
+   115→   614→   614→                  onCheckedChange={setVipOnlyFilter}
+   116→   615→   615→                />
+   117→   616→   616→              </div>
+   118→   617→   617→            </div>
+   119→   618→   618→            <p className="text-[11px] text-muted-foreground">
+   120→   619→   619→              Showing {filteredReservations.length} of {reservations.length} guests
+   121→   620→   620→            </p>
+   122→   621→   621→          </div>
+   123→   622→   622→        </CardContent>
+   124→   623→   623→      </Card>
+   125→   624→   624→
+   126→   625→   625→      {/* In-House Table */}
+   127→   626→   626→      <Card className="py-0">
+   128→   627→   627→        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-220px)]">
+   129→   628→   628→          <Table>
+   130→   629→   629→              <TableHeader>
+   131→   630→   630→                <TableRow>
+   132→   631→   631→                  <TableHead className="w-[40px]" />
+   133→   632→   632→                  <TableHead className="w-[70px]">Room</TableHead>
+   134→   633→   633→                  <TableHead>Guest</TableHead>
+   135→   634→   634→                  <TableHead className="w-[100px]">Check-in</TableHead>
+   136→   635→   635→                  <TableHead className="w-[100px]">Check-out</TableHead>
+   137→   636→   636→                  <TableHead className="w-[110px] text-right">Folio Balance</TableHead>
+   138→   637→   637→                  <TableHead className="w-[130px]">Credit Limit</TableHead>
+   139→   638→   638→                  <TableHead className="w-[50px]">VIP</TableHead>
+   140→   639→   639→                </TableRow>
+   141→   640→   640→              </TableHeader>
+   142→   641→   641→              <TableBody>
+   143→   642→   642→                {isLoading ? (
+   144→   643→   643→                  Array.from({ length: 5 }).map((_, i) => (
+   145→   644→   644→                    <TableRow key={i}>
+   146→   645→   645→                      {Array.from({ length: 8 }).map((_, j) => (
+   147→   646→   646→                        <TableCell key={j}>
+   148→   647→   647→                          <Skeleton className="h-4 w-full" />
+   149→   648→   648→                        </TableCell>
+   150→   649→   649→                      ))}
+   151→   650→   650→                    </TableRow>
+   152→   651→   651→                  ))
+   153→   652→   652→                ) : filteredReservations.length === 0 ? (
+   154→   653→   653→                  <TableRow>
+   155→   654→   654→                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+   156→   655→   655→                      <BedDouble className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+   157→   656→   656→                      No in-house guests found
+   158→   657→   657→                    </TableCell>
+   159→   658→   658→                  </TableRow>
+   160→   659→   659→                ) : (
+   161→   660→   660→                  filteredReservations.map((res) => {
+   162→   661→   661→                    const credit = getCreditStatus(res)
+   163→   662→   662→                    const balance = res.folios[0]?.balance || 0
+   164→   663→   663→                    const isExpanded = expandedRowId === res.id
+   165→   664→   664→
+   166→   665→   665→                    return (
+   167→   666→   666→                      <React.Fragment key={res.id}>
+   168→   667→   667→                        <TableRow
+   169→   668→   668→                          className={cn(
+   170→   669→   669→                            'cursor-pointer hover:bg-muted/50 transition-colors',
+   171→   670→   670→                            isExpanded && 'bg-muted/40 border-b-0',
+   172→   671→   671→                          )}
+   173→   672→   672→                          onClick={() => handleRowClick(res)}
+   174→   673→   673→                        >
+   175→   674→   674→                          <TableCell>
+   176→   675→   675→                            <div className={cn('transition-transform duration-200', isExpanded && 'rotate-90')}>
+   177→   676→   676→                              <ChevronRight className="size-4 text-muted-foreground" />
+   178→   677→   677→                            </div>
+   179→   678→   678→                          </TableCell>
+   180→   679→   679→                          <TableCell className="font-bold font-mono">
+   181→   680→   680→                          <div className="flex items-center gap-1">
+   182→   681→   681→                            {res.room.number}
+   183→   682→   682→                            {wakeUpCalls[res.id]?.set && (
+   184→   683→   683→                              <span className="relative flex size-4 items-center justify-center">
+   185→   684→   684→                                <span className="absolute inline-flex h-3 w-3 rounded-full bg-amber-400 opacity-75 animate-ping" />
+   186→   685→   685→                                <Bell className="size-3.5 text-amber-600" />
+   187→   686→   686→                              </span>
+   188→   687→   687→                            )}
+   189→   688→   688→                          </div>
+   190→   689→   689→                        </TableCell>
+   191→   690→   690→                          <TableCell>
+   192→   691→   691→                            <div className="flex items-center gap-2">
+   193→   692→   692→                              <span className="font-medium">{res.guest.firstName} {res.guest.lastName}</span>
+   194→   693→   693→                              {res.guest.vipLevel !== 'none' && (
+   195→   694→   694→                                <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+   196→   695→   695→                                  VIP
+   197→   696→   696→                                </Badge>
+   198→   697→   697→                              )}
+   199→   698→   698→                            </div>
+   200→   699→   699→                          </TableCell>
+   201→   700→   700→                          <TableCell className="text-xs">{formatDate(res.checkIn)}</TableCell>
+   202→   701→   701→                          <TableCell className="text-xs">{formatDate(res.checkOut)}</TableCell>
+   203→   702→   702→                          <TableCell className="text-right">
+   204→   703→   703→                            <span className={cn('font-medium', credit.color)}>
+   205→   704→   704→                              {formatCurrency(balance)}
+   206→   705→   705→                            </span>
+   207→   706→   706→                          </TableCell>
+   208→   707→   707→                          <TableCell>
+   209→   708→   708→                            <div className="flex items-center gap-2">
+   210→   709→   709→                              <Progress
+   211→   710→   710→                                value={Math.min(credit.pct, 100)}
+   212→   711→   711→                                className={cn(
+   213→   712→   712→                                  'h-2 w-16',
+   214→   713→   713→                                  credit.status === 'breach' && '[&>div]:bg-red-500',
+   215→   714→   714→                                  credit.status === 'warning' && '[&>div]:bg-amber-500',
+   216→   715→   715→                                  credit.status === 'ok' && '[&>div]:bg-green-500',
+   217→   716→   716→                                )}
+   218→   717→   717→                              />
+   219→   718→   718→                              <span className={cn('text-xs font-medium', credit.color)}>
+   220→   719→   719→                                {Math.round(credit.pct)}%
+   221→   720→   720→                              </span>
+   222→   721→   721→                              {credit.status === 'breach' && (
+   223→   722→   722→                                <AlertTriangle className="size-3.5 text-red-500" />
+   224→   723→   723→                              )}
+   225→   724→   724→                              {credit.status === 'warning' && (
+   226→   725→   725→                                <AlertTriangle className="size-3.5 text-amber-500" />
+   227→   726→   726→                              )}
+   228→   727→   727→                            </div>
+   229→   728→   728→                          </TableCell>
+   230→   729→   729→                          <TableCell>
+   231→   730→   730→                            {res.guest.vipLevel !== 'none' ? (
+   232→   731→   731→                              <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+   233→   732→   732→                                <Crown className="size-3 mr-0.5" />
+   234→   733→   733→                                {res.guest.vipLevel.toUpperCase()}
+   235→   734→   734→                              </Badge>
+   236→   735→   735→                            ) : (
+   237→   736→   736→                              <span className="text-muted-foreground">—</span>
+   238→   737→   737→                            )}
+   239→   738→   738→                          </TableCell>
+   240→   739→   739→                        </TableRow>
+   241→   740→   740→                        {/* ─── Expandable Detail Row ──────────────────── */}
+   242→   741→   741→                        {isExpanded && (
+   243→   742→   742→                          <TableRow className="bg-muted/20 hover:bg-muted/20">
+   244→   743→   743→                            <TableCell colSpan={8} className="p-0">
+   245→   744→   744→                              <div className="px-4 py-3 space-y-3">
+   246→   745→   745→                                {/* Guest summary bar */}
+   247→   746→   746→                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+   248→   747→   747→                                  <div className="flex items-center gap-2">
+   249→   748→   748→                                    <div className="flex size-7 items-center justify-center rounded-md bg-primary/10">
+   250→   749→   749→                                      <BedDouble className="size-3.5 text-primary" />
+   251→   750→   750→                                    </div>
+   252→   751→   751→                                    <div>
+   253→   752→   752→                                      <p className="text-xs font-semibold">{res.guest.firstName} {res.guest.lastName}</p>
+   254→   753→   753→                                      <p className="text-[10px] text-muted-foreground">
+   255→   754→   754→                                        {res.confirmationNo} · {res.room.type.name} · Floor {res.room.floor}{res.room.wing ? ` · ${res.room.wing}` : ''}
+   256→   755→   755→                                      </p>
+   257→   756→   756→                                    </div>
+   258→   757→   757→                                  </div>
+   259→   758→   758→                                  <Button
+   260→   759→   759→                                    size="sm"
+   261→   760→   760→                                    variant="outline"
+   262→   761→   761→                                    className="text-[11px] h-7 gap-1 self-start"
+   263→   762→   762→                                    onClick={(e) => { e.stopPropagation(); handleViewFullDetails(res) }}
+   264→   763→   763→                                  >
+   265→   764→   764→                                    <Maximize2 className="size-3" />
+   266→   765→   765→                                    Full Details
+   267→   766→   766→                                  </Button>
+   268→   767→   767→                                </div>
+   269→   768→   768→
+   270→   769→   769→                                {/* Details grid */}
+   271→   770→   770→                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+   272→   771→   771→                                  <div className="rounded-md bg-background border p-2">
+   273→   772→   772→                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-in</p>
+   274→   773→   773→                                    <p className="text-xs font-medium mt-0.5">{formatDate(res.checkIn)}</p>
+   275→   774→   774→                                  </div>
+   276→   775→   775→                                  <div className="rounded-md bg-background border p-2">
+   277→   776→   776→                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Check-out</p>
+   278→   777→   777→                                    <p className="text-xs font-medium mt-0.5">{formatDate(res.checkOut)}</p>
+   279→   778→   778→                                  </div>
+   280→   779→   779→                                  <div className="rounded-md bg-background border p-2">
+   281→   780→   780→                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Rate / Night</p>
+   282→   781→   781→                                    <p className="text-xs font-medium mt-0.5">{formatCurrency(res.roomRate)}</p>
+   283→   782→   782→                                  </div>
+   284→   783→   783→                                  <div className="rounded-md bg-background border p-2">
+   285→   784→   784→                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Amount</p>
+   286→   785→   785→                                    <p className="text-xs font-medium mt-0.5">{formatCurrency(res.totalAmount)}</p>
+   287→   786→   786→                                  </div>
+   288→   787→   787→                                </div>
+   289→   788→   788→
+   290→   789→   789→                                {/* Folio & Credit bar */}
+   291→   790→   790→                                <div className="flex flex-col sm:flex-row gap-2">
+   292→   791→   791→                                  <div className="flex-1 rounded-md border p-2.5">
+   293→   792→   792→                                    <div className="flex items-center justify-between mb-1">
+   294→   793→   793→                                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Folio Balance</p>
+   295→   794→   794→                                      <StatusBadge status={res.folios[0]?.status || 'open'} />
+   296→   795→   795→                                    </div>
+   297→   796→   796→                                    <p className={cn('text-lg font-bold', credit.color)}>{formatCurrency(balance)}</p>
+   298→   797→   797→                                    <div className="flex items-center gap-2 mt-1.5">
+   299→   798→   798→                                      <Progress
+   300→   799→   799→                                        value={Math.min(credit.pct, 100)}
+   301→   800→   800→                                        className={cn(
+   302→   801→   801→                                          'h-1.5 flex-1',
+   303→   802→   802→                                          credit.status === 'breach' && '[&>div]:bg-red-500',
+   304→   803→   803→                                          credit.status === 'warning' && '[&>div]:bg-amber-500',
+   305→   804→   804→                                          credit.status === 'ok' && '[&>div]:bg-green-500',
+   306→   805→   805→                                        )}
+   307→   806→   806→                                      />
+   308→   807→   807→                                      <span className={cn('text-[10px] font-semibold', credit.color)}>
+   309→   808→   808→                                        {Math.round(credit.pct)}%
+   310→   809→   809→                                      </span>
+   311→   810→   810→                                      <span className="text-[10px] text-muted-foreground">of {formatCurrency(res.creditLimit)}</span>
+   312→   811→   811→                                    </div>
+   313→   812→   812→                                    {credit.status === 'breach' && (
+   314→   813→   813→                                      <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+   315→   814→   814→                                        <AlertTriangle className="size-3" /> Credit limit exceeded
+   316→   815→   815→                                      </p>
+   317→   816→   816→                                    )}
+   318→   817→   817→                                    {credit.status === 'warning' && (
+   319→   818→   818→                                      <p className="text-[10px] text-amber-500 font-medium mt-1 flex items-center gap-1">
+   320→   819→   819→                                        <AlertTriangle className="size-3" /> Approaching credit limit
+   321→   820→   820→                                      </p>
+   322→   821→   821→                                    )}
+   323→   822→   822→                                  </div>
+   324→   823→   823→                                  {/* Notes preview */}
+   325→   824→   824→                                  <div className="flex-1 rounded-md border p-2.5">
+   326→   825→   825→                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Notes</p>
+   327→   826→   826→                                    {res.notes ? (
+   328→   827→   827→                                      <p className="text-xs text-muted-foreground italic whitespace-pre-wrap line-clamp-3">
+   329→   828→   828→                                        {res.notes}
+   330→   829→   829→                                      </p>
+   331→   830→   830→                                    ) : (
+   332→   831→   831→                                      <p className="text-xs text-muted-foreground/50 italic">No notes</p>
+   333→   832→   832→                                    )}
+   334→   833→   833→                                  </div>
+   335→   834→   834→                                </div>
+   336→   835→   835→
+   337→   836→   836→                                {/* Action buttons */}
+   338→   837→   837→                                <div className="flex flex-wrap gap-1.5">
+   339→   838→   838→                                  <Button
+   340→   839→   839→                                    size="sm"
+   341→   840→   840→                                    variant="outline"
+   342→   841→   841→                                    className="text-[11px] h-7 gap-1"
+   343→   842→   842→                                    onClick={(e) => { e.stopPropagation(); handlePostCharge(res) }}
+   344→   843→   843→                                  >
+   345→   844→   844→                                    <Plus className="size-3" /> Post Charge
+   346→   845→   845→                                  </Button>
+   347→   846→   846→                                  <Button
+   348→   847→   847→                                    size="sm"
+   349→   848→   848→                                    variant="outline"
+   350→   849→   849→                                    className="text-[11px] h-7 gap-1"
+   351→   850→   850→                                    onClick={(e) => { e.stopPropagation(); handleTransferRoom(res) }}
+   352→   851→   851→                                  >
+   353→   852→   852→                                    <ArrowRightLeft className="size-3" /> Transfer
+   354→   853→   853→                                  </Button>
+   355→   854→   854→                                  <Button
+   356→   855→   855→                                    size="sm"
+   357→   856→   856→                                    variant="outline"
+   358→   857→   857→                                    className="text-[11px] h-7 gap-1"
+   359→   858→   858→                                    onClick={(e) => { e.stopPropagation(); handleExtendStay(res) }}
+   360→   859→   859→                                  >
+   361→   860→   860→                                    <CalendarPlus className="size-3" /> Extend Stay
+   362→   861→   861→                                  </Button>
+   363→   862→   862→                                  <Button
+   364→   863→   863→                                    size="sm"
+   365→   864→   864→                                    variant="outline"
+   366→   865→   865→                                    className="text-[11px] h-7 gap-1"
+   367→   866→   866→                                    onClick={(e) => { e.stopPropagation(); handleEarlyCheckout(res) }}
+   368→   867→   867→                                  >
+   369→   868→   868→                                    <LogOut className="size-3" /> Early Checkout
+   370→   869→   869→                                  </Button>
+   371→   870→   870→                                  <Button
+   372→   871→   871→                                    size="sm"
+   373→   872→   872→                                    variant="outline"
+   374→   873→   873→                                    className="text-[11px] h-7 gap-1"
+   375→   874→   874→                                    onClick={(e) => { e.stopPropagation(); handleAddNote(res) }}
+   376→   875→   875→                                  >
+   377→   876→   876→                                    <StickyNote className="size-3" /> Add Note
+   378→   877→   877→                                  </Button>
+   379→   878→   878→                                  <Button
+   380→   879→   879→                                    size="sm"
+   381→   880→   880→                                    variant="outline"
+   382→   881→   881→                                    className="text-[11px] h-7 gap-1"
+   383→   882→   882→                                    onClick={(e) => { e.stopPropagation(); handleWakeUpCall(res) }}
+   384→   883→   883→                                  >
+   385→   884→   884→                                    <Bell className="size-3" /> Wake-Up Call
+   386→   885→   885→                                  </Button>
+   387→   886→   886→                                  <Button
+   388→   887→   887→                                    size="sm"
+   389→   888→   888→                                    variant="outline"
+   390→   889→   889→                                    className="text-[11px] h-7 gap-1"
+   391→   890→   890→                                    onClick={(e) => { e.stopPropagation(); handleViewFolio(res) }}
+   392→   891→   891→                                  >
+   393→   892→   892→                                    <Receipt className="size-3" /> View Folio
+   394→   893→   893→                                  </Button>
+   395→   894→   894→                                  <Button
+   396→   895→   895→                                    size="sm"
+   397→   896→   896→                                    variant="outline"
+   398→   897→   897→                                    className="text-[11px] h-7 gap-1"
+   399→   898→   898→                                    onClick={(e) => { e.stopPropagation(); handleViewLedger(res) }}
+   400→   899→   899→                                  >
+   401→   900→   900→                                    <BookOpen className="size-3" /> View Ledger
+   402→   901→   901→                                  </Button>
+   403→   902→   902→                                </div>
+   404→   903→   903→                              </div>
+   405→   904→   904→                            </TableCell>
+   406→   905→   905→                          </TableRow>
+   407→   906→   906→                        )}
+   408→   907→   907→                      </React.Fragment>
+   409→   908→   908→                    )
+   410→   909→   909→                  })
+   411→   910→   910→                )}
+   412→   911→   911→              </TableBody>
+   413→   912→   912→            </Table>
+   414→   913→   913→        </CardContent>
+   415→   914→   914→      </Card>
+   416→   915→   915→
+   417→   916→   916→      {/* ─── Guest Detail Dialog ────────────────────────────────── */}
+   418→   917→   917→      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+   419→   918→   918→        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+   420→   919→   919→          {selectedReservation && (() => {
+   421→   920→   920→            const credit = getCreditStatus(selectedReservation)
+   422→   921→   921→            const balance = selectedReservation.folios[0]?.balance || 0
+   423→   922→   922→            return (
+   424→   923→   923→              <>
+   425→   924→   924→                <DialogHeader>
+   426→   925→   925→                  <DialogTitle className="flex items-center gap-2">
+   427→   926→   926→                    <BedDouble className="size-5 text-primary" />
+   428→   927→   927→                    <span>{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>
+   429→   928→   928→                    {selectedReservation.guest.vipLevel !== 'none' && (
+   430→   929→   929→                      <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700">
+   431→   930→   930→                        <Crown className="size-3 mr-0.5" />
+   432→   931→   931→                        {selectedReservation.guest.vipLevel.toUpperCase()}
+   433→   932→   932→                      </Badge>
+   434→   933→   933→                    )}
+   435→   934→   934→                  </DialogTitle>
+   436→   935→   935→                  <DialogDescription>
+   437→   936→   936→                    Room {selectedReservation.room.number} — {selectedReservation.confirmationNo}
+   438→   937→   937→                  </DialogDescription>
+   439→   938→   938→                </DialogHeader>
+   440→   939→   939→
+   441→   940→   940→                <div className="space-y-4">
+   442→   941→   941→                  {/* Reservation details */}
+   443→   942→   942→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+   444→   943→   943→                    <div className="rounded-md bg-muted/50 p-2.5">
+   445→   944→   944→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Confirmation</p>
+   446→   945→   945→                      <p className="font-mono font-medium text-xs">{selectedReservation.confirmationNo}</p>
+   447→   946→   946→                    </div>
+   448→   947→   947→                    <div className="rounded-md bg-muted/50 p-2.5">
+   449→   948→   948→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Room Type</p>
+   450→   949→   949→                      <p className="font-medium text-xs">{selectedReservation.room.type.name}</p>
+   451→   950→   950→                    </div>
+   452→   951→   951→                    <div className="rounded-md bg-muted/50 p-2.5">
+   453→   952→   952→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Floor / Wing</p>
+   454→   953→   953→                      <p className="font-medium text-xs">
+   455→   954→   954→                        Floor {selectedReservation.room.floor}
+   456→   955→   955→                        {selectedReservation.room.wing ? ` · ${selectedReservation.room.wing}` : ''}
+   457→   956→   956→                      </p>
+   458→   957→   957→                    </div>
+   459→   958→   958→                    <div className="rounded-md bg-muted/50 p-2.5">
+   460→   959→   959→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Check-in</p>
+   461→   960→   960→                      <p className="font-medium text-xs">{formatDate(selectedReservation.checkIn)}</p>
+   462→   961→   961→                    </div>
+   463→   962→   962→                    <div className="rounded-md bg-muted/50 p-2.5">
+   464→   963→   963→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Check-out</p>
+   465→   964→   964→                      <p className="font-medium text-xs">{formatDate(selectedReservation.checkOut)}</p>
+   466→   965→   965→                    </div>
+   467→   966→   966→                    <div className="rounded-md bg-muted/50 p-2.5">
+   468→   967→   967→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-0.5">Rate / Night</p>
+   469→   968→   968→                      <p className="font-medium text-xs">{formatCurrency(selectedReservation.roomRate)}</p>
+   470→   969→   969→                    </div>
+   471→   970→   970→                  </div>
+   472→   971→   971→
+   473→   972→   972→                  {/* Folio & Credit */}
+   474→   973→   973→                  <div className="grid grid-cols-2 gap-3">
+   475→   974→   974→                    <div className="rounded-md border p-3">
+   476→   975→   975→                      <p className="text-muted-foreground text-[10px] uppercase tracking-wider mb-1">Folio Balance</p>
+   477→   976→   976→                      <p className={cn('text-xl font-bold', credit.color)}>{formatCurrency(balance)}</p>
+   478→   977→   977→                      <div className="flex items-center gap-2 mt-1.5">
+   479→   978→   978→                        <Progress
+   480→   979→   979→                          value={Math.min(credit.pct, 100)}
+   481→   980→   980→                          className={cn(
+   482→   981→   981→                            'h-1.5 flex-1',
+   483→   982→   982→                            credit.status === 'breach' && '[&>div]:bg-red-500',
+   484→   983→   983→                            credit.status === 'warning' && '[&>div]:bg-amber-500',
+   485→   984→   984→                            credit.status === 'ok' && '[&>div]:bg-green-500',
+   486→   985→   985→                          )}
+   487→   986→   986→                        />
+   488→   987→   987→                        <span className={cn('text-[10px] font-semibold', credit.color)}>{Math.round(credit.pct)}%</span>
+   489→   988→   988→                      </div>
+   490→   989→   989→                      {credit.status === 'breach' && (
+   491→   990→   990→                        <p className="text-[10px] text-red-500 font-medium mt-1 flex items-center gap-1">
+   492→   991→   991→                          <AlertTriangle className="size-3" /> Credit limit exceeded
+   493→   992→   992→                        </p>
+   494→   993→   993→                      )}
+   495→   994→   994→                      {credit.status === 'warning' && (
+   496→   995→   995→                        <p className="text-[10px] text-amber-500 font-medium mt-1 flex items-center gap-1">
+   497→   996→   996→                          <AlertTriangle className="size-3" /> Approaching credit limit
+   498→   997→   997→                        </p>
+   499→   998→   998→                      )}
+   500→   999→   999→                    </div>
+   501→
+   502→[showing lines 500-999 of 1546; use offset=1000 with limit to continue reading]

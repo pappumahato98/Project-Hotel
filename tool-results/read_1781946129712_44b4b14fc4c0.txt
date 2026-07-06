@@ -1,0 +1,707 @@
+     1→'use client'
+     2→
+     3→import * as React from 'react'
+     4→import { apiFetch } from '@/lib/api'
+     5→import { useTheme } from 'next-themes'
+     6→import {
+     7→  Search, Bell, User, Building2,
+     8→  Sun, Moon, LogOut, Settings,
+     9→  HelpCircle, Check, Clock,
+    10→  Shield, Mail, Phone, MapPin, Calendar,
+    11→  Globe, ChevronRight,
+    12→} from 'lucide-react'
+    13→
+    14→import { cn } from '@/lib/utils'
+    15→import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore, usePreferencesStore } from '@/lib/store'
+    16→import { DualCalendarDisplay } from '@/components/shared/dual-calendar'
+    17→import { NAV_ITEMS } from '@/lib/navigation'
+    18→import { Button } from '@/components/ui/button'
+    19→import { Badge } from '@/components/ui/badge'
+    20→import { Separator } from '@/components/ui/separator'
+    21→import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+    22→import { Label } from '@/components/ui/label'
+    23→import { Input } from '@/components/ui/input'
+    24→import {
+    25→  DropdownMenu,
+    26→  DropdownMenuContent,
+    27→  DropdownMenuGroup,
+    28→  DropdownMenuItem,
+    29→  DropdownMenuLabel,
+    30→  DropdownMenuSeparator,
+    31→  DropdownMenuTrigger,
+    32→  DropdownMenuSub,
+    33→  DropdownMenuSubContent,
+    34→  DropdownMenuSubTrigger,
+    35→} from '@/components/ui/dropdown-menu'
+    36→import {
+    37→  Dialog,
+    38→  DialogContent,
+    39→  DialogDescription,
+    40→  DialogFooter,
+    41→  DialogHeader,
+    42→  DialogTitle,
+    43→} from '@/components/ui/dialog'
+    44→import {
+    45→  Select,
+    46→  SelectContent,
+    47→  SelectItem,
+    48→  SelectTrigger,
+    49→  SelectValue,
+    50→} from '@/components/ui/select'
+    51→import {
+    52→  CommandDialog,
+    53→  CommandEmpty,
+    54→  CommandGroup,
+    55→  CommandInput,
+    56→  CommandItem,
+    57→  CommandList,
+    58→  CommandSeparator,
+    59→} from '@/components/ui/command'
+    60→import { SidebarTrigger } from '@/components/ui/sidebar'
+    61→import { toast } from 'sonner'
+    62→
+    63→// ─── Quick Search Dialog ────────────────────────────────────────────
+    64→function QuickSearchDialog() {
+    65→  const { searchOpen, setSearchOpen, navigateTo } = useNavigationStore()
+    66→  const [query, setQuery] = React.useState('')
+    67→
+    68→  const filteredItems = React.useMemo(() => {
+    69→    if (!query.trim()) return NAV_ITEMS
+    70→    const lower = query.toLowerCase()
+    71→    return NAV_ITEMS.filter(
+    72→      (item) =>
+    73→        item.label.toLowerCase().includes(lower) ||
+    74→        item.children?.some((c) => c.label.toLowerCase().includes(lower))
+    75→    )
+    76→  }, [query])
+    77→
+    78→  React.useEffect(() => {
+    79→    const down = (e: KeyboardEvent) => {
+    80→      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+    81→        e.preventDefault()
+    82→        setSearchOpen(!searchOpen)
+    83→      }
+    84→    }
+    85→    document.addEventListener('keydown', down)
+    86→    return () => document.removeEventListener('keydown', down)
+    87→  }, [searchOpen, setSearchOpen])
+    88→
+    89→  return (
+    90→    <CommandDialog open={searchOpen} onOpenChange={setSearchOpen}>
+    91→      <CommandInput
+    92→        placeholder="Search modules, pages..."
+    93→        value={query}
+    94→        onValueChange={setQuery}
+    95→      />
+    96→      <CommandList>
+    97→        <CommandEmpty>No results found.</CommandEmpty>
+    98→        {filteredItems.map((item) => (
+    99→          <React.Fragment key={item.id}>
+   100→            <CommandGroup heading={item.label}>
+   101→              <CommandItem
+   102→                onSelect={() => {
+   103→                  navigateTo(item.id)
+   104→                  setSearchOpen(false)
+   105→                  setQuery('')
+   106→                }}
+   107→              >
+   108→                <item.icon className="mr-2 size-4 text-muted-foreground" />
+   109→                <span>{item.label}</span>
+   110→              </CommandItem>
+   111→              {item.children?.map((child) => (
+   112→                <CommandItem
+   113→                  key={child.id}
+   114→                  onSelect={() => {
+   115→                    navigateTo(item.id, child.id)
+   116→                    setSearchOpen(false)
+   117→                    setQuery('')
+   118→                  }}
+   119→                  className="pl-8"
+   120→                >
+   121→                  <span>{child.label}</span>
+   122→                </CommandItem>
+   123→              ))}
+   124→            </CommandGroup>
+   125→            <CommandSeparator />
+   126→          </React.Fragment>
+   127→        ))}
+   128→      </CommandList>
+   129→    </CommandDialog>
+   130→  )
+   131→}
+   132→
+   133→// ─── Profile Dialog ─────────────────────────────────────────────────
+   134→function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+   135→  const { user, updateUser } = useAuthStore()
+   136→  const { settings } = useSettingsStore()
+   137→  const [firstName, setFirstName] = React.useState(user?.firstName ?? '')
+   138→  const [lastName, setLastName] = React.useState(user?.lastName ?? '')
+   139→  const [phone, setPhone] = React.useState('')
+   140→  const [saving, setSaving] = React.useState(false)
+   141→
+   142→  React.useEffect(() => {
+   143→    if (open) {
+   144→      setFirstName(user?.firstName ?? '')
+   145→      setLastName(user?.lastName ?? '')
+   146→    }
+   147→  }, [open, user])
+   148→
+   149→  const handleSave = async () => {
+   150→    setSaving(true)
+   151→    try {
+   152→      // Persist to backend first
+   153→      await apiFetch('/api/auth/profile', {
+   154→        method: 'PUT',
+   155→        headers: { 'Content-Type': 'application/json' },
+   156→        body: JSON.stringify({ userId: user?.id, firstName, lastName }),
+   157→      })
+   158→      updateUser({ firstName, lastName })
+   159→      toast.success('Profile updated successfully')
+   160→      onOpenChange(false)
+   161→    } catch {
+   162→      toast.error('Failed to update profile')
+   163→    } finally {
+   164→      setSaving(false)
+   165→    }
+   166→  }
+   167→
+   168→  const initials = user ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}` : '??'
+   169→
+   170→  const roleColorMap: Record<string, string> = {
+   171→    admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+   172→    gm: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+   173→    manager: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+   174→    supervisor: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+   175→    staff: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+   176→  }
+   177→
+   178→  const roleBadgeColor = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
+   179→
+   180→  return (
+   181→    <Dialog open={open} onOpenChange={onOpenChange}>
+   182→      <DialogContent className="sm:max-w-md">
+   183→        <DialogHeader>
+   184→          <DialogTitle>My Profile</DialogTitle>
+   185→          <DialogDescription>View and manage your account information.</DialogDescription>
+   186→        </DialogHeader>
+   187→        <div className="space-y-6">
+   188→          {/* Avatar & Role */}
+   189→          <div className="flex items-center gap-4">
+   190→            <Avatar className="size-16">
+   191→              <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
+   192→              <AvatarFallback className="bg-amber-100 text-amber-700 text-lg font-semibold">
+   193→                {initials}
+   194→              </AvatarFallback>
+   195→            </Avatar>
+   196→            <div className="flex-1">
+   197→              <div className="flex items-center gap-2">
+   198→                <p className="text-lg font-semibold">{user?.firstName} {user?.lastName}</p>
+   199→                <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border-0', roleBadgeColor)}>
+   200→                  {user?.role?.toUpperCase()}
+   201→                </Badge>
+   202→              </div>
+   203→              <p className="text-sm text-muted-foreground">{user?.position} — {user?.department}</p>
+   204→            </div>
+   205→          </div>
+   206→
+   207→          <Separator />
+   208→
+   209→          {/* Info Fields */}
+   210→          <div className="space-y-4">
+   211→            <div className="flex items-center gap-3 text-sm">
+   212→              <Mail className="size-4 text-muted-foreground" />
+   213→              <span className="text-muted-foreground">Email:</span>
+   214→              <span className="font-medium">{user?.email}</span>
+   215→            </div>
+   216→            <div className="flex items-center gap-3 text-sm">
+   217→              <Shield className="size-4 text-muted-foreground" />
+   218→              <span className="text-muted-foreground">Role:</span>
+   219→              <span className="font-medium capitalize">{user?.role}</span>
+   220→            </div>
+   221→            <div className="flex items-center gap-3 text-sm">
+   222→              <Building2 className="size-4 text-muted-foreground" />
+   223→              <span className="text-muted-foreground">Department:</span>
+   224→              <span className="font-medium">{user?.department}</span>
+   225→            </div>
+   226→            <div className="flex items-center gap-3 text-sm">
+   227→              <MapPin className="size-4 text-muted-foreground" />
+   228→              <span className="text-muted-foreground">Property:</span>
+   229→              <span className="font-medium">{settings.hotelName}</span>
+   230→            </div>
+   231→          </div>
+   232→
+   233→          <Separator />
+   234→
+   235→          {/* Editable Fields */}
+   236→          <div className="space-y-4">
+   237→            <h4 className="text-sm font-semibold">Edit Profile</h4>
+   238→            <div className="grid grid-cols-2 gap-3">
+   239→              <div className="space-y-1.5">
+   240→                <Label htmlFor="profile-first" className="text-xs">First Name</Label>
+   241→                <Input
+   242→                  id="profile-first"
+   243→                  value={firstName}
+   244→                  onChange={(e) => setFirstName(e.target.value)}
+   245→                  className="h-9"
+   246→                />
+   247→              </div>
+   248→              <div className="space-y-1.5">
+   249→                <Label htmlFor="profile-last" className="text-xs">Last Name</Label>
+   250→                <Input
+   251→                  id="profile-last"
+   252→                  value={lastName}
+   253→                  onChange={(e) => setLastName(e.target.value)}
+   254→                  className="h-9"
+   255→                />
+   256→              </div>
+   257→            </div>
+   258→          </div>
+   259→        </div>
+   260→        <DialogFooter>
+   261→          <Button variant="outline" onClick={() => onOpenChange(false)}>
+   262→            Cancel
+   263→          </Button>
+   264→          <Button onClick={handleSave} disabled={saving || (!firstName.trim() || !lastName.trim())}>
+   265→            {saving ? 'Saving...' : 'Save Changes'}
+   266→          </Button>
+   267→        </DialogFooter>
+   268→      </DialogContent>
+   269→    </Dialog>
+   270→  )
+   271→}
+   272→
+   273→// ─── My Shift Dialog ────────────────────────────────────────────────
+   274→function ShiftDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+   275→  const { user } = useAuthStore()
+   276→  const { settings } = useSettingsStore()
+   277→  const now = new Date()
+   278→  const hour = now.getHours()
+   279→  const shiftType = hour < 14 ? 'Morning Shift' : hour < 22 ? 'Evening Shift' : 'Night Shift'
+   280→  const shiftTime = hour < 14 ? '06:00 — 14:00' : hour < 22 ? '14:00 — 22:00' : '22:00 — 06:00'
+   281→  const shiftStatus = hour < 6 || hour >= 22 ? 'Not Started' : 'In Progress'
+   282→
+   283→  return (
+   284→    <Dialog open={open} onOpenChange={onOpenChange}>
+   285→      <DialogContent className="sm:max-w-sm">
+   286→        <DialogHeader>
+   287→          <DialogTitle>My Shift</DialogTitle>
+   288→          <DialogDescription>Current shift information.</DialogDescription>
+   289→        </DialogHeader>
+   290→        <div className="space-y-4">
+   291→          <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
+   292→            <div className={cn(
+   293→              'flex size-10 items-center justify-center rounded-full',
+   294→              shiftStatus === 'In Progress' ? 'bg-emerald-100 dark:bg-emerald-900' : 'bg-gray-100 dark:bg-gray-800'
+   295→            )}>
+   296→              <Clock className={cn(
+   297→                'size-5',
+   298→                shiftStatus === 'In Progress' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'
+   299→              )} />
+   300→            </div>
+   301→            <div>
+   302→              <p className="font-semibold">{shiftType}</p>
+   303→              <p className="text-xs text-muted-foreground">{shiftTime}</p>
+   304→            </div>
+   305→          </div>
+   306→
+   307→          <div className="space-y-3">
+   308→            <div className="flex justify-between text-sm">
+   309→              <span className="text-muted-foreground">Status</span>
+   310→              <Badge variant={shiftStatus === 'In Progress' ? 'default' : 'secondary'} className="text-xs">
+   311→                {shiftStatus}
+   312→              </Badge>
+   313→            </div>
+   314→            <div className="flex justify-between text-sm">
+   315→              <span className="text-muted-foreground">Staff</span>
+   316→              <span className="font-medium">{user?.firstName} {user?.lastName}</span>
+   317→            </div>
+   318→            <div className="flex justify-between text-sm">
+   319→              <span className="text-muted-foreground">Department</span>
+   320→              <span className="font-medium">{user?.department}</span>
+   321→            </div>
+   322→            <div className="flex justify-between text-sm">
+   323→              <span className="text-muted-foreground">Position</span>
+   324→              <span className="font-medium">{user?.position}</span>
+   325→            </div>
+   326→            <div className="flex justify-between text-sm">
+   327→              <span className="text-muted-foreground">Property</span>
+   328→              <span className="font-medium">{settings.hotelName}</span>
+   329→            </div>
+   330→            <div className="flex justify-between text-sm">
+   331→              <span className="text-muted-foreground">Date</span>
+   332→              <span className="font-medium">{now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+   333→            </div>
+   334→          </div>
+   335→        </div>
+   336→        <DialogFooter>
+   337→          <Button onClick={() => onOpenChange(false)}>Close</Button>
+   338→        </DialogFooter>
+   339→      </DialogContent>
+   340→    </Dialog>
+   341→  )
+   342→}
+   343→
+   344→// ─── Help Dialog ─────────────────────────────────────────────────────
+   345→function HelpDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+   346→  const { navigateTo } = useNavigationStore()
+   347→
+   348→  const helpItems = [
+   349→    { title: 'Getting Started Guide', desc: 'Learn the basics of the PMS system', nav: 'getting-started' as const },
+   350→    { title: 'Keyboard Shortcuts', desc: '⌘K — Quick Search, ⌘B — Toggle Sidebar', nav: 'shortcuts' as const },
+   351→    { title: 'User Manual', desc: 'Complete reference documentation', nav: 'manual' as const },
+   352→    { title: 'FAQ', desc: 'Frequently asked questions', nav: 'faq' as const },
+   353→    { title: 'Contact IT Support', desc: 'ext. 1000 or it@meridian.com', nav: 'contact' as const },
+   354→  ]
+   355→
+   356→  return (
+   357→    <Dialog open={open} onOpenChange={onOpenChange}>
+   358→      <DialogContent className="sm:max-w-sm">
+   359→        <DialogHeader>
+   360→          <DialogTitle>Help & Support</DialogTitle>
+   361→          <DialogDescription>Resources and support contacts.</DialogDescription>
+   362→        </DialogHeader>
+   363→        <div className="space-y-2">
+   364→          {helpItems.map((item) => (
+   365→            <button
+   366→              key={item.title}
+   367→              className="flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+   368→              onClick={() => {
+   369→                onOpenChange(false)
+   370→                navigateTo('help', item.nav)
+   371→              }}
+   372→            >
+   373→              <div>
+   374→                <p className="text-sm font-medium">{item.title}</p>
+   375→                <p className="text-xs text-muted-foreground">{item.desc}</p>
+   376→              </div>
+   377→              <ChevronRight className="size-4 text-muted-foreground" />
+   378→            </button>
+   379→          ))}
+   380→        </div>
+   381→        <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/50 dark:border-amber-800">
+   382→          <p className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-1">System Version</p>
+   383→          <p className="text-xs text-amber-700 dark:text-amber-400">Meridian PMS v2.0.0 — Build 2024.01</p>
+   384→        </div>
+   385→        <DialogFooter>
+   386→          <Button variant="outline" onClick={() => { onOpenChange(false); navigateTo('help') }}>Open Full Help Center</Button>
+   387→          <Button onClick={() => onOpenChange(false)}>Close</Button>
+   388→        </DialogFooter>
+   389→      </DialogContent>
+   390→    </Dialog>
+   391→  )
+   392→}
+   393→
+   394→// ─── User Menu ──────────────────────────────────────────────────────
+   395→function UserMenu() {
+   396→  const { setTheme, resolvedTheme } = useTheme()
+   397→  const { user, logout } = useAuthStore()
+   398→  const { activeProperty, properties, setActiveProperty } = usePropertyStore()
+   399→  const { navigateTo } = useNavigationStore()
+   400→  const [mounted, setMounted] = React.useState(false)
+   401→  const [profileOpen, setProfileOpen] = React.useState(false)
+   402→  const [shiftOpen, setShiftOpen] = React.useState(false)
+   403→  const [helpOpen, setHelpOpen] = React.useState(false)
+   404→
+   405→  React.useEffect(() => setMounted(true), [])
+   406→
+   407→  const initials = user
+   408→    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
+   409→    : '??'
+   410→
+   411→  const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Unknown User' : 'Unknown User'
+   412→  const displayRole = user?.position || 'Staff'
+   413→  const displayDept = user?.department || 'Management'
+   414→
+   415→  const roleColorMap: Record<string, string> = {
+   416→    admin: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+   417→    gm: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300',
+   418→    manager: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+   419→    supervisor: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+   420→    staff: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+   421→  }
+   422→
+   423→  const roleBadgeColor = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
+   424→
+   425→  const handleLogout = () => {
+   426→    logout()
+   427→    toast.success('Signed out successfully')
+   428→  }
+   429→
+   430→  const handlePropertySwitch = (propertyId: string) => {
+   431→    const property = properties.find((p) => p.id === propertyId)
+   432→    if (property) {
+   433→      setActiveProperty(property)
+   434→      toast.success(`Switched to ${property.name}`)
+   435→    }
+   436→  }
+   437→
+   438→  return (
+   439→    <>
+   440→      <DropdownMenu>
+   441→        <DropdownMenuTrigger asChild>
+   442→          <Button variant="ghost" size="sm" className="relative h-8 gap-2 rounded-full pl-2 pr-3">
+   443→            <Avatar className="size-7">
+   444→              <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
+   445→              <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
+   446→                {initials}
+   447→              </AvatarFallback>
+   448→            </Avatar>
+   449→            <div className="hidden sm:flex flex-col items-start">
+   450→              <span className="text-xs font-medium leading-none">{displayName}</span>
+   451→              <span className="text-[10px] text-muted-foreground leading-none mt-0.5">{displayRole}</span>
+   452→            </div>
+   453→          </Button>
+   454→        </DropdownMenuTrigger>
+   455→        <DropdownMenuContent className="w-72" align="end" forceMount>
+   456→          {/* User Info Header */}
+   457→          <DropdownMenuLabel className="font-normal">
+   458→            <div className="flex flex-col space-y-1.5">
+   459→              <div className="flex items-center gap-2">
+   460→                <p className="text-sm font-medium leading-none">{displayName}</p>
+   461→                <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 border-0', roleBadgeColor)}>
+   462→                  {user?.role?.toUpperCase()}
+   463→                </Badge>
+   464→              </div>
+   465→              <p className="text-xs leading-none text-muted-foreground">
+   466→                {user?.email}
+   467→              </p>
+   468→              <p className="text-xs leading-none text-muted-foreground">
+   469→                {displayDept} &middot; {displayRole}
+   470→              </p>
+   471→            </div>
+   472→          </DropdownMenuLabel>
+   473→
+   474→          <DropdownMenuSeparator />
+   475→
+   476→          {/* Property Switcher */}
+   477→          <DropdownMenuSub>
+   478→            <DropdownMenuSubTrigger className="cursor-pointer">
+   479→              <Building2 className="mr-2 size-4 text-amber-600" />
+   480→              <span>Switch Property</span>
+   481→            </DropdownMenuSubTrigger>
+   482→            <DropdownMenuSubContent>
+   483→              {properties.map((property) => (
+   484→                <DropdownMenuItem
+   485→                  key={property.id}
+   486→                  className="cursor-pointer"
+   487→                  onClick={() => handlePropertySwitch(property.id)}
+   488→                >
+   489→                  <Building2 className="mr-2 size-4 text-muted-foreground" />
+   490→                  <div className="flex flex-col">
+   491→                    <span className="text-sm">{property.name}</span>
+   492→                    <span className="text-[10px] text-muted-foreground">{property.city}</span>
+   493→                  </div>
+   494→                  {activeProperty.id === property.id && (
+   495→                    <Check className="ml-auto size-4 text-amber-600" />
+   496→                  )}
+   497→                </DropdownMenuItem>
+   498→              ))}
+   499→            </DropdownMenuSubContent>
+   500→          </DropdownMenuSub>
+   501→
+   502→          <DropdownMenuSeparator />
+   503→
+   504→          {/* Account Section */}
+   505→          <DropdownMenuGroup>
+   506→            <DropdownMenuItem className="cursor-pointer" onSelect={() => navigateTo('profile')}>
+   507→              <User className="mr-2 size-4" />
+   508→              My Profile
+   509→            </DropdownMenuItem>
+   510→            <DropdownMenuItem className="cursor-pointer" onSelect={() => navigateTo('settings')}>
+   511→              <Settings className="mr-2 size-4" />
+   512→              Settings
+   513→            </DropdownMenuItem>
+   514→            <DropdownMenuItem className="cursor-pointer" onSelect={() => setShiftOpen(true)}>
+   515→              <Clock className="mr-2 size-4" />
+   516→              My Shift
+   517→            </DropdownMenuItem>
+   518→            <DropdownMenuItem
+   519→              className="cursor-pointer"
+   520→              onSelect={() => navigateTo('hr', 'employees')}
+   521→            >
+   522→              <Building2 className="mr-2 size-4" />
+   523→              My Department
+   524→            </DropdownMenuItem>
+   525→          </DropdownMenuGroup>
+   526→
+   527→          <DropdownMenuSeparator />
+   528→
+   529→          {/* Actions Section */}
+   530→          <DropdownMenuGroup>
+   531→            <DropdownMenuItem
+   532→              className="cursor-pointer"
+   533→              onClick={() => mounted && setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+   534→            >
+   535→              {mounted && resolvedTheme === 'dark' ? (
+   536→                <Sun className="mr-2 size-4" />
+   537→              ) : (
+   538→                <Moon className="mr-2 size-4" />
+   539→              )}
+   540→              {mounted && resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+   541→            </DropdownMenuItem>
+   542→            <DropdownMenuItem className="cursor-pointer" onSelect={() => setHelpOpen(true)}>
+   543→              <HelpCircle className="mr-2 size-4" />
+   544→              Help & Support
+   545→            </DropdownMenuItem>
+   546→          </DropdownMenuGroup>
+   547→
+   548→          <DropdownMenuSeparator />
+   549→
+   550→          {/* Sign Out */}
+   551→          <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onSelect={handleLogout}>
+   552→            <LogOut className="mr-2 size-4" />
+   553→            Sign Out
+   554→          </DropdownMenuItem>
+   555→        </DropdownMenuContent>
+   556→      </DropdownMenu>
+   557→
+   558→      {/* Dialogs */}
+   559→      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
+   560→      <ShiftDialog open={shiftOpen} onOpenChange={setShiftOpen} />
+   561→      <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+   562→    </>
+   563→  )
+   564→}
+   565→
+   566→// ─── AppHeader ────────────────────────────────────────────────────────
+   567→export function AppHeader() {
+   568→  const { setSearchOpen, activeModule, activeSubModule } = useNavigationStore()
+   569→  const { activeProperty } = usePropertyStore()
+   570→  const { preferences } = usePreferencesStore()
+   571→  const { user } = useAuthStore()
+   572→  const showDualCalendar = preferences.nepaliStandards?.dualCalendar !== false
+   573→  // Hide search button on calendar page to maximize space
+   574→  const isCalendarPage = activeModule === 'front-desk' && activeSubModule === 'calendar'
+   575→
+   576→  return (
+   577→    <>
+   578→      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 md:px-6">
+   579→        {/* Mobile menu toggle */}
+   580→        <SidebarTrigger className="-ml-1" />
+   581→
+   582→        <Separator orientation="vertical" className="mr-2 h-4" />
+   583→
+   584→        {/* Property Name (left side) */}
+   585→        <div className="flex items-center gap-2">
+   586→          <Building2 className="size-4 text-amber-600 hidden sm:block" />
+   587→          <span className="text-sm font-semibold hidden sm:block">{activeProperty.name}</span>
+   588→        </div>
+   589→
+   590→        {/* Dual Calendar Date (hidden on small screens) */}
+   591→        {showDualCalendar && (
+   592→          <>
+   593→            <Separator orientation="vertical" className="hidden lg:block h-4" />
+   594→            <div className="hidden lg:block">
+   595→              <DualCalendarDisplay
+   596→                date={new Date()}
+   597→                variant="compact"
+   598→                showAD
+   599→                showBS
+   600→                showHoliday
+   601→              />
+   602→            </div>
+   603→          </>
+   604→        )}
+   605→
+   606→        {/* Spacer */}
+   607→        <div className="flex-1" />
+   608→
+   609→        {/* Search button (hidden on calendar page) */}
+   610→        {!isCalendarPage && (
+   611→          <Button
+   612→            variant="outline"
+   613→            size="sm"
+   614→            className="hidden sm:inline-flex h-8 gap-2 text-muted-foreground w-64 justify-start font-normal"
+   615→            onClick={() => setSearchOpen(true)}
+   616→          >
+   617→            <Search className="size-3.5" />
+   618→            <span>Search...</span>
+   619→            <kbd className="pointer-events-none ml-auto inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+   620→              <span className="text-xs">&#8984;</span>K
+   621→            </kbd>
+   622→          </Button>
+   623→        )}
+   624→        {/* Mobile search (hidden on calendar page) */}
+   625→        {!isCalendarPage && (
+   626→          <Button
+   627→            variant="ghost"
+   628→            size="icon"
+   629→            className="sm:hidden size-8"
+   630→            onClick={() => setSearchOpen(true)}
+   631→          >
+   632→            <Search className="size-4" />
+   633→            <span className="sr-only">Search</span>
+   634→          </Button>
+   635→        )}
+   636→
+   637→        {/* Notifications */}
+   638→        <DropdownMenu>
+   639→          <DropdownMenuTrigger asChild>
+   640→            <Button variant="ghost" size="icon" className="relative size-8">
+   641→              <Bell className="size-4" />
+   642→              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+   643→                5
+   644→              </span>
+   645→              <span className="sr-only">Notifications</span>
+   646→            </Button>
+   647→          </DropdownMenuTrigger>
+   648→          <DropdownMenuContent align="end" className="w-72">
+   649→            <DropdownMenuLabel className="flex items-center justify-between">
+   650→              Notifications
+   651→              <Badge variant="secondary" className="text-[10px]">5 new</Badge>
+   652→            </DropdownMenuLabel>
+   653→            <DropdownMenuSeparator />
+   654→            <DropdownMenuGroup className="max-h-64 overflow-y-auto">
+   655→              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+   656→                <div className="flex items-center gap-2 text-sm font-medium">
+   657→                  <span className="flex h-2 w-2 rounded-full bg-blue-500" />
+   658→                  New reservation from John Smith
+   659→                </div>
+   660→                <span className="text-xs text-muted-foreground pl-4">2 minutes ago</span>
+   661→              </DropdownMenuItem>
+   662→              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+   663→                <div className="flex items-center gap-2 text-sm font-medium">
+   664→                  <span className="flex h-2 w-2 rounded-full bg-amber-500" />
+   665→                  Room 305 checkout reminder
+   666→                </div>
+   667→                <span className="text-xs text-muted-foreground pl-4">15 minutes ago</span>
+   668→              </DropdownMenuItem>
+   669→              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+   670→                <div className="flex items-center gap-2 text-sm font-medium">
+   671→                  <span className="flex h-2 w-2 rounded-full bg-green-500" />
+   672→                  Housekeeping task completed
+   673→                </div>
+   674→                <span className="text-xs text-muted-foreground pl-4">1 hour ago</span>
+   675→              </DropdownMenuItem>
+   676→              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+   677→                <div className="flex items-center gap-2 text-sm font-medium">
+   678→                  <span className="flex h-2 w-2 rounded-full bg-orange-500" />
+   679→                  Low stock alert: Towels
+   680→                </div>
+   681→                <span className="text-xs text-muted-foreground pl-4">2 hours ago</span>
+   682→              </DropdownMenuItem>
+   683→              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+   684→                <div className="flex items-center gap-2 text-sm font-medium">
+   685→                  <span className="flex h-2 w-2 rounded-full bg-purple-500" />
+   686→                  Payment received: NPR 1,250
+   687→                </div>
+   688→                <span className="text-xs text-muted-foreground pl-4">3 hours ago</span>
+   689→              </DropdownMenuItem>
+   690→            </DropdownMenuGroup>
+   691→            <DropdownMenuSeparator />
+   692→            <DropdownMenuItem className="justify-center text-sm font-medium text-primary cursor-pointer">
+   693→              View all notifications
+   694→            </DropdownMenuItem>
+   695→          </DropdownMenuContent>
+   696→        </DropdownMenu>
+   697→
+   698→        {/* User menu */}
+   699→        <UserMenu key={user?.firstName + '|' + user?.lastName + '|' + (user?.avatarUrl || '').slice(0, 30)} />
+   700→      </header>
+   701→
+   702→      {/* Quick search dialog */}
+   703→      <QuickSearchDialog />
+   704→    </>
+   705→  )
+   706→}
+   707→

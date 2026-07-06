@@ -1,0 +1,674 @@
+     1→'use client'
+     2→
+     3→import { useMemo } from 'react'
+     4→import { useQuery } from '@tanstack/react-query'
+     5→import { apiFetch } from '@/lib/api'
+     6→import {
+     7→  LogIn,
+     8→  LogOut,
+     9→  BedDouble,
+    10→  Hotel,
+    11→  Percent,
+    12→  AlertTriangle,
+    13→  CalendarPlus,
+    14→  Footprints,
+    15→  ArrowRightLeft,
+    16→  Bell,
+    17→  Clock,
+    18→  ArrowDownToLine,
+    19→  RefreshCw,
+    20→  LayoutDashboard,
+    21→  Star,
+    22→  MessageSquare,
+    23→} from 'lucide-react'
+    24→import { toast } from 'sonner'
+    25→
+    26→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    27→import { Badge } from '@/components/ui/badge'
+    28→import { Button } from '@/components/ui/button'
+    29→import { Skeleton } from '@/components/ui/skeleton'
+    30→import {
+    31→  Table,
+    32→  TableHeader,
+    33→  TableBody,
+    34→  TableHead,
+    35→  TableRow,
+    36→  TableCell,
+    37→} from '@/components/ui/table'
+    38→import { Separator } from '@/components/ui/separator'
+    39→import { useNavigationStore, useFrontDeskContextStore } from '@/lib/store'
+    40→import { formatDate, formatTime } from '@/lib/format'
+    41→import { cn } from '@/lib/utils'
+    42→
+    43→// ─── Types ────────────────────────────────────────────────────────
+    44→
+    45→interface DashboardSnapshot {
+    46→  totalRooms: number
+    47→  arrivals: number
+    48→  departures: number
+    49→  inHouse: number
+    50→  available: number
+    51→  occupancyPct: number
+    52→  overbookingCount: number
+    53→}
+    54→
+    55→interface TimelineEntry {
+    56→  id: string
+    57→  type: 'check_in' | 'check_out' | 'room_move' | 'reservation_modified'
+    58→  time: string
+    59→  description: string
+    60→  guestName: string
+    61→  roomNumber?: string
+    62→  details?: string
+    63→}
+    64→
+    65→interface UpcomingArrival {
+    66→  id: string
+    67→  confirmationNo: string
+    68→  status: string
+    69→  checkIn: string
+    70→  checkOut: string
+    71→  specialRequests: string | null
+    72→  source: string | null
+    73→  guest: { firstName: string; lastName: string; vipLevel: string } | null
+    74→  room: { number: string; type: { name: string; code: string } } | null
+    75→}
+    76→
+    77→interface DashboardData {
+    78→  snapshot: DashboardSnapshot
+    79→  timeline: TimelineEntry[]
+    80→  upcomingArrivals: UpcomingArrival[]
+    81→}
+    82→
+    83→// ─── Constants ──────────────────────────────────────────────────────
+    84→
+    85→const QUICK_ACTIONS = [
+    86→  {
+    87→    id: 'new-reservation',
+    88→    icon: CalendarPlus,
+    89→    title: 'New Reservation',
+    90→    description: 'Create a booking for a guest',
+    91→    color: 'text-emerald-600 dark:text-emerald-400',
+    92→    bg: 'bg-emerald-100 dark:bg-emerald-950',
+    93→  },
+    94→  {
+    95→    id: 'walk-in-checkin',
+    96→    icon: Footprints,
+    97→    title: 'Walk-In Check-In',
+    98→    description: 'Register & check in a walk-in guest',
+    99→    color: 'text-violet-600 dark:text-violet-400',
+   100→    bg: 'bg-violet-100 dark:bg-violet-950',
+   101→  },
+   102→  {
+   103→    id: 'room-transfer',
+   104→    icon: ArrowRightLeft,
+   105→    title: 'Room Transfer',
+   106→    description: 'Move guest to another room',
+   107→    color: 'text-sky-600 dark:text-sky-400',
+   108→    bg: 'bg-sky-100 dark:bg-sky-950',
+   109→  },
+   110→  {
+   111→    id: 'wake-up-call',
+   112→    icon: Bell,
+   113→    title: 'Wake-Up Call',
+   114→    description: 'Schedule a wake-up call',
+   115→    color: 'text-amber-600 dark:text-amber-400',
+   116→    bg: 'bg-amber-100 dark:bg-amber-950',
+   117→  },
+   118→  {
+   119→    id: 'late-checkout',
+   120→    icon: Clock,
+   121→    title: 'Late Checkout',
+   122→    description: 'Request late checkout approval',
+   123→    color: 'text-orange-600 dark:text-orange-400',
+   124→    bg: 'bg-orange-100 dark:bg-orange-950',
+   125→  },
+   126→  {
+   127→    id: 'express-checkout',
+   128→    icon: LogOut,
+   129→    title: 'Express Checkout',
+   130→    description: 'Process express guest checkout',
+   131→    color: 'text-rose-600 dark:text-rose-400',
+   132→    bg: 'bg-rose-100 dark:bg-rose-950',
+   133→  },
+   134→] as const
+   135→
+   136→// ─── Helper: Timeline Icon ──────────────────────────────────────────
+   137→
+   138→function TimelineIcon({ type }: { type: string }) {
+   139→  switch (type) {
+   140→    case 'check_in':
+   141→      return (
+   142→        <div className="flex size-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 ring-4 ring-background">
+   143→          <LogIn className="size-4 text-emerald-600 dark:text-emerald-400" />
+   144→        </div>
+   145→      )
+   146→    case 'check_out':
+   147→      return (
+   148→        <div className="flex size-8 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-950 ring-4 ring-background">
+   149→          <LogOut className="size-4 text-rose-600 dark:text-rose-400" />
+   150→        </div>
+   151→      )
+   152→    case 'room_move':
+   153→      return (
+   154→        <div className="flex size-8 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-950 ring-4 ring-background">
+   155→          <ArrowRightLeft className="size-4 text-violet-600 dark:text-violet-400" />
+   156→        </div>
+   157→      )
+   158→    default:
+   159→      return (
+   160→        <div className="flex size-8 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-950 ring-4 ring-background">
+   161→          <MessageSquare className="size-4 text-sky-600 dark:text-sky-400" />
+   162→        </div>
+   163→      )
+   164→  }
+   165→}
+   166→
+   167→// ─── Helper: Source Badge ──────────────────────────────────────────
+   168→
+   169→function SourceBadge({ source }: { source: string | null }) {
+   170→  if (!source) return <span className="text-xs text-muted-foreground">—</span>
+   171→
+   172→  const colors: Record<string, string> = {
+   173→    online: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border-teal-300 dark:border-teal-700',
+   174→    walk_in: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300 border-violet-300 dark:border-violet-700',
+   175→    phone: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   176→    email: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700',
+   177→    agent: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 border-orange-300 dark:border-orange-700',
+   178→    corporate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-600',
+   179→    group: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-300 border-pink-300 dark:border-pink-700',
+   180→    booking_com: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border-teal-300 dark:border-teal-700',
+   181→    direct: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700',
+   182→  }
+   183→
+   184→  const colorClass = colors[source] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-300 dark:border-gray-600'
+   185→
+   186→  return (
+   187→    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0', colorClass)}>
+   188→      {source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+   189→    </Badge>
+   190→  )
+   191→}
+   192→
+   193→// ─── Loading Skeletons ───────────────────────────────────────────
+   194→
+   195→function SnapshotSkeleton() {
+   196→  return (
+   197→    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+   198→      {Array.from({ length: 6 }).map((_, i) => (
+   199→        <Card key={i}>
+   200→          <CardContent className="p-4 flex items-center gap-3">
+   201→            <Skeleton className="size-10 rounded-lg" />
+   202→            <div className="space-y-1.5">
+   203→              <Skeleton className="h-7 w-12" />
+   204→              <Skeleton className="h-3 w-20" />
+   205→            </div>
+   206→          </CardContent>
+   207→        </Card>
+   208→      ))}
+   209→    </div>
+   210→  )
+   211→}
+   212→
+   213→function TimelineSkeleton() {
+   214→  return (
+   215→    <Card>
+   216→      <CardHeader className="pb-3">
+   217→        <Skeleton className="h-5 w-40" />
+   218→        <Skeleton className="h-3 w-60" />
+   219→      </CardHeader>
+   220→      <CardContent className="space-y-4">
+   221→        {Array.from({ length: 5 }).map((_, i) => (
+   222→          <div key={i} className="flex gap-3">
+   223→            <Skeleton className="size-8 rounded-full shrink-0" />
+   224→            <div className="flex-1 space-y-1.5">
+   225→              <Skeleton className="h-4 w-3/4" />
+   226→              <Skeleton className="h-3 w-1/2" />
+   227→            </div>
+   228→          </div>
+   229→        ))}
+   230→      </CardContent>
+   231→    </Card>
+   232→  )
+   233→}
+   234→
+   235→function UpcomingArrivalsSkeleton() {
+   236→  return (
+   237→    <Card>
+   238→      <CardHeader className="pb-3">
+   239→        <Skeleton className="h-5 w-40" />
+   240→        <Skeleton className="h-3 w-60" />
+   241→      </CardHeader>
+   242→      <CardContent className="p-0">
+   243→        {Array.from({ length: 5 }).map((_, i) => (
+   244→          <div key={i} className="flex items-center gap-4 px-4 py-3">
+   245→            <Skeleton className="size-8 rounded-full" />
+   246→            <div className="flex-1 space-y-1.5">
+   247→              <Skeleton className="h-4 w-32" />
+   248→              <Skeleton className="h-3 w-24" />
+   249→            </div>
+   250→            <Skeleton className="h-5 w-16" />
+   251→          </div>
+   252→        ))}
+   253→      </CardContent>
+   254→    </Card>
+   255→  )
+   256→}
+   257→
+   258→// ─── Main Component ───────────────────────────────────────────────
+   259→
+   260→export function FrontDeskDashboard() {
+   261→  const { navigateTo, setActiveSubModule } = useNavigationStore()
+   262→
+   263→  const handleArrivalClick = (arrival: UpcomingArrival) => {
+   264→    useFrontDeskContextStore.getState().setPrefillReservationId(arrival.id)
+   265→    navigateTo('front-desk', 'check-in')
+   266→  }
+   267→
+   268→  // ─── Dashboard data query ────────────────────────────────────
+   269→  const {
+   270→    data,
+   271→    isLoading,
+   272→    error,
+   273→    refetch,
+   274→    isFetching,
+   275→  } = useQuery<DashboardData>({
+   276→    queryKey: ['front-desk-dashboard'],
+   277→    queryFn: () => apiFetch('/api/front-desk/dashboard'),
+   278→    refetchInterval: 30000,
+   279→  })
+   280→
+   281→  const snapshot = data?.snapshot
+   282→  const timeline = data?.timeline || []
+   283→  const upcomingArrivals = data?.upcomingArrivals || []
+   284→
+   285→  // ─── Quick action handler ───────────────────────────────────
+   286→  const handleQuickAction = (actionId: string) => {
+   287→    switch (actionId) {
+   288→      case 'new-reservation':
+   289→        setActiveSubModule('reservations')
+   290→        toast.success('Navigated to Reservations', {
+   291→          description: 'Create a new booking from the Reservations tab.',
+   292→        })
+   293→        break
+   294→      case 'walk-in-checkin':
+   295→        setActiveSubModule('arrivals')
+   296→        toast.success('Navigated to Arrivals', {
+   297→          description: 'Use the Walk-in Check-in button on the Arrivals page.',
+   298→        })
+   299→        break
+   300→      case 'room-transfer':
+   301→        setActiveSubModule('in-house')
+   302→        toast.info('Room Transfer', {
+   303→          description: 'Select a guest from the In-House list to transfer rooms.',
+   304→        })
+   305→        break
+   306→      case 'wake-up-call':
+   307→        setActiveSubModule('wake-up-calls')
+   308→        toast.success('Navigated to Wake-up Calls', {
+   309→          description: 'Schedule and manage wake-up calls.',
+   310→        })
+   311→        break
+   312→      case 'late-checkout':
+   313→        setActiveSubModule('departures')
+   314→        toast.success('Navigated to Departures', {
+   315→          description: 'Process late checkout requests from the Departures tab.',
+   316→        })
+   317→        break
+   318→      case 'express-checkout':
+   319→        setActiveSubModule('departures')
+   320→        toast.success('Navigated to Departures', {
+   321→          description: 'Process express checkout from the Departures tab.',
+   322→        })
+   323→        break
+   324→      default:
+   325→        break
+   326→    }
+   327→  }
+   328→
+   329→  // ─── Determine overbooking alert visibility ──────────────────
+   330→  const showOverbookingAlert = useMemo(() => {
+   331→    return snapshot ? snapshot.overbookingCount > 0 : false
+   332→  }, [snapshot])
+   333→
+   334→  // ─── Snapshot cards data ────────────────────────────────────
+   335→  const snapshotCards = useMemo(() => {
+   336→    if (!snapshot) return []
+   337→    const cards = [
+   338→      {
+   339→        label: 'Arrivals Today',
+   340→        value: snapshot.arrivals,
+   341→        icon: LogIn,
+   342→        iconBg: 'bg-emerald-100 dark:bg-emerald-950',
+   343→        iconColor: 'text-emerald-600 dark:text-emerald-400',
+   344→      },
+   345→      {
+   346→        label: 'Departures Today',
+   347→        value: snapshot.departures,
+   348→        icon: LogOut,
+   349→        iconBg: 'bg-rose-100 dark:bg-rose-950',
+   350→        iconColor: 'text-rose-600 dark:text-rose-400',
+   351→      },
+   352→      {
+   353→        label: 'In-House Guests',
+   354→        value: snapshot.inHouse,
+   355→        icon: BedDouble,
+   356→        iconBg: 'bg-sky-100 dark:bg-sky-950',
+   357→        iconColor: 'text-sky-600 dark:text-sky-400',
+   358→      },
+   359→      {
+   360→        label: 'Available Rooms',
+   361→        value: snapshot.available,
+   362→        icon: Hotel,
+   363→        iconBg: 'bg-teal-100 dark:bg-teal-950',
+   364→        iconColor: 'text-teal-600 dark:text-teal-400',
+   365→      },
+   366→      {
+   367→        label: 'Occupancy',
+   368→        value: `${snapshot.occupancyPct}%`,
+   369→        icon: Percent,
+   370→        iconBg: 'bg-amber-100 dark:bg-amber-950',
+   371→        iconColor: 'text-amber-600 dark:text-amber-400',
+   372→        subtext: `${snapshot.inHouse} / ${snapshot.totalRooms} rooms`,
+   373→      },
+   374→    ]
+   375→
+   376→    // Only show overbooking alert if there are overbookings
+   377→    if (snapshot.overbookingCount > 0) {
+   378→      cards.push({
+   379→        label: 'Overbooking Alert',
+   380→        value: snapshot.overbookingCount,
+   381→        icon: AlertTriangle,
+   382→        iconBg: 'bg-red-100 dark:bg-red-950',
+   383→        iconColor: 'text-red-600 dark:text-red-400',
+   384→        subtext: `${snapshot.overbookingCount} room${snapshot.overbookingCount > 1 ? 's' : ''} double-booked`,
+   385→      })
+   386→    }
+   387→
+   388→    return cards
+   389→  }, [snapshot])
+   390→
+   391→  // ─── Render ──────────────────────────────────────────────────
+   392→  return (
+   393→    <div className="flex flex-col gap-2">
+   394→      {/* ─── Header ─────────────────────────────────────────── */}
+   395→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+   396→        <div>
+   397→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Front Desk Dashboard</h2>
+   398→          <p className="text-xs text-muted-foreground">
+   399→            Real-time operational snapshot — {formatDate(new Date())}
+   400→          </p>
+   401→        </div>
+   402→        <Button
+   403→          variant="outline"
+   404→          size="sm"
+   405→          className="gap-1.5 text-xs text-muted-foreground shrink-0"
+   406→          onClick={() => refetch()}
+   407→          disabled={isFetching}
+   408→        >
+   409→          <RefreshCw className={cn('size-3.5', isFetching && 'animate-spin')} />
+   410→          {isFetching ? 'Refreshing...' : 'Refresh'}
+   411→        </Button>
+   412→      </div>
+   413→
+   414→      {/* ─── Today's Snapshot Cards ──────────────────────────── */}
+   415→      {isLoading ? (
+   416→        <SnapshotSkeleton />
+   417→      ) : error ? (
+   418→        <Card>
+   419→          <CardContent className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+   420→            <AlertTriangle className="size-8 mb-2 opacity-40" />
+   421→            <p className="text-sm">Failed to load dashboard data</p>
+   422→            <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+   423→              Try Again
+   424→            </Button>
+   425→          </CardContent>
+   426→        </Card>
+   427→      ) : (
+   428→        <div className={cn(
+   429→          'grid gap-2',
+   430→          showOverbookingAlert
+   431→            ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
+   432→            : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
+   433→        )}>
+   434→          {snapshotCards.map((card) => (
+   435→            <Card key={card.label} className={cn(
+   436→              card.label === 'Overbooking Alert' && 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20',
+   437→            )}>
+   438→              <CardContent className="p-2.5 flex items-center gap-3">
+   439→                <div className={cn('flex size-10 items-center justify-center rounded-lg shrink-0', card.iconBg)}>
+   440→                  <card.icon className={cn('size-5', card.iconColor)} />
+   441→                </div>
+   442→                <div className="min-w-0">
+   443→                  <p className="text-lg font-bold leading-tight">{card.value}</p>
+   444→                  <p className="text-xs text-muted-foreground truncate">{card.label}</p>
+   445→                  {'subtext' in card && card.subtext && (
+   446→                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{card.subtext}</p>
+   447→                  )}
+   448→                </div>
+   449→              </CardContent>
+   450→            </Card>
+   451→          ))}
+   452→        </div>
+   453→      )}
+   454→
+   455→      {/* ─── Quick Actions Panel ─────────────────────────────── */}
+   456→      <div>
+   457→        <h3 className="text-sm font-semibold mb-3 flex items-center gap-1.5">
+   458→          <LayoutDashboard className="size-4 text-muted-foreground" />
+   459→          Quick Actions
+   460→        </h3>
+   461→        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+   462→          {QUICK_ACTIONS.map((action) => (
+   463→            <Card
+   464→              key={action.id}
+   465→              className="cursor-pointer transition-all hover:shadow-md hover:border-primary/30 active:scale-[0.98]"
+   466→              onClick={() => handleQuickAction(action.id)}
+   467→            >
+   468→              <CardContent className="p-2.5 flex flex-col items-center text-center gap-2">
+   469→                <div className={cn('flex size-10 items-center justify-center rounded-lg', action.bg)}>
+   470→                  <action.icon className={cn('size-5', action.color)} />
+   471→                </div>
+   472→                <div>
+   473→                  <p className="text-xs font-semibold leading-tight">{action.title}</p>
+   474→                  <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{action.description}</p>
+   475→                </div>
+   476→              </CardContent>
+   477→            </Card>
+   478→          ))}
+   479→        </div>
+   480→      </div>
+   481→
+   482→      <Separator />
+   483→
+   484→      {/* ─── Bottom Grid: Timeline + Upcoming Arrivals ──────── */}
+   485→      <div className="grid gap-4 lg:grid-cols-2">
+   486→        {/* ─── Today's Activity Timeline ──────────────────── */}
+   487→        <div>
+   488→          {isLoading ? (
+   489→            <TimelineSkeleton />
+   490→          ) : (
+   491→            <Card className="h-full">
+   492→              <CardHeader className="pb-3">
+   493→                <CardTitle className="text-base flex items-center gap-2">
+   494→                  <Clock className="size-4 text-muted-foreground" />
+   495→                  Today&apos;s Activity
+   496→                </CardTitle>
+   497→                <CardDescription>Recent front desk operations for today</CardDescription>
+   498→              </CardHeader>
+   499→              <CardContent>
+   500→                {timeline.length === 0 ? (
+   501→                  <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+   502→                    <Clock className="size-8 mb-2 opacity-40" />
+   503→                    <p className="text-sm">No activity recorded yet today</p>
+   504→                  </div>
+   505→                ) : (
+   506→                  <div className="max-h-96 overflow-y-auto pr-1 space-y-0">
+   507→                    {timeline.map((entry, idx) => (
+   508→                      <div key={entry.id} className="flex gap-3 pb-4">
+   509→                        {/* Timeline line + icon */}
+   510→                        <div className="flex flex-col items-center shrink-0">
+   511→                          <TimelineIcon type={entry.type} />
+   512→                          {idx < timeline.length - 1 && (
+   513→                            <div className="w-px flex-1 bg-border mt-1" />
+   514→                          )}
+   515→                        </div>
+   516→
+   517→                        {/* Content */}
+   518→                        <div className="flex-1 min-w-0 pb-1">
+   519→                          <div className="flex items-center gap-2 flex-wrap">
+   520→                            <span className="text-sm font-medium truncate">
+   521→                              {entry.guestName}
+   522→                            </span>
+   523→                            <Badge
+   524→                              variant="outline"
+   525→                              className={cn(
+   526→                                'text-[10px] px-1.5 py-0 shrink-0',
+   527→                                entry.type === 'check_in'
+   528→                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+   529→                                  : entry.type === 'check_out'
+   530→                                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border-rose-300 dark:border-rose-700'
+   531→                                    : entry.type === 'room_move'
+   532→                                      ? 'bg-violet-50 text-violet-700 dark:bg-violet-950 dark:text-violet-300 border-violet-300 dark:border-violet-700'
+   533→                                      : 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border-sky-300 dark:border-sky-700',
+   534→                              )}
+   535→                            >
+   536→                              {entry.description}
+   537→                            </Badge>
+   538→                          </div>
+   539→                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+   540→                            <span>{formatTime(entry.time)}</span>
+   541→                            {entry.roomNumber && (
+   542→                              <>
+   543→                                <span>•</span>
+   544→                                <span className="flex items-center gap-1">
+   545→                                  <BedDouble className="size-3" />
+   546→                                  {entry.roomNumber}
+   547→                                </span>
+   548→                              </>
+   549→                            )}
+   550→                            {entry.details && (
+   551→                              <>
+   552→                                <span>•</span>
+   553→                                <span className="italic truncate max-w-[200px]">{entry.details}</span>
+   554→                              </>
+   555→                            )}
+   556→                          </div>
+   557→                        </div>
+   558→                      </div>
+   559→                    ))}
+   560→                  </div>
+   561→                )}
+   562→              </CardContent>
+   563→            </Card>
+   564→          )}
+   565→        </div>
+   566→
+   567→        {/* ─── Upcoming Arrivals ──────────────────────────── */}
+   568→        <div>
+   569→          {isLoading ? (
+   570→            <UpcomingArrivalsSkeleton />
+   571→          ) : (
+   572→            <Card className="h-full">
+   573→              <CardHeader className="pb-3">
+   574→                <CardTitle className="text-base flex items-center gap-2">
+   575→                  <ArrowDownToLine className="size-4 text-muted-foreground" />
+   576→                  Upcoming Arrivals
+   577→                </CardTitle>
+   578→                <CardDescription>Next expected arrivals for today</CardDescription>
+   579→              </CardHeader>
+   580→              <CardContent className="p-0">
+   581→                {upcomingArrivals.length === 0 ? (
+   582→                  <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+   583→                    <ArrowDownToLine className="size-8 mb-2 opacity-40" />
+   584→                    <p className="text-sm">No upcoming arrivals for today</p>
+   585→                  </div>
+   586→                ) : (
+   587→                  <Table>
+   588→                    <TableHeader>
+   589→                      <TableRow>
+   590→                        <TableHead className="text-xs">Guest</TableHead>
+   591→                        <TableHead className="text-xs">Room</TableHead>
+   592→                        <TableHead className="text-xs hidden md:table-cell">Source</TableHead>
+   593→                        <TableHead className="text-xs hidden sm:table-cell">ETA</TableHead>
+   594→                        <TableHead className="text-xs">Status</TableHead>
+   595→                      </TableRow>
+   596→                    </TableHeader>
+   597→                    <TableBody>
+   598→                      {upcomingArrivals.map((arrival) => {
+   599→                        const guestName = arrival.guest
+   600→                          ? `${arrival.guest.firstName} ${arrival.guest.lastName}`
+   601→                          : 'Unknown Guest'
+   602→                        const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
+   603→
+   604→                        return (
+   605→                          <TableRow key={arrival.id} onClick={() => handleArrivalClick(arrival)} className="cursor-pointer hover:bg-muted/50 transition-colors">
+   606→                            <TableCell>
+   607→                              <div className="flex items-center gap-1.5 flex-wrap">
+   608→                                <span className="text-sm font-medium">{guestName}</span>
+   609→                                {isVip && (
+   610→                                  <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   611→                                    <Star className="size-2.5 fill-amber-500 text-amber-500 mr-0.5" />
+   612→                                    VIP
+   613→                                  </Badge>
+   614→                                )}
+   615→                              </div>
+   616→                              <span className="font-mono text-[10px] text-muted-foreground block">
+   617→                                {arrival.confirmationNo}
+   618→                              </span>
+   619→                            </TableCell>
+   620→                            <TableCell>
+   621→                              {arrival.room ? (
+   622→                                <span className="text-sm">
+   623→                                  {arrival.room.number}
+   624→                                  <span className="text-muted-foreground text-xs ml-1">
+   625→                                    ({arrival.room.type.code})
+   626→                                  </span>
+   627→                                </span>
+   628→                              ) : (
+   629→                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
+   630→                                  Unassigned
+   631→                                </Badge>
+   632→                              )}
+   633→                            </TableCell>
+   634→                            <TableCell className="hidden md:table-cell">
+   635→                              <SourceBadge source={arrival.source} />
+   636→                            </TableCell>
+   637→                            <TableCell className="hidden sm:table-cell">
+   638→                              <span className="text-xs text-muted-foreground">
+   639→                                {formatTime(arrival.checkIn)}
+   640→                              </span>
+   641→                              {arrival.specialRequests && (
+   642→                                <p className="text-[10px] text-muted-foreground italic mt-0.5 max-w-[160px] truncate">
+   643→                                  {arrival.specialRequests}
+   644→                                </p>
+   645→                              )}
+   646→                            </TableCell>
+   647→                            <TableCell>
+   648→                              <Badge
+   649→                                variant="outline"
+   650→                                className={cn(
+   651→                                  'text-[10px] px-1.5 py-0',
+   652→                                  arrival.status === 'confirmed'
+   653→                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+   654→                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700',
+   655→                                )}
+   656→                              >
+   657→                                {arrival.status === 'confirmed' ? 'Confirmed' : 'Tentative'}
+   658→                              </Badge>
+   659→                            </TableCell>
+   660→                          </TableRow>
+   661→                        )
+   662→                      })}
+   663→                    </TableBody>
+   664→                  </Table>
+   665→                )}
+   666→              </CardContent>
+   667→            </Card>
+   668→          )}
+   669→        </div>
+   670→      </div>
+   671→    </div>
+   672→  )
+   673→}
+   674→

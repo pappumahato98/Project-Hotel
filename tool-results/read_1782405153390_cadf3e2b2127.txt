@@ -1,0 +1,1879 @@
+     1→'use client'
+     2→
+     3→import React, { useState, useMemo } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { apiFetch } from '@/lib/api'
+     6→import {
+     7→  UserCheck, BedDouble, AlertTriangle, Crown, KeyRound, CreditCard,
+     8→  User, Mail, Phone, Globe, MapPin, Clock, Star, FileText,
+     9→  ChevronLeft, ChevronRight, Check, Loader2, Hotel, Shield,
+    10→  Sparkles, Pill, Eye, AlarmClock, Banknote, Wallet,
+    11→  Building, Layers, ArrowRight, Search, BadgeCheck, CalendarDays,
+    12→} from 'lucide-react'
+    13→import { toast } from 'sonner'
+    14→
+    15→import { Button } from '@/components/ui/button'
+    16→import { Badge } from '@/components/ui/badge'
+    17→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    18→import { Input } from '@/components/ui/input'
+    19→import { Label } from '@/components/ui/label'
+    20→import { Textarea } from '@/components/ui/textarea'
+    21→import { Checkbox } from '@/components/ui/checkbox'
+    22→import { Separator } from '@/components/ui/separator'
+    23→import { Skeleton } from '@/components/ui/skeleton'
+    24→import { ScrollArea } from '@/components/ui/scroll-area'
+    25→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    26→import {
+    27→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    28→} from '@/components/ui/select'
+    29→import {
+    30→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+    31→  DialogDescription,
+    32→} from '@/components/ui/dialog'
+    33→import { StatusBadge } from '@/components/shared/status-badge'
+    34→import { formatDate, formatCurrency, formatTime, getTodayString } from '@/lib/format'
+    35→import { cn } from '@/lib/utils'
+    36→import { useSettingsStore } from '@/lib/store'
+    37→import { invalidate } from '@/lib/queryKeys'
+    38→
+    39→// ─── Constants ──────────────────────────────────────────────────────────
+    40→
+    41→const TITLE_OPTIONS = [
+    42→  { value: 'mr', label: 'Mr.' },
+    43→  { value: 'mrs', label: 'Mrs.' },
+    44→  { value: 'ms', label: 'Ms.' },
+    45→  { value: 'dr', label: 'Dr.' },
+    46→  { value: 'prof', label: 'Prof.' },
+    47→]
+    48→
+    49→const NATIONALITIES = [
+    50→  'Nepal', 'India', 'China', 'USA', 'UK', 'Japan', 'South Korea',
+    51→  'Germany', 'France', 'Australia', 'Canada', 'Singapore', 'Malaysia',
+    52→  'Thailand', 'Sri Lanka', 'Bangladesh', 'Pakistan', 'UAE', 'Saudi Arabia',
+    53→  'Other',
+    54→]
+    55→
+    56→const ID_TYPES = [
+    57→  { value: 'passport', label: 'Passport' },
+    58→  { value: 'national_id', label: 'National ID' },
+    59→  { value: 'drivers_license', label: "Driver's License" },
+    60→]
+    61→
+    62→const CHECKOUT_TIME_OPTIONS = [
+    63→  { value: '12:00', label: 'Default (12:00 PM)' },
+    64→  { value: '14:00', label: 'Late (2:00 PM)' },
+    65→  { value: '16:00', label: 'Late (4:00 PM)' },
+    66→]
+    67→
+    68→const ROOM_PREFERENCES = [
+    69→  { value: 'high_floor', label: 'High Floor' },
+    70→  { value: 'low_floor', label: 'Low Floor' },
+    71→  { value: 'quiet', label: 'Quiet Room' },
+    72→  { value: 'away_elevator', label: 'Away from Elevator' },
+    73→  { value: 'city_view', label: 'City View' },
+    74→  { value: 'garden_view', label: 'Garden View' },
+    75→]
+    76→
+    77→const PILLOW_TYPES = [
+    78→  { value: 'soft', label: 'Soft' },
+    79→  { value: 'firm', label: 'Firm' },
+    80→  { value: 'hypoallergenic', label: 'Hypoallergenic' },
+    81→]
+    82→
+    83→const PAYMENT_METHODS = [
+    84→  { value: 'cash', label: 'Cash' },
+    85→  { value: 'card', label: 'Card' },
+    86→  { value: 'bank_transfer', label: 'Bank Transfer' },
+    87→]
+    88→
+    89→const STEP_LABELS = [
+    90→  'Select Arrival',
+    91→  'Verify Guest',
+    92→  'Assign Room',
+    93→  'Preferences & Registration',
+    94→  'Billing',
+    95→  'Key Card',
+    96→]
+    97→
+    98→// ─── Types ──────────────────────────────────────────────────────────────
+    99→
+   100→interface GuestInfo {
+   101→  id: string
+   102→  firstName: string
+   103→  lastName: string
+   104→  email: string | null
+   105→  phone: string | null
+   106→  vipLevel: string
+   107→  nationality: string | null
+   108→  idType: string | null
+   109→  idNumber: string | null
+   110→  address: string | null
+   111→  city: string | null
+   112→  country: string | null
+   113→  loyaltyTier: string
+   114→  totalStays: number
+   115→  totalRevenue: number
+   116→}
+   117→
+   118→interface RoomInfo {
+   119→  id: string
+   120→  number: string
+   121→  floor: number
+   122→  wing: string | null
+   123→  status: string
+   124→  type: { id: string; name: string; code: string }
+   125→}
+   126→
+   127→interface ReservationInfo {
+   128→  id: string
+   129→  confirmationNo: string
+   130→  status: string
+   131→  adults: number
+   132→  children: number
+   133→  checkIn: string
+   134→  checkOut: string
+   135→  roomRate: number
+   136→  totalAmount: number
+   137→  specialRequests: string | null
+   138→  source: string | null
+   139→  guaranteed: boolean
+   140→  roomTypeId: string | null
+   141→  guest: GuestInfo | null
+   142→  room: RoomInfo | null
+   143→}
+   144→
+   145→interface RoomTypeData {
+   146→  id: string
+   147→  name: string
+   148→  code: string
+   149→  baseRate: number
+   150→}
+   151→
+   152→// ─── Component ──────────────────────────────────────────────────────────
+   153→
+   154→interface CheckInViewProps {
+   155→  reservationId?: string
+   156→  onComplete?: () => void
+   157→}
+   158→
+   159→export function CheckInView({ reservationId, onComplete }: CheckInViewProps) {
+   160→  const queryClient = useQueryClient()
+   161→  const { settings } = useSettingsStore()
+   162→  const today = getTodayString()
+   163→
+   164→  // ─── Tab & search state ────────────────────────────────────────
+   165→  const [activeTab, setActiveTab] = useState<'find' | 'walkin'>('find')
+   166→  const [searchQuery, setSearchQuery] = useState('')
+   167→
+   168→  // ─── Step state ────────────────────────────────────────────────
+   169→  const [currentStep, setCurrentStep] = useState(0)
+   170→
+   171→  // ─── Selection states ────────────────────────────────────────
+   172→  const [selectedReservationId, setSelectedReservationId] = useState<string>('')
+   173→  const [selectedRoomId, setSelectedRoomId] = useState<string>('')
+   174→  const [roomSearchFilter, setRoomSearchFilter] = useState('')
+   175→
+   176→  // ─── Registration card form ────────────────────────────────────
+   177→  const [regTitle, setRegTitle] = useState('')
+   178→  const [regFirstName, setRegFirstName] = useState('')
+   179→  const [regLastName, setRegLastName] = useState('')
+   180→  const [regContactNo, setRegContactNo] = useState('')
+   181→  const [regEmail, setRegEmail] = useState('')
+   182→  const [regAddress, setRegAddress] = useState('')
+   183→  const [regNationality, setRegNationality] = useState('')
+   184→  const [regIdType, setRegIdType] = useState('passport')
+   185→  const [regIdNumber, setRegIdNumber] = useState('')
+   186→  const [regCity, setRegCity] = useState('')
+   187→  const [regCountry, setRegCountry] = useState('')
+   188→
+   189→  // ─── Stay preferences ─────────────────────────────────────────
+   190→  const [earlyCheckIn, setEarlyCheckIn] = useState(false)
+   191→  const [checkOutTime, setCheckOutTime] = useState(settings.defaultCheckOut)
+   192→  const [pillowType, setPillowType] = useState('')
+   193→  const [roomPreference, setRoomPreference] = useState('')
+   194→  const [wakeupCall, setWakeupCall] = useState('')
+   195→
+   196→  // ─── Billing ──────────────────────────────────────────────────
+   197→  const [depositAmount, setDepositAmount] = useState('')
+   198→  const [paymentMethod, setPaymentMethod] = useState('')
+   199→  const [billingNotes, setBillingNotes] = useState('')
+   200→
+   201→  // ─── Key card dialog ───────────────────────────────────────────
+   202→  const [keyCardDialogOpen, setKeyCardDialogOpen] = useState(false)
+   203→  const [keyCardIssued, setKeyCardIssued] = useState(false)
+   204→  const [keyCardRoomNumber, setKeyCardRoomNumber] = useState('')
+   205→  const [keyCardGuestName, setKeyCardGuestName] = useState('')
+   206→  const [keyCardCheckOut, setKeyCardCheckOut] = useState('')
+   207→
+   208→  // ─── Queries ─────────────────────────────────────────────────
+   209→
+   210→  // Fetch specific reservation by ID (if prop provided)
+   211→  const { data: specificResData, isLoading: loadingSpecific } = useQuery({
+   212→    queryKey: ['reservation', reservationId],
+   213→    queryFn: () => apiFetch(`/api/reservations/${reservationId}`),
+   214→    enabled: !!reservationId,
+   215→  })
+   216→
+   217→  // Fetch today's confirmed arrivals
+   218→  const { data: arrivalsData, isLoading: loadingArrivals } = useQuery({
+   219→    queryKey: ['arrivals', today],
+   220→    queryFn: async () => {
+   221→      const params = new URLSearchParams({ status: 'confirmed', checkInDate: today })
+   222→      return apiFetch(`/api/reservations?${params.toString()}`)
+   223→    },
+   224→    enabled: !reservationId,
+   225→  })
+   226→
+   227→  // Fetch all rooms with types
+   228→  const { data: roomsData, isLoading: loadingRooms } = useQuery({
+   229→    queryKey: ['rooms', 'all'],
+   230→    queryFn: () => apiFetch('/api/rooms'),
+   231→  })
+   232→
+   233→  // ─── Derived data ──────────────────────────────────────────────
+   234→
+   235→  const specificReservation: ReservationInfo | null = specificResData?.reservation || null
+   236→  const arrivals: ReservationInfo[] = arrivalsData?.reservations || []
+   237→
+   238→  // The reservation we're working with
+   239→  const activeReservation: ReservationInfo | null = reservationId
+   240→    ? specificReservation
+   241→    : arrivals.find((a) => a.id === selectedReservationId) || null
+   242→
+   243→  // Room type data from API (not hardcoded)
+   244→  const roomTypes: RoomTypeData[] = useMemo(() => {
+   245→    if (!roomsData?.roomTypes) return []
+   246→    return roomsData.roomTypes.map((rt: { id: string; name: string; code: string; ratePlans: Array<{ baseRate: number }> }) => ({
+   247→      id: rt.id,
+   248→      name: rt.name,
+   249→      code: rt.code,
+   250→      baseRate: rt.ratePlans?.[0]?.baseRate || 0,
+   251→    }))
+   252→  }, [roomsData])
+   253→
+   254→  // Available rooms (vacant_clean or inspected)
+   255→  const allRooms: RoomInfo[] = roomsData?.rooms || []
+   256→  const availableRooms = allRooms.filter(
+   257→    (r: RoomInfo) => r.status === 'vacant_clean' || r.status === 'inspected'
+   258→  )
+   259→
+   260→  // Filter available rooms by search
+   261→  const filteredAvailableRooms = useMemo(() => {
+   262→    let filtered = availableRooms
+   263→    if (roomSearchFilter.trim()) {
+   264→      const q = roomSearchFilter.toLowerCase()
+   265→      filtered = filtered.filter(
+   266→        (r: RoomInfo) =>
+   267→          r.number.toLowerCase().includes(q) ||
+   268→          r.type.name.toLowerCase().includes(q) ||
+   269→          String(r.floor).includes(q) ||
+   270→          (r.wing && r.wing.toLowerCase().includes(q))
+   271→      )
+   272→    }
+   273→    return filtered
+   274→  }, [availableRooms, roomSearchFilter])
+   275→
+   276→  // Group rooms by floor
+   277→  const roomsByFloor = useMemo(() => {
+   278→    const grouped = new Map<number, RoomInfo[]>()
+   279→    for (const room of filteredAvailableRooms) {
+   280→      const floor = room.floor
+   281→      if (!grouped.has(floor)) grouped.set(floor, [])
+   282→      grouped.get(floor)!.push(room)
+   283→    }
+   284→    return new Map([...grouped.entries()].sort((a, b) => a[0] - b[0]))
+   285→  }, [filteredAvailableRooms])
+   286→
+   287→  // Get room type name by ID
+   288→  const getRoomTypeName = (typeId: string) => {
+   289→    const rt = roomTypes.find((t) => t.id === typeId)
+   290→    return rt?.name || 'Unknown'
+   291→  }
+   292→
+   293→  // Get room rate by type ID
+   294→  const getRoomTypeRate = (typeId: string) => {
+   295→    const rt = roomTypes.find((t) => t.id === typeId)
+   296→    return rt?.baseRate || 0
+   297→  }
+   298→
+   299→  // ─── Room status summary ─────────────────────────────────────
+   300→  const roomStatusSummary = useMemo(() => {
+   301→    let vacant = 0, occupied = 0, reserved = 0
+   302→    for (const r of allRooms) {
+   303→      if (r.status === 'vacant_clean' || r.status === 'inspected') vacant++
+   304→      else if (r.status === 'occupied') occupied++
+   305→      else reserved++
+   306→    }
+   307→    return { vacant, occupied, reserved, total: allRooms.length }
+   308→  }, [allRooms])
+   309→
+   310→  // Filter arrivals by search query
+   311→  const filteredArrivals = useMemo(() => {
+   312→    if (!searchQuery.trim()) return arrivals
+   313→    const q = searchQuery.toLowerCase()
+   314→    return arrivals.filter((a) =>
+   315→      a.confirmationNo.toLowerCase().includes(q) ||
+   316→      (a.guest?.firstName || '').toLowerCase().includes(q) ||
+   317→      (a.guest?.lastName || '').toLowerCase().includes(q) ||
+   318→      (a.room?.number || '').includes(q)
+   319→    )
+   320→  }, [arrivals, searchQuery])
+   321→
+   322→  // ─── Initialize form when reservation loads ───────────────────
+   323→
+   324→  React.useEffect(() => {
+   325→    if (specificReservation && reservationId) {
+   326→      setSelectedReservationId(specificReservation.id)
+   327→      if (specificReservation.room?.id) {
+   328→        setSelectedRoomId(specificReservation.room.id)
+   329→      }
+   330→      setCurrentStep(specificReservation.guest ? 1 : 0)
+   331→    }
+   332→  }, [specificReservation, reservationId])
+   333→
+   334→  // Pre-fill registration fields when guest is selected
+   335→  React.useEffect(() => {
+   336→    if (activeReservation?.guest) {
+   337→      const g = activeReservation.guest
+   338→      setRegTitle('')
+   339→      setRegFirstName(g.firstName || '')
+   340→      setRegLastName(g.lastName || '')
+   341→      setRegContactNo(g.phone || '')
+   342→      setRegEmail(g.email || '')
+   343→      setRegNationality(g.nationality || '')
+   344→      setRegIdType(g.idType || 'passport')
+   345→      setRegIdNumber(g.idNumber || '')
+   346→      setRegAddress(g.address || '')
+   347→      setRegCity(g.city || '')
+   348→      setRegCountry(g.country || '')
+   349→    }
+   350→  }, [activeReservation?.guest])
+   351→
+   352→  // Auto-set deposit when room is selected
+   353→  React.useEffect(() => {
+   354→    if (activeReservation?.roomRate && !depositAmount) {
+   355→      setDepositAmount(String(activeReservation.roomRate))
+   356→    }
+   357→  }, [activeReservation?.roomRate, depositAmount])
+   358→
+   359→  // ─── Mutations ────────────────────────────────────────────────
+   360→
+   361→  const checkInMutation = useMutation({
+   362→    mutationFn: async ({
+   363→      reservationId: resId,
+   364→      roomId,
+   365→      specialRequests,
+   366→    }: {
+   367→      reservationId: string
+   368→      roomId: string
+   369→      specialRequests: string
+   370→    }) => {
+   371→      return apiFetch(`/api/reservations/${resId}`, {
+   372→        method: 'PATCH',
+   373→        headers: { 'Content-Type': 'application/json' },
+   374→        body: JSON.stringify({
+   375→          roomId,
+   376→          status: 'checked_in',
+   377→          specialRequests,
+   378→        }),
+   379→      })
+   380→    },
+   381→    onSuccess: () => {
+   382→      invalidate.afterCheckIn(queryClient)
+   383→      queryClient.invalidateQueries({ queryKey: ['reservation', reservationId] })
+   384→      toast.success('Guest checked in successfully!')
+   385→    },
+   386→    onError: (error) => {
+   387→      toast.error('Check-in failed', {
+   388→        description: error instanceof Error ? error.message : 'Unknown error',
+   389→      })
+   390→    },
+   391→  })
+   392→
+   393→  // ─── Special Requests Builder ─────────────────────────────────
+   394→
+   395→  const buildSpecialRequests = (): string => {
+   396→    const parts: string[] = []
+   397→
+   398→    if (activeReservation?.specialRequests) {
+   399→      parts.push(activeReservation.specialRequests)
+   400→    }
+   401→    if (earlyCheckIn) {
+   402→      parts.push(`[EARLY CHECK-IN] Checked in before ${settings.defaultCheckIn}`)
+   403→    }
+   404→    if (checkOutTime !== settings.defaultCheckOut) {
+   405→      parts.push(`[CHECK-OUT OVERRIDE] Preferred check-out: ${checkOutTime}`)
+   406→    }
+   407→    if (roomPreference) {
+   408→      const label = ROOM_PREFERENCES.find((p) => p.value === roomPreference)?.label || roomPreference
+   409→      parts.push(`[PREFERENCE] Room: ${label}`)
+   410→    }
+   411→    if (pillowType) {
+   412→      const label = PILLOW_TYPES.find((p) => p.value === pillowType)?.label || pillowType
+   413→      parts.push(`[PREFERENCE] Pillow: ${label}`)
+   414→    }
+   415→    if (wakeupCall) {
+   416→      parts.push(`[SERVICE] Wake-up call requested at ${wakeupCall}`)
+   417→    }
+   418→    if (billingNotes) {
+   419→      parts.push(`[BILLING] ${billingNotes}`)
+   420→    }
+   421→    if (paymentMethod) {
+   422→      parts.push(`[PAYMENT] Method: ${paymentMethod}`)
+   423→    }
+   424→    if (depositAmount && parseFloat(depositAmount) > 0) {
+   425→      parts.push(`[DEPOSIT] ${formatCurrency(parseFloat(depositAmount))}`)
+   426→    }
+   427→
+   428→    return parts.join(' | ')
+   429→  }
+   430→
+   431→  // ─── Step Navigation ──────────────────────────────────────────
+   432→
+   433→  const canGoNext = (): boolean => {
+   434→    switch (currentStep) {
+   435→      case 0: return !!activeReservation
+   436→      case 1: return true // Guest verification is info-only
+   437→      case 2: return !!selectedRoomId
+   438→      case 3: return true // Preferences are optional
+   439→      case 4: return true // Billing is optional
+   440→      case 5: return keyCardIssued
+   441→      default: return false
+   442→    }
+   443→  }
+   444→
+   445→  const handleNext = () => {
+   446→    if (currentStep === 5) {
+   447→      onComplete?.()
+   448→      return
+   449→    }
+   450→
+   451→    // On step 4 → 5, execute check-in
+   452→    if (currentStep === 4 && activeReservation && selectedRoomId) {
+   453→      const requests = buildSpecialRequests()
+   454→      checkInMutation.mutate(
+   455→        {
+   456→          reservationId: activeReservation.id,
+   457→          roomId: selectedRoomId,
+   458→          specialRequests: requests,
+   459→        },
+   460→        {
+   461→          onSuccess: () => {
+   462→            // Find the selected room number for key card
+   463→            const room = availableRooms.find((r: RoomInfo) => r.id === selectedRoomId)
+   464→            const roomNumber = room?.number || activeReservation?.room?.number || ''
+   465→            const guestName = activeReservation.guest
+   466→              ? `${activeReservation.guest.firstName} ${activeReservation.guest.lastName}`
+   467→              : 'Guest'
+   468→
+   469→            setKeyCardRoomNumber(roomNumber)
+   470→            setKeyCardGuestName(guestName)
+   471→            setKeyCardCheckOut(formatDate(activeReservation.checkOut))
+   472→            setKeyCardIssued(false)
+   473→            setKeyCardDialogOpen(true)
+   474→            setCurrentStep(5)
+   475→          },
+   476→        }
+   477→      )
+   478→      return
+   479→    }
+   480→
+   481→    setCurrentStep((prev) => Math.min(prev + 1, 5))
+   482→  }
+   483→
+   484→  const handleBack = () => {
+   485→    setCurrentStep((prev) => Math.max(prev - 1, 0))
+   486→  }
+   487→
+   488→  // ─── Render: Step Indicator ────────────────────────────────────
+   489→
+   490→  const renderStepIndicator = () => (
+   491→    <div className="mb-4">
+   492→      <div className="flex items-center justify-between overflow-x-auto pb-2">
+   493→        {STEP_LABELS.map((label, idx) => (
+   494→          <React.Fragment key={idx}>
+   495→            <div className="flex flex-col items-center gap-1 min-w-0">
+   496→              <div
+   497→                className={cn(
+   498→                  'flex size-7 shrink-0 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-colors',
+   499→                  idx < currentStep && 'border-green-500 bg-green-500 text-white',
+   500→                  idx === currentStep && 'border-primary bg-primary text-primary-foreground',
+   501→                  idx > currentStep && 'border-muted-foreground/30 bg-background text-muted-foreground'
+   502→                )}
+   503→              >
+   504→                {idx < currentStep ? <Check className="size-4" /> : idx + 1}
+   505→              </div>
+   506→              <span
+   507→                className={cn(
+   508→                  'text-[10px] sm:text-xs font-medium whitespace-nowrap',
+   509→                  idx === currentStep ? 'text-primary' : 'text-muted-foreground'
+   510→                )}
+   511→              >
+   512→                {label}
+   513→              </span>
+   514→            </div>
+   515→            {idx < STEP_LABELS.length - 1 && (
+   516→              <div
+   517→                className={cn(
+   518→                  'flex-1 h-0.5 mx-1 min-w-[12px] max-w-[40px] transition-colors',
+   519→                  idx < currentStep ? 'bg-green-500' : 'bg-muted-foreground/20'
+   520→                )}
+   521→              />
+   522→            )}
+   523→          </React.Fragment>
+   524→        ))}
+   525→      </div>
+   526→    </div>
+   527→  )
+   528→
+   529→  // ─── Render: Step 0 - Select Arrival ─────────────────────────
+   530→
+   531→  const renderSelectArrival = () => {
+   532→    if (loadingArrivals) {
+   533→      return (
+   534→        <div className="space-y-3 p-4">
+   535→          {Array.from({ length: 4 }).map((_, i) => (
+   536→            <Skeleton key={i} className="h-20 w-full rounded-lg" />
+   537→          ))}
+   538→        </div>
+   539→      )
+   540→    }
+   541→
+   542→    if (arrivals.length === 0) {
+   543→      return (
+   544→        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+   545→          <UserCheck className="size-12 mb-3 opacity-30" />
+   546→          <p className="text-sm font-medium">No arrivals scheduled for today</p>
+   547→          <p className="text-xs mt-1">Check-in date: {formatDate(today)}</p>
+   548→        </div>
+   549→      )
+   550→    }
+   551→
+   552→    return (
+   553→      <div className="space-y-2">
+   554→        <div className="flex items-center gap-2 mb-3">
+   555→          <Search className="size-4 text-muted-foreground" />
+   556→          <p className="text-sm text-muted-foreground">
+   557→            {arrivals.length} confirmed arrival{arrivals.length !== 1 ? 's' : ''} for today
+   558→          </p>
+   559→        </div>
+   560→        <div className="max-h-96 overflow-y-auto space-y-2">
+   561→          {arrivals.map((arrival) => {
+   562→            const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
+   563→            const isUnassigned = !arrival.room
+   564→            const isSelected = arrival.id === selectedReservationId
+   565→
+   566→            return (
+   567→              <button
+   568→                key={arrival.id}
+   569→                onClick={() => {
+   570→                  setSelectedReservationId(arrival.id)
+   571→                  // Pre-fill room if already assigned
+   572→                  if (arrival.room?.id) {
+   573→                    setSelectedRoomId(arrival.room.id)
+   574→                  }
+   575→                  setCurrentStep(1)
+   576→                }}
+   577→                className={cn(
+   578→                  'w-full text-left rounded-lg border p-3 sm:p-4 transition-all',
+   579→                  isSelected && 'ring-2 ring-primary',
+   580→                  isSelected
+   581→                    ? 'border-primary bg-primary/5'
+   582→                    : 'border-border hover:border-primary/40 hover:bg-muted/50',
+   583→                  isUnassigned && 'border-l-4 border-l-amber-400'
+   584→                )}
+   585→              >
+   586→                <div className="flex items-start gap-3">
+   587→                  <Avatar className="size-10 shrink-0">
+   588→                    <AvatarFallback className={cn(
+   589→                      'text-xs font-bold',
+   590→                      isVip && arrival.guest?.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700',
+   591→                      isVip && arrival.guest?.vipLevel === 'gold' && 'bg-amber-100 text-amber-700',
+   592→                      isVip && arrival.guest?.vipLevel === 'silver' && 'bg-gray-100 text-gray-700',
+   593→                      !isVip && 'bg-muted text-muted-foreground'
+   594→                    )}>
+   595→                      {arrival.guest
+   596→                        ? `${arrival.guest.firstName[0]}${arrival.guest.lastName[0]}`
+   597→                        : '?'}
+   598→                    </AvatarFallback>
+   599→                  </Avatar>
+   600→
+   601→                  <div className="flex-1 min-w-0">
+   602→                    <div className="flex items-center gap-2 flex-wrap">
+   603→                      <span className="font-semibold text-sm truncate">
+   604→                        {arrival.guest
+   605→                          ? `${arrival.guest.firstName} ${arrival.guest.lastName}`
+   606→                          : 'Unknown Guest'}
+   607→                      </span>
+   608→                      {isVip && (
+   609→                        <Badge className="text-[10px] px-1.5 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   610→                          <Star className="size-2.5 fill-amber-500 text-amber-500" />
+   611→                          <Crown className="size-2.5" />
+   612→                          {arrival.guest?.vipLevel?.toUpperCase()}
+   613→                        </Badge>
+   614→                      )}
+   615→                      {isUnassigned && (
+   616→                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
+   617→                          <AlertTriangle className="size-2.5 mr-0.5" />
+   618→                          No Room
+   619→                        </Badge>
+   620→                      )}
+   621→                    </div>
+   622→                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+   623→                      <span className="font-mono">{arrival.confirmationNo}</span>
+   624→                      <span>·</span>
+   625→                      <span className="flex items-center gap-1">
+   626→                        <BedDouble className="size-3" />
+   627→                        {arrival.room
+   628→                          ? `Room ${arrival.room.number} (${arrival.room.type.name})`
+   629→                          : 'Room to be assigned'}
+   630→                      </span>
+   631→                      <span>·</span>
+   632→                      <span>{formatDate(arrival.checkIn)} → {formatDate(arrival.checkOut)}</span>
+   633→                    </div>
+   634→                    {arrival.specialRequests && (
+   635→                      <p className="text-[11px] text-muted-foreground mt-1 italic truncate">
+   636→                        📋 {arrival.specialRequests}
+   637→                      </p>
+   638→                    )}
+   639→                  </div>
+   640→
+   641→                  <ArrowRight className="size-4 text-muted-foreground shrink-0 mt-1" />
+   642→                </div>
+   643→              </button>
+   644→            )
+   645→          })}
+   646→        </div>
+   647→      </div>
+   648→    )
+   649→  }
+   650→
+   651→  // ─── Render: Step 1 - Guest Verification ───────────────────────
+   652→
+   653→  const renderGuestVerification = () => {
+   654→    if (!activeReservation) return null
+   655→
+   656→    const guest = activeReservation.guest
+   657→
+   658→    return (
+   659→      <div className="space-y-4">
+   660→        {/* Guest Card */}
+   661→        <Card>
+   662→          <CardHeader className="pb-2">
+   663→            <CardTitle className="text-sm flex items-center gap-2">
+   664→              <User className="size-3.5" />
+   665→              Guest Information
+   666→            </CardTitle>
+   667→          </CardHeader>
+   668→          <CardContent>
+   669→            <div className="flex flex-col sm:flex-row gap-3">
+   670→              {/* Photo Placeholder */}
+   671→              <div className="flex flex-col items-center gap-2 shrink-0">
+   672→                <Avatar className="size-20">
+   673→                  <AvatarFallback className={cn(
+   674→                    'text-lg font-bold',
+   675→                    guest?.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700',
+   676→                    guest?.vipLevel === 'gold' && 'bg-amber-100 text-amber-700',
+   677→                    guest?.vipLevel === 'silver' && 'bg-gray-200 text-gray-600',
+   678→                    (!guest?.vipLevel || guest?.vipLevel === 'none') && 'bg-muted text-muted-foreground'
+   679→                  )}>
+   680→                    {guest
+   681→                      ? `${guest.firstName[0]}${guest.lastName[0]}`
+   682→                      : '?'}
+   683→                  </AvatarFallback>
+   684→                </Avatar>
+   685→                {guest?.vipLevel && guest.vipLevel !== 'none' && (
+   686→                  <Badge className="text-[10px] px-1.5 py-0 gap-0.5 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-700">
+   687→                    <Star className="size-2.5 fill-amber-500 text-amber-500" />
+   688→                    <Crown className="size-2.5" />
+   689→                    {guest.vipLevel.toUpperCase()}
+   690→                  </Badge>
+   691→                )}
+   692→              </div>
+   693→
+   694→              {/* Guest Details */}
+   695→              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+   696→                <div>
+   697→                  <p className="text-xs text-muted-foreground mb-0.5">Full Name</p>
+   698→                  <p className="font-semibold">
+   699→                    {guest ? `${guest.firstName} ${guest.lastName}` : 'Unknown Guest'}
+   700→                  </p>
+   701→                </div>
+   702→                <div>
+   703→                  <p className="text-xs text-muted-foreground mb-0.5">Nationality</p>
+   704→                  <p className="font-medium flex items-center gap-1">
+   705→                    {guest?.nationality ? (
+   706→                      <>
+   707→                        <Globe className="size-3" />
+   708→                        {guest.nationality}
+   709→                      </>
+   710→                    ) : (
+   711→                      <span className="text-muted-foreground">Not specified</span>
+   712→                    )}
+   713→                  </p>
+   714→                </div>
+   715→                <div>
+   716→                  <p className="text-xs text-muted-foreground mb-0.5">ID Type / Number</p>
+   717→                  <p className="font-medium flex items-center gap-1">
+   718→                    <Shield className="size-3" />
+   719→                    {guest?.idType && guest?.idNumber
+   720→                      ? `${guest.idType.replace('_', ' ')}: ${guest.idNumber}`
+   721→                      : <span className="text-muted-foreground">Not provided</span>}
+   722→                  </p>
+   723→                </div>
+   724→                <div>
+   725→                  <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+   726→                  <p className="font-medium flex items-center gap-1">
+   727→                    <Mail className="size-3" />
+   728→                    {guest?.email || <span className="text-muted-foreground">Not provided</span>}
+   729→                  </p>
+   730→                </div>
+   731→                <div>
+   732→                  <p className="text-xs text-muted-foreground mb-0.5">Phone</p>
+   733→                  <p className="font-medium flex items-center gap-1">
+   734→                    <Phone className="size-3" />
+   735→                    {guest?.phone || <span className="text-muted-foreground">Not provided</span>}
+   736→                  </p>
+   737→                </div>
+   738→                <div>
+   739→                  <p className="text-xs text-muted-foreground mb-0.5">Loyalty Tier</p>
+   740→                  <p className="font-medium flex items-center gap-1">
+   741→                    <BadgeCheck className="size-3" />
+   742→                    {guest?.loyaltyTier && guest.loyaltyTier !== 'none'
+   743→                      ? guest.loyaltyTier.charAt(0).toUpperCase() + guest.loyaltyTier.slice(1)
+   744→                      : <span className="text-muted-foreground">Standard</span>}
+   745→                  </p>
+   746→                </div>
+   747→                <div>
+   748→                  <p className="text-xs text-muted-foreground mb-0.5">Total Stays</p>
+   749→                  <p className="font-semibold">{guest?.totalStays || 0} stay{(guest?.totalStays || 0) !== 1 ? 's' : ''}</p>
+   750→                </div>
+   751→                <div>
+   752→                  <p className="text-xs text-muted-foreground mb-0.5">Total Revenue</p>
+   753→                  <p className="font-semibold">{formatCurrency(guest?.totalRevenue || 0)}</p>
+   754→                </div>
+   755→              </div>
+   756→            </div>
+   757→          </CardContent>
+   758→        </Card>
+   759→
+   760→        {/* Reservation Summary */}
+   761→        <Card>
+   762→          <CardHeader className="pb-2">
+   763→            <CardTitle className="text-sm flex items-center gap-2">
+   764→              <FileText className="size-3.5" />
+   765→              Reservation Summary
+   766→            </CardTitle>
+   767→          </CardHeader>
+   768→          <CardContent>
+   769→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2">
+   770→              <div>
+   771→                <p className="text-xs text-muted-foreground mb-0.5">Confirmation #</p>
+   772→                <p className="font-mono font-semibold">{activeReservation.confirmationNo}</p>
+   773→              </div>
+   774→              <div>
+   775→                <p className="text-xs text-muted-foreground mb-0.5">Check-in Date</p>
+   776→                <p className="font-medium flex items-center gap-1">
+   777→                  <Clock className="size-3" />
+   778→                  {formatDate(activeReservation.checkIn)}
+   779→                </p>
+   780→              </div>
+   781→              <div>
+   782→                <p className="text-xs text-muted-foreground mb-0.5">Check-out Date</p>
+   783→                <p className="font-medium flex items-center gap-1">
+   784→                  <Clock className="size-3" />
+   785→                  {formatDate(activeReservation.checkOut)}
+   786→                </p>
+   787→              </div>
+   788→              <div>
+   789→                <p className="text-xs text-muted-foreground mb-0.5">Room Type</p>
+   790→                <p className="font-medium flex items-center gap-1">
+   791→                  <BedDouble className="size-3" />
+   792→                  {activeReservation.room
+   793→                    ? activeReservation.room.type.name
+   794→                    : activeReservation.roomTypeId
+   795→                      ? getRoomTypeName(activeReservation.roomTypeId)
+   796→                      : 'Not specified'}
+   797→                </p>
+   798→              </div>
+   799→              <div>
+   800→                <p className="text-xs text-muted-foreground mb-0.5">Rate per Night</p>
+   801→                <p className="font-semibold">{formatCurrency(activeReservation.roomRate)}</p>
+   802→              </div>
+   803→              <div>
+   804→                <p className="text-xs text-muted-foreground mb-0.5">Total Amount</p>
+   805→                <p className="font-bold text-lg">{formatCurrency(activeReservation.totalAmount)}</p>
+   806→              </div>
+   807→              <div>
+   808→                <p className="text-xs text-muted-foreground mb-0.5">Source</p>
+   809→                <p className="font-medium capitalize">{activeReservation.source?.replace('_', ' ') || 'Direct'}</p>
+   810→              </div>
+   811→              <div>
+   812→                <p className="text-xs text-muted-foreground mb-0.5">Guests</p>
+   813→                <p className="font-medium">
+   814→                  {activeReservation.adults} adult{activeReservation.adults !== 1 ? 's' : ''}
+   815→                  {activeReservation.children > 0 && `, ${activeReservation.children} child${activeReservation.children !== 1 ? 'ren' : ''}`}
+   816→                </p>
+   817→              </div>
+   818→              <div>
+   819→                <p className="text-xs text-muted-foreground mb-0.5">Status</p>
+   820→                <StatusBadge status={activeReservation.status} />
+   821→              </div>
+   822→            </div>
+   823→
+   824→            {activeReservation.specialRequests && (
+   825→              <div className="mt-4 pt-3 border-t">
+   826→                <p className="text-xs text-muted-foreground mb-1">Special Requests</p>
+   827→                <p className="text-sm italic bg-muted/50 rounded-md p-2">{activeReservation.specialRequests}</p>
+   828→              </div>
+   829→            )}
+   830→          </CardContent>
+   831→        </Card>
+   832→      </div>
+   833→    )
+   834→  }
+   835→
+   836→  // ─── Render: Step 2 - Room Assignment ─────────────────────────
+   837→
+   838→  const renderRoomAssignment = () => {
+   839→    return (
+   840→      <div className="space-y-4">
+   841→        {/* Warning if no room assigned */}
+   842→        {!selectedRoomId && (
+   843→          <div className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3">
+   844→            <AlertTriangle className="size-5 text-amber-600 shrink-0" />
+   845→            <div>
+   846→              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+   847→                Room assignment is required
+   848→              </p>
+   849→              <p className="text-xs text-amber-600 dark:text-amber-400">
+   850→                You must assign a room before the guest can be checked in.
+   851→              </p>
+   852→            </div>
+   853→          </div>
+   854→        )}
+   855→
+   856→        {/* Currently assigned room (if any) */}
+   857→        {activeReservation?.room && activeReservation.room.id === selectedRoomId && (
+   858→          <Card className="border-green-300 bg-green-50/50 dark:bg-green-950/20">
+   859→            <CardContent className="p-3 flex items-center gap-3">
+   860→              <div className="flex size-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
+   861→                <Check className="size-5 text-green-600" />
+   862→              </div>
+   863→              <div>
+   864→                <p className="font-semibold text-sm">
+   865→                  Room {activeReservation.room.number} — {activeReservation.room.type.name}
+   866→                </p>
+   867→                <p className="text-xs text-muted-foreground">
+   868→                  Floor {activeReservation.room.floor}
+   869→                  {activeReservation.room.wing ? ` · ${activeReservation.room.wing} Wing` : ''}
+   870→                </p>
+   871→              </div>
+   872→              <Badge className="ml-auto bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300 border-green-300">
+   873→                Assigned
+   874→              </Badge>
+   875→            </CardContent>
+   876→          </Card>
+   877→        )}
+   878→
+   879→        {/* Search filter */}
+   880→        <div className="relative">
+   881→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   882→          <Input
+   883→            placeholder="Search rooms by number, type, floor, or wing..."
+   884→            value={roomSearchFilter}
+   885→            onChange={(e) => setRoomSearchFilter(e.target.value)}
+   886→            className="pl-9"
+   887→          />
+   888→        </div>
+   889→
+   890→        {/* Room list grouped by floor */}
+   891→        {loadingRooms ? (
+   892→          <div className="space-y-3 p-2">
+   893→            {Array.from({ length: 6 }).map((_, i) => (
+   894→              <Skeleton key={i} className="h-14 w-full rounded-lg" />
+   895→            ))}
+   896→          </div>
+   897→        ) : filteredAvailableRooms.length === 0 ? (
+   898→          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   899→            <BedDouble className="size-8 mb-2 opacity-30" />
+   900→            <p className="text-sm font-medium">No available rooms found</p>
+   901→            <p className="text-xs mt-1">
+   902→              {roomSearchFilter ? 'Try adjusting your search filter' : 'All rooms are currently occupied or out of service'}
+   903→            </p>
+   904→          </div>
+   905→        ) : (
+   906→          <div className="max-h-96 overflow-y-auto space-y-4">
+   907→            {[...roomsByFloor.entries()].map(([floor, rooms]) => (
+   908→              <div key={floor}>
+   909→                <div className="flex items-center gap-2 mb-2 px-1">
+   910→                  <Building className="size-3.5 text-muted-foreground" />
+   911→                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+   912→                    Floor {floor}
+   913→                  </span>
+   914→                  <span className="text-[10px] text-muted-foreground">
+   915→                    ({rooms.length} room{rooms.length !== 1 ? 's' : ''} available)
+   916→                  </span>
+   917→                </div>
+   918→                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+   919→                  {rooms.map((room) => {
+   920→                    const isSelected = room.id === selectedRoomId
+   921→                    return (
+   922→                      <button
+   923→                        key={room.id}
+   924→                        onClick={() => setSelectedRoomId(room.id)}
+   925→                        className={cn(
+   926→                          'flex items-start gap-3 rounded-lg border p-3 text-left transition-all',
+   927→                          isSelected
+   928→                            ? 'border-primary bg-primary/5 ring-2 ring-primary'
+   929→                            : 'border-border hover:border-primary/40 hover:bg-muted/50'
+   930→                        )}
+   931→                      >
+   932→                        <div className={cn(
+   933→                          'flex size-9 shrink-0 items-center justify-center rounded-md',
+   934→                          isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted'
+   935→                        )}>
+   936→                          {isSelected ? <Check className="size-4" /> : <BedDouble className="size-4" />}
+   937→                        </div>
+   938→                        <div className="flex-1 min-w-0">
+   939→                          <p className="font-semibold text-sm">Room {room.number}</p>
+   940→                          <p className="text-xs text-muted-foreground">{room.type.name}</p>
+   941→                          <div className="flex items-center gap-2 mt-1">
+   942→                            <Badge variant="outline" className="text-[10px] px-1 py-0">
+   943→                              <Layers className="size-2.5 mr-0.5" />
+   944→                              {floor}
+   945→                            </Badge>
+   946→                            {room.wing && (
+   947→                              <Badge variant="outline" className="text-[10px] px-1 py-0">
+   948→                                {room.wing}
+   949→                              </Badge>
+   950→                            )}
+   951→                            <StatusBadge status={room.status} className="text-[9px]" />
+   952→                          </div>
+   953→                        </div>
+   954→                      </button>
+   955→                    )
+   956→                  })}
+   957→                </div>
+   958→              </div>
+   959→            ))}
+   960→          </div>
+   961→        )}
+   962→      </div>
+   963→    )
+   964→  }
+   965→
+   966→  // ─── Render: Step 3 - Preferences & Registration ──────────────
+   967→
+   968→  const renderPreferencesAndRegistration = () => {
+   969→    return (
+   970→      <div className="space-y-6">
+   971→        {/* Guest Registration Table */}
+   972→        <Card>
+   973→          <CardHeader className="pb-3">
+   974→            <CardTitle className="text-base flex items-center gap-2">
+   975→              <Shield className="size-4" />
+   976→              Guest Registration
+   977→            </CardTitle>
+   978→            <CardDescription className="text-xs">
+   979→              Capture or update guest identification details as required by local regulations.
+   980→            </CardDescription>
+   981→          </CardHeader>
+   982→          <CardContent className="p-0">
+   983→            <div className="overflow-x-auto">
+   984→              <table className="w-full border-collapse text-sm">
+   985→                {/* Header Row */}
+   986→                <thead>
+   987→                  <tr className="bg-gray-100 dark:bg-gray-800/60">
+   988→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 w-[40px] whitespace-nowrap">SN</th>
+   989→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 w-[70px] whitespace-nowrap">Title</th>
+   990→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[140px] whitespace-nowrap">
+   991→                      First Name
+   992→                    </th>
+   993→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[130px] whitespace-nowrap">Last Name</th>
+   994→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[120px] whitespace-nowrap">Nationality</th>
+   995→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[160px] whitespace-nowrap">Email</th>
+   996→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[160px] whitespace-nowrap">Address</th>
+   997→                    <th className="border border-gray-300 dark:border-gray-600 px-2 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 min-w-[130px] whitespace-nowrap">Contact No</th>
+   998→                  </tr>
+   999→                </thead>
+  1000→                {/* Data Row */}
+  1001→                <tbody>
+  1002→                  <tr>
+  1003→                    {/* SN */}
+  1004→                    <td className="border border-gray-300 dark:border-gray-600 px-2 py-1">
+  1005→                      <span className="text-xs font-medium text-gray-500">1</span>
+  1006→                    </td>
+  1007→                    {/* Title dropdown */}
+  1008→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1009→                      <Select value={regTitle} onValueChange={setRegTitle}>
+  1010→                        <SelectTrigger className="h-8 w-full border-gray-300 dark:border-gray-600 text-xs rounded-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+  1011→                          <SelectValue placeholder="—" />
+  1012→                        </SelectTrigger>
+  1013→                        <SelectContent>
+  1014→                          {TITLE_OPTIONS.map((t) => (
+  1015→                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+  1016→                          ))}
+  1017→                        </SelectContent>
+  1018→                      </Select>
+  1019→                    </td>
+  1020→                    {/* First Name with search icon */}
+  1021→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1022→                      <div className="relative">
+  1023→                        <input
+  1024→                          type="text"
+  1025→                          value={regFirstName}
+  1026→                          onChange={(e) => setRegFirstName(e.target.value)}
+  1027→                          placeholder="First name"
+  1028→                          className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 pr-7 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1029→                        />
+  1030→                        <button
+  1031→                          type="button"
+  1032→                          className="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+  1033→                          title="Search guest"
+  1034→                        >
+  1035→                          <Search className="size-3" />
+  1036→                        </button>
+  1037→                      </div>
+  1038→                    </td>
+  1039→                    {/* Last Name */}
+  1040→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1041→                      <input
+  1042→                        type="text"
+  1043→                        value={regLastName}
+  1044→                        onChange={(e) => setRegLastName(e.target.value)}
+  1045→                        placeholder="Last name"
+  1046→                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1047→                      />
+  1048→                    </td>
+  1049→                    {/* Nationality dropdown */}
+  1050→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1051→                      <Select value={regNationality} onValueChange={setRegNationality}>
+  1052→                        <SelectTrigger className="h-8 w-full border-gray-300 dark:border-gray-600 text-xs rounded-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+  1053→                          <SelectValue placeholder="Select" />
+  1054→                        </SelectTrigger>
+  1055→                        <SelectContent className="max-h-48 overflow-y-auto">
+  1056→                          {NATIONALITIES.map((n) => (
+  1057→                            <SelectItem key={n} value={n}>{n}</SelectItem>
+  1058→                          ))}
+  1059→                        </SelectContent>
+  1060→                      </Select>
+  1061→                    </td>
+  1062→                    {/* Email */}
+  1063→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1064→                      <input
+  1065→                        type="email"
+  1066→                        value={regEmail}
+  1067→                        onChange={(e) => setRegEmail(e.target.value)}
+  1068→                        placeholder="Email address"
+  1069→                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1070→                      />
+  1071→                    </td>
+  1072→                    {/* Address */}
+  1073→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1074→                      <input
+  1075→                        type="text"
+  1076→                        value={regAddress}
+  1077→                        onChange={(e) => setRegAddress(e.target.value)}
+  1078→                        placeholder="Street address"
+  1079→                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1080→                      />
+  1081→                    </td>
+  1082→                    {/* Contact No */}
+  1083→                    <td className="border border-gray-300 dark:border-gray-600 px-1 py-1">
+  1084→                      <input
+  1085→                        type="text"
+  1086→                        value={regContactNo}
+  1087→                        onChange={(e) => setRegContactNo(e.target.value)}
+  1088→                        placeholder="Phone number"
+  1089→                        className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1090→                      />
+  1091→                    </td>
+  1092→                  </tr>
+  1093→                </tbody>
+  1094→              </table>
+  1095→            </div>
+  1096→          </CardContent>
+  1097→        </Card>
+  1098→
+  1099→        {/* ID Verification Row */}
+  1100→        <Card>
+  1101→          <CardHeader className="pb-2">
+  1102→            <CardTitle className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+  1103→              <Shield className="size-3" />
+  1104→              ID Verification
+  1105→            </CardTitle>
+  1106→          </CardHeader>
+  1107→          <CardContent>
+  1108→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+  1109→              <div className="grid gap-1.5">
+  1110→                <Label className="text-xs">ID Type</Label>
+  1111→                <Select value={regIdType} onValueChange={setRegIdType}>
+  1112→                  <SelectTrigger className="w-full h-8 border-gray-300 dark:border-gray-600 text-xs rounded-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30">
+  1113→                    <SelectValue />
+  1114→                  </SelectTrigger>
+  1115→                  <SelectContent>
+  1116→                    {ID_TYPES.map((t) => (
+  1117→                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+  1118→                    ))}
+  1119→                  </SelectContent>
+  1120→                </Select>
+  1121→              </div>
+  1122→              <div className="grid gap-1.5 sm:col-span-2">
+  1123→                <Label className="text-xs">ID Number</Label>
+  1124→                <input
+  1125→                  type="text"
+  1126→                  value={regIdNumber}
+  1127→                  onChange={(e) => setRegIdNumber(e.target.value)}
+  1128→                  placeholder="Enter ID or passport number"
+  1129→                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1130→                />
+  1131→              </div>
+  1132→            </div>
+  1133→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+  1134→              <div className="grid gap-1.5">
+  1135→                <Label className="text-xs">City</Label>
+  1136→                <input
+  1137→                  type="text"
+  1138→                  value={regCity}
+  1139→                  onChange={(e) => setRegCity(e.target.value)}
+  1140→                  placeholder="City"
+  1141→                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1142→                />
+  1143→              </div>
+  1144→              <div className="grid gap-1.5">
+  1145→                <Label className="text-xs">Country</Label>
+  1146→                <input
+  1147→                  type="text"
+  1148→                  value={regCountry}
+  1149→                  onChange={(e) => setRegCountry(e.target.value)}
+  1150→                  placeholder="Country"
+  1151→                  className="h-8 w-full border border-gray-300 dark:border-gray-600 rounded-sm px-2 text-xs bg-white dark:bg-gray-900 placeholder:text-gray-400 outline-none transition-colors focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+  1152→                />
+  1153→              </div>
+  1154→            </div>
+  1155→          </CardContent>
+  1156→        </Card>
+  1157→
+  1158→        <Separator />
+  1159→
+  1160→        {/* Stay Preferences */}
+  1161→        <Card>
+  1162→          <CardHeader className="pb-2">
+  1163→            <CardTitle className="text-sm flex items-center gap-2">
+  1164→              <Sparkles className="size-3.5" />
+  1165→              Stay Preferences
+  1166→            </CardTitle>
+  1167→            <CardDescription className="text-xs">
+  1168→              Optional preferences to enhance the guest experience.
+  1169→            </CardDescription>
+  1170→          </CardHeader>
+  1171→          <CardContent>
+  1172→            <div className="space-y-3">
+  1173→              {/* Early Check-in */}
+  1174→              <div className="flex items-start gap-2">
+  1175→                <Checkbox
+  1176→                  id="early-checkin"
+  1177→                  checked={earlyCheckIn}
+  1178→                  onCheckedChange={(checked) => setEarlyCheckIn(checked === true)}
+  1179→                  className="mt-0.5"
+  1180→                />
+  1181→                <div className="grid gap-0.5 leading-none">
+  1182→                  <Label htmlFor="early-checkin" className="text-sm font-medium cursor-pointer flex items-center gap-1.5">
+  1183→                    <Clock className="size-3.5 text-muted-foreground" />
+  1184→                    Early Check-in
+  1185→                  </Label>
+  1186→                  <p className="text-xs text-muted-foreground">
+  1187→                    Check-in before 2:00 PM — will be noted on the reservation
+  1188→                  </p>
+  1189→                </div>
+  1190→              </div>
+  1191→
+  1192→              <Separator />
+  1193→
+  1194→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1195→                {/* Check-out Time */}
+  1196→                <div className="grid gap-1.5">
+  1197→                  <Label className="text-xs flex items-center gap-1">
+  1198→                    <Clock className="size-3" />
+  1199→                    Check-out Time
+  1200→                  </Label>
+  1201→                  <Select value={checkOutTime} onValueChange={setCheckOutTime}>
+  1202→                    <SelectTrigger className="w-full">
+  1203→                      <SelectValue placeholder="Select check-out time" />
+  1204→                    </SelectTrigger>
+  1205→                    <SelectContent>
+  1206→                      {CHECKOUT_TIME_OPTIONS.map((opt) => (
+  1207→                        <SelectItem key={opt.value} value={opt.value}>
+  1208→                          {opt.label}
+  1209→                        </SelectItem>
+  1210→                      ))}
+  1211→                    </SelectContent>
+  1212→                  </Select>
+  1213→                </div>
+  1214→
+  1215→                {/* Pillow Type */}
+  1216→                <div className="grid gap-1.5">
+  1217→                  <Label className="text-xs flex items-center gap-1">
+  1218→                    <Pill className="size-3" />
+  1219→                    Pillow Type
+  1220→                  </Label>
+  1221→                  <Select value={pillowType} onValueChange={setPillowType}>
+  1222→                    <SelectTrigger className="w-full">
+  1223→                      <SelectValue placeholder="Select pillow type (optional)" />
+  1224→                    </SelectTrigger>
+  1225→                    <SelectContent>
+  1226→                      <SelectItem value="none">No preference</SelectItem>
+  1227→                      {PILLOW_TYPES.map((opt) => (
+  1228→                        <SelectItem key={opt.value} value={opt.value}>
+  1229→                          {opt.label}
+  1230→                        </SelectItem>
+  1231→                      ))}
+  1232→                    </SelectContent>
+  1233→                  </Select>
+  1234→                </div>
+  1235→
+  1236→                {/* Room Preference */}
+  1237→                <div className="grid gap-1.5">
+  1238→                  <Label className="text-xs flex items-center gap-1">
+  1239→                    <Eye className="size-3" />
+  1240→                    Room Preference
+  1241→                  </Label>
+  1242→                  <Select value={roomPreference} onValueChange={setRoomPreference}>
+  1243→                    <SelectTrigger className="w-full">
+  1244→                      <SelectValue placeholder="Select preference (optional)" />
+  1245→                    </SelectTrigger>
+  1246→                    <SelectContent>
+  1247→                      <SelectItem value="none">No preference</SelectItem>
+  1248→                      {ROOM_PREFERENCES.map((opt) => (
+  1249→                        <SelectItem key={opt.value} value={opt.value}>
+  1250→                          {opt.label}
+  1251→                        </SelectItem>
+  1252→                      ))}
+  1253→                    </SelectContent>
+  1254→                  </Select>
+  1255→                </div>
+  1256→
+  1257→                {/* Wake-up Call */}
+  1258→                <div className="grid gap-1.5">
+  1259→                  <Label className="text-xs flex items-center gap-1">
+  1260→                    <AlarmClock className="size-3" />
+  1261→                    Wake-up Call Time
+  1262→                  </Label>
+  1263→                  <Input
+  1264→                    type="time"
+  1265→                    value={wakeupCall}
+  1266→                    onChange={(e) => setWakeupCall(e.target.value)}
+  1267→                    placeholder="e.g. 07:00"
+  1268→                  />
+  1269→                </div>
+  1270→              </div>
+  1271→            </div>
+  1272→          </CardContent>
+  1273→        </Card>
+  1274→      </div>
+  1275→    )
+  1276→  }
+  1277→
+  1278→  // ─── Render: Step 4 - Billing Setup ────────────────────────────
+  1279→
+  1280→  const renderBillingSetup = () => {
+  1281→    return (
+  1282→      <div className="space-y-4">
+  1283→        <Card>
+  1284→          <CardHeader className="pb-2">
+  1285→            <CardTitle className="text-sm flex items-center gap-2">
+  1286→              <Wallet className="size-3.5" />
+  1287→              Billing Setup
+  1288→            </CardTitle>
+  1289→            <CardDescription className="text-xs">
+  1290→              Set up the guest&apos;s deposit and payment method for the stay.
+  1291→            </CardDescription>
+  1292→          </CardHeader>
+  1293→          <CardContent>
+  1294→            <div className="space-y-3">
+  1295→              {/* Amount summary */}
+  1296→              <div className="rounded-lg bg-muted/50 p-2 space-y-2">
+  1297→                <div className="flex items-center justify-between text-sm">
+  1298→                  <span className="text-muted-foreground">Room Rate</span>
+  1299→                  <span className="font-medium">{formatCurrency(activeReservation?.roomRate || 0)}/night</span>
+  1300→                </div>
+  1301→                <div className="flex items-center justify-between text-sm">
+  1302→                  <span className="text-muted-foreground">Total Amount</span>
+  1303→                  <span className="font-bold">{formatCurrency(activeReservation?.totalAmount || 0)}</span>
+  1304→                </div>
+  1305→                <Separator />
+  1306→                <div className="flex items-center justify-between text-xs text-muted-foreground">
+  1307→                  <span>Selected Room</span>
+  1308→                  <span className="font-mono">
+  1309→                    {selectedRoomId
+  1310→                      ? (() => {
+  1311→                          const room = availableRooms.find((r: RoomInfo) => r.id === selectedRoomId) || activeReservation?.room
+  1312→                          return room ? `Room ${room.number}` : '—'
+  1313→                        })()
+  1314→                      : 'Not assigned'}
+  1315→                  </span>
+  1316→                </div>
+  1317→              </div>
+  1318→
+  1319→              {/* Deposit Amount */}
+  1320→              <div className="grid gap-1.5">
+  1321→                <Label className="text-xs flex items-center gap-1">
+  1322→                  <Banknote className="size-3" />
+  1323→                  Deposit Amount
+  1324→                </Label>
+  1325→                <Input
+  1326→                  type="number"
+  1327→                  value={depositAmount}
+  1328→                  onChange={(e) => setDepositAmount(e.target.value)}
+  1329→                  placeholder="Enter deposit amount (NPR)"
+  1330→                  min={0}
+  1331→                />
+  1332→                <p className="text-[10px] text-muted-foreground">
+  1333→                  Recommended: At least one night&apos;s rate ({formatCurrency(activeReservation?.roomRate || 0)})
+  1334→                </p>
+  1335→              </div>
+  1336→
+  1337→              {/* Payment Method */}
+  1338→              <div className="grid gap-1.5">
+  1339→                <Label className="text-xs flex items-center gap-1">
+  1340→                  <CreditCard className="size-3" />
+  1341→                  Payment Method
+  1342→                </Label>
+  1343→                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+  1344→                  <SelectTrigger className="w-full">
+  1345→                    <SelectValue placeholder="Select payment method" />
+  1346→                  </SelectTrigger>
+  1347→                  <SelectContent>
+  1348→                    {PAYMENT_METHODS.map((method) => (
+  1349→                      <SelectItem key={method.value} value={method.value}>
+  1350→                        {method.label}
+  1351→                      </SelectItem>
+  1352→                    ))}
+  1353→                  </SelectContent>
+  1354→                </Select>
+  1355→              </div>
+  1356→
+  1357→              {/* Billing Notes */}
+  1358→              <div className="grid gap-1.5">
+  1359→                <Label className="text-xs">Special Billing Notes</Label>
+  1360→                <Textarea
+  1361→                  value={billingNotes}
+  1362→                  onChange={(e) => setBillingNotes(e.target.value)}
+  1363→                  placeholder="Any special billing instructions or notes..."
+  1364→                  rows={3}
+  1365→                />
+  1366→              </div>
+  1367→            </div>
+  1368→          </CardContent>
+  1369→        </Card>
+  1370→
+  1371→        {/* Confirmation summary */}
+  1372→        <Card className="border-primary/30 bg-primary/5">
+  1373→          <CardContent className="p-2.5">
+  1374→            <p className="text-xs font-medium mb-1.5 flex items-center gap-1.5">
+  1375→              <Hotel className="size-3.5 text-primary" />
+  1376→              Check-In Summary
+  1377→            </p>
+  1378→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+  1379→              <div className="flex justify-between">
+  1380→                <span className="text-muted-foreground">Guest</span>
+  1381→                <span className="font-medium">
+  1382→                  {activeReservation?.guest
+  1383→                    ? `${activeReservation.guest.firstName} ${activeReservation.guest.lastName}`
+  1384→                    : '—'}
+  1385→                </span>
+  1386→              </div>
+  1387→              <div className="flex justify-between">
+  1388→                <span className="text-muted-foreground">Room</span>
+  1389→                <span className="font-medium">
+  1390→                  {selectedRoomId
+  1391→                    ? (() => {
+  1392→                        const room = availableRooms.find((r: RoomInfo) => r.id === selectedRoomId) || activeReservation?.room
+  1393→                        return room ? `Room ${room.number}` : '—'
+  1394→                      })()
+  1395→                    : (
+  1396→                      <span className="text-red-500 font-semibold">⚠ Not assigned</span>
+  1397→                    )}
+  1398→                </span>
+  1399→              </div>
+  1400→              <div className="flex justify-between">
+  1401→                <span className="text-muted-foreground">Check-in</span>
+  1402→                <span className="font-medium">{activeReservation ? formatDate(activeReservation.checkIn) : '—'}</span>
+  1403→              </div>
+  1404→              <div className="flex justify-between">
+  1405→                <span className="text-muted-foreground">Check-out</span>
+  1406→                <span className="font-medium">{activeReservation ? formatDate(activeReservation.checkOut) : '—'}</span>
+  1407→              </div>
+  1408→              <div className="flex justify-between">
+  1409→                <span className="text-muted-foreground">Rate</span>
+  1410→                <span className="font-medium">{formatCurrency(activeReservation?.roomRate || 0)}/night</span>
+  1411→              </div>
+  1412→              <div className="flex justify-between">
+  1413→                <span className="text-muted-foreground">Deposit</span>
+  1414→                <span className="font-medium">
+  1415→                  {depositAmount ? formatCurrency(parseFloat(depositAmount) || 0) : '—'}
+  1416→                </span>
+  1417→              </div>
+  1418→            </div>
+  1419→            {!selectedRoomId && (
+  1420→              <div className="flex items-center gap-2 mt-3 p-2 rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+  1421→                <AlertTriangle className="size-3.5 text-red-500 shrink-0" />
+  1422→                <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+  1423→                  A room must be assigned before proceeding with check-in.
+  1424→                </p>
+  1425→              </div>
+  1426→            )}
+  1427→          </CardContent>
+  1428→        </Card>
+  1429→      </div>
+  1430→    )
+  1431→  }
+  1432→
+  1433→  // ─── Render: Step 5 - Key Card ──────────────────────────────────
+  1434→
+  1435→  const renderKeyCardStep = () => {
+  1436→    if (!keyCardIssued) {
+  1437→      return (
+  1438→        <div className="flex flex-col items-center justify-center py-12 text-center">
+  1439→          <KeyRound className="size-12 text-muted-foreground/30 mb-4" />
+  1440→          <p className="text-sm text-muted-foreground">
+  1441→            Key card will be issued after confirming check-in.
+  1442→          </p>
+  1443→          <p className="text-xs text-muted-foreground mt-1">
+  1444→            Please go back to step 4 to complete the check-in process.
+  1445→          </p>
+  1446→          <Button variant="outline" onClick={() => setCurrentStep(4)} className="mt-4">
+  1447→            <ChevronLeft className="size-4 mr-1" />
+  1448→            Go to Billing
+  1449→          </Button>
+  1450→        </div>
+  1451→      )
+  1452→    }
+  1453→
+  1454→    return (
+  1455→      <div className="flex flex-col items-center justify-center py-8 text-center">
+  1456→        <div className="flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950 mb-4">
+  1457→          <Check className="size-8 text-green-600 dark:text-green-400" />
+  1458→        </div>
+  1459→        <h3 className="text-lg font-bold">Check-In Complete!</h3>
+  1460→        <p className="text-sm text-muted-foreground mt-1">
+  1461→          Guest has been checked in and key card has been issued.
+  1462→        </p>
+  1463→        <p className="text-xs text-muted-foreground mt-2">
+  1464→          Room {keyCardRoomNumber} · {keyCardGuestName}
+  1465→        </p>
+  1466→      </div>
+  1467→    )
+  1468→  }
+  1469→
+  1470→  // ─── Render: Step Content ──────────────────────────────────────
+  1471→
+  1472→  const renderStepContent = () => {
+  1473→    if (loadingSpecific && reservationId && currentStep === 0) {
+  1474→      return (
+  1475→        <div className="flex flex-col items-center justify-center py-12">
+  1476→          <Loader2 className="size-8 animate-spin text-primary mb-3" />
+  1477→          <p className="text-sm text-muted-foreground">Loading reservation...</p>
+  1478→        </div>
+  1479→      )
+  1480→    }
+  1481→
+  1482→    switch (currentStep) {
+  1483→      case 0: return renderSelectArrival()
+  1484→      case 1: return renderGuestVerification()
+  1485→      case 2: return renderRoomAssignment()
+  1486→      case 3: return renderPreferencesAndRegistration()
+  1487→      case 4: return renderBillingSetup()
+  1488→      case 5: return renderKeyCardStep()
+  1489→      default: return null
+  1490→    }
+  1491→  }
+  1492→
+  1493→  // Determine if check-in wizard is active (steps 1-5)
+  1494→  const isWizardActive = currentStep > 0
+  1495→
+  1496→  return (
+  1497→    <div className="flex flex-col gap-2">
+  1498→      {/* Header */}
+  1499→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+  1500→        <div>
+  1501→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Guest Check-In</h2>
+  1502→          <p className="text-xs text-muted-foreground">
+  1503→            {isWizardActive
+  1504→              ? 'Process check-in for the selected reservation'
+  1505→              : `Step-by-step check-in for arrivals on ${formatDate(today)}`}
+  1506→          </p>
+  1507→        </div>
+  1508→      </div>
+  1509→
+  1510→      {/* Tab Switcher (hidden during wizard) */}
+  1511→      {!isWizardActive && (
+  1512→        <div className="flex items-center justify-center gap-1 bg-muted/50 p-1 rounded-lg w-fit mx-auto">
+  1513→          <button
+  1514→            onClick={() => { setActiveTab('find'); setCurrentStep(0); setSelectedReservationId('') }}
+  1515→            className={cn(
+  1516→              'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-all',
+  1517→              activeTab === 'find'
+  1518→                ? 'bg-background text-foreground shadow-sm'
+  1519→                : 'text-muted-foreground hover:text-foreground'
+  1520→            )}
+  1521→          >
+  1522→            <Search className="size-4" />
+  1523→            Find Reservation
+  1524→          </button>
+  1525→          <button
+  1526→            onClick={() => { setActiveTab('walkin'); setCurrentStep(0); setSelectedReservationId('') }}
+  1527→            className={cn(
+  1528→              'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-all',
+  1529→              activeTab === 'walkin'
+  1530→                ? 'bg-background text-foreground shadow-sm'
+  1531→                : 'text-muted-foreground hover:text-foreground'
+  1532→            )}
+  1533→          >
+  1534→            <User className="size-4" />
+  1535→            Direct Walk-in
+  1536→          </button>
+  1537→        </div>
+  1538→      )}
+  1539→
+  1540→      {/* ═══════ SPLIT PANEL LAYOUT ═══════ */}
+  1541→      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 min-h-0">
+  1542→        {/* ─── LEFT PANEL (60%) ─────────────────────────────── */}
+  1543→        <div className="lg:col-span-3 flex flex-col min-h-0">
+  1544→          {activeTab === 'find' ? (
+  1545→            /* FIND RESERVATION — LEFT */
+  1546→            <Card className="flex-1 flex flex-col overflow-hidden">
+  1547→              <CardContent className="p-3 flex flex-col gap-3 flex-1 min-h-0">
+  1548→                {/* Search bar */}
+  1549→                <div className="relative">
+  1550→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+  1551→                  <Input
+  1552→                    placeholder="Search by confirmation #, guest name, or room..."
+  1553→                    value={searchQuery}
+  1554→                    onChange={(e) => setSearchQuery(e.target.value)}
+  1555→                    className="pl-9"
+  1556→                  />
+  1557→                </div>
+  1558→                {/* Today's Expected Arrivals header */}
+  1559→                <div className="flex items-center gap-2">
+  1560→                  <Clock className="size-4 text-muted-foreground" />
+  1561→                  <span className="text-sm font-medium">Today&apos;s Expected Arrivals</span>
+  1562→                  <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+  1563→                    {filteredArrivals.length}
+  1564→                  </span>
+  1565→                </div>
+  1566→                {/* Arrival cards */}
+  1567→                <div className="flex-1 min-h-0 overflow-y-auto space-y-2 max-h-[60vh] lg:max-h-none">
+  1568→                  {loadingArrivals ? (
+  1569→                    <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>
+  1570→                  ) : filteredArrivals.length === 0 ? (
+  1571→                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+  1572→                      <UserCheck className="size-10 mb-2 opacity-30" />
+  1573→                      <p className="text-sm font-medium">{searchQuery ? 'No matching reservations' : 'No arrivals scheduled for today'}</p>
+  1574→                      <p className="text-xs mt-1">{searchQuery ? 'Try adjusting your search' : `Date: ${formatDate(today)}`}</p>
+  1575→                    </div>
+  1576→                  ) : (
+  1577→                    filteredArrivals.map((arrival) => {
+  1578→                      const isVip = arrival.guest?.vipLevel && arrival.guest.vipLevel !== 'none'
+  1579→                      const isUnassigned = !arrival.room
+  1580→                      const isSelected = arrival.id === selectedReservationId
+  1581→                      return (
+  1582→                        <button key={arrival.id}
+  1583→                          onClick={() => { setSelectedReservationId(arrival.id); if (arrival.room?.id) setSelectedRoomId(arrival.room.id) }}
+  1584→                          className={cn(
+  1585→                            'w-full text-left rounded-lg border p-3 transition-all',
+  1586→                            isSelected ? 'ring-2 ring-primary border-primary bg-primary/5' : 'border-border hover:border-primary/40 hover:bg-muted/50',
+  1587→                            isUnassigned && !isSelected && 'border-l-4 border-l-amber-400'
+  1588→                          )}
+  1589→                        >
+  1590→                          <div className="flex items-start justify-between gap-2">
+  1591→                            <div className="flex-1 min-w-0">
+  1592→                              <div className="flex items-center gap-2 flex-wrap">
+  1593→                                <span className="text-[11px] font-mono text-muted-foreground">{arrival.confirmationNo}</span>
+  1594→                                <span className="text-[11px] text-muted-foreground">{arrival.source?.replace('_', ' ') || 'Direct'}</span>
+  1595→                                {isVip && <Badge className="text-[9px] px-1.5 py-0 bg-amber-100 text-amber-700 border-amber-300"><Star className="size-2 fill-amber-500 mr-0.5" />VIP</Badge>}
+  1596→                              </div>
+  1597→                              <p className="font-semibold text-sm mt-0.5 truncate">{arrival.guest ? `${arrival.guest.firstName} ${arrival.guest.lastName}` : 'Unknown Guest'}</p>
+  1598→                              <p className="text-xs text-muted-foreground mt-0.5">
+  1599→                                {arrival.room
+  1600→                                  ? <>Room {arrival.room.number} · {formatDate(arrival.checkIn)} – {formatDate(arrival.checkOut)} · {formatCurrency(arrival.roomRate)}/night</>
+  1601→                                  : <>Room TBA · {formatDate(arrival.checkIn)} – {formatDate(arrival.checkOut)}</>}
+  1602→                              </p>
+  1603→                            </div>
+  1604→                            {isSelected && <Check className="size-4 text-primary shrink-0 mt-1" />}
+  1605→                          </div>
+  1606→                        </button>
+  1607→                      )
+  1608→                    })
+  1609→                  )}
+  1610→                </div>
+  1611→              </CardContent>
+  1612→            </Card>
+  1613→          ) : (
+  1614→            /* DIRECT WALK-IN — LEFT (compact form) */
+  1615→            <Card className="flex-1 flex flex-col overflow-hidden">
+  1616→              <CardContent className="p-3 overflow-y-auto max-h-[60vh] lg:max-h-none space-y-4">
+  1617→                <div>
+  1618→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><User className="size-3.5" /> Guest Information</h3>
+  1619→                  <div className="grid grid-cols-2 gap-2">
+  1620→                    <div className="col-span-2 grid grid-cols-3 gap-2">
+  1621→                      <Select value={regTitle} onValueChange={setRegTitle}>
+  1622→                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Title" /></SelectTrigger>
+  1623→                        <SelectContent>{TITLE_OPTIONS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+  1624→                      </Select>
+  1625→                      <Input placeholder="First name" value={regFirstName} onChange={(e) => setRegFirstName(e.target.value)} className="h-8 text-xs" />
+  1626→                      <Input placeholder="Last name" value={regLastName} onChange={(e) => setRegLastName(e.target.value)} className="h-8 text-xs" />
+  1627→                    </div>
+  1628→                    <Input placeholder="Contact number" value={regContactNo} onChange={(e) => setRegContactNo(e.target.value)} className="h-8 text-xs" />
+  1629→                    <Input placeholder="Email address" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="h-8 text-xs" />
+  1630→                    <Select value={regNationality} onValueChange={setRegNationality}>
+  1631→                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Nationality" /></SelectTrigger>
+  1632→                      <SelectContent className="max-h-48">{NATIONALITIES.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent>
+  1633→                    </Select>
+  1634→                    <div className="grid grid-cols-2 gap-2">
+  1635→                      <Select value={regIdType} onValueChange={setRegIdType}>
+  1636→                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+  1637→                        <SelectContent>{ID_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+  1638→                      </Select>
+  1639→                      <Input placeholder="ID number" value={regIdNumber} onChange={(e) => setRegIdNumber(e.target.value)} className="h-8 text-xs" />
+  1640→                    </div>
+  1641→                  </div>
+  1642→                </div>
+  1643→                <Separator />
+  1644→                <div>
+  1645→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><BedDouble className="size-3.5" /> Stay Details</h3>
+  1646→                  <div className="grid grid-cols-2 gap-2">
+  1647→                    <div><Label className="text-[10px] text-muted-foreground">Check-in</Label><Input type="date" defaultValue={today} className="h-8 text-xs" /></div>
+  1648→                    <div><Label className="text-[10px] text-muted-foreground">Check-out</Label><Input type="date" className="h-8 text-xs" /></div>
+  1649→                    <div><Label className="text-[10px] text-muted-foreground">Adults</Label><Input type="number" defaultValue={1} min={1} className="h-8 text-xs" /></div>
+  1650→                    <div><Label className="text-[10px] text-muted-foreground">Children</Label><Input type="number" defaultValue={0} min={0} className="h-8 text-xs" /></div>
+  1651→                  </div>
+  1652→                </div>
+  1653→                <Separator />
+  1654→                <div>
+  1655→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><BedDouble className="size-3.5" /> Assign Room</h3>
+  1656→                  <div className="relative mb-2">
+  1657→                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+  1658→                    <Input placeholder="Search rooms..." value={roomSearchFilter} onChange={(e) => setRoomSearchFilter(e.target.value)} className="pl-8 h-8 text-xs" />
+  1659→                  </div>
+  1660→                  <div className="max-h-40 overflow-y-auto space-y-0.5">
+  1661→                    {filteredAvailableRooms.slice(0, 20).map((room) => {
+  1662→                      const isSel = room.id === selectedRoomId
+  1663→                      return (
+  1664→                        <button key={room.id} onClick={() => setSelectedRoomId(room.id)}
+  1665→                          className={cn('w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-left transition-colors', isSel ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>
+  1666→                          <span className="font-mono font-medium w-10">{room.number}</span>
+  1667→                          <span className="flex-1 truncate">{room.type.name}</span>
+  1668→                          <span className="text-muted-foreground">F{room.floor}</span>
+  1669→                        </button>
+  1670→                      )
+  1671→                    })}
+  1672→                    {filteredAvailableRooms.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No available rooms</p>}
+  1673→                  </div>
+  1674→                </div>
+  1675→                <Separator />
+  1676→                <div>
+  1677→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Sparkles className="size-3.5" /> Preferences</h3>
+  1678→                  <div className="grid grid-cols-2 gap-2">
+  1679→                    <label className="flex items-center gap-2 text-xs cursor-pointer"><Checkbox checked={earlyCheckIn} onCheckedChange={(v) => setEarlyCheckIn(!!v)} />Early Check-in</label>
+  1680→                    <Select value={checkOutTime} onValueChange={setCheckOutTime}>
+  1681→                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+  1682→                      <SelectContent>{CHECKOUT_TIME_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+  1683→                    </Select>
+  1684→                    <Select value={roomPreference} onValueChange={setRoomPreference}>
+  1685→                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Room pref." /></SelectTrigger>
+  1686→                      <SelectContent>{ROOM_PREFERENCES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+  1687→                    </Select>
+  1688→                    <Input placeholder="Wake-up call (e.g. 06:00)" value={wakeupCall} onChange={(e) => setWakeupCall(e.target.value)} className="h-8 text-xs" />
+  1689→                  </div>
+  1690→                </div>
+  1691→                <div>
+  1692→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><Wallet className="size-3.5" /> Billing</h3>
+  1693→                  <div className="grid grid-cols-2 gap-2">
+  1694→                    <Input type="number" placeholder="Deposit amount" value={depositAmount} onChange={(e) => setDepositAmount(e.target.value)} className="h-8 text-xs" />
+  1695→                    <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+  1696→                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Payment method" /></SelectTrigger>
+  1697→                      <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+  1698→                    </Select>
+  1699→                  </div>
+  1700→                  <Textarea placeholder="Billing notes..." value={billingNotes} onChange={(e) => setBillingNotes(e.target.value)} className="mt-2 text-xs" rows={2} />
+  1701→                </div>
+  1702→                <Button className="w-full" disabled={!selectedRoomId || !regFirstName} onClick={() => toast.info('Walk-in check-in: select a room and fill guest details first')}>
+  1703→                  <UserCheck className="size-4 mr-1.5" /> Check-In Walk-in Guest
+  1704→                </Button>
+  1705→              </CardContent>
+  1706→            </Card>
+  1707→          )}
+  1708→        </div>
+  1709→
+  1710→        {/* ─── RIGHT PANEL (40%) ────────────────────────────── */}
+  1711→        <div className="lg:col-span-2 flex flex-col min-h-0">
+  1712→          {activeTab === 'find' ? (
+  1713→            /* FIND RESERVATION — RIGHT */
+  1714→            <Card className="flex-1 flex flex-col overflow-hidden">
+  1715→              <CardContent className="p-3 flex-1 overflow-y-auto">
+  1716→                {isWizardActive ? (
+  1717→                  <div className="space-y-3">
+  1718→                    {renderStepIndicator()}
+  1719→                    <div className="min-h-0">{renderStepContent()}</div>
+  1720→                    <div className="flex items-center justify-between pt-2 border-t">
+  1721→                      {currentStep > 1 ? (
+  1722→                        <Button variant="outline" size="sm" onClick={handleBack} disabled={checkInMutation.isPending}><ChevronLeft className="size-3.5 mr-1" /> Back</Button>
+  1723→                      ) : (
+  1724→                        <Button variant="outline" size="sm" onClick={() => { setCurrentStep(0); setSelectedReservationId('') }}><ChevronLeft className="size-3.5 mr-1" /> Cancel</Button>
+  1725→                      )}
+  1726→                      <Button size="sm" onClick={handleNext} disabled={!canGoNext() || (currentStep === 2 && !selectedRoomId) || checkInMutation.isPending}>
+  1727→                        {checkInMutation.isPending ? (<><Loader2 className="size-3.5 mr-1.5 animate-spin" /> Checking In...</>)
+  1728→                          : currentStep === 5 ? (<><Check className="size-3.5 ml-1" /> Done</>)
+  1729→                          : currentStep === 4 ? (<><UserCheck className="size-3.5 mr-1.5" /> Confirm & Check In</>)
+  1730→                          : (<>Next <ChevronRight className="size-3.5 ml-1" /></>)}
+  1731→                      </Button>
+  1732→                    </div>
+  1733→                  </div>
+  1734→                ) : activeReservation ? (
+  1735→                  <div className="space-y-3">
+  1736→                    <div className="flex items-center gap-3">
+  1737→                      <Avatar className="size-10">
+  1738→                        <AvatarFallback className={cn(
+  1739→                          'text-xs font-bold',
+  1740→                          activeReservation.guest?.vipLevel === 'platinum' && 'bg-purple-100 text-purple-700',
+  1741→                          activeReservation.guest?.vipLevel === 'gold' && 'bg-amber-100 text-amber-700',
+  1742→                          activeReservation.guest?.vipLevel === 'silver' && 'bg-gray-200 text-gray-600',
+  1743→                          (!activeReservation.guest?.vipLevel || activeReservation.guest?.vipLevel === 'none') && 'bg-muted text-muted-foreground'
+  1744→                        )}>{activeReservation.guest ? `${activeReservation.guest.firstName[0]}${activeReservation.guest.lastName[0]}` : '?'}</AvatarFallback>
+  1745→                      </Avatar>
+  1746→                      <div className="flex-1 min-w-0">
+  1747→                        <div className="flex items-center gap-2">
+  1748→                          <p className="font-semibold text-sm truncate">{activeReservation.guest ? `${activeReservation.guest.firstName} ${activeReservation.guest.lastName}` : 'Unknown Guest'}</p>
+  1749→                          {activeReservation.guest?.vipLevel && activeReservation.guest.vipLevel !== 'none' && (
+  1750→                            <Badge className="text-[9px] px-1 py-0 bg-amber-100 text-amber-700 border-amber-300"><Star className="size-2 fill-amber-500" /> VIP</Badge>
+  1751→                          )}
+  1752→                        </div>
+  1753→                        <p className="text-[11px] text-muted-foreground font-mono">{activeReservation.confirmationNo}</p>
+  1754→                      </div>
+  1755→                    </div>
+  1756→                    <Separator />
+  1757→                    <div className="grid grid-cols-1 gap-1.5 text-xs">
+  1758→                      {activeReservation.guest?.email && <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="size-3" /> {activeReservation.guest.email}</div>}
+  1759→                      {activeReservation.guest?.phone && <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="size-3" /> {activeReservation.guest.phone}</div>}
+  1760→                      {activeReservation.guest?.nationality && <div className="flex items-center gap-1.5 text-muted-foreground"><Globe className="size-3" /> {activeReservation.guest.nationality}</div>}
+  1761→                      {activeReservation.guest?.idNumber && <div className="flex items-center gap-1.5 text-muted-foreground"><Shield className="size-3" /> {activeReservation.guest.idType?.replace('_', ' ')}: {activeReservation.guest.idNumber}</div>}
+  1762→                    </div>
+  1763→                    <Separator />
+  1764→                    <div className="space-y-1.5 text-xs">
+  1765→                      <div className="flex items-center gap-1.5"><BedDouble className="size-3 text-muted-foreground" /><span className="text-muted-foreground">Room:</span><span className="font-medium">{activeReservation.room ? `${activeReservation.room.number} — ${activeReservation.room.type.name}` : activeReservation.roomTypeId ? getRoomTypeName(activeReservation.roomTypeId) : 'To be assigned'}</span></div>
+  1766→                      <div className="flex items-center gap-1.5"><CalendarDays className="size-3 text-muted-foreground" /><span className="text-muted-foreground">Stay:</span><span className="font-medium">{formatDate(activeReservation.checkIn)} → {formatDate(activeReservation.checkOut)}</span></div>
+  1767→                      <div className="flex items-center gap-1.5"><Banknote className="size-3 text-muted-foreground" /><span className="text-muted-foreground">Rate:</span><span className="font-medium">{formatCurrency(activeReservation.roomRate)}/night</span></div>
+  1768→                      <div className="flex items-center gap-1.5"><User className="size-3 text-muted-foreground" /><span className="text-muted-foreground">Guests:</span><span className="font-medium">{activeReservation.adults} adult{activeReservation.adults !== 1 ? 's' : ''}{activeReservation.children > 0 && `, ${activeReservation.children} child${activeReservation.children !== 1 ? 'ren' : ''}`}</span></div>
+  1769→                      <div className="flex items-center gap-1.5"><Wallet className="size-3 text-muted-foreground" /><span className="text-muted-foreground">Total:</span><span className="font-bold text-sm">{formatCurrency(activeReservation.totalAmount)}</span></div>
+  1770→                    </div>
+  1771→                    {activeReservation.specialRequests && (<><Separator /><div><p className="text-[10px] text-muted-foreground mb-1">Special Requests</p><p className="text-xs italic bg-muted/50 rounded p-2">{activeReservation.specialRequests}</p></div></>)}
+  1772→                    <Button className="w-full mt-2" onClick={() => setCurrentStep(1)}><UserCheck className="size-4 mr-1.5" /> Begin Check-In</Button>
+  1773→                  </div>
+  1774→                ) : (
+  1775→                  <div className="flex flex-col items-center justify-center h-full min-h-[300px] text-muted-foreground">
+  1776→                    <div className="size-16 rounded-full bg-muted/50 flex items-center justify-center mb-3"><FileText className="size-7 opacity-30" /></div>
+  1777→                    <p className="text-sm font-medium">No reservation selected</p>
+  1778→                    <p className="text-xs mt-1">Select a reservation from the list to view details</p>
+  1779→                  </div>
+  1780→                )}
+  1781→              </CardContent>
+  1782→            </Card>
+  1783→          ) : (
+  1784→            /* DIRECT WALK-IN — RIGHT (Room Summary) */
+  1785→            <Card className="flex-1 flex flex-col overflow-hidden">
+  1786→              <CardContent className="p-3 flex flex-col gap-3 flex-1 min-h-0 overflow-y-auto">
+  1787→                <div>
+  1788→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><CalendarDays className="size-3.5" /> Room Status Summary</h3>
+  1789→                  <div className="grid grid-cols-3 gap-2">
+  1790→                    <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/20 p-2.5 text-center">
+  1791→                      <p className="text-lg font-bold text-green-700 dark:text-green-400">{roomStatusSummary.vacant}</p>
+  1792→                      <p className="text-[10px] font-medium text-green-600 dark:text-green-500 uppercase">Vacant</p>
+  1793→                    </div>
+  1794→                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-2.5 text-center">
+  1795→                      <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{roomStatusSummary.occupied}</p>
+  1796→                      <p className="text-[10px] font-medium text-amber-600 dark:text-amber-500 uppercase">Occupied</p>
+  1797→                    </div>
+  1798→                    <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-950/20 p-2.5 text-center">
+  1799→                      <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{roomStatusSummary.reserved}</p>
+  1800→                      <p className="text-[10px] font-medium text-blue-600 dark:text-blue-500 uppercase">Reserved</p>
+  1801→                    </div>
+  1802→                  </div>
+  1803→                  <p className="text-[10px] text-muted-foreground mt-1.5 text-center">{roomStatusSummary.total} total rooms · {roomStatusSummary.vacant} available for check-in</p>
+  1804→                </div>
+  1805→                <Separator />
+  1806→                <div className="flex-1 min-h-0">
+  1807→                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5"><BedDouble className="size-3.5" /> Available Rooms</h3>
+  1808→                  <div className="max-h-[40vh] lg:max-h-none overflow-y-auto space-y-0.5">
+  1809→                    {loadingRooms ? (
+  1810→                      <div className="space-y-1.5">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-full rounded" />)}</div>
+  1811→                    ) : filteredAvailableRooms.length === 0 ? (
+  1812→                      <p className="text-xs text-muted-foreground text-center py-6">No available rooms</p>
+  1813→                    ) : (
+  1814→                      [...roomsByFloor.entries()].map(([floor, rooms]) => (
+  1815→                        <div key={floor}>
+  1816→                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-1 py-1 flex items-center gap-1"><Building className="size-3" /> Floor {floor} <span className="text-muted-foreground/60">({rooms.length})</span></p>
+  1817→                          {rooms.map((room) => {
+  1818→                            const isSel = room.id === selectedRoomId
+  1819→                            return (
+  1820→                              <button key={room.id} onClick={() => setSelectedRoomId(room.id)}
+  1821→                                className={cn('w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors', isSel ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted')}>
+  1822→                                <span className="font-mono font-medium w-10">{room.number}</span>
+  1823→                                <span className="flex-1 truncate text-muted-foreground">{room.type.name}</span>
+  1824→                                <span className="text-muted-foreground/60">{room.type.code}</span>
+  1825→                                {isSel && <Check className="size-3 text-primary" />}
+  1826→                              </button>
+  1827→                            )
+  1828→                          })}
+  1829→                        </div>
+  1830→                      ))
+  1831→                    )}
+  1832→                  </div>
+  1833→                </div>
+  1834→              </CardContent>
+  1835→            </Card>
+  1836→          )}
+  1837→        </div>
+  1838→      </div>
+  1839→
+  1840→      {/* ─── Key Card Dialog ─────────────────────────────────── */}
+  1841→      <Dialog open={keyCardDialogOpen} onOpenChange={setKeyCardDialogOpen}>
+  1842→        <DialogContent className="max-w-sm">
+  1843→          <DialogHeader>
+  1844→            <DialogTitle className="flex items-center gap-2"><KeyRound className="size-5" /> Issue Key Card</DialogTitle>
+  1845→            <DialogDescription>Issue a room key card for the checked-in guest.</DialogDescription>
+  1846→          </DialogHeader>
+  1847→          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+  1848→            <div className="relative mx-auto w-full max-w-[280px] rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 p-4 text-white shadow-lg">
+  1849→              <div className="flex items-center justify-between mb-6">
+  1850→                <div className="text-xs font-medium tracking-wider opacity-70">MERIDIAN HOTEL</div>
+  1851→                <KeyRound className="size-5 opacity-60" />
+  1852→              </div>
+  1853→              <div className="space-y-1">
+  1854→                <p className="text-lg font-bold tracking-wide">{keyCardRoomNumber}</p>
+  1855→                <p className="text-xs opacity-80">{keyCardGuestName}</p>
+  1856→              </div>
+  1857→              <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between text-[10px] opacity-60">
+  1858→                <span>Check-out: {keyCardCheckOut}</span>
+  1859→                <span className="font-mono">{keyCardRoomNumber}</span>
+  1860→              </div>
+  1861→            </div>
+  1862→            <div className="text-sm space-y-1 text-center">
+  1863→              <p className="font-semibold">{keyCardGuestName}</p>
+  1864→              <p className="text-muted-foreground">Room {keyCardRoomNumber}</p>
+  1865→              <p className="text-muted-foreground">Check-out: {keyCardCheckOut}</p>
+  1866→            </div>
+  1867→          </div>
+  1868→          <DialogFooter>
+  1869→            <Button variant="outline" onClick={() => setKeyCardDialogOpen(false)}>Skip</Button>
+  1870→            <Button onClick={() => { setKeyCardIssued(true); setKeyCardDialogOpen(false); setCurrentStep(5); toast.success(`Key card issued for Room ${keyCardRoomNumber}`, { description: 'Guest has been notified via welcome letter.', icon: <Mail className="size-4" />, duration: 5000 }) }}>
+  1871→              <KeyRound className="size-4 mr-1.5" /> Issue Key Card
+  1872→            </Button>
+  1873→          </DialogFooter>
+  1874→        </DialogContent>
+  1875→      </Dialog>
+  1876→    </div>
+  1877→  )
+  1878→}
+  1879→

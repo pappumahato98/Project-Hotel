@@ -24,7 +24,7 @@ import { Separator } from '@/components/ui/separator'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   PackageOpen, Plus, Search, Filter, Package, Hand, Gift, Trash2,
-  CalendarDays, MapPin, User, Warehouse
+  CalendarDays, MapPin, User, Warehouse, Eye, Camera, X, Check, AlertCircle,
 } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn } from '@/lib/utils'
@@ -43,6 +43,8 @@ interface LostFoundItem {
   claimedBy: string | null
   claimDate: string | null
   status: string
+  identityVerified: boolean
+  claimAttachment: string | null
   createdAt: string
 }
 
@@ -62,6 +64,122 @@ const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> =
   disposed: Trash2,
 }
 
+// ── View Item Dialog ─────────────────────────────────────────
+function ViewItemDialog({ item, open, onOpenChange }: { item: LostFoundItem | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+  if (!item) return null
+  const StatusIcon = STATUS_ICON[item.status] || Package
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <StatusIcon className="h-5 w-5 text-primary" />
+            {item.itemName}
+          </DialogTitle>
+          <DialogDescription>
+            {formatCategory(item.category)} · {item.status === 'found' ? 'Unclaimed' : item.status === 'claimed' ? 'Claimed' : item.status}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          {/* Description */}
+          {item.description && (
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Description</p>
+              <p>{item.description}</p>
+            </div>
+          )}
+
+          {/* Found Details */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Found By</p>
+              <p className="font-medium flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                {item.foundBy}
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Found Date & Time</p>
+              <p className="font-medium flex items-center gap-1.5">
+                <CalendarDays className="h-3.5 w-3.5" />
+                {format(new Date(item.foundDate), 'MMM d, yyyy · hh:mm a')}
+              </p>
+            </div>
+            {item.roomId && (
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground mb-1">Room</p>
+                <p className="font-medium flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {item.roomId}
+                </p>
+              </div>
+            )}
+            {item.storageLocation && (
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground mb-1">Storage Location</p>
+                <p className="font-medium flex items-center gap-1.5">
+                  <Warehouse className="h-3.5 w-3.5" />
+                  {item.storageLocation}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Claim Details (if claimed) */}
+          {item.status === 'claimed' && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <p className="font-semibold text-green-600 flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  Claim Details
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Claimed By</p>
+                    <p className="font-medium flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      {item.claimedBy}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Claim Date</p>
+                    <p className="font-medium flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {item.claimDate ? format(new Date(item.claimDate), 'MMM d, yyyy · hh:mm a') : '—'}
+                    </p>
+                  </div>
+                </div>
+                <div className={cn(
+                  'flex items-center gap-2 rounded-lg border p-3',
+                  item.identityVerified ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+                )}>
+                  {item.identityVerified ? (
+                    <Check className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                  )}
+                  <span className={cn('text-sm font-medium', item.identityVerified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400')}>
+                    {item.identityVerified ? 'Identity verified with ID' : 'Identity NOT verified'}
+                  </span>
+                </div>
+                {item.claimAttachment && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground font-medium">ID Proof Attachment</p>
+                    <div className="rounded-lg border overflow-hidden max-w-[300px]">
+                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ── Main Component ───────────────────────────────────────────
 export function LostFoundView() {
   const queryClient = useQueryClient()
@@ -70,6 +188,7 @@ export function LostFoundView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [claimOpen, setClaimOpen] = useState(false)
+  const [viewOpen, setViewOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<LostFoundItem | null>(null)
 
   // Add form state
@@ -86,6 +205,7 @@ export function LostFoundView() {
   const [claimForm, setClaimForm] = useState({
     claimedBy: '',
     identityVerified: false,
+    claimAttachment: '' as string, // base64 of ID photo
   })
 
   const { data, isLoading } = useQuery<LostFoundItem[]>({
@@ -119,18 +239,42 @@ export function LostFoundView() {
     return true
   })
 
-  const handleAddItem = () => {
-    toast.success(`Found item "${addForm.itemName}" reported successfully`)
-    setAddOpen(false)
-    setAddForm({ itemName: '', category: 'other', roomId: '', storageLocation: '', foundBy: '', description: '' })
-  }
+  const addMutation = useMutation({
+    mutationFn: (params: typeof addForm) =>
+      apiFetch('/api/housekeeping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create-lost-found', ...params }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lost-found'] })
+      toast.success(`Found item "${addForm.itemName}" reported successfully`)
+      setAddOpen(false)
+      setAddForm({ itemName: '', category: 'other', roomId: '', storageLocation: '', foundBy: '', description: '' })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to report item')
+    },
+  })
 
-  const handleClaimItem = () => {
-    toast.success(`Item "${selectedItem?.itemName}" claimed by ${claimForm.claimedBy}`)
-    setClaimOpen(false)
-    setClaimForm({ claimedBy: '', identityVerified: false })
-    setSelectedItem(null)
-  }
+  const claimMutation = useMutation({
+    mutationFn: (params: { id: string; claimedBy: string; identityVerified: boolean; claimAttachment: string }) =>
+      apiFetch('/api/housekeeping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'claim-lost-found', ...params }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lost-found'] })
+      toast.success(`Item "${selectedItem?.itemName}" claimed successfully`)
+      setClaimOpen(false)
+      setClaimForm({ claimedBy: '', identityVerified: false, claimAttachment: '' })
+      setSelectedItem(null)
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to claim item')
+    },
+  })
 
   if (isLoading) {
     return (
@@ -215,6 +359,7 @@ export function LostFoundView() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[50px]"></TableHead>
                 <TableHead className="w-[100px]">Date Found</TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead className="hidden md:table-cell">Category</TableHead>
@@ -222,13 +367,12 @@ export function LostFoundView() {
                 <TableHead className="hidden lg:table-cell">Found By</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Storage</TableHead>
-                <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredItems.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                     <PackageOpen className="h-8 w-8 mx-auto opacity-20 mb-2" />
                     <p>No items found</p>
                   </TableCell>
@@ -237,8 +381,22 @@ export function LostFoundView() {
                 filteredItems.map((item) => {
                   const StatusIcon = STATUS_ICON[item.status] || Package
                   return (
-                    <TableRow key={item.id}>
-                      <TableCell className="text-xs">
+                    <TableRow key={item.id} className="cursor-pointer" onDoubleClick={() => { setSelectedItem(item); setViewOpen(true) }}>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => { setSelectedItem(item); setViewOpen(true) }} title="View Details">
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                          {item.status === 'found' && (
+                            <Button variant="outline" size="sm" className="h-7 text-xs"
+                              onClick={() => { setSelectedItem(item); setClaimOpen(true) }}>
+                              Claim
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs" onClick={(e) => e.stopPropagation()}>
                         {format(new Date(item.foundDate), 'MMM d')}
                       </TableCell>
                       <TableCell>
@@ -269,21 +427,6 @@ export function LostFoundView() {
                       <TableCell className="hidden lg:table-cell text-xs">
                         {item.storageLocation || '—'}
                       </TableCell>
-                      <TableCell>
-                        {item.status === 'found' && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => {
-                              setSelectedItem(item)
-                              setClaimOpen(true)
-                            }}
-                          >
-                            Claim
-                          </Button>
-                        )}
-                      </TableCell>
                     </TableRow>
                   )
                 })
@@ -293,9 +436,12 @@ export function LostFoundView() {
         </ScrollArea>
       </Card>
 
+      {/* View Item Dialog */}
+      <ViewItemDialog item={selectedItem} open={viewOpen} onOpenChange={setViewOpen} />
+
       {/* Add Found Item Dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-w-[calc(100vw-1rem)]">
           <DialogHeader>
             <DialogTitle>Report Found Item</DialogTitle>
             <DialogDescription>
@@ -362,24 +508,24 @@ export function LostFoundView() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddItem} disabled={!addForm.itemName || !addForm.foundBy}>
-              Submit Report
+            <Button onClick={() => addMutation.mutate(addForm)} disabled={!addForm.itemName || !addForm.foundBy || addMutation.isPending}>
+              {addMutation.isPending ? 'Submitting...' : 'Submit Report'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Claim Item Dialog */}
-      <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
-        <DialogContent className="sm:max-w-md">
+      {selectedItem && <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
+        <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)] max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
           <DialogHeader>
             <DialogTitle>Claim Item</DialogTitle>
             <DialogDescription>
-              {selectedItem && `Process claim for "${selectedItem.itemName}"`}
+              {`Process claim for "${selectedItem.itemName}"`}
             </DialogDescription>
           </DialogHeader>
-          {selectedItem && (
-            <div className="space-y-4">
+          <ScrollArea className="flex-1 min-h-0 overflow-y-auto px-6">
+            <div className="space-y-4 py-4">
               <div className="rounded-lg border p-3 space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
@@ -417,16 +563,62 @@ export function LostFoundView() {
                   <span className="text-sm">Identity verified with ID</span>
                 </label>
               </div>
+
+              {claimForm.identityVerified && (
+              <div className="space-y-2">
+                <Label>ID Proof Attachment</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    id="claim-attachment"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        setClaimForm((f) => ({ ...f, claimAttachment: reader.result as string }))
+                      }
+                      reader.readAsDataURL(file)
+                    }}
+                  />
+                  <Button type="button" variant="outline" className="gap-2" onClick={() => document.getElementById('claim-attachment')?.click()}>
+                    <Camera className="h-4 w-4" />
+                    {claimForm.claimAttachment ? 'Change Photo' : 'Capture/Upload ID'}
+                  </Button>
+                  {claimForm.claimAttachment && (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-red-500"
+                      onClick={() => setClaimForm((f) => ({ ...f, claimAttachment: '' }))}>
+                      <X className="h-3 w-3 mr-1" /> Remove
+                    </Button>
+                  )}
+                </div>
+                {claimForm.claimAttachment && (
+                  <div className="rounded-md border overflow-hidden max-w-[200px]">
+                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Take a photo or upload the claimant&apos;s ID for verification</p>
+              </div>
+              )}
             </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
-            <Button onClick={handleClaimItem} disabled={!claimForm.claimedBy || !claimForm.identityVerified}>
-              Confirm Claim
-            </Button>
-          </DialogFooter>
+          </ScrollArea>
+          <div className="shrink-0 px-6 pb-4 pt-2 border-t">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
+              <Button onClick={() => claimMutation.mutate({
+                id: selectedItem.id,
+                claimedBy: claimForm.claimedBy,
+                identityVerified: claimForm.identityVerified,
+                claimAttachment: claimForm.claimAttachment,
+              })} disabled={!claimForm.claimedBy || !claimForm.identityVerified || claimMutation.isPending}>
+                {claimMutation.isPending ? 'Processing...' : 'Confirm Claim'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
-      </Dialog>
+      </Dialog>}
     </div>
   )
 }

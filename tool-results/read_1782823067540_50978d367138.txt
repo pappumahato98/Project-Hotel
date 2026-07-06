@@ -1,0 +1,895 @@
+     1→'use client'
+     2→
+     3→import { toast } from 'sonner'
+     4→import { useState, useMemo } from 'react'
+     5→import { useQuery, useQueryClient } from '@tanstack/react-query'
+     6→import { apiFetch } from '@/lib/api'
+     7→import { Card, CardContent } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Input } from '@/components/ui/input'
+    11→import { Label } from '@/components/ui/label'
+    12→import { Textarea } from '@/components/ui/textarea'
+    13→import {
+    14→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    15→} from '@/components/ui/table'
+    16→import {
+    17→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    18→} from '@/components/ui/select'
+    19→import {
+    20→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+    21→} from '@/components/ui/dialog'
+    22→import {
+    23→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    24→} from '@/components/ui/alert-dialog'
+    25→import { Skeleton } from '@/components/ui/skeleton'
+    26→import { ScrollArea } from '@/components/ui/scroll-area'
+    27→import { Separator } from '@/components/ui/separator'
+    28→import {
+    29→  FileText, Plus, Eye, Search, CheckCircle, XCircle, Truck,
+    30→  Clock, DollarSign, AlertCircle, Package, ThumbsUp, ThumbsDown,
+    31→  MinusCircle, PlusCircle, CalendarDays,
+    32→} from 'lucide-react'
+    33→import { cn, formatNPR } from '@/lib/utils'
+    34→
+    35→// ── Types ────────────────────────────────────────────────────
+    36→interface Vendor {
+    37→  id: string
+    38→  name: string
+    39→}
+    40→
+    41→interface POItem {
+    42→  name: string
+    43→  quantity: number
+    44→  unitPrice: number
+    45→  unit: string
+    46→}
+    47→
+    48→interface PurchaseOrder {
+    49→  id: string
+    50→  poNumber: string
+    51→  vendor: string
+    52→  vendorId: string
+    53→  date: string
+    54→  items: POItem[]
+    55→  totalAmount: number
+    56→  priority: string
+    57→  status: string
+    58→  expectedDelivery: string
+    59→  notes?: string
+    60→  terms?: string
+    61→  approvedBy?: string
+    62→  approvedAt?: string
+    63→  createdAt: string
+    64→}
+    65→
+    66→const PRIORITIES = ['High', 'Normal', 'Low']
+    67→
+    68→const EMPTY_PO_ITEM: POItem = { name: '', quantity: 1, unitPrice: 0, unit: 'pcs' }
+    69→
+    70→const EMPTY_PO_FORM = {
+    71→  vendorId: '',
+    72→  priority: 'Normal',
+    73→  expectedDelivery: '',
+    74→  notes: '',
+    75→  terms: '',
+    76→  items: [{ ...EMPTY_PO_ITEM }],
+    77→}
+    78→
+    79→type POForm = typeof EMPTY_PO_FORM
+    80→
+    81→// ── Status workflow ──────────────────────────────────────────
+    82→const STATUS_WORKFLOW: Record<string, string[]> = {
+    83→  draft: ['pending', 'cancelled'],
+    84→  pending: ['approved', 'cancelled'],
+    85→  approved: ['ordered', 'cancelled'],
+    86→  ordered: ['partial', 'delivered', 'cancelled'],
+    87→  partial: ['delivered', 'cancelled'],
+    88→  delivered: [],
+    89→  cancelled: [],
+    90→}
+    91→
+    92→// ── Status / Priority badge colors ────────────────────────────
+    93→const STATUS_COLORS: Record<string, string> = {
+    94→  draft: 'border-gray-300 bg-gray-100 text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400',
+    95→  pending: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
+    96→  approved: 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300',
+    97→  ordered: 'border-purple-300 bg-purple-50 text-purple-700 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300',
+    98→  partial: 'border-cyan-300 bg-cyan-50 text-cyan-700 dark:border-cyan-800 dark:bg-cyan-950 dark:text-cyan-300',
+    99→  delivered: 'border-green-300 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300',
+   100→  cancelled: 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
+   101→}
+   102→
+   103→const PRIORITY_COLORS: Record<string, string> = {
+   104→  high: 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300',
+   105→  normal: 'border-gray-300 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400',
+   106→  low: 'border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300',
+   107→}
+   108→
+   109→// ── Static Mock Data ─────────────────────────────────────────
+   110→const MOCK_PURCHASE_ORDERS: PurchaseOrder[] = [
+   111→  {
+   112→    id: 'po-001', poNumber: 'PO-2024-001', vendor: 'Nepal Hospitality Supplies', vendorId: 'v1',
+   113→    date: '2024-12-01T10:00:00Z', expectedDelivery: '2024-12-10',
+   114→    items: [
+   115→      { name: 'Bath Towels (White)', quantity: 200, unitPrice: 350, unit: 'pcs' },
+   116→      { name: 'Bed Sheets (King)', quantity: 100, unitPrice: 800, unit: 'pcs' },
+   117→      { name: 'Pillow Covers', quantity: 150, unitPrice: 200, unit: 'pcs' },
+   118→    ],
+   119→    totalAmount: 200 * 350 + 100 * 800 + 150 * 200,
+   120→    priority: 'high', status: 'delivered', notes: 'Urgent restock for peak season', terms: 'Net 30',
+   121→    approvedBy: 'Admin', approvedAt: '2024-12-02T09:00:00Z', createdAt: '2024-12-01T10:00:00Z',
+   122→  },
+   123→  {
+   124→    id: 'po-002', poNumber: 'PO-2024-002', vendor: 'Kathmandu Fresh Foods', vendorId: 'v2',
+   125→    date: '2024-12-05T08:30:00Z', expectedDelivery: '2024-12-08',
+   126→    items: [
+   127→      { name: 'Coffee Beans (Arabica)', quantity: 20, unitPrice: 1200, unit: 'kg' },
+   128→      { name: 'Tea Leaves (Organic)', quantity: 10, unitPrice: 800, unit: 'kg' },
+   129→      { name: 'Sugar', quantity: 50, unitPrice: 90, unit: 'kg' },
+   130→    ],
+   131→    totalAmount: 20 * 1200 + 10 * 800 + 50 * 90,
+   132→    priority: 'high', status: 'delivered', terms: 'Net 15', approvedBy: 'Admin', approvedAt: '2024-12-05T14:00:00Z', createdAt: '2024-12-05T08:30:00Z',
+   133→  },
+   134→  {
+   135→    id: 'po-003', poNumber: 'PO-2024-003', vendor: 'CleanPro Nepal', vendorId: 'v3',
+   136→    date: '2024-12-10T11:00:00Z', expectedDelivery: '2024-12-18',
+   137→    items: [
+   138→      { name: 'Shampoo Bottles (500ml)', quantity: 300, unitPrice: 120, unit: 'pcs' },
+   139→      { name: 'Body Lotion (200ml)', quantity: 300, unitPrice: 150, unit: 'pcs' },
+   140→      { name: 'Soap Bars', quantity: 500, unitPrice: 45, unit: 'pcs' },
+   141→      { name: 'Dental Kits', quantity: 200, unitPrice: 60, unit: 'pcs' },
+   142→    ],
+   143→    totalAmount: 300 * 120 + 300 * 150 + 500 * 45 + 200 * 60,
+   144→    priority: 'normal', status: 'partial', notes: 'Partial delivery received, awaiting remaining items', terms: 'Net 30',
+   145→    approvedBy: 'Admin', approvedAt: '2024-12-11T09:00:00Z', createdAt: '2024-12-10T11:00:00Z',
+   146→  },
+   147→  {
+   148→    id: 'po-004', poNumber: 'PO-2024-004', vendor: 'Thamel Tech Solutions', vendorId: 'v4',
+   149→    date: '2024-12-12T09:15:00Z', expectedDelivery: '2024-12-20',
+   150→    items: [
+   151→      { name: 'LED Bulbs (Warm White)', quantity: 100, unitPrice: 250, unit: 'pcs' },
+   152→      { name: 'AC Filters', quantity: 20, unitPrice: 1500, unit: 'pcs' },
+   153→    ],
+   154→    totalAmount: 100 * 250 + 20 * 1500,
+   155→    priority: 'low', status: 'ordered', terms: 'Net 45', approvedBy: 'Admin', approvedAt: '2024-12-13T10:00:00Z', createdAt: '2024-12-12T09:15:00Z',
+   156→  },
+   157→  {
+   158→    id: 'po-005', poNumber: 'PO-2024-005', vendor: 'Everest Linen House', vendorId: 'v5',
+   159→    date: '2024-12-14T14:00:00Z', expectedDelivery: '2024-12-22',
+   160→    items: [
+   161→      { name: 'Duvet Covers (Queen)', quantity: 80, unitPrice: 1200, unit: 'pcs' },
+   162→      { name: 'Fitted Sheets (Double)', quantity: 120, unitPrice: 650, unit: 'pcs' },
+   163→      { name: 'Blankets (Winter)', quantity: 60, unitPrice: 1800, unit: 'pcs' },
+   164→    ],
+   165→    totalAmount: 80 * 1200 + 120 * 650 + 60 * 1800,
+   166→    priority: 'normal', status: 'approved', terms: 'Net 30', approvedBy: 'Admin', approvedAt: '2024-12-15T08:00:00Z', createdAt: '2024-12-14T14:00:00Z',
+   167→  },
+   168→  {
+   169→    id: 'po-006', poNumber: 'PO-2024-006', vendor: 'Nepal Hospitality Supplies', vendorId: 'v1',
+   170→    date: '2024-12-15T10:30:00Z', expectedDelivery: '2024-12-25',
+   171→    items: [
+   172→      { name: 'Bathrobes', quantity: 50, unitPrice: 900, unit: 'pcs' },
+   173→      { name: 'Slippers (Disposable)', quantity: 500, unitPrice: 35, unit: 'pcs' },
+   174→      { name: 'Laundry Bags', quantity: 200, unitPrice: 80, unit: 'pcs' },
+   175→    ],
+   176→    totalAmount: 50 * 900 + 500 * 35 + 200 * 80,
+   177→    priority: 'normal', status: 'pending', notes: 'For New Year season preparation', terms: 'Net 30', createdAt: '2024-12-15T10:30:00Z',
+   178→  },
+   179→  {
+   180→    id: 'po-007', poNumber: 'PO-2024-007', vendor: 'Kathmandu Fresh Foods', vendorId: 'v2',
+   181→    date: '2024-12-16T07:00:00Z', expectedDelivery: '2024-12-19',
+   182→    items: [
+   183→      { name: 'Chicken Breast (Boneless)', quantity: 30, unitPrice: 650, unit: 'kg' },
+   184→      { name: 'Fresh Vegetables (Mixed)', quantity: 50, unitPrice: 120, unit: 'kg' },
+   185→      { name: 'Cooking Oil (Sunflower)', quantity: 40, unitPrice: 220, unit: 'ltr' },
+   186→      { name: 'Rice (Basmati)', quantity: 100, unitPrice: 150, unit: 'kg' },
+   187→    ],
+   188→    totalAmount: 30 * 650 + 50 * 120 + 40 * 220 + 100 * 150,
+   189→    priority: 'high', status: 'pending', notes: 'Weekly kitchen restock', terms: 'COD', createdAt: '2024-12-16T07:00:00Z',
+   190→  },
+   191→  {
+   192→    id: 'po-008', poNumber: 'PO-2024-008', vendor: 'CleanPro Nepal', vendorId: 'v3',
+   193→    date: '2024-12-17T13:00:00Z', expectedDelivery: '2024-12-28',
+   194→    items: [
+   195→      { name: 'Floor Cleaner (5L)', quantity: 20, unitPrice: 450, unit: 'pcs' },
+   196→      { name: 'Glass Cleaner', quantity: 30, unitPrice: 180, unit: 'pcs' },
+   197→    ],
+   198→    totalAmount: 20 * 450 + 30 * 180,
+   199→    priority: 'low', status: 'draft', terms: 'Net 30', createdAt: '2024-12-17T13:00:00Z',
+   200→  },
+   201→  {
+   202→    id: 'po-009', poNumber: 'PO-2024-009', vendor: 'Pokhara Paints & Hardware', vendorId: 'v6',
+   203→    date: '2024-12-08T09:00:00Z', expectedDelivery: '2024-12-15',
+   204→    items: [
+   205→      { name: 'Wall Paint (White 20L)', quantity: 10, unitPrice: 3500, unit: 'pcs' },
+   206→      { name: 'Paint Brushes (Set)', quantity: 15, unitPrice: 500, unit: 'set' },
+   207→      { name: 'Plumber Tape', quantity: 20, unitPrice: 150, unit: 'pcs' },
+   208→    ],
+   209→    totalAmount: 10 * 3500 + 15 * 500 + 20 * 150,
+   210→    priority: 'normal', status: 'cancelled', notes: 'Cancelled — project postponed', terms: 'Net 30',
+   211→    approvedBy: 'Admin', approvedAt: '2024-12-09T11:00:00Z', createdAt: '2024-12-08T09:00:00Z',
+   212→  },
+   213→  {
+   214→    id: 'po-010', poNumber: 'PO-2024-010', vendor: 'Everest Linen House', vendorId: 'v5',
+   215→    date: '2024-12-18T08:00:00Z', expectedDelivery: '2024-12-30',
+   216→    items: [
+   217→      { name: 'Pool Towels', quantity: 40, unitPrice: 600, unit: 'pcs' },
+   218→      { name: 'Spa Robes', quantity: 20, unitPrice: 1500, unit: 'pcs' },
+   219→      { name: 'Hand Towels', quantity: 100, unitPrice: 250, unit: 'pcs' },
+   220→    ],
+   221→    totalAmount: 40 * 600 + 20 * 1500 + 100 * 250,
+   222→    priority: 'normal', status: 'pending', terms: 'Net 30', createdAt: '2024-12-18T08:00:00Z',
+   223→  },
+   224→]
+   225→
+   226→// ── API helpers ──────────────────────────────────────────────
+   227→function fetchInventory() {
+   228→  return apiFetch('/api/inventory')
+   229→}
+   230→
+   231→function fetchVendors() {
+   232→  return apiFetch('/api/vendors')
+   233→}
+   234→
+   235→// ── Component ────────────────────────────────────────────────
+   236→export function PurchaseOrdersView() {
+   237→  const queryClient = useQueryClient()
+   238→  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(MOCK_PURCHASE_ORDERS)
+   239→  const [searchQuery, setSearchQuery] = useState('')
+   240→  const [statusFilter, setStatusFilter] = useState('all')
+   241→  const [vendorFilter, setVendorFilter] = useState('all')
+   242→
+   243→  // Dialog states
+   244→  const [createOpen, setCreateOpen] = useState(false)
+   245→  const [viewOpen, setViewOpen] = useState(false)
+   246→  const [approveOpen, setApproveOpen] = useState(false)
+   247→  const [rejectOpen, setRejectOpen] = useState(false)
+   248→  const [statusChangeOpen, setStatusChangeOpen] = useState(false)
+   249→  const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null)
+   250→  const [nextStatus, setNextStatus] = useState('')
+   251→  const [form, setForm] = useState<POForm>(EMPTY_PO_FORM)
+   252→
+   253→  // ── Queries ─────────────────────────────────────────────────
+   254→  const { data: vendorsData } = useQuery({
+   255→    queryKey: ['vendors'],
+   256→    queryFn: fetchVendors,
+   257→  })
+   258→
+   259→  const vendors: Vendor[] = useMemo(() => {
+   260→    const apiVendors = vendorsData?.vendors?.map((v: { id: string; name: string }) => ({ id: v.id, name: v.name })) || []
+   261→    // Merge mock vendor names not in API
+   262→    const mockVendorNames = ['CleanPro Nepal', 'Thamel Tech Solutions', 'Pokhara Paints & Hardware']
+   263→    const existingNames = new Set(apiVendors.map((v: Vendor) => v.name))
+   264→    mockVendorNames.forEach((name) => {
+   265→      if (!existingNames.has(name)) {
+   266→        apiVendors.push({ id: `mock-${name.toLowerCase().replace(/\s+/g, '-')}`, name })
+   267→      }
+   268→    })
+   269→    return apiVendors
+   270→  }, [vendorsData])
+   271→
+   272→  // ── Filtering ────────────────────────────────────────────────
+   273→  const filteredPOs = useMemo(() => {
+   274→    return purchaseOrders.filter((po) => {
+   275→      if (statusFilter !== 'all' && po.status !== statusFilter) return false
+   276→      if (vendorFilter !== 'all' && po.vendorId !== vendorFilter && po.vendor !== vendorFilter) return false
+   277→      if (!searchQuery) return true
+   278→      const q = searchQuery.toLowerCase()
+   279→      return po.poNumber.toLowerCase().includes(q) || po.vendor.toLowerCase().includes(q)
+   280→    })
+   281→  }, [purchaseOrders, searchQuery, statusFilter, vendorFilter])
+   282→
+   283→  // ── Summary stats ──────────────────────────────────────────
+   284→  const summaryStats = useMemo(() => {
+   285→    const totalPOs = purchaseOrders.length
+   286→    const pendingApproval = purchaseOrders.filter((po) => po.status === 'pending').length
+   287→    const inTransit = purchaseOrders.filter((po) => po.status === 'ordered' || po.status === 'partial').length
+   288→    const totalValue = purchaseOrders.reduce((sum, po) => sum + po.totalAmount, 0)
+   289→    return { totalPOs, pendingApproval, inTransit, totalValue }
+   290→  }, [purchaseOrders])
+   291→
+   292→  // ── Helpers ─────────────────────────────────────────────────
+   293→  const openCreate = () => {
+   294→    setForm(EMPTY_PO_FORM)
+   295→    setCreateOpen(true)
+   296→  }
+   297→
+   298→  const openView = (po: PurchaseOrder) => {
+   299→    setSelectedPO(po)
+   300→    setViewOpen(true)
+   301→  }
+   302→
+   303→  const openApprove = (po: PurchaseOrder) => {
+   304→    setSelectedPO(po)
+   305→    setApproveOpen(true)
+   306→  }
+   307→
+   308→  const openReject = (po: PurchaseOrder) => {
+   309→    setSelectedPO(po)
+   310→    setRejectOpen(true)
+   311→  }
+   312→
+   313→  const openStatusChange = (po: PurchaseOrder, status: string) => {
+   314→    setSelectedPO(po)
+   315→    setNextStatus(status)
+   316→    setStatusChangeOpen(true)
+   317→  }
+   318→
+   319→  const updateFormItems = (newItems: POItem[]) => {
+   320→    setForm((f) => ({ ...f, items: newItems }))
+   321→  }
+   322→
+   323→  const updatePOStatus = (poId: string, newStatus: string, approvedBy?: string) => {
+   324→    setPurchaseOrders((prev) =>
+   325→      prev.map((po) =>
+   326→        po.id === poId
+   327→          ? {
+   328→              ...po,
+   329→              status: newStatus,
+   330→              ...(approvedBy ? { approvedBy, approvedAt: new Date().toISOString() } : {}),
+   331→            }
+   332→          : po
+   333→      )
+   334→    )
+   335→    toast.success(`PO updated to ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`)
+   336→  }
+   337→
+   338→  const getNextStatuses = (po: PurchaseOrder): string[] => {
+   339→    return STATUS_WORKFLOW[po.status] || []
+   340→  }
+   341→
+   342→  // ── Handle Create ──────────────────────────────────────────
+   343→  const handleCreate = () => {
+   344→    const vendor = vendors.find((v) => v.id === form.vendorId)
+   345→    if (!vendor || form.items.every((i) => !i.name)) return
+   346→
+   347→    const newPO: PurchaseOrder = {
+   348→      id: `po-${Date.now()}`,
+   349→      poNumber: `PO-2024-${String(purchaseOrders.length + 1).padStart(3, '0')}`,
+   350→      vendor: vendor.name,
+   351→      vendorId: vendor.id,
+   352→      date: new Date().toISOString(),
+   353→      expectedDelivery: form.expectedDelivery || '',
+   354→      items: form.items.filter((i) => i.name),
+   355→      totalAmount: form.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+   356→      priority: form.priority.toLowerCase(),
+   357→      status: 'draft',
+   358→      notes: form.notes || undefined,
+   359→      terms: form.terms || undefined,
+   360→      createdAt: new Date().toISOString(),
+   361→    }
+   362→
+   363→    setPurchaseOrders((prev) => [newPO, ...prev])
+   364→    setCreateOpen(false)
+   365→    setForm(EMPTY_PO_FORM)
+   366→    toast.success('Purchase Order created successfully')
+   367→  }
+   368→
+   369→  // ── Render ─────────────────────────────────────────────────
+   370→  return (
+   371→    <div className="space-y-2">
+   372→      {/* Header */}
+   373→      <div className="flex items-center justify-between">
+   374→        <div>
+   375→          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Purchase Orders</h1>
+   376→          <p className="text-xs text-muted-foreground">Manage purchase orders and track deliveries</p>
+   377→        </div>
+   378→        <div className="flex items-center gap-2">
+   379→          <Badge variant="outline" className="text-[11px]">
+   380→            {summaryStats.totalPOs} orders
+   381→          </Badge>
+   382→          <Button className="gap-1" onClick={openCreate}>
+   383→            <Plus className="h-4 w-4" />
+   384→            Create New PO
+   385→          </Button>
+   386→        </div>
+   387→      </div>
+   388→
+   389→      {/* Summary Cards */}
+   390→      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+   391→        <Card className="p-2.5">
+   392→          <div className="flex items-center gap-2">
+   393→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-950">
+   394→              <FileText className="h-5 w-5 text-blue-600" />
+   395→            </div>
+   396→            <div>
+   397→              <p className="text-xs text-muted-foreground">Total POs</p>
+   398→              <p className="text-lg font-bold">{summaryStats.totalPOs}</p>
+   399→            </div>
+   400→          </div>
+   401→        </Card>
+   402→        <Card className="p-2.5">
+   403→          <div className="flex items-center gap-2">
+   404→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-950">
+   405→              <Clock className="h-5 w-5 text-amber-600" />
+   406→            </div>
+   407→            <div>
+   408→              <p className="text-xs text-muted-foreground">Pending Approval</p>
+   409→              <p className="text-lg font-bold text-amber-600">{summaryStats.pendingApproval}</p>
+   410→            </div>
+   411→          </div>
+   412→        </Card>
+   413→        <Card className="p-2.5">
+   414→          <div className="flex items-center gap-2">
+   415→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-950">
+   416→              <Truck className="h-5 w-5 text-purple-600" />
+   417→            </div>
+   418→            <div>
+   419→              <p className="text-xs text-muted-foreground">In Transit</p>
+   420→              <p className="text-lg font-bold text-purple-600">{summaryStats.inTransit}</p>
+   421→            </div>
+   422→          </div>
+   423→        </Card>
+   424→        <Card className="p-2.5">
+   425→          <div className="flex items-center gap-2">
+   426→            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-950">
+   427→              <DollarSign className="h-5 w-5 text-green-600" />
+   428→            </div>
+   429→            <div>
+   430→              <p className="text-xs text-muted-foreground">Total PO Value</p>
+   431→              <p className="text-lg font-bold">{formatNPR(summaryStats.totalValue)}</p>
+   432→            </div>
+   433→          </div>
+   434→        </Card>
+   435→      </div>
+   436→
+   437→      {/* Filters */}
+   438→      <div className="flex flex-wrap items-center gap-2">
+   439→        <div className="relative flex-1 min-w-[200px] max-w-sm">
+   440→          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+   441→          <Input
+   442→            placeholder="Search by PO # or vendor..."
+   443→            value={searchQuery}
+   444→            onChange={(e) => setSearchQuery(e.target.value)}
+   445→            className="h-7 text-xs pl-9"
+   446→          />
+   447→        </div>
+   448→        <Select value={statusFilter} onValueChange={setStatusFilter}>
+   449→          <SelectTrigger className="w-[130px] h-7 text-xs">
+   450→            <SelectValue placeholder="Status" />
+   451→          </SelectTrigger>
+   452→          <SelectContent>
+   453→            <SelectItem value="all">All Status</SelectItem>
+   454→            <SelectItem value="draft">Draft</SelectItem>
+   455→            <SelectItem value="pending">Pending</SelectItem>
+   456→            <SelectItem value="approved">Approved</SelectItem>
+   457→            <SelectItem value="ordered">Ordered</SelectItem>
+   458→            <SelectItem value="partial">Partial</SelectItem>
+   459→            <SelectItem value="delivered">Delivered</SelectItem>
+   460→            <SelectItem value="cancelled">Cancelled</SelectItem>
+   461→          </SelectContent>
+   462→        </Select>
+   463→        <Select value={vendorFilter} onValueChange={setVendorFilter}>
+   464→          <SelectTrigger className="w-[160px] h-7 text-xs">
+   465→            <SelectValue placeholder="Vendor" />
+   466→          </SelectTrigger>
+   467→          <SelectContent>
+   468→            <SelectItem value="all">All Vendors</SelectItem>
+   469→            {vendors.map((v) => (
+   470→              <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+   471→            ))}
+   472→          </SelectContent>
+   473→        </Select>
+   474→      </div>
+   475→
+   476→      {/* PO Table */}
+   477→      <Card className="py-0">
+   478→        <CardContent className="p-0">
+   479→          <ScrollArea className="max-h-[500px]">
+   480→            <Table>
+   481→              <TableHeader>
+   482→                <TableRow>
+   483→                  <TableHead>PO #</TableHead>
+   484→                  <TableHead>Vendor</TableHead>
+   485→                  <TableHead className="hidden md:table-cell">Date</TableHead>
+   486→                  <TableHead className="text-center">Items</TableHead>
+   487→                  <TableHead className="text-right">Total</TableHead>
+   488→                  <TableHead className="hidden sm:table-cell">Priority</TableHead>
+   489→                  <TableHead>Status</TableHead>
+   490→                  <TableHead className="hidden lg:table-cell">Expected Delivery</TableHead>
+   491→                  <TableHead className="w-[140px]">Actions</TableHead>
+   492→                </TableRow>
+   493→              </TableHeader>
+   494→              <TableBody>
+   495→                {filteredPOs.length === 0 ? (
+   496→                  <TableRow>
+   497→                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+   498→                      No purchase orders found.
+   499→                    </TableCell>
+   500→                  </TableRow>
+   501→                ) : (
+   502→                  filteredPOs.map((po) => (
+   503→                    <TableRow key={po.id}>
+   504→                      <TableCell className="font-mono text-xs font-medium">{po.poNumber}</TableCell>
+   505→                      <TableCell className="text-xs font-medium">{po.vendor}</TableCell>
+   506→                      <TableCell className="hidden md:table-cell text-xs">
+   507→                        {new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+   508→                      </TableCell>
+   509→                      <TableCell className="text-center">
+   510→                        <div className="flex items-center justify-center gap-1">
+   511→                          <Package className="h-3 w-3 text-muted-foreground" />
+   512→                          <span className="text-sm font-medium">{po.items.length}</span>
+   513→                        </div>
+   514→                      </TableCell>
+   515→                      <TableCell className="text-right font-medium text-xs">{formatNPR(po.totalAmount)}</TableCell>
+   516→                      <TableCell className="hidden sm:table-cell">
+   517→                        <Badge variant="outline" className={PRIORITY_COLORS[po.priority] ?? ''}>
+   518→                          <span className="capitalize">{po.priority}</span>
+   519→                        </Badge>
+   520→                      </TableCell>
+   521→                      <TableCell>
+   522→                        <Badge variant="outline" className={STATUS_COLORS[po.status] ?? ''}>
+   523→                          <span className="capitalize">{po.status}</span>
+   524→                        </Badge>
+   525→                      </TableCell>
+   526→                      <TableCell className="hidden lg:table-cell text-xs">
+   527→                        {po.expectedDelivery
+   528→                          ? new Date(po.expectedDelivery).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+   529→                          : '—'}
+   530→                      </TableCell>
+   531→                      <TableCell>
+   532→                        <div className="flex items-center gap-1">
+   533→                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openView(po)} title="View Details">
+   534→                            <Eye className="h-3.5 w-3.5" />
+   535→                          </Button>
+   536→                          {po.status === 'pending' && (
+   537→                            <>
+   538→                              <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600 hover:text-green-700" onClick={() => openApprove(po)} title="Approve">
+   539→                                <ThumbsUp className="h-3.5 w-3.5" />
+   540→                              </Button>
+   541→                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-600" onClick={() => openReject(po)} title="Reject">
+   542→                                <ThumbsDown className="h-3.5 w-3.5" />
+   543→                              </Button>
+   544→                            </>
+   545→                          )}
+   546→                          {getNextStatuses(po).length > 0 && po.status !== 'pending' && (
+   547→                            getNextStatuses(po).map((s) => (
+   548→                              <Button
+   549→                                key={s}
+   550→                                variant="ghost"
+   551→                                size="icon"
+   552→                                className={cn(
+   553→                                  'h-7 w-7',
+   554→                                  s === 'delivered' && 'text-green-600 hover:text-green-700',
+   555→                                  s === 'cancelled' && 'text-red-500 hover:text-red-600',
+   556→                                  s === 'ordered' && 'text-purple-600 hover:text-purple-700',
+   557→                                  s === 'partial' && 'text-cyan-600 hover:text-cyan-700',
+   558→                                )}
+   559→                                onClick={() => openStatusChange(po, s)}
+   560→                                title={`Mark as ${s.charAt(0).toUpperCase() + s.slice(1)}`}
+   561→                              >
+   562→                                {s === 'delivered' && <CheckCircle className="h-3.5 w-3.5" />}
+   563→                                {s === 'cancelled' && <XCircle className="h-3.5 w-3.5" />}
+   564→                                {s === 'ordered' && <Truck className="h-3.5 w-3.5" />}
+   565→                                {s === 'partial' && <Package className="h-3.5 w-3.5" />}
+   566→                                {s === 'pending' && <Clock className="h-3.5 w-3.5" />}
+   567→                              </Button>
+   568→                            ))
+   569→                          )}
+   570→                        </div>
+   571→                      </TableCell>
+   572→                    </TableRow>
+   573→                  ))
+   574→                )}
+   575→              </TableBody>
+   576→            </Table>
+   577→          </ScrollArea>
+   578→        </CardContent>
+   579→      </Card>
+   580→
+   581→      {/* ── Create PO Dialog ──────────────────────────────────── */}
+   582→      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   583→        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+   584→          <DialogHeader>
+   585→            <DialogTitle>Create New Purchase Order</DialogTitle>
+   586→            <DialogDescription>Add a new purchase order with item details.</DialogDescription>
+   587→          </DialogHeader>
+   588→          <div className="space-y-4">
+   589→            <div className="grid gap-4 sm:grid-cols-2">
+   590→              <div className="space-y-2 sm:col-span-2">
+   591→                <Label>Vendor *</Label>
+   592→                <Select value={form.vendorId} onValueChange={(v) => setForm((f) => ({ ...f, vendorId: v }))}>
+   593→                  <SelectTrigger>
+   594→                    <SelectValue placeholder="Select vendor" />
+   595→                  </SelectTrigger>
+   596→                  <SelectContent>
+   597→                    {vendors.map((v) => (
+   598→                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+   599→                    ))}
+   600→                  </SelectContent>
+   601→                </Select>
+   602→              </div>
+   603→              <div className="space-y-2">
+   604→                <Label>Priority *</Label>
+   605→                <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}>
+   606→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   607→                  <SelectContent>
+   608→                    {PRIORITIES.map((p) => (
+   609→                      <SelectItem key={p} value={p}>{p}</SelectItem>
+   610→                    ))}
+   611→                  </SelectContent>
+   612→                </Select>
+   613→              </div>
+   614→              <div className="space-y-2">
+   615→                <Label>Expected Delivery</Label>
+   616→                <Input
+   617→                  type="date"
+   618→                  value={form.expectedDelivery}
+   619→                  onChange={(e) => setForm((f) => ({ ...f, expectedDelivery: e.target.value }))}
+   620→                />
+   621→              </div>
+   622→            </div>
+   623→
+   624→            {/* Items list */}
+   625→            <div className="space-y-3">
+   626→              <div className="flex items-center justify-between">
+   627→                <Label className="text-sm font-medium">Order Items *</Label>
+   628→                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={() => updateFormItems([...form.items, { ...EMPTY_PO_ITEM }])}>
+   629→                  <PlusCircle className="h-3 w-3" /> Add Item
+   630→                </Button>
+   631→              </div>
+   632→              {form.items.map((item, idx) => (
+   633→                <div key={idx} className="flex items-start gap-2">
+   634→                  <div className="flex-1 space-y-2">
+   635→                    <div className="grid grid-cols-[1fr_70px_90px_60px] gap-2">
+   636→                      <Input placeholder="Item name" value={item.name} onChange={(e) => {
+   637→                        const newItems = [...form.items]
+   638→                        newItems[idx] = { ...newItems[idx], name: e.target.value }
+   639→                        updateFormItems(newItems)
+   640→                      }} />
+   641→                      <Input type="number" placeholder="Qty" min="1" value={item.quantity || ''} onChange={(e) => {
+   642→                        const newItems = [...form.items]
+   643→                        newItems[idx] = { ...newItems[idx], quantity: Math.max(1, Number(e.target.value)) }
+   644→                        updateFormItems(newItems)
+   645→                      }} />
+   646→                      <Input type="number" placeholder="Price" step="0.01" value={item.unitPrice || ''} onChange={(e) => {
+   647→                        const newItems = [...form.items]
+   648→                        newItems[idx] = { ...newItems[idx], unitPrice: Math.max(0, Number(e.target.value)) }
+   649→                        updateFormItems(newItems)
+   650→                      }} />
+   651→                      <Input placeholder="Unit" value={item.unit} onChange={(e) => {
+   652→                        const newItems = [...form.items]
+   653→                        newItems[idx] = { ...newItems[idx], unit: e.target.value }
+   654→                        updateFormItems(newItems)
+   655→                      }} />
+   656→                    </div>
+   657→                  </div>
+   658→                  {form.items.length > 1 && (
+   659→                    <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0 mt-1" onClick={() => {
+   660→                      updateFormItems(form.items.filter((_, i) => i !== idx))
+   661→                    }}>
+   662→                      <MinusCircle className="h-3.5 w-3.5" />
+   663→                    </Button>
+   664→                  )}
+   665→                </div>
+   666→              ))}
+   667→              {/* Total preview */}
+   668→              {form.items.some((i) => i.name) && (
+   669→                <div className="flex justify-end pt-2 border-t">
+   670→                  <div className="text-sm">
+   671→                    <span className="text-muted-foreground">Estimated Total: </span>
+   672→                    <span className="font-bold">{formatNPR(form.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0))}</span>
+   673→                  </div>
+   674→                </div>
+   675→              )}
+   676→            </div>
+   677→
+   678→            <div className="space-y-2">
+   679→              <Label>Payment Terms</Label>
+   680→              <Input placeholder="e.g., Net 30, COD" value={form.terms} onChange={(e) => setForm((f) => ({ ...f, terms: e.target.value }))} />
+   681→            </div>
+   682→            <div className="space-y-2">
+   683→              <Label>Notes</Label>
+   684→              <Textarea placeholder="Additional notes or instructions..." value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} rows={3} />
+   685→            </div>
+   686→          </div>
+   687→          <DialogFooter>
+   688→            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+   689→            <Button onClick={handleCreate} disabled={!form.vendorId || !form.items.some((i) => i.name)}>
+   690→              Create PO
+   691→            </Button>
+   692→          </DialogFooter>
+   693→        </DialogContent>
+   694→      </Dialog>
+   695→
+   696→      {/* ── View PO Details Dialog ────────────────────────────── */}
+   697→      <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+   698→        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+   699→          <DialogHeader>
+   700→            <DialogTitle>Purchase Order Details</DialogTitle>
+   701→            <DialogDescription>Full purchase order information.</DialogDescription>
+   702→          </DialogHeader>
+   703→          {selectedPO && (
+   704→            <div className="space-y-4">
+   705→              <div className="grid gap-3 sm:grid-cols-2 text-sm">
+   706→                <div>
+   707→                  <span className="text-muted-foreground">PO #:</span>{' '}
+   708→                  <span className="font-mono font-medium">{selectedPO.poNumber}</span>
+   709→                </div>
+   710→                <div>
+   711→                  <span className="text-muted-foreground">Date:</span>{' '}
+   712→                  <span>{new Date(selectedPO.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+   713→                </div>
+   714→                <div>
+   715→                  <span className="text-muted-foreground">Vendor:</span>{' '}
+   716→                  <span className="font-medium">{selectedPO.vendor}</span>
+   717→                </div>
+   718→                <div>
+   719→                  <span className="text-muted-foreground">Priority:</span>{' '}
+   720→                  <Badge variant="outline" className={PRIORITY_COLORS[selectedPO.priority] ?? ''}>
+   721→                    <span className="capitalize">{selectedPO.priority}</span>
+   722→                  </Badge>
+   723→                </div>
+   724→                <div>
+   725→                  <span className="text-muted-foreground">Status:</span>{' '}
+   726→                  <Badge variant="outline" className={STATUS_COLORS[selectedPO.status] ?? ''}>
+   727→                    <span className="capitalize">{selectedPO.status}</span>
+   728→                  </Badge>
+   729→                </div>
+   730→                <div>
+   731→                  <span className="text-muted-foreground">Expected Delivery:</span>{' '}
+   732→                  <span className="flex items-center gap-1">
+   733→                    <CalendarDays className="h-3 w-3 text-muted-foreground" />
+   734→                    {selectedPO.expectedDelivery
+   735→                      ? new Date(selectedPO.expectedDelivery).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+   736→                      : 'Not set'}
+   737→                  </span>
+   738→                </div>
+   739→                {selectedPO.terms && (
+   740→                  <div>
+   741→                    <span className="text-muted-foreground">Payment Terms:</span>{' '}
+   742→                    <span>{selectedPO.terms}</span>
+   743→                  </div>
+   744→                )}
+   745→              </div>
+   746→
+   747→              <Separator />
+   748→
+   749→              {/* Items breakdown */}
+   750→              <div>
+   751→                <h4 className="text-sm font-medium mb-2">Items ({selectedPO.items.length})</h4>
+   752→                <Table>
+   753→                  <TableHeader>
+   754→                    <TableRow>
+   755→                      <TableHead>Item</TableHead>
+   756→                      <TableHead className="text-center">Qty</TableHead>
+   757→                      <TableHead className="hidden sm:table-cell">Unit</TableHead>
+   758→                      <TableHead className="text-right">Unit Price</TableHead>
+   759→                      <TableHead className="text-right">Subtotal</TableHead>
+   760→                    </TableRow>
+   761→                  </TableHeader>
+   762→                  <TableBody>
+   763→                    {selectedPO.items.map((item, idx) => (
+   764→                      <TableRow key={idx}>
+   765→                        <TableCell className="text-sm font-medium">{item.name}</TableCell>
+   766→                        <TableCell className="text-center text-sm">{item.quantity}</TableCell>
+   767→                        <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{item.unit}</TableCell>
+   768→                        <TableCell className="text-right text-sm">{formatNPR(item.unitPrice)}</TableCell>
+   769→                        <TableCell className="text-right text-sm font-medium">{formatNPR(item.quantity * item.unitPrice)}</TableCell>
+   770→                      </TableRow>
+   771→                    ))}
+   772→                  </TableBody>
+   773→                </Table>
+   774→                <div className="flex justify-end mt-2 border-t pt-2">
+   775→                  <div className="text-sm">
+   776→                    <span className="text-muted-foreground">Total: </span>
+   777→                    <span className="text-lg font-bold">{formatNPR(selectedPO.totalAmount)}</span>
+   778→                  </div>
+   779→                </div>
+   780→              </div>
+   781→
+   782→              {selectedPO.notes && (
+   783→                <>
+   784→                  <Separator />
+   785→                  <div>
+   786→                    <h4 className="text-sm font-medium mb-1">Notes</h4>
+   787→                    <p className="text-sm text-muted-foreground">{selectedPO.notes}</p>
+   788→                  </div>
+   789→                </>
+   790→              )}
+   791→
+   792→              {(selectedPO.approvedBy || selectedPO.approvedAt) && (
+   793→                <>
+   794→                  <Separator />
+   795→                  <div className="text-sm space-y-1">
+   796→                    <h4 className="font-medium">Approval History</h4>
+   797→                    {selectedPO.approvedBy && (
+   798→                      <p><span className="text-muted-foreground">Approved By:</span> {selectedPO.approvedBy}</p>
+   799→                    )}
+   800→                    {selectedPO.approvedAt && (
+   801→                      <p><span className="text-muted-foreground">Approved At:</span> {new Date(selectedPO.approvedAt).toLocaleString()}</p>
+   802→                    )}
+   803→                  </div>
+   804→                </>
+   805→              )}
+   806→            </div>
+   807→          )}
+   808→          <DialogFooter>
+   809→            <Button variant="outline" onClick={() => setViewOpen(false)}>Close</Button>
+   810→          </DialogFooter>
+   811→        </DialogContent>
+   812→      </Dialog>
+   813→
+   814→      {/* ── Approve Confirmation Dialog ────────────────────────── */}
+   815→      <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
+   816→        <AlertDialogContent>
+   817→          <AlertDialogHeader>
+   818→            <AlertDialogTitle>Approve Purchase Order</AlertDialogTitle>
+   819→            <AlertDialogDescription>
+   820→              Are you sure you want to approve PO {selectedPO?.poNumber} for {selectedPO?.vendor}? This will move the order to &ldquo;Approved&rdquo; status.
+   821→            </AlertDialogDescription>
+   822→          </AlertDialogHeader>
+   823→          <AlertDialogFooter>
+   824→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   825→            <AlertDialogAction
+   826→              className="bg-green-600 hover:bg-green-700"
+   827→              onClick={() => {
+   828→                if (selectedPO) updatePOStatus(selectedPO.id, 'approved', 'Admin')
+   829→                setApproveOpen(false)
+   830→                setSelectedPO(null)
+   831→              }}
+   832→            >
+   833→              Approve
+   834→            </AlertDialogAction>
+   835→          </AlertDialogFooter>
+   836→        </AlertDialogContent>
+   837→      </AlertDialog>
+   838→
+   839→      {/* ── Reject Confirmation Dialog ────────────────────────── */}
+   840→      <AlertDialog open={rejectOpen} onOpenChange={setRejectOpen}>
+   841→        <AlertDialogContent>
+   842→          <AlertDialogHeader>
+   843→            <AlertDialogTitle>Reject Purchase Order</AlertDialogTitle>
+   844→            <AlertDialogDescription>
+   845→              Are you sure you want to reject PO {selectedPO?.poNumber} for {selectedPO?.vendor}? This will cancel the purchase order.
+   846→            </AlertDialogDescription>
+   847→          </AlertDialogHeader>
+   848→          <AlertDialogFooter>
+   849→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   850→            <AlertDialogAction
+   851→              className="bg-red-600 hover:bg-red-700"
+   852→              onClick={() => {
+   853→                if (selectedPO) updatePOStatus(selectedPO.id, 'cancelled')
+   854→                setRejectOpen(false)
+   855→                setSelectedPO(null)
+   856→              }}
+   857→            >
+   858→              Reject
+   859→            </AlertDialogAction>
+   860→          </AlertDialogFooter>
+   861→        </AlertDialogContent>
+   862→      </AlertDialog>
+   863→
+   864→      {/* ── Status Change Confirmation Dialog ──────────────────── */}
+   865→      <AlertDialog open={statusChangeOpen} onOpenChange={setStatusChangeOpen}>
+   866→        <AlertDialogContent>
+   867→          <AlertDialogHeader>
+   868→            <AlertDialogTitle>Update Purchase Order Status</AlertDialogTitle>
+   869→            <AlertDialogDescription>
+   870→              Are you sure you want to update PO {selectedPO?.poNumber} to &ldquo;{nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}&rdquo;?
+   871→            </AlertDialogDescription>
+   872→          </AlertDialogHeader>
+   873→          <AlertDialogFooter>
+   874→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   875→            <AlertDialogAction
+   876→              className={cn(
+   877→                nextStatus === 'cancelled' && 'bg-red-600 hover:bg-red-700',
+   878→                nextStatus === 'delivered' && 'bg-green-600 hover:bg-green-700',
+   879→                nextStatus !== 'cancelled' && nextStatus !== 'delivered' && '',
+   880→              )}
+   881→              onClick={() => {
+   882→                if (selectedPO) updatePOStatus(selectedPO.id, nextStatus)
+   883→                setStatusChangeOpen(false)
+   884→                setSelectedPO(null)
+   885→              }}
+   886→            >
+   887→              Confirm
+   888→            </AlertDialogAction>
+   889→          </AlertDialogFooter>
+   890→        </AlertDialogContent>
+   891→      </AlertDialog>
+   892→    </div>
+   893→  )
+   894→}
+   895→

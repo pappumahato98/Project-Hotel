@@ -21,7 +21,7 @@ export function HousekeepingModule() {
     : 'tasks'
 
   return (
-    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col gap-2 p-3 sm:p-6 overflow-y-auto">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Housekeeping</h1>
@@ -36,11 +36,11 @@ export function HousekeepingModule() {
         onValueChange={(v) => navigateTo('housekeeping', v)}
         className="flex-1"
       >
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-grid">
+        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-grid h-9 sm:h-10">
           {HOUSEKEEPING_TABS.map((tab) => (
-            <TabsTrigger key={tab.id} value={tab.id} className="gap-2">
-              <tab.icon className="h-4 w-4" />
-              <span className="hidden sm:inline">{tab.label}</span>
+            <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5 sm:gap-2">
+              <tab.icon className="h-4 w-4 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline text-xs">{tab.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>

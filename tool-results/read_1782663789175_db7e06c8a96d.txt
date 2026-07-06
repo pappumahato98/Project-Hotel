@@ -1,0 +1,1494 @@
+     1→'use client'
+     2→
+     3→import * as React from 'react'
+     4→import { apiFetch } from '@/lib/api'
+     5→import {
+     6→  UserCircle, Mail, Phone, Calendar, MapPin, Globe, CreditCard,
+     7→  Shield, Bell, History, Save, Upload, Eye, EyeOff, Lock,
+     8→  Monitor, CheckCircle2, XCircle, Clock,
+     9→  Building2, Briefcase, User, ChevronRight, AlertTriangle,
+    10→  LogOut, RefreshCw, Wifi,
+    11→} from 'lucide-react'
+    12→import { useTheme } from 'next-themes'
+    13→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    14→import { toast } from 'sonner'
+    15→import { useAuthStore, usePreferencesStore } from '@/lib/store'
+    16→import { usePropertyStore } from '@/lib/store'
+    17→import { useSettingsStore } from '@/lib/store'
+    18→
+    19→import { cn } from '@/lib/utils'
+    20→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    21→import {
+    22→  Card, CardContent, CardDescription, CardHeader, CardTitle,
+    23→} from '@/components/ui/card'
+    24→import { Input } from '@/components/ui/input'
+    25→import { Label } from '@/components/ui/label'
+    26→import { Button } from '@/components/ui/button'
+    27→import {
+    28→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    29→} from '@/components/ui/select'
+    30→import { Badge } from '@/components/ui/badge'
+    31→import { Separator } from '@/components/ui/separator'
+    32→import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+    33→import { Switch } from '@/components/ui/switch'
+    34→import {
+    35→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    36→} from '@/components/ui/table'
+    37→import { ScrollArea } from '@/components/ui/scroll-area'
+    38→import { Skeleton } from '@/components/ui/skeleton'
+    39→
+    40→// ─── Helpers ────────────────────────────────────────────────────
+    41→// Use shared formatDateLong and formatDateTime from @/lib/format (en-GB/DD-MM-YYYY)
+    42→// Re-export for convenience since component references them as formatDate/formatDateTime
+    43→const formatDate = (dateStr: string | null | undefined): string => {
+    44→  if (!dateStr) return '—'
+    45→  try {
+    46→    const d = new Date(dateStr)
+    47→    if (isNaN(d.getTime())) return dateStr ?? ''
+    48→    return d.toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })
+    49→  } catch {
+    50→    return dateStr ?? ''
+    51→  }
+    52→}
+    53→
+    54→const formatDateTime = (dateStr: string | null | undefined): string => {
+    55→  if (!dateStr) return '—'
+    56→  try {
+    57→    const d = new Date(dateStr)
+    58→    if (isNaN(d.getTime())) return dateStr ?? ''
+    59→    return d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    60→  } catch {
+    61→    return dateStr ?? ''
+    62→  }
+    63→}
+    64→
+    65→function toDateInputValue(dateStr: string | null | undefined): string {
+    66→  if (!dateStr) return ''
+    67→  try {
+    68→    const d = new Date(dateStr)
+    69→    if (isNaN(d.getTime())) return ''
+    70→    return d.toISOString().split('T')[0]
+    71→  } catch {
+    72→    return ''
+    73→  }
+    74→}
+    75→
+    76→// ─── Profile Module ────────────────────────────────────────────
+    77→export function ProfileModule() {
+    78→  const { user } = useAuthStore()
+    79→  const initials = user
+    80→    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
+    81→    : 'U'
+    82→
+    83→  return (
+    84→    <div className="flex-1 min-h-0 flex flex-col">
+    85→      {/* Page Header */}
+    86→      <div className="shrink-0 border-b bg-background px-6 py-4">
+    87→        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+    88→          <Avatar className="h-14 w-14 border-2 border-violet-200 bg-violet-50">
+    89→            <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.firstName} />
+    90→            <AvatarFallback className="bg-violet-100 text-violet-700 text-lg font-semibold">
+    91→              {initials}
+    92→            </AvatarFallback>
+    93→          </Avatar>
+    94→          <div className="flex-1">
+    95→            <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+    96→              <UserCircle className="h-4 w-4 text-violet-600" />
+    97→              My Profile
+    98→            </h1>
+    99→            <p className="text-xs text-muted-foreground">
+   100→              Manage your personal information, security settings, and preferences
+   101→            </p>
+   102→          </div>
+   103→          <Badge variant="outline" className="w-fit border-violet-200 bg-violet-50 text-violet-700">
+   104→            {(user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '') || 'Staff'}
+   105→          </Badge>
+   106→        </div>
+   107→      </div>
+   108→
+   109→      {/* Tabs Content */}
+   110→      <div className="flex-1 min-h-0 overflow-y-auto">
+   111→        <Tabs defaultValue="personal" className="w-full">
+   112→          <div className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 pt-2">
+   113→            <TabsList className="w-full justify-start overflow-x-auto h-auto gap-1 p-0 bg-transparent">
+   114→              <ProfileTabTrigger value="personal" icon={User} label="Personal Information" />
+   115→              <ProfileTabTrigger value="employment" icon={Briefcase} label="Employment Details" />
+   116→              <ProfileTabTrigger value="security" icon={Shield} label="Security" />
+   117→              <ProfileTabTrigger value="preferences" icon={Bell} label="Preferences" />
+   118→              <ProfileTabTrigger value="activity" icon={History} label="Activity Log" />
+   119→            </TabsList>
+   120→          </div>
+   121→
+   122→          <div className="p-4 pb-16">
+   123→            <TabsContent value="personal" className="mt-0">
+   124→              <PersonalInfoTab />
+   125→            </TabsContent>
+   126→            <TabsContent value="employment" className="mt-0">
+   127→              <EmploymentDetailsTab />
+   128→            </TabsContent>
+   129→            <TabsContent value="security" className="mt-0">
+   130→              <SecurityTab />
+   131→            </TabsContent>
+   132→            <TabsContent value="preferences" className="mt-0">
+   133→              <PreferencesTab />
+   134→            </TabsContent>
+   135→            <TabsContent value="activity" className="mt-0">
+   136→              <ActivityLogTab />
+   137→            </TabsContent>
+   138→          </div>
+   139→        </Tabs>
+   140→      </div>
+   141→    </div>
+   142→  )
+   143→}
+   144→
+   145→// ─── Custom Tab Trigger ────────────────────────────────────────
+   146→function ProfileTabTrigger({
+   147→  value, icon: Icon, label,
+   148→}: { value: string; icon: React.ComponentType<{ className?: string }>; label: string }) {
+   149→  return (
+   150→    <TabsTrigger
+   151→      value={value}
+   152→      className="relative flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm whitespace-nowrap"
+   153→    >
+   154→      <Icon className="h-4 w-4" />
+   155→      <span className="hidden sm:inline">{label}</span>
+   156→    </TabsTrigger>
+   157→  )
+   158→}
+   159→
+   160→// ─── Info Row (read-only display) ───────────────────────────────
+   161→function InfoRow({ icon: Icon, label, value, color }: {
+   162→  icon: React.ComponentType<{ className?: string }>
+   163→  label: string
+   164→  value: React.ReactNode
+   165→  color?: string
+   166→}) {
+   167→  return (
+   168→    <div className="flex items-start gap-3 py-3">
+   169→      <div className={cn(
+   170→        'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/50',
+   171→        color ?? 'text-violet-600',
+   172→      )}>
+   173→        <Icon className="h-4 w-4" />
+   174→      </div>
+   175→      <div className="flex-1 min-w-0">
+   176→        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+   177→        <span className="text-sm font-medium truncate block">{value ?? '—'}</span>
+   178→      </div>
+   179→    </div>
+   180→  )
+   181→}
+   182→
+   183→// ─── Tab 1: Personal Information ──────────────────────────────
+   184→function PersonalInfoTab() {
+   185→  const { user, updateUser } = useAuthStore()
+   186→  const queryClient = useQueryClient()
+   187→
+   188→  const [formData, setFormData] = React.useState({
+   189→    firstName: user?.firstName ?? '',
+   190→    lastName: user?.lastName ?? '',
+   191→    email: user?.email ?? '',
+   192→    phone: user?.phone ?? '',
+   193→    dateOfBirth: toDateInputValue(user?.dateOfBirth),
+   194→    gender: user?.gender ?? '',
+   195→    address: user?.address ?? '',
+   196→    city: user?.city ?? '',
+   197→    country: user?.country ?? '',
+   198→    nationality: user?.nationality ?? '',
+   199→    idType: user?.idType ?? '',
+   200→    idNumber: user?.idNumber ?? '',
+   201→  })
+   202→
+   203→  const fileInputRef = React.useRef<HTMLInputElement>(null)
+   204→
+   205→  const profileMutation = useMutation({
+   206→    mutationFn: async (data: Record<string, unknown>) => {
+   207→      return apiFetch('/api/auth/profile', {
+   208→        method: 'PUT',
+   209→        headers: { 'Content-Type': 'application/json' },
+   210→        body: JSON.stringify({ userId: user?.id, ...data }),
+   211→      })
+   212→    },
+   213→    onSuccess: (_data, variables) => {
+   214→      // Update Zustand store with the changed values (convert nulls properly)
+   215→      const updates: Record<string, unknown> = {}
+   216→      for (const [key, val] of Object.entries(variables)) {
+   217→        updates[key] = val
+   218→      }
+   219→      updateUser(updates)
+   220→
+   221→      // Sync form data
+   222→      if (variables.firstName !== undefined) {
+   223→        setFormData((prev) => ({
+   224→          ...prev,
+   225→          firstName: (variables.firstName as string) || prev.firstName,
+   226→          lastName: (variables.lastName as string) || prev.lastName,
+   227→          email: (variables.email as string) || prev.email,
+   228→          phone: (variables.phone as string) ?? prev.phone,
+   229→          dateOfBirth: (variables.dateOfBirth as string) ?? prev.dateOfBirth,
+   230→          gender: (variables.gender as string) ?? prev.gender,
+   231→          address: (variables.address as string) ?? prev.address,
+   232→          city: (variables.city as string) ?? prev.city,
+   233→          country: (variables.country as string) ?? prev.country,
+   234→          nationality: (variables.nationality as string) ?? prev.nationality,
+   235→          idType: (variables.idType as string) ?? prev.idType,
+   236→          idNumber: (variables.idNumber as string) ?? prev.idNumber,
+   237→        }))
+   238→      }
+   239→
+   240→      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+   241→      toast.success('Profile updated successfully')
+   242→    },
+   243→    onError: (error) => {
+   244→      toast.error(error.message || 'Failed to update profile')
+   245→    },
+   246→  })
+   247→
+   248→  const handleChange = (field: string, value: string) => {
+   249→    setFormData((prev) => ({ ...prev, [field]: value }))
+   250→  }
+   251→
+   252→  const handleSave = () => {
+   253→    // Only send fields that have actually changed from the original user data
+   254→    const payload: Record<string, unknown> = {}
+   255→    const original = user || {}
+   256→    const allFields = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address', 'city', 'country', 'nationality', 'idType', 'idNumber'] as const
+   257→    for (const field of allFields) {
+   258→      const currentVal = formData[field] || null
+   259→      const originalVal = field === 'dateOfBirth' ? toDateInputValue(original[field] as string | null | undefined) : (original[field] ?? '')
+   260→      if (currentVal !== originalVal) {
+   261→        payload[field] = currentVal === '' ? null : currentVal
+   262→      }
+   263→    }
+   264→    if (Object.keys(payload).length > 0) {
+   265→      profileMutation.mutate(payload)
+   266→    } else {
+   267→      toast.info('No changes to save')
+   268→    }
+   269→  }
+   270→
+   271→  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+   272→    const file = e.target.files?.[0]
+   273→    if (!file) return
+   274→
+   275→    // Validate file size (max 2MB)
+   276→    if (file.size > 2 * 1024 * 1024) {
+   277→      toast.error('File size must be less than 2MB')
+   278→      return
+   279→    }
+   280→
+   281→    // Validate file type
+   282→    if (!file.type.startsWith('image/')) {
+   283→      toast.error('Please select an image file')
+   284→      return
+   285→    }
+   286→
+   287→    const reader = new FileReader()
+   288→    reader.onload = () => {
+   289→      const dataUrl = reader.result as string
+   290→      profileMutation.mutate({ avatarUrl: dataUrl })
+   291→    }
+   292→    reader.readAsDataURL(file)
+   293→
+   294→    // Reset input
+   295→    if (fileInputRef.current) {
+   296→      fileInputRef.current.value = ''
+   297→    }
+   298→  }
+   299→
+   300→  const initials = user
+   301→    ? `${(user.firstName || '').charAt(0)}${(user.lastName || '').charAt(0)}`
+   302→    : 'U'
+   303→
+   304→  return (
+   305→    <div className="space-y-4">
+   306→      {/* Avatar Card */}
+   307→      <Card>
+   308→        <CardHeader>
+   309→          <CardTitle className="text-sm">Profile Photo</CardTitle>
+   310→          <CardDescription>Your profile photo is displayed across the system</CardDescription>
+   311→        </CardHeader>
+   312→        <CardContent>
+   313→          <div className="flex items-center gap-4">
+   314→            <Avatar className="h-20 w-20 border-2 border-violet-200 bg-violet-50">
+   315→              <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.firstName} />
+   316→              <AvatarFallback className="bg-violet-100 text-violet-700 text-xl font-bold">
+   317→                {initials}
+   318→              </AvatarFallback>
+   319→            </Avatar>
+   320→            <div className="space-y-2">
+   321→              <Button
+   322→                variant="outline"
+   323→                size="sm"
+   324→                onClick={() => fileInputRef.current?.click()}
+   325→                disabled={profileMutation.isPending}
+   326→              >
+   327→                <Upload className="mr-2 h-4 w-4" />
+   328→                Upload Photo
+   329→              </Button>
+   330→              <input
+   331→                ref={fileInputRef}
+   332→                type="file"
+   333→                accept="image/*"
+   334→                className="hidden"
+   335→                onChange={handlePhotoUpload}
+   336→              />
+   337→              <p className="text-xs text-muted-foreground">
+   338→                JPG, PNG or GIF. Max 2MB. Recommended 200×200px.
+   339→              </p>
+   340→            </div>
+   341→          </div>
+   342→        </CardContent>
+   343→      </Card>
+   344→
+   345→      {/* Basic Info */}
+   346→      <Card>
+   347→        <CardHeader>
+   348→          <CardTitle className="text-sm">Basic Information</CardTitle>
+   349→          <CardDescription>Your personal and contact details</CardDescription>
+   350→        </CardHeader>
+   351→        <CardContent className="space-y-4">
+   352→          <div className="grid gap-3 sm:grid-cols-2">
+   353→            <div className="space-y-2">
+   354→              <Label htmlFor="firstName">First Name</Label>
+   355→              <Input
+   356→                id="firstName"
+   357→                value={formData.firstName}
+   358→                onChange={(e) => handleChange('firstName', e.target.value)}
+   359→                placeholder="Enter first name"
+   360→              />
+   361→            </div>
+   362→            <div className="space-y-2">
+   363→              <Label htmlFor="lastName">Last Name</Label>
+   364→              <Input
+   365→                id="lastName"
+   366→                value={formData.lastName}
+   367→                onChange={(e) => handleChange('lastName', e.target.value)}
+   368→                placeholder="Enter last name"
+   369→              />
+   370→            </div>
+   371→          </div>
+   372→
+   373→          <div className="grid gap-3 sm:grid-cols-2">
+   374→            <div className="space-y-2">
+   375→              <Label htmlFor="email">Email Address</Label>
+   376→              <Input
+   377→                id="email"
+   378→                type="email"
+   379→                value={formData.email}
+   380→                onChange={(e) => handleChange('email', e.target.value)}
+   381→                placeholder="name@hotel.com"
+   382→              />
+   383→            </div>
+   384→            <div className="space-y-2">
+   385→              <Label htmlFor="phone">Phone Number</Label>
+   386→              <Input
+   387→                id="phone"
+   388→                type="tel"
+   389→                value={formData.phone}
+   390→                onChange={(e) => handleChange('phone', e.target.value)}
+   391→                placeholder="+977-98XXXXXXXX"
+   392→              />
+   393→            </div>
+   394→          </div>
+   395→
+   396→          <Separator />
+   397→
+   398→          <div className="grid gap-3 sm:grid-cols-2">
+   399→            <div className="space-y-2">
+   400→              <Label htmlFor="dob">Date of Birth</Label>
+   401→              <Input
+   402→                id="dob"
+   403→                type="date"
+   404→                value={formData.dateOfBirth}
+   405→                onChange={(e) => handleChange('dateOfBirth', e.target.value)}
+   406→              />
+   407→            </div>
+   408→            <div className="space-y-2">
+   409→              <Label htmlFor="gender">Gender</Label>
+   410→              <Select
+   411→                value={formData.gender}
+   412→                onValueChange={(value) => handleChange('gender', value)}
+   413→              >
+   414→                <SelectTrigger id="gender">
+   415→                  <SelectValue placeholder="Select gender" />
+   416→                </SelectTrigger>
+   417→                <SelectContent>
+   418→                  <SelectItem value="male">Male</SelectItem>
+   419→                  <SelectItem value="female">Female</SelectItem>
+   420→                  <SelectItem value="other">Other</SelectItem>
+   421→                  <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+   422→                </SelectContent>
+   423→              </Select>
+   424→            </div>
+   425→          </div>
+   426→
+   427→          <div className="space-y-2">
+   428→            <Label htmlFor="address">Address</Label>
+   429→            <Input
+   430→              id="address"
+   431→              value={formData.address}
+   432→              onChange={(e) => handleChange('address', e.target.value)}
+   433→              placeholder="Street address"
+   434→            />
+   435→          </div>
+   436→
+   437→          <div className="grid gap-3 sm:grid-cols-3">
+   438→            <div className="space-y-2">
+   439→              <Label htmlFor="city">City</Label>
+   440→              <Input
+   441→                id="city"
+   442→                value={formData.city}
+   443→                onChange={(e) => handleChange('city', e.target.value)}
+   444→                placeholder="City"
+   445→              />
+   446→            </div>
+   447→            <div className="space-y-2">
+   448→              <Label htmlFor="country">Country</Label>
+   449→              <Input
+   450→                id="country"
+   451→                value={formData.country}
+   452→                onChange={(e) => handleChange('country', e.target.value)}
+   453→                placeholder="Country"
+   454→              />
+   455→            </div>
+   456→            <div className="space-y-2">
+   457→              <Label htmlFor="nationality">Nationality</Label>
+   458→              <Input
+   459→                id="nationality"
+   460→                value={formData.nationality}
+   461→                onChange={(e) => handleChange('nationality', e.target.value)}
+   462→                placeholder="Nationality"
+   463→              />
+   464→            </div>
+   465→          </div>
+   466→
+   467→          <Separator />
+   468→
+   469→          <CardTitle className="text-sm pt-2">Identification</CardTitle>
+   470→          <div className="grid gap-3 sm:grid-cols-2">
+   471→            <div className="space-y-2">
+   472→              <Label htmlFor="idType">ID Type</Label>
+   473→              <Select
+   474→                value={formData.idType}
+   475→                onValueChange={(value) => handleChange('idType', value)}
+   476→              >
+   477→                <SelectTrigger id="idType">
+   478→                  <SelectValue placeholder="Select ID type" />
+   479→                </SelectTrigger>
+   480→                <SelectContent>
+   481→                  <SelectItem value="passport">Passport</SelectItem>
+   482→                  <SelectItem value="national-id">National ID</SelectItem>
+   483→                  <SelectItem value="citizenship">Citizenship Certificate</SelectItem>
+   484→                  <SelectItem value="license">Driver&apos;s License</SelectItem>
+   485→                  <SelectItem value="voter-id">Voter ID</SelectItem>
+   486→                </SelectContent>
+   487→              </Select>
+   488→            </div>
+   489→            <div className="space-y-2">
+   490→              <Label htmlFor="idNumber">ID Number</Label>
+   491→              <Input
+   492→                id="idNumber"
+   493→                value={formData.idNumber}
+   494→                onChange={(e) => handleChange('idNumber', e.target.value)}
+   495→                placeholder="Enter ID number"
+   496→              />
+   497→            </div>
+   498→          </div>
+   499→
+   500→          <div className="flex justify-end pt-2">
+   501→            <Button onClick={handleSave} disabled={profileMutation.isPending} className="min-w-[120px]">
+   502→              {profileMutation.isPending ? (
+   503→                <span className="flex items-center gap-2">
+   504→                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+   505→                  Saving...
+   506→                </span>
+   507→              ) : (
+   508→                <span className="flex items-center gap-2">
+   509→                  <Save className="h-4 w-4" />
+   510→                  Save Changes
+   511→                </span>
+   512→              )}
+   513→            </Button>
+   514→          </div>
+   515→        </CardContent>
+   516→      </Card>
+   517→    </div>
+   518→  )
+   519→}
+   520→
+   521→// ─── Tab 2: Employment Details ─────────────────────────────────
+   522→function EmploymentDetailsTab() {
+   523→  const { user } = useAuthStore()
+   524→  const { activeProperty } = usePropertyStore()
+   525→  const { settings } = useSettingsStore()
+   526→
+   527→  const { data: profileData, isLoading } = useQuery({
+   528→    queryKey: ['profile', user?.id],
+   529→    queryFn: async () => {
+   530→      if (!user?.id) return null
+   531→      return apiFetch(`/api/auth/profile?userId=${user.id}`)
+   532→    },
+   533→    enabled: !!user?.id,
+   534→  })
+   535→
+   536→  const hireDate = profileData?.user?.hireDate
+   537→
+   538→  return (
+   539→    <div className="space-y-4">
+   540→      {/* Employment Info */}
+   541→      <Card>
+   542→        <CardHeader>
+   543→          <div className="flex items-center gap-2">
+   544→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+   545→              <Briefcase className="h-4 w-4" />
+   546→            </div>
+   547→            <div>
+   548→              <CardTitle className="text-sm">Employment Information</CardTitle>
+   549→              <CardDescription>Your role and employment details</CardDescription>
+   550→            </div>
+   551→          </div>
+   552→        </CardHeader>
+   553→        <CardContent>
+   554→          <div className="divide-y">
+   555→            <InfoRow icon={Building2} label="Department" value={user?.department ?? 'Management'} color="text-amber-600" />
+   556→            <InfoRow icon={User} label="Position" value={user?.position ?? 'Staff'} color="text-amber-600" />
+   557→            <InfoRow icon={Shield} label="Role / Access Level" value={(user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : '') || 'Staff'} color="text-amber-600" />
+   558→            <InfoRow
+   559→              icon={Calendar}
+   560→              label="Hire Date"
+   561→              value={isLoading ? (
+   562→                <Skeleton className="h-4 w-36" />
+   563→              ) : (
+   564→                formatDate(hireDate)
+   565→              )}
+   566→              color="text-amber-600"
+   567→            />
+   568→            <InfoRow icon={CreditCard} label="Employee ID" value={`EMP-${user?.id?.slice(-6).toUpperCase() ?? '000000'}`} color="text-amber-600" />
+   569→            <InfoRow icon={ChevronRight} label="Reporting To" value="General Manager" color="text-amber-600" />
+   570→            <InfoRow icon={CheckCircle2} label="Work Status" value={
+   571→              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+   572→                <CheckCircle2 className="mr-1 h-3 w-3" />
+   573→                Active
+   574→              </Badge>
+   575→            } color="text-amber-600" />
+   576→          </div>
+   577→        </CardContent>
+   578→      </Card>
+   579→
+   580→      {/* Current Property */}
+   581→      <Card>
+   582→        <CardHeader>
+   583→          <div className="flex items-center gap-2">
+   584→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-100 text-teal-600">
+   585→              <Building2 className="h-4 w-4" />
+   586→            </div>
+   587→            <div>
+   588→              <CardTitle className="text-sm">Current Property</CardTitle>
+   589→              <CardDescription>Property you are currently assigned to</CardDescription>
+   590→            </div>
+   591→          </div>
+   592→        </CardHeader>
+   593→        <CardContent>
+   594→          <div className="divide-y">
+   595→            <InfoRow icon={Building2} label="Property Name" value={activeProperty?.name ?? '—'} color="text-teal-600" />
+   596→            <InfoRow icon={CreditCard} label="Property Code" value={activeProperty?.code ?? '—'} color="text-teal-600" />
+   597→            <InfoRow icon={MapPin} label="Location" value={activeProperty?.city ?? '—'} color="text-teal-600" />
+   598→            <InfoRow icon={Globe} label="Country" value={settings.country ?? 'Nepal'} color="text-teal-600" />
+   599→          </div>
+   600→        </CardContent>
+   601→      </Card>
+   602→
+   603→      {/* Access Summary */}
+   604→      <Card>
+   605→        <CardHeader>
+   606→          <div className="flex items-center gap-2">
+   607→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+   608→              <Shield className="h-4 w-4" />
+   609→            </div>
+   610→            <div>
+   611→              <CardTitle className="text-sm">Access Summary</CardTitle>
+   612→              <CardDescription>Modules accessible with your current role</CardDescription>
+   613→            </div>
+   614→          </div>
+   615→        </CardHeader>
+   616→        <CardContent>
+   617→          <div className="flex flex-wrap gap-2">
+   618→            {user?.role === 'admin' ? (
+   619→              <>
+   620→                <AccessBadge label="All Modules" active />
+   621→                <AccessBadge label="System Settings" active />
+   622→                <AccessBadge label="User Management" active />
+   623→                <AccessBadge label="Financial Reports" active />
+   624→                <AccessBadge label="Data Export" active />
+   625→              </>
+   626→            ) : user?.role === 'manager' || user?.role === 'gm' ? (
+   627→              <>
+   628→                <AccessBadge label="Dashboard" active />
+   629→                <AccessBadge label="Front Desk" active />
+   630→                <AccessBadge label="Reservations" active />
+   631→                <AccessBadge label="Housekeeping" active />
+   632→                <AccessBadge label="POS" active />
+   633→                <AccessBadge label="Accounting" active />
+   634→                <AccessBadge label="Reports" active />
+   635→                <AccessBadge label="System Settings" active={user?.role === 'gm'} />
+   636→              </>
+   637→            ) : (
+   638→              <>
+   639→                <AccessBadge label="Dashboard" active />
+   640→                <AccessBadge label="Front Desk" active />
+   641→                <AccessBadge label="Reservations" active />
+   642→                <AccessBadge label="Housekeeping" active />
+   643→                <AccessBadge label="System Settings" />
+   644→                <AccessBadge label="User Management" />
+   645→              </>
+   646→            )}
+   647→          </div>
+   648→        </CardContent>
+   649→      </Card>
+   650→    </div>
+   651→  )
+   652→}
+   653→
+   654→function AccessBadge({ label, active }: { label: string; active: boolean }) {
+   655→  return (
+   656→    <Badge
+   657→      variant={active ? 'default' : 'outline'}
+   658→      className={cn(
+   659→        active ? 'bg-violet-600 text-white hover:bg-violet-700' : 'text-muted-foreground',
+   660→      )}
+   661→    >
+   662→      {active ? <CheckCircle2 className="mr-1 h-3 w-3" /> : <XCircle className="mr-1 h-3 w-3" />}
+   663→      {label}
+   664→    </Badge>
+   665→  )
+   666→}
+   667→
+   668→// ─── Tab 3: Security ───────────────────────────────────────────
+   669→function SecurityTab() {
+   670→  const { user, updateUser, logout } = useAuthStore()
+   671→  const queryClient = useQueryClient()
+   672→
+   673→  const [passwords, setPasswords] = React.useState({
+   674→    currentPassword: '',
+   675→    newPassword: '',
+   676→    confirmPassword: '',
+   677→  })
+   678→  const [showPasswords, setShowPasswords] = React.useState({
+   679→    current: false,
+   680→    new: false,
+   681→    confirm: false,
+   682→  })
+   683→  const [isChangingPassword, setIsChangingPassword] = React.useState(false)
+   684→
+   685→  const handlePasswordChange = (field: string, value: string) => {
+   686→    setPasswords((prev) => ({ ...prev, [field]: value }))
+   687→  }
+   688→
+   689→  const toggleShowPassword = (field: 'current' | 'new' | 'confirm') => {
+   690→    setShowPasswords((prev) => ({ ...prev, [field]: !prev[field] }))
+   691→  }
+   692→
+   693→  const handleChangePassword = async () => {
+   694→    if (!passwords.currentPassword || !passwords.newPassword || !passwords.confirmPassword) {
+   695→      toast.error('Please fill in all password fields')
+   696→      return
+   697→    }
+   698→    if (passwords.newPassword.length < 8) {
+   699→      toast.error('New password must be at least 8 characters')
+   700→      return
+   701→    }
+   702→    if (passwords.newPassword !== passwords.confirmPassword) {
+   703→      toast.error('New passwords do not match')
+   704→      return
+   705→    }
+   706→    if (passwords.currentPassword === passwords.newPassword) {
+   707→      toast.error('New password must be different from current password')
+   708→      return
+   709→    }
+   710→
+   711→    setIsChangingPassword(true)
+   712→    try {
+   713→      await apiFetch('/api/auth/password', {
+   714→        method: 'PUT',
+   715→        headers: { 'Content-Type': 'application/json' },
+   716→        body: JSON.stringify({
+   717→          email: user?.email,
+   718→          currentPassword: passwords.currentPassword,
+   719→          newPassword: passwords.newPassword,
+   720→        }),
+   721→      })
+   722→      toast.success('Password changed successfully')
+   723→      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' })
+   724→    } catch {
+   725→      toast.error('Failed to change password')
+   726→    } finally {
+   727→      setIsChangingPassword(false)
+   728→    }
+   729→  }
+   730→
+   731→  // Two-Factor mutation
+   732→  const twoFactorMutation = useMutation({
+   733→    mutationFn: async (enabled: boolean) => {
+   734→      return apiFetch('/api/auth/profile', {
+   735→        method: 'PUT',
+   736→        headers: { 'Content-Type': 'application/json' },
+   737→        body: JSON.stringify({ userId: user?.id, twoFactorEnabled: enabled }),
+   738→      })
+   739→    },
+   740→    onSuccess: (_data, enabled) => {
+   741→      updateUser({ twoFactorEnabled: enabled })
+   742→      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] })
+   743→      toast.success(enabled ? 'Two-factor authentication enabled' : 'Two-factor authentication disabled')
+   744→    },
+   745→    onError: (error) => {
+   746→      toast.error(error.message || 'Failed to update 2FA setting')
+   747→    },
+   748→  })
+   749→
+   750→  const handleClearSessions = async () => {
+   751→    try {
+   752→      // Log activity
+   753→      await fetch('/api/auth/activity-log', {
+   754→        method: 'POST',
+   755→        headers: { 'Content-Type': 'application/json' },
+   756→        body: JSON.stringify({
+   757→          userId: user?.id,
+   758→          userName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User',
+   759→          action: 'Clear Sessions',
+   760→          module: 'Security',
+   761→          details: 'User cleared all sessions and logged out',
+   762→        }),
+   763→      })
+   764→      // Actually clear the session by logging out
+   765→      logout()
+   766→      toast.success('All sessions cleared. Please sign in again.')
+   767→    } catch {
+   768→      toast.error('Failed to clear sessions')
+   769→    }
+   770→  }
+   771→
+   772→  return (
+   773→    <div className="space-y-4">
+   774→      {/* Change Password */}
+   775→      <Card>
+   776→        <CardHeader>
+   777→          <div className="flex items-center gap-2">
+   778→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+   779→              <Lock className="h-4 w-4" />
+   780→            </div>
+   781→            <div>
+   782→              <CardTitle className="text-sm">Change Password</CardTitle>
+   783→              <CardDescription>Update your account password regularly for security</CardDescription>
+   784→            </div>
+   785→          </div>
+   786→        </CardHeader>
+   787→        <CardContent className="space-y-4">
+   788→          <div className="space-y-2">
+   789→            <Label htmlFor="currentPassword">Current Password</Label>
+   790→            <div className="relative">
+   791→              <Input
+   792→                id="currentPassword"
+   793→                type={showPasswords.current ? 'text' : 'password'}
+   794→                value={passwords.currentPassword}
+   795→                onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+   796→                placeholder="Enter current password"
+   797→              />
+   798→              <Button
+   799→                type="button"
+   800→                variant="ghost"
+   801→                size="sm"
+   802→                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+   803→                onClick={() => toggleShowPassword('current')}
+   804→              >
+   805→                {showPasswords.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   806→              </Button>
+   807→            </div>
+   808→          </div>
+   809→
+   810→          <div className="space-y-2">
+   811→            <Label htmlFor="newPassword">New Password</Label>
+   812→            <div className="relative">
+   813→              <Input
+   814→                id="newPassword"
+   815→                type={showPasswords.new ? 'text' : 'password'}
+   816→                value={passwords.newPassword}
+   817→                onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+   818→                placeholder="Enter new password"
+   819→              />
+   820→              <Button
+   821→                type="button"
+   822→                variant="ghost"
+   823→                size="sm"
+   824→                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+   825→                onClick={() => toggleShowPassword('new')}
+   826→              >
+   827→                {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   828→              </Button>
+   829→            </div>
+   830→            {passwords.newPassword && passwords.newPassword.length < 8 && (
+   831→              <p className="text-xs text-destructive flex items-center gap-1">
+   832→                <AlertTriangle className="h-3 w-3" />
+   833→                Password must be at least 8 characters
+   834→              </p>
+   835→            )}
+   836→          </div>
+   837→
+   838→          <div className="space-y-2">
+   839→            <Label htmlFor="confirmPassword">Confirm New Password</Label>
+   840→            <div className="relative">
+   841→              <Input
+   842→                id="confirmPassword"
+   843→                type={showPasswords.confirm ? 'text' : 'password'}
+   844→                value={passwords.confirmPassword}
+   845→                onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+   846→                placeholder="Confirm new password"
+   847→              />
+   848→              <Button
+   849→                type="button"
+   850→                variant="ghost"
+   851→                size="sm"
+   852→                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+   853→                onClick={() => toggleShowPassword('confirm')}
+   854→              >
+   855→                {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   856→              </Button>
+   857→            </div>
+   858→            {passwords.confirmPassword && passwords.newPassword !== passwords.confirmPassword && (
+   859→              <p className="text-xs text-destructive flex items-center gap-1">
+   860→                <AlertTriangle className="h-3 w-3" />
+   861→                Passwords do not match
+   862→              </p>
+   863→            )}
+   864→          </div>
+   865→
+   866→          <div className="flex justify-end pt-2">
+   867→            <Button
+   868→              onClick={handleChangePassword}
+   869→              disabled={isChangingPassword}
+   870→              className="min-w-[160px]"
+   871→            >
+   872→              {isChangingPassword ? (
+   873→                <span className="flex items-center gap-2">
+   874→                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+   875→                  Changing...
+   876→                </span>
+   877→              ) : (
+   878→                <span className="flex items-center gap-2">
+   879→                  <Lock className="h-4 w-4" />
+   880→                  Update Password
+   881→                </span>
+   882→              )}
+   883→            </Button>
+   884→          </div>
+   885→        </CardContent>
+   886→      </Card>
+   887→
+   888→      {/* Two-Factor Authentication */}
+   889→      <Card>
+   890→        <CardHeader>
+   891→          <div className="flex items-center gap-2">
+   892→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+   893→              <Shield className="h-4 w-4" />
+   894→            </div>
+   895→            <div>
+   896→              <CardTitle className="text-sm">Two-Factor Authentication</CardTitle>
+   897→              <CardDescription>Add an extra layer of security to your account</CardDescription>
+   898→            </div>
+   899→          </div>
+   900→        </CardHeader>
+   901→        <CardContent>
+   902→          <div className="flex items-center justify-between">
+   903→            <div className="space-y-1">
+   904→              <p className="text-sm font-medium">Enable Two-Factor Authentication</p>
+   905→              <p className="text-xs text-muted-foreground">
+   906→                {user?.twoFactorEnabled
+   907→                  ? 'Two-factor authentication is enabled for your account'
+   908→                  : 'Require a verification code in addition to your password'}
+   909→              </p>
+   910→            </div>
+   911→            <Switch
+   912→              checked={user?.twoFactorEnabled ?? false}
+   913→              disabled={twoFactorMutation.isPending}
+   914→              onCheckedChange={(checked) => {
+   915→                twoFactorMutation.mutate(checked)
+   916→              }}
+   917→            />
+   918→          </div>
+   919→          {user?.twoFactorEnabled && (
+   920→            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+   921→              <p className="text-xs text-emerald-800 flex items-center gap-1.5">
+   922→                <Shield className="h-3.5 w-3.5 shrink-0" />
+   923→                Your account is protected with two-factor authentication.
+   924→              </p>
+   925→            </div>
+   926→          )}
+   927→        </CardContent>
+   928→      </Card>
+   929→
+   930→      {/* Active Sessions */}
+   931→      <Card>
+   932→        <CardHeader>
+   933→          <div className="flex items-center gap-2">
+   934→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+   935→              <Monitor className="h-4 w-4" />
+   936→            </div>
+   937→            <div>
+   938→              <CardTitle className="text-sm">Active Sessions</CardTitle>
+   939→              <CardDescription>Devices currently signed in to your account</CardDescription>
+   940→            </div>
+   941→          </div>
+   942→        </CardHeader>
+   943→        <CardContent className="space-y-4">
+   944→          {/* Current session */}
+   945→          <div className="flex items-center gap-3 rounded-lg border bg-emerald-50/50 p-2.5">
+   946→            <Monitor className="h-5 w-5 text-emerald-600" />
+   947→            <div className="flex-1 min-w-0">
+   948→              <div className="flex items-center gap-2">
+   949→                <p className="text-sm font-medium">Current Session</p>
+   950→                <Badge variant="outline" className="border-emerald-200 bg-emerald-100 text-emerald-700 text-[10px]">
+   951→                  Active
+   952→                </Badge>
+   953→              </div>
+   954→              <p className="text-xs text-muted-foreground truncate">
+   955→                {user?.lastLoginAt
+   956→                  ? `Last active: ${formatDateTime(user.lastLoginAt)}`
+   957→                  : 'Currently active'}
+   958→              </p>
+   959→            </div>
+   960→            <p className="text-xs text-muted-foreground whitespace-nowrap">Now</p>
+   961→          </div>
+   962→
+   963→          {/* Clear other sessions button */}
+   964→          <div className="flex items-center justify-between rounded-lg border border-dashed p-2.5">
+   965→            <div className="space-y-0.5">
+   966→              <p className="text-sm font-medium flex items-center gap-2">
+   967→                <Wifi className="h-4 w-4 text-muted-foreground" />
+   968→                Other Sessions
+   969→              </p>
+   970→              <p className="text-xs text-muted-foreground">
+   971→                This will sign you out from all devices. You will need to sign in again.
+   972→              </p>
+   973→            </div>
+   974→            <Button
+   975→              variant="outline"
+   976→              size="sm"
+   977→              onClick={handleClearSessions}
+   978→            >
+   979→              <LogOut className="mr-2 h-4 w-4" />
+   980→              Sign Out All Devices
+   981→            </Button>
+   982→          </div>
+   983→        </CardContent>
+   984→      </Card>
+   985→
+   986→      {/* Login Information */}
+   987→      <Card>
+   988→        <CardHeader>
+   989→          <div className="flex items-center gap-2">
+   990→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+   991→              <Clock className="h-4 w-4" />
+   992→            </div>
+   993→            <div>
+   994→              <CardTitle className="text-sm">Login Information</CardTitle>
+   995→              <CardDescription>Recent login activity</CardDescription>
+   996→            </div>
+   997→          </div>
+   998→        </CardHeader>
+   999→        <CardContent>
+  1000→          <div className="divide-y">
+  1001→            <InfoRow
+  1002→              icon={Clock}
+  1003→              label="Last Login"
+  1004→              value={user?.lastLoginAt ? formatDateTime(user.lastLoginAt) : '—'}
+  1005→              color="text-slate-600"
+  1006→            />
+  1007→            <InfoRow
+  1008→              icon={Monitor}
+  1009→              label="Previous Login"
+  1010→              value="Not tracked"
+  1011→              color="text-slate-600"
+  1012→            />
+  1013→            <InfoRow
+  1014→              icon={MapPin}
+  1015→              label="Login IP Address"
+  1016→              value="Not tracked"
+  1017→              color="text-slate-600"
+  1018→            />
+  1019→          </div>
+  1020→        </CardContent>
+  1021→      </Card>
+  1022→    </div>
+  1023→  )
+  1024→}
+  1025→
+  1026→// ─── Tab 4: Preferences ────────────────────────────────────────
+  1027→function PreferencesTab() {
+  1028→  const { preferences, updatePreferences } = usePreferencesStore()
+  1029→  const { theme, setTheme, resolvedTheme } = useTheme()
+  1030→  const [mounted, setMounted] = React.useState(false)
+  1031→
+  1032→  // Avoid hydration mismatch with next-themes
+  1033→  React.useEffect(() => {
+  1034→    setMounted(true)
+  1035→  }, [])
+  1036→
+  1037→  // Notification preferences from store
+  1038→  const notifEmail = preferences.notifEmail
+  1039→  const notifPush = preferences.notifPush
+  1040→  const notifInApp = preferences.notifInApp
+  1041→
+  1042→  const isDarkMode = mounted ? (resolvedTheme === 'dark') : false
+  1043→
+  1044→  return (
+  1045→    <div className="space-y-4">
+  1046→      {/* Language & Region */}
+  1047→      <Card>
+  1048→        <CardHeader>
+  1049→          <div className="flex items-center gap-2">
+  1050→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+  1051→              <Globe className="h-4 w-4" />
+  1052→            </div>
+  1053→            <div>
+  1054→              <CardTitle className="text-sm">Language &amp; Region</CardTitle>
+  1055→              <CardDescription>Customize display language and regional formats</CardDescription>
+  1056→            </div>
+  1057→          </div>
+  1058→        </CardHeader>
+  1059→        <CardContent className="space-y-4">
+  1060→          <div className="grid gap-3 sm:grid-cols-2">
+  1061→            <div className="space-y-2">
+  1062→              <Label>Language</Label>
+  1063→              <Select
+  1064→                value={preferences.language}
+  1065→                onValueChange={(value) => {
+  1066→                  updatePreferences({ language: value })
+  1067→                  toast.success(`Language set to ${value === 'en' ? 'English' : 'Nepali'}`)
+  1068→                }}
+  1069→              >
+  1070→                <SelectTrigger>
+  1071→                  <SelectValue />
+  1072→                </SelectTrigger>
+  1073→                <SelectContent>
+  1074→                  <SelectItem value="en">English</SelectItem>
+  1075→                  <SelectItem value="ne">नेपाली (Nepali)</SelectItem>
+  1076→                </SelectContent>
+  1077→              </Select>
+  1078→            </div>
+  1079→            <div className="space-y-2">
+  1080→              <Label>Date Format</Label>
+  1081→              <Select
+  1082→                value={preferences.dateFormat}
+  1083→                onValueChange={(value) => {
+  1084→                  updatePreferences({ dateFormat: value })
+  1085→                  toast.success('Date format updated')
+  1086→                }}
+  1087→              >
+  1088→                <SelectTrigger>
+  1089→                  <SelectValue />
+  1090→                </SelectTrigger>
+  1091→                <SelectContent>
+  1092→                  <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+  1093→                  <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+  1094→                  <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+  1095→                </SelectContent>
+  1096→              </Select>
+  1097→            </div>
+  1098→          </div>
+  1099→
+  1100→          <div className="grid gap-3 sm:grid-cols-2">
+  1101→            <div className="space-y-2">
+  1102→              <Label>Currency Display</Label>
+  1103→              <Select
+  1104→                value={preferences.currency}
+  1105→                onValueChange={(value) => {
+  1106→                  updatePreferences({ currency: value })
+  1107→                  toast.success('Currency preference updated')
+  1108→                }}
+  1109→              >
+  1110→                <SelectTrigger>
+  1111→                  <SelectValue />
+  1112→                </SelectTrigger>
+  1113→                <SelectContent>
+  1114→                  <SelectItem value="NPR">NPR — Nepalese Rupee (रू)</SelectItem>
+  1115→                  <SelectItem value="USD">USD — US Dollar ($)</SelectItem>
+  1116→                  <SelectItem value="EUR">EUR — Euro (€)</SelectItem>
+  1117→                  <SelectItem value="GBP">GBP — British Pound (£)</SelectItem>
+  1118→                  <SelectItem value="INR">INR — Indian Rupee (₹)</SelectItem>
+  1119→                </SelectContent>
+  1120→              </Select>
+  1121→            </div>
+  1122→            <div className="space-y-2">
+  1123→              <Label>Timezone</Label>
+  1124→              <Input
+  1125→                value={preferences.timezone}
+  1126→                disabled
+  1127→                className="bg-muted/50"
+  1128→              />
+  1129→              <p className="text-xs text-muted-foreground">Timezone is set by system administrator</p>
+  1130→            </div>
+  1131→          </div>
+  1132→        </CardContent>
+  1133→      </Card>
+  1134→
+  1135→      {/* Appearance */}
+  1136→      <Card>
+  1137→        <CardHeader>
+  1138→          <div className="flex items-center gap-2">
+  1139→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+  1140→              <Monitor className="h-4 w-4" />
+  1141→            </div>
+  1142→            <div>
+  1143→              <CardTitle className="text-sm">Appearance</CardTitle>
+  1144→              <CardDescription>Customize the look and feel of the interface</CardDescription>
+  1145→            </div>
+  1146→          </div>
+  1147→        </CardHeader>
+  1148→        <CardContent className="space-y-4">
+  1149→          <div className="flex items-center justify-between">
+  1150→            <div className="space-y-1">
+  1151→              <p className="text-sm font-medium">Dark Mode</p>
+  1152→              <p className="text-xs text-muted-foreground">
+  1153→                Switch between light and dark themes
+  1154→              </p>
+  1155→            </div>
+  1156→            <Switch
+  1157→              checked={isDarkMode}
+  1158→              onCheckedChange={(checked) => {
+  1159→                setTheme(checked ? 'dark' : 'light')
+  1160→                toast.success(checked ? 'Dark mode enabled' : 'Light mode enabled')
+  1161→              }}
+  1162→            />
+  1163→          </div>
+  1164→          <Separator />
+  1165→          <div className="flex items-center justify-between">
+  1166→            <div className="space-y-1">
+  1167→              <p className="text-sm font-medium">Compact Mode</p>
+  1168→              <p className="text-xs text-muted-foreground">
+  1169→                Reduce spacing for more content on screen
+  1170→              </p>
+  1171→            </div>
+  1172→            <Switch
+  1173→              checked={preferences.compactMode}
+  1174→              onCheckedChange={(checked) => {
+  1175→                updatePreferences({ compactMode: checked })
+  1176→                toast.success(checked ? 'Compact mode enabled' : 'Compact mode disabled')
+  1177→              }}
+  1178→            />
+  1179→          </div>
+  1180→        </CardContent>
+  1181→      </Card>
+  1182→
+  1183→      {/* Notifications */}
+  1184→      <Card>
+  1185→        <CardHeader>
+  1186→          <div className="flex items-center gap-2">
+  1187→            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+  1188→              <Bell className="h-4 w-4" />
+  1189→            </div>
+  1190→            <div>
+  1191→              <CardTitle className="text-sm">Notification Preferences</CardTitle>
+  1192→              <CardDescription>Choose how you want to receive notifications</CardDescription>
+  1193→            </div>
+  1194→          </div>
+  1195→        </CardHeader>
+  1196→        <CardContent className="space-y-4">
+  1197→          <div className="flex items-center justify-between">
+  1198→            <div className="space-y-1">
+  1199→              <p className="text-sm font-medium">Email Notifications</p>
+  1200→              <p className="text-xs text-muted-foreground">
+  1201→                Receive notifications via email for important events
+  1202→              </p>
+  1203→            </div>
+  1204→            <Switch
+  1205→              checked={notifEmail}
+  1206→              onCheckedChange={(checked) => {
+  1207→                updatePreferences({ notifEmail: checked })
+  1208→                toast.success(checked ? 'Email notifications enabled' : 'Email notifications disabled')
+  1209→              }}
+  1210→            />
+  1211→          </div>
+  1212→          <Separator />
+  1213→          <div className="flex items-center justify-between">
+  1214→            <div className="space-y-1">
+  1215→              <p className="text-sm font-medium">Push Notifications</p>
+  1216→              <p className="text-xs text-muted-foreground">
+  1217→                Get browser push notifications for real-time alerts
+  1218→              </p>
+  1219→            </div>
+  1220→            <Switch
+  1221→              checked={notifPush}
+  1222→              onCheckedChange={(checked) => {
+  1223→                updatePreferences({ notifPush: checked })
+  1224→                toast.success(checked ? 'Push notifications enabled' : 'Push notifications disabled')
+  1225→              }}
+  1226→            />
+  1227→          </div>
+  1228→          <Separator />
+  1229→          <div className="flex items-center justify-between">
+  1230→            <div className="space-y-1">
+  1231→              <p className="text-sm font-medium">In-App Notifications</p>
+  1232→              <p className="text-xs text-muted-foreground">
+  1233→                Show notification badges and alerts within the app
+  1234→              </p>
+  1235→            </div>
+  1236→            <Switch
+  1237→              checked={notifInApp}
+  1238→              onCheckedChange={(checked) => {
+  1239→                updatePreferences({ notifInApp: checked })
+  1240→                toast.success(checked ? 'In-app notifications enabled' : 'In-app notifications disabled')
+  1241→              }}
+  1242→            />
+  1243→          </div>
+  1244→          <Separator />
+  1245→          <div className="flex items-center justify-between">
+  1246→            <div className="space-y-1">
+  1247→              <p className="text-sm font-medium">Master Notification Toggle</p>
+  1248→              <p className="text-xs text-muted-foreground">
+  1249→                Disable all notifications at once
+  1250→              </p>
+  1251→            </div>
+  1252→            <Switch
+  1253→              checked={preferences.notifications}
+  1254→              onCheckedChange={(checked) => {
+  1255→                updatePreferences({ notifications: checked })
+  1256→                toast.success(checked ? 'All notifications enabled' : 'All notifications disabled')
+  1257→              }}
+  1258→            />
+  1259→          </div>
+  1260→        </CardContent>
+  1261→      </Card>
+  1262→    </div>
+  1263→  )
+  1264→}
+  1265→
+  1266→// ─── Tab 5: Activity Log ──────────────────────────────────────
+  1267→function getActionColor(action: string) {
+  1268→  const colors: Record<string, string> = {
+  1269→    Login: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  1270→    Logout: 'border-slate-200 bg-slate-50 text-slate-700',
+  1271→    Create: 'border-blue-200 bg-blue-50 text-blue-700',
+  1272→    Update: 'border-amber-200 bg-amber-50 text-amber-700',
+  1273→    View: 'border-slate-200 bg-slate-50 text-slate-700',
+  1274→    Check: 'border-violet-200 bg-violet-50 text-violet-700',
+  1275→    Post: 'border-orange-200 bg-orange-50 text-orange-700',
+  1276→    Assign: 'border-teal-200 bg-teal-50 text-teal-700',
+  1277→    Generate: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+  1278→    Process: 'border-rose-200 bg-rose-50 text-rose-700',
+  1279→    Export: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+  1280→    Approve: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  1281→    Shift: 'border-amber-200 bg-amber-50 text-amber-700',
+  1282→    Clear: 'border-rose-200 bg-rose-50 text-rose-700',
+  1283→  }
+  1284→  const prefix = action.split(' ')[0]
+  1285→  return colors[prefix] ?? colors[action] ?? 'border-slate-200 bg-slate-50 text-slate-700'
+  1286→}
+  1287→
+  1288→function getModuleBadgeColor(module: string) {
+  1289→  const colors: Record<string, string> = {
+  1290→    Auth: 'bg-slate-100 text-slate-700',
+  1291→    Dashboard: 'bg-emerald-100 text-emerald-700',
+  1292→    'Front Desk': 'bg-blue-100 text-blue-700',
+  1293→    Accounting: 'bg-purple-100 text-purple-700',
+  1294→    POS: 'bg-orange-100 text-orange-700',
+  1295→    Housekeeping: 'bg-green-100 text-green-700',
+  1296→    'Room Mgmt': 'bg-teal-100 text-teal-700',
+  1297→    Settings: 'bg-slate-100 text-slate-700',
+  1298→    Maintenance: 'bg-orange-100 text-orange-700',
+  1299→    Reports: 'bg-violet-100 text-violet-700',
+  1300→    Inventory: 'bg-cyan-100 text-cyan-700',
+  1301→    Operations: 'bg-amber-100 text-amber-700',
+  1302→    Security: 'bg-rose-100 text-rose-700',
+  1303→  }
+  1304→  return colors[module] ?? 'bg-slate-100 text-slate-700'
+  1305→}
+  1306→
+  1307→function ActivityLogTab() {
+  1308→  const { user } = useAuthStore()
+  1309→  const [filter, setFilter] = React.useState('all')
+  1310→
+  1311→  const { data, isLoading, isFetching } = useQuery({
+  1312→    queryKey: ['activity-log', user?.id, filter],
+  1313→    queryFn: async () => {
+  1314→      if (!user?.id) return { logs: [], stats: { total: 0, logins: 0, today: 0 }, modules: [] }
+  1315→      const params = new URLSearchParams({
+  1316→        userId: user.id,
+  1317→        limit: '50',
+  1318→        ...(filter !== 'all' ? { module: filter } : {}),
+  1319→      })
+  1320→      return apiFetch(`/api/auth/activity-log?${params}`)
+  1321→    },
+  1322→    enabled: !!user?.id,
+  1323→    refetchInterval: 30000,
+  1324→  })
+  1325→
+  1326→  const logs = data?.logs ?? []
+  1327→  const stats = data?.stats ?? { total: 0, logins: 0, today: 0 }
+  1328→  const modules = data?.modules ?? []
+  1329→
+  1330→  return (
+  1331→    <div className="space-y-4">
+  1332→      {/* Summary Cards */}
+  1333→      <div className="grid gap-3 sm:grid-cols-4">
+  1334→        <Card>
+  1335→          <CardContent className="p-2.5">
+  1336→            <div className="flex items-center gap-3">
+  1337→              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+  1338→                <History className="h-5 w-5" />
+  1339→              </div>
+  1340→              <div>
+  1341→                <span className="text-lg font-bold">
+  1342→                  {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.total}
+  1343→                </span>
+  1344→                <p className="text-xs text-muted-foreground">Total Activities</p>
+  1345→              </div>
+  1346→            </div>
+  1347→          </CardContent>
+  1348→        </Card>
+  1349→        <Card>
+  1350→          <CardContent className="p-2.5">
+  1351→            <div className="flex items-center gap-3">
+  1352→              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+  1353→                <CheckCircle2 className="h-5 w-5" />
+  1354→              </div>
+  1355→              <div>
+  1356→                <span className="text-lg font-bold">
+  1357→                  {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.logins}
+  1358→                </span>
+  1359→                <p className="text-xs text-muted-foreground">Logins</p>
+  1360→              </div>
+  1361→            </div>
+  1362→          </CardContent>
+  1363→        </Card>
+  1364→        <Card>
+  1365→          <CardContent className="p-2.5">
+  1366→            <div className="flex items-center gap-3">
+  1367→              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+  1368→                <Clock className="h-5 w-5" />
+  1369→              </div>
+  1370→              <div>
+  1371→                <span className="text-lg font-bold">
+  1372→                  {isLoading ? <Skeleton className="h-8 w-8 inline-block" /> : stats.today}
+  1373→                </span>
+  1374→                <p className="text-xs text-muted-foreground">Today</p>
+  1375→              </div>
+  1376→            </div>
+  1377→          </CardContent>
+  1378→        </Card>
+  1379→        <Card>
+  1380→          <CardContent className="p-2.5">
+  1381→            <div className="flex items-center gap-3">
+  1382→              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+  1383→                <MapPin className="h-5 w-5" />
+  1384→              </div>
+  1385→              <div>
+  1386→                <span className="text-lg font-bold">
+  1387→                  {isLoading ? (
+  1388→                    <Skeleton className="h-8 w-8 inline-block" />
+  1389→                  ) : (
+  1390→                    new Set(logs.map((l: { ipAddress?: string }) => l.ipAddress).filter(Boolean)).size
+  1391→                  )}
+  1392→                </span>
+  1393→                <p className="text-xs text-muted-foreground">Unique IPs</p>
+  1394→              </div>
+  1395→            </div>
+  1396→          </CardContent>
+  1397→        </Card>
+  1398→      </div>
+  1399→
+  1400→      {/* Filter & Table */}
+  1401→      <Card>
+  1402→        <CardHeader className="pb-3">
+  1403→          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  1404→            <div>
+  1405→              <CardTitle className="text-sm">Recent Activity</CardTitle>
+  1406→              <CardDescription className="flex items-center gap-2">
+  1407→                Last {logs.length} actions performed in the system
+  1408→                {isFetching && !isLoading && (
+  1409→                  <RefreshCw className="h-3 w-3 animate-spin" />
+  1410→                )}
+  1411→              </CardDescription>
+  1412→            </div>
+  1413→            <Select value={filter} onValueChange={setFilter}>
+  1414→              <SelectTrigger className="w-[180px]">
+  1415→                <SelectValue placeholder="Filter by module" />
+  1416→              </SelectTrigger>
+  1417→              <SelectContent>
+  1418→                <SelectItem value="all">All Modules</SelectItem>
+  1419→                {modules.map((m: string) => (
+  1420→                  <SelectItem key={m} value={m}>{m}</SelectItem>
+  1421→                ))}
+  1422→              </SelectContent>
+  1423→            </Select>
+  1424→          </div>
+  1425→        </CardHeader>
+  1426→        <CardContent className="p-0">
+  1427→          {isLoading ? (
+  1428→            <div className="p-8 space-y-3">
+  1429→              <Skeleton className="h-10 w-full" />
+  1430→              <Skeleton className="h-10 w-full" />
+  1431→              <Skeleton className="h-10 w-full" />
+  1432→              <Skeleton className="h-10 w-full" />
+  1433→              <Skeleton className="h-10 w-full" />
+  1434→            </div>
+  1435→          ) : (
+  1436→            <ScrollArea className="max-h-[600px]">
+  1437→              <Table>
+  1438→                <TableHeader>
+  1439→                  <TableRow className="hover:bg-transparent">
+  1440→                    <TableHead className="w-[140px]">Date</TableHead>
+  1441→                    <TableHead className="w-[140px]">Action</TableHead>
+  1442→                    <TableHead className="w-[120px]">Module</TableHead>
+  1443→                    <TableHead className="hidden md:table-cell">Details</TableHead>
+  1444→                    <TableHead className="w-[130px] text-right">IP Address</TableHead>
+  1445→                  </TableRow>
+  1446→                </TableHeader>
+  1447→                <TableBody>
+  1448→                  {logs.map((entry: {
+  1449→                    id: string
+  1450→                    createdAt: string
+  1451→                    action: string
+  1452→                    module: string
+  1453→                    details: string
+  1454→                    ipAddress: string
+  1455→                  }) => (
+  1456→                    <TableRow key={entry.id}>
+  1457→                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+  1458→                        {formatDateTime(entry.createdAt)}
+  1459→                      </TableCell>
+  1460→                      <TableCell>
+  1461→                        <Badge variant="outline" className={cn('text-[10px] font-medium', getActionColor(entry.action))}>
+  1462→                          {entry.action}
+  1463→                        </Badge>
+  1464→                      </TableCell>
+  1465→                      <TableCell>
+  1466→                        <Badge variant="secondary" className={cn('text-[10px]', getModuleBadgeColor(entry.module))}>
+  1467→                          {entry.module}
+  1468→                        </Badge>
+  1469→                      </TableCell>
+  1470→                      <TableCell className="text-xs truncate max-w-[300px] hidden md:table-cell">
+  1471→                        {entry.details}
+  1472→                      </TableCell>
+  1473→                      <TableCell className="text-xs text-muted-foreground text-right font-mono">
+  1474→                        {entry.ipAddress ?? '—'}
+  1475→                      </TableCell>
+  1476→                    </TableRow>
+  1477→                  ))}
+  1478→                  {logs.length === 0 && (
+  1479→                    <TableRow>
+  1480→                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+  1481→                        No activities found for the selected filter.
+  1482→                      </TableCell>
+  1483→                    </TableRow>
+  1484→                  )}
+  1485→                </TableBody>
+  1486→              </Table>
+  1487→            </ScrollArea>
+  1488→          )}
+  1489→        </CardContent>
+  1490→      </Card>
+  1491→    </div>
+  1492→  )
+  1493→}
+  1494→

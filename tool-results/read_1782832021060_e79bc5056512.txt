@@ -1,0 +1,252 @@
+     1→/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:5:import { apiFetch } from '@/lib/api'
+     2→/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:6:import { useQuery } from '@tanstack/react-query'
+     3→/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:231:  const { data, isLoading } = useQuery<{
+     4→/home/z/my-project/src/components/modules/housekeeping/InspectionView.tsx:236:    queryFn: () => apiFetch('/api/housekeeping'),
+     5→/home/z/my-project/src/components/modules/pos/RoomServiceView.tsx:5:import { useQuery } from '@tanstack/react-query'
+     6→/home/z/my-project/src/components/modules/pos/RoomServiceView.tsx:6:import { apiFetch } from '@/lib/api'
+     7→/home/z/my-project/src/components/modules/pos/RoomServiceView.tsx:395:  const { data, isLoading, error } = useQuery<{
+     8→/home/z/my-project/src/components/modules/pos/RoomServiceView.tsx:401:    queryFn: () => apiFetch('/api/pos?section=room-service'),
+     9→/home/z/my-project/src/components/modules/settings/SettingsModule.tsx:4:import { apiFetch } from '@/lib/api'
+    10→/home/z/my-project/src/components/modules/settings/SettingsModule.tsx:1599:      await apiFetch('/api/auth/password', {
+    11→/home/z/my-project/src/components/modules/pos/KitchenDisplayView.tsx:5:import { apiFetch } from '@/lib/api'
+    12→/home/z/my-project/src/components/modules/pos/KitchenDisplayView.tsx:21:import { useMutation, useQueryClient } from '@tanstack/react-query'
+    13→/home/z/my-project/src/components/modules/pos/KitchenDisplayView.tsx:284:  const queryClient = useQueryClient()
+    14→/home/z/my-project/src/components/modules/pos/KitchenDisplayView.tsx:297:      return apiFetch('/api/pos', {
+    15→/home/z/my-project/src/components/modules/pos/DailySalesReportView.tsx:5:import { useQuery } from '@tanstack/react-query'
+    16→/home/z/my-project/src/components/modules/pos/DailySalesReportView.tsx:6:import { apiFetch } from '@/lib/api'
+    17→/home/z/my-project/src/components/modules/pos/DailySalesReportView.tsx:295:  const { data: reportData, isLoading, error } = useQuery<{ report: DailyReportData }>({
+    18→/home/z/my-project/src/components/modules/pos/DailySalesReportView.tsx:297:    queryFn: () => apiFetch(`/api/pos?section=daily-report&date=${reportDate}`),
+    19→/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:4:import { apiFetch } from '@/lib/api'
+    20→/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:6:import { useQuery } from '@tanstack/react-query'
+    21→/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:857:  const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
+    22→/home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx:859:    queryFn: () => apiFetch('/api/dashboard'),
+    23→/home/z/my-project/src/components/modules/pos/TableReservationsView.tsx:5:import { useQuery } from '@tanstack/react-query'
+    24→/home/z/my-project/src/components/modules/pos/TableReservationsView.tsx:6:import { apiFetch } from '@/lib/api'
+    25→/home/z/my-project/src/components/modules/pos/TableReservationsView.tsx:394:  const { data, isLoading, error } = useQuery<{ reservations: Reservation[] }>({
+    26→/home/z/my-project/src/components/modules/pos/TableReservationsView.tsx:396:    queryFn: () => apiFetch('/api/pos?section=table-reservations'),
+    27→/home/z/my-project/src/components/modules/pos/OrderHistoryView.tsx:5:import { apiFetch } from '@/lib/api'
+    28→/home/z/my-project/src/components/modules/pos/OrderHistoryView.tsx:23:import { useQuery } from '@tanstack/react-query'
+    29→/home/z/my-project/src/components/modules/pos/OrderHistoryView.tsx:223:  const { data: historyData, isLoading } = useQuery<{
+    30→/home/z/my-project/src/components/modules/pos/OrderHistoryView.tsx:234:      return apiFetch(`/api/pos?${params}`)
+    31→/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:4:import { apiFetch } from '@/lib/api'
+    32→/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:5:import { useQuery } from '@tanstack/react-query'
+    33→/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:263:  const { data, isLoading, error, refetch } = useQuery<RoomTypesResponse>({
+    34→/home/z/my-project/src/components/modules/rooms/RoomTypesView.tsx:265:    queryFn: () => apiFetch('/api/rooms'),
+    35→/home/z/my-project/src/components/modules/rooms/RoomBoard.tsx:4:import { apiFetch } from '@/lib/api'
+    36→/home/z/my-project/src/components/modules/rooms/RoomBoard.tsx:5:import { useQuery } from '@tanstack/react-query'
+    37→/home/z/my-project/src/components/modules/rooms/RoomBoard.tsx:541:  const { data, isLoading, error, refetch } = useQuery<RoomsApiResponse>({
+    38→/home/z/my-project/src/components/modules/rooms/RoomBoard.tsx:543:    queryFn: () => apiFetch('/api/rooms'),
+    39→/home/z/my-project/src/components/modules/pos/RestaurantView.tsx:5:import { apiFetch } from '@/lib/api'
+    40→/home/z/my-project/src/components/modules/pos/RestaurantView.tsx:28:import { useMutation, useQueryClient } from '@tanstack/react-query'
+    41→/home/z/my-project/src/components/modules/pos/RestaurantView.tsx:516:  const queryClient = useQueryClient()
+    42→/home/z/my-project/src/components/modules/pos/RestaurantView.tsx:529:      return apiFetch('/api/pos', {
+    43→/home/z/my-project/src/components/modules/pos/RestaurantView.tsx:646:  const queryClient = useQueryClient()
+    44→/home/z/my-project/src/components/modules/pos/RestaurantView.tsx:664:      return apiFetch('/api/pos', {
+    45→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:5:import { apiFetch } from '@/lib/api'
+    46→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:6:import { useQuery } from '@tanstack/react-query'
+    47→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:285:  const { data, isLoading } = useQuery<{
+    48→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:290:    queryFn: () => apiFetch('/api/housekeeping'),
+    49→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:5:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    50→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:6:import { apiFetch } from '@/lib/api'
+    51→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:161:  const queryClient = useQueryClient()
+    52→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:181:  const { data: tickets, isLoading } = useQuery<SupportTicket[]>({
+    53→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:183:    queryFn: () => apiFetch('/api/support-tickets'),
+    54→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:197:      return apiFetch('/api/support-tickets', {
+    55→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:227:      return apiFetch(`/api/support-tickets/${id}`, {
+    56→/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:4:import { apiFetch } from '@/lib/api'
+    57→/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:5:import { useQuery } from '@tanstack/react-query'
+    58→/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:290:  const { data, isLoading, error, refetch } = useQuery<RestrictionsResponse>({
+    59→/home/z/my-project/src/components/modules/rooms/RestrictionsView.tsx:292:    queryFn: () => apiFetch('/api/rooms'),
+    60→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:5:import { apiFetch } from '@/lib/api'
+    61→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:6:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    62→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:67:  const queryClient = useQueryClient()
+    63→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:91:  const { data, isLoading } = useQuery<LostFoundItem[]>({
+    64→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:93:    queryFn: () => apiFetch('/api/housekeeping?section=lost-found'),
+    65→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:4:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    66→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:6:import { apiFetch } from '@/lib/api'
+    67→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:96:  return apiFetch(`/api/employees?${params.toString()}`)
+    68→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:100:  const queryClient = useQueryClient()
+    69→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:114:  const { data, isLoading } = useQuery({
+    70→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:141:      return apiFetch('/api/employees', {
+    71→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:164:      return apiFetch(`/api/employees/${id}`, {
+    72→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:187:      return apiFetch(`/api/employees/${id}`, { method: 'DELETE' })
+    73→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:4:import { apiFetch } from '@/lib/api'
+    74→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:13:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    75→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:186:  const queryClient = useQueryClient()
+    76→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:207:      return apiFetch('/api/auth/profile', {
+    77→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:514:  const { data: profileData, isLoading } = useQuery({
+    78→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:518:      return apiFetch(`/api/auth/profile?userId=${user.id}`)
+    79→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:658:  const queryClient = useQueryClient()
+    80→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:700:      await apiFetch('/api/auth/password', {
+    81→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:721:      return apiFetch('/api/auth/profile', {
+    82→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1298:  const { data, isLoading, isFetching } = useQuery({
+    83→/home/z/my-project/src/components/modules/profile/ProfileModule.tsx:1307:      return apiFetch(`/api/auth/activity-log?${params}`)
+    84→/home/z/my-project/src/components/modules/hr/PayrollView.tsx:4:import { useQuery } from '@tanstack/react-query'
+    85→/home/z/my-project/src/components/modules/hr/PayrollView.tsx:5:import { apiFetch } from '@/lib/api'
+    86→/home/z/my-project/src/components/modules/hr/PayrollView.tsx:39:  return apiFetch('/api/payroll')
+    87→/home/z/my-project/src/components/modules/hr/PayrollView.tsx:43:  const { data, isLoading } = useQuery({
+    88→/home/z/my-project/src/components/modules/hr/SchedulesView.tsx:5:import { useQuery } from '@tanstack/react-query'
+    89→/home/z/my-project/src/components/modules/hr/SchedulesView.tsx:6:import { apiFetch } from '@/lib/api'
+    90→/home/z/my-project/src/components/modules/hr/SchedulesView.tsx:46:  return apiFetch<ShiftEntry[]>('/api/employees?section=schedules')
+    91→/home/z/my-project/src/components/modules/hr/SchedulesView.tsx:77:  const { data: schedule = [], isLoading, isError } = useQuery({
+    92→/home/z/my-project/src/components/modules/inventory/StockView.tsx:5:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+    93→/home/z/my-project/src/components/modules/inventory/StockView.tsx:6:import { apiFetch } from '@/lib/api'
+    94→/home/z/my-project/src/components/modules/inventory/StockView.tsx:69:  return apiFetch(`/api/inventory?${params.toString()}`)
+    95→/home/z/my-project/src/components/modules/inventory/StockView.tsx:74:  const queryClient = useQueryClient()
+    96→/home/z/my-project/src/components/modules/inventory/StockView.tsx:86:  const { data, isLoading } = useQuery({
+    97→/home/z/my-project/src/components/modules/inventory/StockView.tsx:100:      return apiFetch('/api/inventory', {
+    98→/home/z/my-project/src/components/modules/inventory/StockView.tsx:117:      return apiFetch(`/api/inventory/${id}`, {
+    99→/home/z/my-project/src/components/modules/inventory/StockView.tsx:135:      return apiFetch(`/api/inventory/${id}`, { method: 'DELETE' })
+   100→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   101→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:6:import { apiFetch } from '@/lib/api'
+   102→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:50:  return apiFetch('/api/employees')
+   103→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:59:  const { data, isLoading } = useQuery({
+   104→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:5:import { useQuery } from '@tanstack/react-query'
+   105→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:6:import { apiFetch } from '@/lib/api'
+   106→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:111:  return apiFetch('/api/inventory?section=purchase-orders')
+   107→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:115:  return apiFetch('/api/vendors')
+   108→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:135:  const { data: poData, isLoading: poLoading, isError: poError } = useQuery({
+   109→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:140:  const { data: vendorsData } = useQuery({
+   110→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:5:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   111→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:6:import { apiFetch } from '@/lib/api'
+   112→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:66:  return apiFetch('/api/vendors')
+   113→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:105:  const queryClient = useQueryClient()
+   114→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:117:  const { data, isLoading } = useQuery({
+   115→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:131:      return apiFetch('/api/vendors', {
+   116→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:149:      return apiFetch('/api/vendors', {
+   117→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:167:      return apiFetch('/api/vendors', {
+   118→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   119→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx:5:import { apiFetch } from '@/lib/api'
+   120→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx:37:  return apiFetch('/api/attendance')
+   121→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx:41:  const { data, isLoading } = useQuery({
+   122→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:5:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   123→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:6:import { apiFetch } from '@/lib/api'
+   124→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:75:  return apiFetch('/api/requisitions')
+   125→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:80:  const queryClient = useQueryClient()
+   126→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:93:  const { data, isLoading } = useQuery({
+   127→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:112:      return apiFetch('/api/requisitions', {
+   128→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:136:      return apiFetch('/api/requisitions', {
+   129→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:153:      return apiFetch('/api/requisitions', {
+   130→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:169:      return apiFetch('/api/requisitions', {
+   131→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:5:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   132→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:6:import { apiFetch } from '@/lib/api'
+   133→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:106:  const queryClient = useQueryClient()
+   134→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:111:  const { data: inventoryData } = useQuery({
+   135→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:113:    queryFn: () => apiFetch('/api/inventory'),
+   136→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:128:      return apiFetch(`/api/inventory/${body.itemId}`, {
+   137→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   138→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:5:import { apiFetch } from '@/lib/api'
+   139→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:72:  return apiFetch('/api/inventory')
+   140→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:76:  return apiFetch('/api/vendors')
+   141→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:80:  return apiFetch('/api/inventory?section=activity')
+   142→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:84:  return apiFetch('/api/inventory?section=expiring')
+   143→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:92:  const { data: inventoryData, isLoading: invLoading } = useQuery({
+   144→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:97:  const { data: vendorsData, isLoading: vendorsLoading } = useQuery({
+   145→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:102:  const { data: activityData, isLoading: activityLoading } = useQuery({
+   146→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:107:  const { data: expiringData, isLoading: expiringLoading } = useQuery({
+   147→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   148→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx:5:import { apiFetch } from '@/lib/api'
+   149→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx:30:  return apiFetch('/api/channels')
+   150→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx:34:  const { data, isLoading } = useQuery({
+   151→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   152→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx:5:import { apiFetch } from '@/lib/api'
+   153→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx:35:  return apiFetch('/api/channel-bookings')
+   154→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx:42:  const { data, isLoading } = useQuery({
+   155→/home/z/my-project/src/components/modules/revenue/PricingView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   156→/home/z/my-project/src/components/modules/revenue/PricingView.tsx:5:import { apiFetch } from '@/lib/api'
+   157→/home/z/my-project/src/components/modules/revenue/PricingView.tsx:38:  return apiFetch('/api/revenue')
+   158→/home/z/my-project/src/components/modules/revenue/PricingView.tsx:42:  const { data, isLoading } = useQuery({
+   159→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:4:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   160→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:5:import { apiFetch } from '@/lib/api'
+   161→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:67:  const queryClient = useQueryClient()
+   162→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:85:  const { data, isLoading } = useQuery<{ campaigns: Campaign[]; total: number }>({
+   163→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:88:      const d = await apiFetch<{ guests: unknown[] }>('/api/guests')
+   164→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:158:      return apiFetch('/api/guests', {
+   165→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx:5:import { apiFetch } from '@/lib/api'
+   166→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx:6:import { useQuery } from '@tanstack/react-query'
+   167→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx:276:  const { data, isLoading } = useQuery<{ guests: Guest[]; total: number }>({
+   168→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx:282:      return apiFetch(`/api/guests?${params}`)
+   169→/home/z/my-project/src/components/modules/crm/LoyaltyView.tsx:3:import { useQuery } from '@tanstack/react-query'
+   170→/home/z/my-project/src/components/modules/crm/LoyaltyView.tsx:4:import { apiFetch } from '@/lib/api'
+   171→/home/z/my-project/src/components/modules/crm/LoyaltyView.tsx:161:  const { data, isLoading } = useQuery<{ guests: Guest[]; total: number }>({
+   172→/home/z/my-project/src/components/modules/crm/LoyaltyView.tsx:163:    queryFn: () => apiFetch('/api/guests'),
+   173→/home/z/my-project/src/components/modules/revenue/DemandCalendarView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   174→/home/z/my-project/src/components/modules/revenue/DemandCalendarView.tsx:5:import { apiFetch } from '@/lib/api'
+   175→/home/z/my-project/src/components/modules/revenue/DemandCalendarView.tsx:21:  return apiFetch('/api/revenue')
+   176→/home/z/my-project/src/components/modules/revenue/DemandCalendarView.tsx:37:  const { data, isLoading } = useQuery({
+   177→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:3:import { apiFetch } from '@/lib/api'
+   178→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:6:import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+   179→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:245:  const queryClient = useQueryClient()
+   180→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:310:  const { data, isLoading } = useQuery({
+   181→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:318:      return apiFetch(`/api/reservations?${params.toString()}`)
+   182→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:357:        const gd = await apiFetch<{ guest: { id: string } }>('/api/guests', {
+   183→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:370:      return apiFetch('/api/reservations', {
+   184→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:402:      apiFetch(`/api/reservations/${id}`, {
+   185→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:416:      apiFetch(`/api/reservations/${id}`, {
+   186→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:435:      apiFetch(`/api/reservations/${id}`, {
+   187→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:455:      apiFetch(`/api/reservations/${id}`, { method: 'DELETE' }),
+   188→/home/z/my-project/src/components/modules/revenue/RateIntelligenceView.tsx:4:import { useQuery } from '@tanstack/react-query'
+   189→/home/z/my-project/src/components/modules/revenue/RateIntelligenceView.tsx:5:import { apiFetch } from '@/lib/api'
+   190→/home/z/my-project/src/components/modules/revenue/RateIntelligenceView.tsx:25:  return apiFetch<{ competitorRates: CompetitorRate[]; marketInsights: MarketInsight[] }>(
+   191→/home/z/my-project/src/components/modules/revenue/RateIntelligenceView.tsx:31:  const { data, isLoading } = useQuery({
+   192→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:4:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   193→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:5:import { apiFetch } from '@/lib/api'
+   194→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:230:  const queryClient = useQueryClient()
+   195→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:313:  const { data: roomsData, isLoading: roomsLoading } = useQuery({
+   196→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:315:    queryFn: () => apiFetch('/api/rooms'),
+   197→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:318:  const { data: guestsData, isLoading: guestsLoading } = useQuery({
+   198→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:322:      return apiFetch(`/api/guests?search=${encodeURIComponent(debouncedSearch.trim())}`)
+   199→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:536:        const newGuest = await apiFetch('/api/guests', {
+   200→/home/z/my-project/src/components/modules/front-desk/NewReservationPage.tsx:544:      return apiFetch('/api/reservations', {
+   201→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:3:import { apiFetch } from '@/lib/api'
+   202→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:6:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   203→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:200:  const queryClient = useQueryClient()
+   204→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:273:  const { data: foliosData, isLoading: foliosLoading } = useQuery({
+   205→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:275:    queryFn: () => apiFetch<{ folios: Folio[]; stats: FolioStats | null; settings: Record<string, unknown> }>('/api/folio'),
+   206→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:279:  const { data: searchData, isLoading: searchLoading } = useQuery({
+   207→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:281:    queryFn: () => apiFetch<{ folios: Folio[] }>(`/api/folio?search=${encodeURIComponent(debouncedSearch)}`),
+   208→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:302:  const { data: folioDetail, isLoading: detailLoading } = useQuery({
+   209→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:312:          const data = await apiFetch<{ folios: Folio[] }>(`/api/folio?reservationId=${folio.reservation.id}`)
+   210→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:318:        const data = await apiFetch<{ folios: Folio[] }>('/api/folio')
+   211→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:433:      return apiFetch<{ folio: Folio }>(`/api/folio/${activeFolio.id}`, {
+   212→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:468:      return apiFetch<{ folio: Folio }>(`/api/folio/${activeFolio.id}`, {
+   213→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:499:      return apiFetch<{ folio: Folio }>(`/api/folio/${activeFolio.id}`, {
+   214→/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:4:import { useQuery } from '@tanstack/react-query'
+   215→/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:5:import { apiFetch } from '@/lib/api'
+   216→/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:276:  } = useQuery<DashboardData>({
+   217→/home/z/my-project/src/components/modules/front-desk/FrontDeskDashboard.tsx:278:    queryFn: () => apiFetch('/api/front-desk/dashboard'),
+   218→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:4:import { useMutation, useQueryClient } from '@tanstack/react-query'
+   219→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:5:import { useQuery } from '@tanstack/react-query'
+   220→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:6:import { apiFetch } from '@/lib/api'
+   221→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:165:  const queryClient = useQueryClient()
+   222→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:212:  const { data: roomTypesData } = useQuery({
+   223→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:214:    queryFn: () => apiFetch('/api/room-types'),
+   224→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:218:  const { data, isLoading } = useQuery({
+   225→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:222:      return apiFetch(`/api/reservations?${params.toString()}`)
+   226→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:227:  const { data: roomsData } = useQuery({
+   227→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:229:    queryFn: () => apiFetch('/api/rooms'),
+   228→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:284:      return apiFetch(`/api/reservations/${reservationId}`, {
+   229→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:308:      return apiFetch(`/api/reservations/${reservationId}`, {
+   230→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:326:      const guestData = await apiFetch('/api/guests', {
+   231→/home/z/my-project/src/components/modules/front-desk/ArrivalsView.tsx:357:      const resData = await apiFetch('/api/reservations', {
+   232→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:4:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   233→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:5:import { apiFetch } from '@/lib/api'
+   234→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:117:  const queryClient = useQueryClient()
+   235→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:122:  const { data: callsData, isLoading, error, refetch } = useQuery<{ calls: WakeUpCall[] }>({
+   236→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:124:    queryFn: () => apiFetch(`/api/wake-up-calls?date=${todayStr}`),
+   237→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:128:  const { data: inHouseData } = useQuery<{ reservations: Array<{ id: string; room: { id: string; number: string }; guest: { firstName: string; lastName: string } }> }>({
+   238→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:130:    queryFn: () => apiFetch(`/api/reservations?status=checked_in&checkOutDate=${todayStr}`),
+   239→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:172:      apiFetch(`/api/wake-up-calls/${id}`, {
+   240→/home/z/my-project/src/components/modules/front-desk/WakeUpCallsView.tsx:182:    mutationFn: (data: Record<string, unknown>) => apiFetch('/api/wake-up-calls', {
+   241→/home/z/my-project/src/components/modules/front-desk/QuickSearch.tsx:4:import { apiFetch } from '@/lib/api'
+   242→/home/z/my-project/src/components/modules/front-desk/QuickSearch.tsx:41:      const data = await apiFetch<{ results: SearchResult[] }>(`/api/front-desk/search?q=${encodeURIComponent(searchQuery)}`)
+   243→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:3:import { apiFetch } from '@/lib/api'
+   244→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:5:import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+   245→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:180:  const queryClient = useQueryClient()
+   246→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:272:  } = useQuery({
+   247→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:276:      const data = await apiFetch(`/api/reservations/${activeReservationId}`) as { reservation: ReservationData }
+   248→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:283:  const { data: guestStayHistory } = useQuery({
+   249→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:288:        return await apiFetch(`/api/guests/${reservationData.guest.id}/stays`) as Array<{ id: string; checkIn: string; checkOut: string; roomNumber: string }>
+   250→/home/z/my-project/src/components/modules/front-desk/CheckInWizard.tsx:297:  const { data: roomsData } = useQuery({
+   251→
+   252→[Showing results with pagination = limit: 250]

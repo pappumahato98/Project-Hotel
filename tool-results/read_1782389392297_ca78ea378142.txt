@@ -1,0 +1,692 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+     5→import { toast } from 'sonner'
+     6→import { apiFetch } from '@/lib/api'
+     7→import {
+     8→  Scale, CreditCard, CheckCircle2, Printer,
+     9→  Eye, Banknote, FileText, BookOpen, MoreHorizontal,
+    10→  ArrowRightLeft, AlertTriangle, Ban, Receipt,
+    11→} from 'lucide-react'
+    12→
+    13→import { Checkbox } from '@/components/ui/checkbox'
+    14→import {
+    15→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+    16→} from '@/components/ui/dropdown-menu'
+    17→import { Button } from '@/components/ui/button'
+    18→import { Badge } from '@/components/ui/badge'
+    19→import { Card, CardContent } from '@/components/ui/card'
+    20→import { Skeleton } from '@/components/ui/skeleton'
+    21→import { Input } from '@/components/ui/input'
+    22→import { Label } from '@/components/ui/label'
+    23→import { Separator } from '@/components/ui/separator'
+    24→import { Textarea } from '@/components/ui/textarea'
+    25→import {
+    26→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    27→} from '@/components/ui/select'
+    28→import {
+    29→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    30→} from '@/components/ui/table'
+    31→import {
+    32→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    33→} from '@/components/ui/dialog'
+    34→import {
+    35→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    36→} from '@/components/ui/alert-dialog'
+    37→import { StatusBadge } from '@/components/shared/status-badge'
+    38→import { formatDate, formatCurrency } from '@/lib/format'
+    39→import { cn } from '@/lib/utils'
+    40→import { useSettingsStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
+    41→import { invalidate } from '@/lib/queryKeys'
+    42→
+    43→// ─── Types ──────────────────────────────────────────────────────────────
+    44→
+    45→interface SettlementGuest {
+    46→  id: string
+    47→  firstName: string
+    48→  lastName: string
+    49→  vipLevel: string
+    50→}
+    51→
+    52→interface SettlementRoom {
+    53→  id: string
+    54→  number: string
+    55→  type: { name: string; code: string }
+    56→}
+    57→
+    58→interface SettlementFolio {
+    59→  id: string
+    60→  balance: number
+    61→  status: string
+    62→}
+    63→
+    64→interface Settlement {
+    65→  id: string
+    66→  confirmationNo: string
+    67→  status: string
+    68→  checkIn: string
+    69→  checkOut: string
+    70→  totalAmount: number
+    71→  paidAmount: number
+    72→  guest: SettlementGuest
+    73→  room: SettlementRoom | null
+    74→  folios: SettlementFolio[]
+    75→}
+    76→
+    77→type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'city_ledger'
+    78→
+    79→const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+    80→  cash: 'Cash',
+    81→  card: 'Credit/Debit Card',
+    82→  bank_transfer: 'Bank Transfer',
+    83→  cheque: 'Cheque',
+    84→  city_ledger: 'City Ledger',
+    85→}
+    86→
+    87→// ─── Component ──────────────────────────────────────────────────────────
+    88→
+    89→export function SettlementView() {
+    90→  const queryClient = useQueryClient()
+    91→  const { settings } = useSettingsStore()
+    92→  const { navigateTo } = useNavigationStore()
+    93→
+    94→  // Dialog states
+    95→  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+    96→  const [writeOffDialogOpen, setWriteOffDialogOpen] = useState(false)
+    97→  const [cityLedgerDialogOpen, setCityLedgerDialogOpen] = useState(false)
+    98→  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+    99→
+   100→  // Selected settlement
+   101→  const [selectedSettlement, setSelectedSettlement] = useState<Settlement | null>(null)
+   102→
+   103→  // Payment form
+   104→  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+   105→  const [paymentAmount, setPaymentAmount] = useState('')
+   106→  const [paymentReference, setPaymentReference] = useState('')
+   107→
+   108→  // Write-off form
+   109→  const [writeOffReason, setWriteOffReason] = useState('')
+   110→
+   111→  // City ledger form
+   112→  const [cityLedgerCompany, setCityLedgerCompany] = useState('')
+   113→  const [cityLedgerReference, setCityLedgerReference] = useState('')
+   114→
+   115→  // Checkbox selection
+   116→  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+   117→
+   118→  // Fetch checked-out reservations with outstanding balances
+   119→  const { data, isLoading } = useQuery({
+   120→    queryKey: ['settlements'],
+   121→    queryFn: async () => {
+   122→      const res = await apiFetch('/api/reservations?status=checked_out')
+   123→      return res
+   124→    },
+   125→    refetchInterval: 30000,
+   126→  })
+   127→
+   128→  const allSettlements: Settlement[] = data?.reservations || []
+   129→
+   130→  // Filter to only those with outstanding balance > 0
+   131→  const settlements = allSettlements.filter(
+   132→    (s) => (s.folios[0]?.balance || 0) > 0,
+   133→  )
+   134→
+   135→  // Stats
+   136→  const totalOutstanding = settlements.reduce((sum, s) => sum + (s.folios[0]?.balance || 0), 0)
+   137→  const totalSettled = allSettlements.reduce((sum, s) => {
+   138→    const bal = s.folios[0]?.balance || 0
+   139→    return bal <= 0 ? sum + Math.abs(bal) : sum
+   140→  }, 0)
+   141→  const pendingCount = settlements.length
+   142→
+   143→  // ─── Mutations ─────────────────────────────────────────────────────
+   144→
+   145→  const paymentMutation = useMutation({
+   146→    mutationFn: async ({ folioId, amount, method, reference }: { folioId: string; amount: number; method: PaymentMethod; reference: string }) => {
+   147→      return apiFetch(`/api/folio/${folioId}`, {
+   148→        method: 'POST',
+   149→        headers: { 'Content-Type': 'application/json' },
+   150→        body: JSON.stringify({ type: 'payment', paymentMethod: method, amount, reference }),
+   151→      })
+   152→    },
+   153→    onSuccess: () => {
+   154→      invalidate.afterFolioChange(queryClient)
+   155→      setPaymentDialogOpen(false)
+   156→      setPaymentAmount('')
+   157→      setPaymentReference('')
+   158→      toast.success('Payment posted successfully')
+   159→    },
+   160→    onError: () => {
+   161→      toast.error('Failed to post payment')
+   162→    },
+   163→  })
+   164→
+   165→  const writeOffMutation = useMutation({
+   166→    mutationFn: async ({ folioId, reason }: { folioId: string; reason: string }) => {
+   167→      return apiFetch(`/api/folio/${folioId}`, {
+   168→        method: 'POST',
+   169→        headers: { 'Content-Type': 'application/json' },
+   170→        body: JSON.stringify({
+   171→          type: 'charge',
+   172→          description: `Write-off: ${reason}`,
+   173→          amount: 0,
+   174→          note: reason,
+   175→        }),
+   176→      })
+   177→    },
+   178→    onSuccess: () => {
+   179→      invalidate.afterFolioChange(queryClient)
+   180→      setWriteOffDialogOpen(false)
+   181→      setWriteOffReason('')
+   182→      toast.success('Balance written off')
+   183→    },
+   184→    onError: () => {
+   185→      toast.error('Failed to write off balance')
+   186→    },
+   187→  })
+   188→
+   189→  // ─── Handlers ─────────────────────────────────────────────────────
+   190→
+   191→  const getBalance = (s: Settlement) => s.folios[0]?.balance || 0
+   192→
+   193→  const handlePostPayment = (s: Settlement) => {
+   194→    setSelectedSettlement(s)
+   195→    setPaymentAmount(String(getBalance(s)))
+   196→    setPaymentMethod('cash')
+   197→    setPaymentReference('')
+   198→    setPaymentDialogOpen(true)
+   199→  }
+   200→
+   201→  const handleRecordPayment = () => {
+   202→    if (!selectedSettlement) return
+   203→    const folioId = selectedSettlement.folios[0]?.id
+   204→    if (!folioId) {
+   205→      toast.error('No folio found')
+   206→      return
+   207→    }
+   208→    const amount = Number(paymentAmount)
+   209→    if (isNaN(amount) || amount <= 0) {
+   210→      toast.error('Please enter a valid amount')
+   211→      return
+   212→    }
+   213→    paymentMutation.mutate({
+   214→      folioId,
+   215→      amount,
+   216→      method: paymentMethod,
+   217→      reference: paymentReference,
+   218→    })
+   219→  }
+   220→
+   221→  const handleWriteOff = (s: Settlement) => {
+   222→    setSelectedSettlement(s)
+   223→    setWriteOffReason('')
+   224→    setWriteOffDialogOpen(true)
+   225→  }
+   226→
+   227→  const handleConfirmWriteOff = () => {
+   228→    if (!selectedSettlement) return
+   229→    const folioId = selectedSettlement.folios[0]?.id
+   230→    if (!folioId) {
+   231→      toast.error('No folio found')
+   232→      return
+   233→    }
+   234→    if (!writeOffReason.trim()) {
+   235→      toast.error('Please provide a reason for write-off')
+   236→      return
+   237→    }
+   238→    writeOffMutation.mutate({ folioId, reason: writeOffReason })
+   239→  }
+   240→
+   241→  const handleTransferCityLedger = (s: Settlement) => {
+   242→    setSelectedSettlement(s)
+   243→    setCityLedgerCompany('')
+   244→    setCityLedgerReference('')
+   245→    setCityLedgerDialogOpen(true)
+   246→  }
+   247→
+   248→  const handleConfirmCityLedger = () => {
+   249→    if (!selectedSettlement) return
+   250→    const folioId = selectedSettlement.folios[0]?.id
+   251→    if (!folioId) {
+   252→      toast.error('No folio found')
+   253→      return
+   254→    }
+   255→    // Post as city ledger payment
+   256→    paymentMutation.mutate({
+   257→      folioId,
+   258→      amount: getBalance(selectedSettlement),
+   259→      method: 'city_ledger',
+   260→      reference: cityLedgerCompany ? `${cityLedgerCompany}${cityLedgerReference ? ` — ${cityLedgerReference}` : ''}` : 'City Ledger Transfer',
+   261→    })
+   262→    setCityLedgerDialogOpen(false)
+   263→  }
+   264→
+   265→  const handleViewFolio = (s: Settlement) => {
+   266→    useFolioContextStore.getState().setFolioContext({
+   267→      reservationId: s.id,
+   268→      guestId: s.guest?.id || '',
+   269→      guestName: `${s.guest?.firstName || ''} ${s.guest?.lastName || ''}`.trim(),
+   270→      roomNumber: s.room?.number || '',
+   271→      confirmationNo: s.confirmationNo,
+   272→    })
+   273→    navigateTo('front-desk', 'folio')
+   274→  }
+   275→
+   276→  const handleViewLedger = (s: Settlement) => {
+   277→    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+   278→      guestId: s.guest?.id || '',
+   279→      guestName: `${s.guest?.firstName || ''} ${s.guest?.lastName || ''}`.trim(),
+   280→    })
+   281→    navigateTo('front-desk', 'guest-ledger')
+   282→  }
+   283→
+   284→  const handleViewDetail = (s: Settlement) => {
+   285→    setSelectedSettlement(s)
+   286→    setDetailDialogOpen(true)
+   287→  }
+   288→
+   289→  const handleBatchSettle = () => {
+   290→    const ids = Array.from(selectedRows)
+   291→    if (ids.length === 0) {
+   292→      toast.info('No settlements selected')
+   293→      return
+   294→    }
+   295→    toast.info(`Batch settlement initiated for ${ids.length} guest(s)`)
+   296→    // In a real implementation, this would open a batch payment dialog
+   297→  }
+   298→
+   299→  // ─── Render ────────────────────────────────────────────────────────
+   300→
+   301→  return (
+   302→    <div className="flex flex-col gap-2">
+   303→      {/* Header */}
+   304→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+   305→        <div>
+   306→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Settlement</h2>
+   307→          <p className="text-xs text-muted-foreground">
+   308→            Checked-out guests with outstanding balances
+   309→          </p>
+   310→        </div>
+   311→        <div className="flex items-center gap-2">
+   312→          {selectedRows.size > 0 && (
+   313→            <Button
+   314→              variant="outline"
+   315→              size="sm"
+   316→              className="h-7 text-[11px] gap-1"
+   317→              onClick={handleBatchSettle}
+   318→            >
+   319→              <CreditCard className="size-3" />
+   320→              Batch Settle ({selectedRows.size})
+   321→            </Button>
+   322→          )}
+   323→        </div>
+   324→      </div>
+   325→
+   326→      {/* Summary Cards */}
+   327→      <div className="grid grid-cols-3 gap-2">
+   328→        <Card className="py-0">
+   329→          <CardContent className="p-3 flex items-center gap-3">
+   330→            <div className="size-8 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
+   331→              <AlertTriangle className="size-4 text-red-600" />
+   332→            </div>
+   333→            <div>
+   334→              <p className="text-[10px] text-muted-foreground font-medium">Outstanding</p>
+   335→              <p className="text-sm font-bold text-red-600">{formatCurrency(totalOutstanding)}</p>
+   336→            </div>
+   337→          </CardContent>
+   338→        </Card>
+   339→        <Card className="py-0">
+   340→          <CardContent className="p-3 flex items-center gap-3">
+   341→            <div className="size-8 rounded-lg bg-green-50 dark:bg-green-950/30 flex items-center justify-center">
+   342→              <CheckCircle2 className="size-4 text-green-600" />
+   343→            </div>
+   344→            <div>
+   345→              <p className="text-[10px] text-muted-foreground font-medium">Settled Today</p>
+   346→              <p className="text-sm font-bold text-green-600">{formatCurrency(totalSettled)}</p>
+   347→            </div>
+   348→          </CardContent>
+   349→        </Card>
+   350→        <Card className="py-0">
+   351→          <CardContent className="p-3 flex items-center gap-3">
+   352→            <div className="size-8 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
+   353→              <Scale className="size-4 text-amber-600" />
+   354→            </div>
+   355→            <div>
+   356→              <p className="text-[10px] text-muted-foreground font-medium">Pending</p>
+   357→              <p className="text-sm font-bold text-amber-600">{pendingCount}</p>
+   358→            </div>
+   359→          </CardContent>
+   360→        </Card>
+   361→      </div>
+   362→
+   363→      {/* Settlements Table */}
+   364→      <Card className="py-0">
+   365→        <CardContent className="p-0">
+   366→          <div className="max-h-[500px] overflow-y-auto">
+   367→            <Table>
+   368→              <TableHeader>
+   369→                <TableRow>
+   370→                  <TableHead className="w-[40px]">
+   371→                    <Checkbox
+   372→                      checked={settlements.length > 0 && selectedRows.size === settlements.length}
+   373→                      onCheckedChange={(checked) => {
+   374→                        if (checked) {
+   375→                          setSelectedRows(new Set(settlements.map(s => s.id)))
+   376→                        } else {
+   377→                          setSelectedRows(new Set())
+   378→                        }
+   379→                      }}
+   380→                    />
+   381→                  </TableHead>
+   382→                  <TableHead className="w-[70px]">Room</TableHead>
+   383→                  <TableHead>Guest</TableHead>
+   384→                  <TableHead className="w-[100px]">Check-out</TableHead>
+   385→                  <TableHead className="w-[120px] text-right">Outstanding</TableHead>
+   386→                  <TableHead className="w-[90px] text-right">Total</TableHead>
+   387→                  <TableHead className="w-[50px]"></TableHead>
+   388→                </TableRow>
+   389→              </TableHeader>
+   390→              <TableBody>
+   391→                {isLoading ? (
+   392→                  Array.from({ length: 5 }).map((_, i) => (
+   393→                    <TableRow key={i}>
+   394→                      {Array.from({ length: 7 }).map((_, j) => (
+   395→                        <TableCell key={j}>
+   396→                          <Skeleton className="h-4 w-full" />
+   397→                        </TableCell>
+   398→                      ))}
+   399→                    </TableRow>
+   400→                  ))
+   401→                ) : settlements.length === 0 ? (
+   402→                  <TableRow>
+   403→                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+   404→                      <div className="flex flex-col items-center gap-2">
+   405→                        <CheckCircle2 className="size-8 text-muted-foreground/50" />
+   406→                        <span>All settlements cleared — no outstanding balances</span>
+   407→                      </div>
+   408→                    </TableCell>
+   409→                  </TableRow>
+   410→                ) : (
+   411→                  settlements.map((s) => {
+   412→                    const balance = getBalance(s)
+   413→                    return (
+   414→                      <TableRow key={s.id}>
+   415→                        <TableCell>
+   416→                          <Checkbox
+   417→                            checked={selectedRows.has(s.id)}
+   418→                            onCheckedChange={(checked) => {
+   419→                              const next = new Set(selectedRows)
+   420→                              if (checked) next.add(s.id)
+   421→                              else next.delete(s.id)
+   422→                              setSelectedRows(next)
+   423→                            }}
+   424→                          />
+   425→                        </TableCell>
+   426→                        <TableCell className="font-bold font-mono">
+   427→                          {s.room?.number || '—'}
+   428→                        </TableCell>
+   429→                        <TableCell>
+   430→                          <div className="flex items-center gap-2">
+   431→                            <span className="font-medium">{s.guest.firstName} {s.guest.lastName}</span>
+   432→                            {s.guest.vipLevel !== 'none' && (
+   433→                              <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+   434→                                VIP
+   435→                              </Badge>
+   436→                            )}
+   437→                          </div>
+   438→                          <p className="text-xs text-muted-foreground">{s.confirmationNo}</p>
+   439→                        </TableCell>
+   440→                        <TableCell className="text-xs">{formatDate(s.checkOut)}</TableCell>
+   441→                        <TableCell className="text-right">
+   442→                          <div className="flex items-center justify-end gap-1.5">
+   443→                            <span className="font-semibold text-red-600">
+   444→                              {formatCurrency(balance)}
+   445→                            </span>
+   446→                            {balance > 5000 && (
+   447→                              <Badge className="bg-red-500 text-white text-[9px] px-1 py-0 animate-pulse border-0">
+   448→                                HIGH
+   449→                              </Badge>
+   450→                            )}
+   451→                          </div>
+   452→                        </TableCell>
+   453→                        <TableCell className="text-right text-xs text-muted-foreground">
+   454→                          {formatCurrency(s.totalAmount)}
+   455→                        </TableCell>
+   456→                        <TableCell className="text-right">
+   457→                          <DropdownMenu>
+   458→                            <DropdownMenuTrigger asChild>
+   459→                              <Button variant="ghost" size="icon" className="size-8">
+   460→                                <MoreHorizontal className="size-4" />
+   461→                              </Button>
+   462→                            </DropdownMenuTrigger>
+   463→                            <DropdownMenuContent align="end">
+   464→                              <DropdownMenuItem onClick={() => handlePostPayment(s)}>
+   465→                                <CreditCard className="size-4 mr-2 text-green-600" /> Post Payment
+   466→                              </DropdownMenuItem>
+   467→                              <DropdownMenuItem onClick={() => handleTransferCityLedger(s)}>
+   468→                                <ArrowRightLeft className="size-4 mr-2 text-blue-600" /> Transfer to City Ledger
+   469→                              </DropdownMenuItem>
+   470→                              <DropdownMenuItem onClick={() => handleViewFolio(s)}>
+   471→                                <FileText className="size-4 mr-2" /> View Folio
+   472→                              </DropdownMenuItem>
+   473→                              <DropdownMenuItem onClick={() => handleViewLedger(s)}>
+   474→                                <BookOpen className="size-4 mr-2" /> View Ledger
+   475→                              </DropdownMenuItem>
+   476→                              <DropdownMenuSeparator />
+   477→                              <DropdownMenuItem onClick={() => handleWriteOff(s)}>
+   478→                                <Ban className="size-4 mr-2 text-orange-600" /> Write Off
+   479→                              </DropdownMenuItem>
+   480→                            </DropdownMenuContent>
+   481→                          </DropdownMenu>
+   482→                        </TableCell>
+   483→                      </TableRow>
+   484→                    )
+   485→                  })
+   486→                )}
+   487→              </TableBody>
+   488→            </Table>
+   489→          </div>
+   490→        </CardContent>
+   491→      </Card>
+   492→
+   493→      {/* ─── Payment Dialog ──────────────────────────────────────── */}
+   494→      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+   495→        <DialogContent className="max-w-md">
+   496→          <DialogHeader>
+   497→            <DialogTitle>Post Payment</DialogTitle>
+   498→            <DialogDescription>
+   499→              {selectedSettlement && (
+   500→                <>Settling balance for {selectedSettlement.guest.firstName} {selectedSettlement.guest.lastName} — Room {selectedSettlement.room?.number || '—'}</>
+   501→              )}
+   502→            </DialogDescription>
+   503→          </DialogHeader>
+   504→          <div className="space-y-4">
+   505→            <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+   506→              <div className="flex justify-between">
+   507→                <span className="text-muted-foreground">Outstanding:</span>
+   508→                <span className="font-bold text-red-600">{selectedSettlement ? formatCurrency(getBalance(selectedSettlement)) : '—'}</span>
+   509→              </div>
+   510→            </div>
+   511→            <div className="space-y-2">
+   512→              <Label>Payment Method</Label>
+   513→              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+   514→                <SelectTrigger>
+   515→                  <SelectValue />
+   516→                </SelectTrigger>
+   517→                <SelectContent>
+   518→                  {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
+   519→                    <SelectItem key={key} value={key}>{label}</SelectItem>
+   520→                  ))}
+   521→                </SelectContent>
+   522→              </Select>
+   523→            </div>
+   524→            <div className="space-y-2">
+   525→              <Label>Amount</Label>
+   526→              <Input
+   527→                type="number"
+   528→                value={paymentAmount}
+   529→                onChange={(e) => setPaymentAmount(e.target.value)}
+   530→                min="0"
+   531→                step="0.01"
+   532→              />
+   533→            </div>
+   534→            <div className="space-y-2">
+   535→              <Label>Reference / Cheque #</Label>
+   536→              <Input
+   537→                value={paymentReference}
+   538→                onChange={(e) => setPaymentReference(e.target.value)}
+   539→                placeholder="Optional reference..."
+   540→              />
+   541→            </div>
+   542→          </div>
+   543→          <DialogFooter>
+   544→            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+   545→            <Button
+   546→              onClick={handleRecordPayment}
+   547→              disabled={paymentMutation.isPending}
+   548→            >
+   549→              <Banknote className="size-4 mr-1.5" />
+   550→              {paymentMutation.isPending ? 'Processing...' : 'Record Payment'}
+   551→            </Button>
+   552→          </DialogFooter>
+   553→        </DialogContent>
+   554→      </Dialog>
+   555→
+   556→      {/* ─── Write-Off Dialog ────────────────────────────────────── */}
+   557→      <AlertDialog open={writeOffDialogOpen} onOpenChange={setWriteOffDialogOpen}>
+   558→        <AlertDialogContent>
+   559→          <AlertDialogHeader>
+   560→            <AlertDialogTitle>Write Off Balance</AlertDialogTitle>
+   561→            <AlertDialogDescription>
+   562→              {selectedSettlement && (
+   563→                <>This will write off <strong className="text-red-600">{formatCurrency(getBalance(selectedSettlement))}</strong> for {selectedSettlement.guest.firstName} {selectedSettlement.guest.lastName}. This action cannot be undone.</>
+   564→              )}
+   565→            </AlertDialogDescription>
+   566→          </AlertDialogHeader>
+   567→          <div className="py-2">
+   568→            <Label>Reason for Write-off</Label>
+   569→            <Textarea
+   570→              value={writeOffReason}
+   571→              onChange={(e) => setWriteOffReason(e.target.value)}
+   572→              placeholder="e.g., Management approval, complimentary, dispute resolution..."
+   573→              rows={3}
+   574→              className="mt-1.5"
+   575→            />
+   576→          </div>
+   577→          <AlertDialogFooter>
+   578→            <AlertDialogCancel>Cancel</AlertDialogCancel>
+   579→            <AlertDialogAction
+   580→              onClick={handleConfirmWriteOff}
+   581→              disabled={writeOffMutation.isPending || !writeOffReason.trim()}
+   582→              className="bg-orange-600 hover:bg-orange-700"
+   583→            >
+   584→              <Ban className="size-4 mr-1.5" />
+   585→              Confirm Write Off
+   586→            </AlertDialogAction>
+   587→          </AlertDialogFooter>
+   588→        </AlertDialogContent>
+   589→      </AlertDialog>
+   590→
+   591→      {/* ─── City Ledger Transfer Dialog ─────────────────────────── */}
+   592→      <Dialog open={cityLedgerDialogOpen} onOpenChange={setCityLedgerDialogOpen}>
+   593→        <DialogContent className="max-w-md">
+   594→          <DialogHeader>
+   595→            <DialogTitle>Transfer to City Ledger</DialogTitle>
+   596→            <DialogDescription>
+   597→              {selectedSettlement && (
+   598→                <>Transfer outstanding balance of <strong className="text-red-600">{formatCurrency(getBalance(selectedSettlement))}</strong> to city ledger for {selectedSettlement.guest.firstName} {selectedSettlement.guest.lastName}</>
+   599→              )}
+   600→            </DialogDescription>
+   601→          </DialogHeader>
+   602→          <div className="space-y-4">
+   603→            <div className="space-y-2">
+   604→              <Label>Company / Account Name</Label>
+   605→              <Input
+   606→                value={cityLedgerCompany}
+   607→                onChange={(e) => setCityLedgerCompany(e.target.value)}
+   608→                placeholder="e.g., ABC Travel Agency"
+   609→              />
+   610→            </div>
+   611→            <div className="space-y-2">
+   612→              <Label>Reference / Invoice #</Label>
+   613→              <Input
+   614→                value={cityLedgerReference}
+   615→                onChange={(e) => setCityLedgerReference(e.target.value)}
+   616→                placeholder="Optional invoice reference..."
+   617→              />
+   618→            </div>
+   619→          </div>
+   620→          <DialogFooter>
+   621→            <Button variant="outline" onClick={() => setCityLedgerDialogOpen(false)}>Cancel</Button>
+   622→            <Button onClick={handleConfirmCityLedger}>
+   623→              <ArrowRightLeft className="size-4 mr-1.5" />
+   624→              Transfer to City Ledger
+   625→            </Button>
+   626→          </DialogFooter>
+   627→        </DialogContent>
+   628→      </Dialog>
+   629→
+   630→      {/* ─── Detail Dialog ───────────────────────────────────────── */}
+   631→      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+   632→        <DialogContent className="max-w-lg">
+   633→          <DialogHeader>
+   634→            <DialogTitle>Settlement Details</DialogTitle>
+   635→            <DialogDescription>
+   636→              {selectedSettlement && (
+   637→                <>{selectedSettlement.guest.firstName} {selectedSettlement.guest.lastName} — {selectedSettlement.confirmationNo}</>
+   638→              )}
+   639→            </DialogDescription>
+   640→          </DialogHeader>
+   641→          {selectedSettlement && (
+   642→            <div className="space-y-4">
+   643→              <div className="grid grid-cols-2 gap-3 text-sm">
+   644→                <div>
+   645→                  <span className="text-muted-foreground">Room:</span>
+   646→                  <span className="ml-2 font-medium">{selectedSettlement.room?.number || '—'}</span>
+   647→                </div>
+   648→                <div>
+   649→                  <span className="text-muted-foreground">Status:</span>
+   650→                  <span className="ml-2"><StatusBadge status={selectedSettlement.status} /></span>
+   651→                </div>
+   652→                <div>
+   653→                  <span className="text-muted-foreground">Check-in:</span>
+   654→                  <span className="ml-2">{formatDate(selectedSettlement.checkIn)}</span>
+   655→                </div>
+   656→                <div>
+   657→                  <span className="text-muted-foreground">Check-out:</span>
+   658→                  <span className="ml-2">{formatDate(selectedSettlement.checkOut)}</span>
+   659→                </div>
+   660→              </div>
+   661→              <Separator />
+   662→              <div className="rounded-lg bg-muted/50 p-3 space-y-2 text-sm">
+   663→                <div className="flex justify-between">
+   664→                  <span className="text-muted-foreground">Total Charges:</span>
+   665→                  <span className="font-medium">{formatCurrency(selectedSettlement.totalAmount)}</span>
+   666→                </div>
+   667→                <div className="flex justify-between">
+   668→                  <span className="text-muted-foreground">Total Paid:</span>
+   669→                  <span className="font-medium text-green-600">-{formatCurrency(selectedSettlement.paidAmount)}</span>
+   670→                </div>
+   671→                <Separator />
+   672→                <div className="flex justify-between font-bold">
+   673→                  <span>Outstanding Balance:</span>
+   674→                  <span className={getBalance(selectedSettlement) > 0 ? 'text-red-600' : 'text-green-600'}>
+   675→                    {formatCurrency(getBalance(selectedSettlement))}
+   676→                  </span>
+   677→                </div>
+   678→              </div>
+   679→            </div>
+   680→          )}
+   681→          <DialogFooter>
+   682→            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>Close</Button>
+   683→            <Button onClick={() => { setDetailDialogOpen(false); if (selectedSettlement) handlePostPayment(selectedSettlement) }}>
+   684→              <CreditCard className="size-4 mr-1.5" />
+   685→              Post Payment
+   686→            </Button>
+   687→          </DialogFooter>
+   688→        </DialogContent>
+   689→      </Dialog>
+   690→    </div>
+   691→  )
+   692→}

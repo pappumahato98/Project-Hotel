@@ -1,0 +1,1035 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState } from 'react'
+     4→     4→import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+     5→     5→import { toast } from 'sonner'
+     6→     6→import { apiFetch } from '@/lib/api'
+     7→     7→import {
+     8→     8→  LogOut, BedDouble, Receipt, CreditCard, AlertTriangle, CheckCircle2, Printer,
+     9→     9→  Zap, Eye, Clock, Banknote, Mail, X, ArrowRight, BedSingle, FileText, BookOpen,
+    10→    10→  MoreHorizontal,
+    11→    11→} from 'lucide-react'
+    12→    12→
+    13→    13→import { Checkbox } from '@/components/ui/checkbox'
+    14→    14→import {
+    15→    15→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+    16→    16→} from '@/components/ui/dropdown-menu'
+    17→    17→import { Button } from '@/components/ui/button'
+    18→    18→import { Badge } from '@/components/ui/badge'
+    19→    19→import { Card, CardContent } from '@/components/ui/card'
+    20→    20→import { Skeleton } from '@/components/ui/skeleton'
+    21→    21→import { Input } from '@/components/ui/input'
+    22→    22→import { Label } from '@/components/ui/label'
+    23→    23→import { Separator } from '@/components/ui/separator'
+    24→    24→import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+    25→    25→import {
+    26→    26→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    27→    27→} from '@/components/ui/select'
+    28→    28→import {
+    29→    29→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    30→    30→} from '@/components/ui/table'
+    31→    31→import {
+    32→    32→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    33→    33→} from '@/components/ui/dialog'
+    34→    34→import { StatusBadge } from '@/components/shared/status-badge'
+    35→    35→import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
+    36→    36→import { cn } from '@/lib/utils'
+    37→    37→import { useSettingsStore, usePreferencesStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
+    38→    38→import { invalidate } from '@/lib/queryKeys'
+    39→    39→
+    40→    40→// ─── Types ──────────────────────────────────────────────────────────────
+    41→    41→
+    42→    42→interface DepartureGuest {
+    43→    43→  id: string
+    44→    44→  firstName: string
+    45→    45→  lastName: string
+    46→    46→  vipLevel: string
+    47→    47→}
+    48→    48→
+    49→    49→interface DepartureRoom {
+    50→    50→  id: string
+    51→    51→  number: string
+    52→    52→  floor: number
+    53→    53→  type: { name: string; code: string }
+    54→    54→}
+    55→    55→
+    56→    56→interface FolioLineItem {
+    57→    57→  id: string
+    58→    58→  description: string
+    59→    59→  amount: number
+    60→    60→  type: 'charge' | 'payment'
+    61→    61→  date: string
+    62→    62→}
+    63→    63→
+    64→    64→interface DepartureFolio {
+    65→    65→  id: string
+    66→    66→  balance: number
+    67→    67→  status: string
+    68→    68→  items?: FolioLineItem[]
+    69→    69→}
+    70→    70→
+    71→    71→interface Departure {
+    72→    72→  id: string
+    73→    73→  confirmationNo: string
+    74→    74→  status: string
+    75→    75→  checkIn: string
+    76→    76→  checkOut: string
+    77→    77→  roomRate: number
+    78→    78→  totalAmount: number
+    79→    79→  paidAmount: number
+    80→    80→  creditLimit: number
+    81→    81→  guest: DepartureGuest
+    82→    82→  room: DepartureRoom
+    83→    83→  folios: DepartureFolio[]
+    84→    84→}
+    85→    85→
+    86→    86→type LateCheckoutOption = '14:00' | '16:00' | '18:00'
+    87→    87→type PaymentMethod = 'cash' | 'card' | 'bank_transfer'
+    88→    88→
+    89→    89→const LATE_CHECKOUT_OPTIONS: Record<LateCheckoutOption, { label: string; surchargePercent: number; timeLabel: string }> = {
+    90→    90→  '14:00': { label: '2:00 PM', surchargePercent: 25, timeLabel: '2:00 PM (+25% surcharge)' },
+    91→    91→  '16:00': { label: '4:00 PM', surchargePercent: 50, timeLabel: '4:00 PM (+50% surcharge)' },
+    92→    92→  '18:00': { label: '6:00 PM', surchargePercent: 100, timeLabel: '6:00 PM (+100% surcharge)' },
+    93→    93→}
+    94→    94→
+    95→    95→const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+    96→    96→  cash: 'Cash',
+    97→    97→  card: 'Credit/Debit Card',
+    98→    98→  bank_transfer: 'Bank Transfer',
+    99→    99→}
+   100→   100→
+   101→   101→// ─── Component ──────────────────────────────────────────────────────────
+   102→   102→
+   103→   103→export function DeparturesView() {
+   104→   104→  const queryClient = useQueryClient()
+   105→   105→  const { settings } = useSettingsStore()
+   106→   106→  const { preferences } = usePreferencesStore()
+   107→   107→  const { navigateTo } = useNavigationStore()
+   108→   108→  const today = getTodayString()
+   109→   109→
+   110→   110→  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+   111→   111→
+   112→   112→  // Dialog states
+   113→   113→  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false)
+   114→   114→  const [folioDialogOpen, setFolioDialogOpen] = useState(false)
+   115→   115→  const [lateCheckoutDialogOpen, setLateCheckoutDialogOpen] = useState(false)
+   116→   116→  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+   117→   117→  const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
+   118→   118→
+   119→   119→  // Selected departure
+   120→   120→  const [selectedDeparture, setSelectedDeparture] = useState<Departure | null>(null)
+   121→   121→
+   122→   122→  // Late checkout
+   123→   123→  const [lateCheckoutOption, setLateCheckoutOption] = useState<LateCheckoutOption>('14:00')
+   124→   124→
+   125→   125→  // Payment
+   126→   126→  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+   127→   127→  const [paymentAmount, setPaymentAmount] = useState('')
+   128→   128→  const [paymentReference, setPaymentReference] = useState('')
+   129→   129→
+   130→   130→  // Receipt data
+   131→   131→  const [receiptData, setReceiptData] = useState<Departure | null>(null)
+   132→   132→
+   133→   133→  // ── Fetch today's departures (both checked_in AND checked_out with checkOut = today) ──
+   134→   134→  const { data, isLoading } = useQuery({
+   135→   135→    queryKey: ['departures', today],
+   136→   136→    queryFn: async () => {
+   137→   137→      // Fetch both statuses so we show completed check-outs too
+   138→   138→      const params = new URLSearchParams({ status: 'checked_in,checked_out', checkOutDate: today })
+   139→   139→      return apiFetch(`/api/reservations?${params.toString()}`)
+   140→   140→    },
+   141→   141→    refetchInterval: 30000,
+   142→   142→  })
+   143→   143→
+   144→   144→  const departures: Departure[] = data?.reservations || []
+   145→   145→
+   146→   146→  // ── Fallback: if today has zero departures, also fetch upcoming (next 3 days) ──
+   147→   147→  const tomorrow = (() => {
+   148→   148→    const d = new Date(); d.setDate(d.getDate() + 1)
+   149→   149→    const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0')
+   150→   150→    return `${y}-${m}-${day}`
+   151→   151→  })()
+   152→   152→  const threeDaysOut = (() => {
+   153→   153→    const d = new Date(); d.setDate(d.getDate() + 4)
+   154→   154→    const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const day = String(d.getDate()).padStart(2,'0')
+   155→   155→    return `${y}-${m}-${day}`
+   156→   156→  })()
+   157→   157→
+   158→   158→  const { data: upcomingData } = useQuery({
+   159→   159→    queryKey: ['departures-upcoming', today],
+   160→   160→    queryFn: async () => {
+   161→   161→      const params = new URLSearchParams({
+   162→   162→        status: 'checked_in,confirmed',
+   163→   163→        dateFrom: tomorrow,
+   164→   164→        dateTo: threeDaysOut,
+   165→   165→      })
+   166→   166→      return apiFetch(`/api/reservations?${params.toString()}`)
+   167→   167→    },
+   168→   168→    refetchInterval: 60000,
+   169→   169→    enabled: departures.length === 0,
+   170→   170→  })
+   171→   171→
+   172→   172→  const upcomingDepartures: Departure[] = upcomingData?.reservations || []
+   173→   173→
+   174→   174→  // Use upcoming as fallback when today is empty
+   175→   175→  const displayDepartures = departures.length > 0 ? departures : upcomingDepartures
+   176→   176→  const isShowingUpcoming = departures.length === 0 && upcomingDepartures.length > 0
+   177→   177→
+   178→   178→  // Stats (always based on today's data)
+   179→   179→  const totalDepartures = departures.length
+   180→   180→  const checkedOutCount = departures.filter((d) => d.status === 'checked_out').length
+   181→   181→  const pendingDepartures = departures.filter((d) => d.status === 'checked_in').length
+   182→   182→  const outstandingBalance = departures.reduce((sum, d) => {
+   183→   183→    return sum + (d.folios[0]?.balance || 0)
+   184→   184→  }, 0)
+   185→   185→
+   186→   186→  // Zero-balance pending guests (for express & batch checkout)
+   187→   187→  const zeroBalancePending = departures.filter(
+   188→   188→    (d) => d.status === 'checked_in' && (d.folios[0]?.balance || 0) === 0,
+   189→   189→  )
+   190→   190→
+   191→   191→  // ─── Mutations ─────────────────────────────────────────────────────
+   192→   192→
+   193→   193→  // Checkout mutation
+   194→   194→  const checkoutMutation = useMutation({
+   195→   195→    mutationFn: async (reservationId: string) => {
+   196→   196→      return apiFetch(`/api/reservations/${reservationId}`, {
+   197→   197→        method: 'PATCH',
+   198→   198→        headers: { 'Content-Type': 'application/json' },
+   199→   199→        body: JSON.stringify({ status: 'checked_out' }),
+   200→   200→      })
+   201→   201→    },
+   202→   202→    onSuccess: () => {
+   203→   203→      invalidate.afterCheckout(queryClient)
+   204→   204→    },
+   205→   205→  })
+   206→   206→
+   207→   207→  // Payment mutation
+   208→   208→  const paymentMutation = useMutation({
+   209→   209→    mutationFn: async ({ folioId, amount, method, reference }: { folioId: string; amount: number; method: PaymentMethod; reference: string }) => {
+   210→   210→      return apiFetch(`/api/folio/${folioId}`, {
+   211→   211→        method: 'POST',
+   212→   212→        headers: { 'Content-Type': 'application/json' },
+   213→   213→        body: JSON.stringify({ type: 'payment', paymentMethod: method, amount, reference }),
+   214→   214→      })
+   215→   215→    },
+   216→   216→    onSuccess: () => {
+   217→   217→      invalidate.afterFolioChange(queryClient)
+   218→   218→      setPaymentDialogOpen(false)
+   219→   219→      setPaymentAmount('')
+   220→   220→      setPaymentReference('')
+   221→   221→      toast.success('Payment recorded successfully')
+   222→   222→    },
+   223→   223→    onError: () => {
+   224→   224→      toast.error('Failed to record payment')
+   225→   225→    },
+   226→   226→  })
+   227→   227→
+   228→   228→  // Late checkout mutation
+   229→   229→  const lateCheckoutMutation = useMutation({
+   230→   230→    mutationFn: async ({ reservationId, newCheckOut, surcharge }: { reservationId: string; newCheckOut: string; surcharge: number }) => {
+   231→   231→      const result = await apiFetch(`/api/reservations/${reservationId}`, {
+   232→   232→        method: 'PATCH',
+   233→   233→        headers: { 'Content-Type': 'application/json' },
+   234→   234→        body: JSON.stringify({ checkOut: newCheckOut }),
+   235→   235→      })
+   236→   236→      // Add surcharge to folio
+   237→   237→      if (surcharge > 0) {
+   238→   238→        await apiFetch(`/api/folio`, {
+   239→   239→          method: 'POST',
+   240→   240→          headers: { 'Content-Type': 'application/json' },
+   241→   241→          body: JSON.stringify({
+   242→   242→            reservationId,
+   243→   243→            type: 'charge',
+   244→   244→            description: `Late checkout surcharge (${LATE_CHECKOUT_OPTIONS[lateCheckoutOption].label})`,
+   245→   245→            amount: surcharge,
+   246→   246→          }),
+   247→   247→        })
+   248→   248→      }
+   249→   249→      return result
+   250→   250→    },
+   251→   251→    onSuccess: () => {
+   252→   252→      invalidate.afterReservationChange(queryClient)
+   253→   253→      invalidate.afterFolioChange(queryClient)
+   254→   254→      setLateCheckoutDialogOpen(false)
+   255→   255→      toast.success('Late checkout request processed successfully')
+   256→   256→    },
+   257→   257→    onError: () => {
+   258→   258→      toast.error('Failed to process late checkout request')
+   259→   259→    },
+   260→   260→  })
+   261→   261→
+   262→   262→  // Batch checkout mutation
+   263→   263→  const batchCheckoutMutation = useMutation({
+   264→   264→    mutationFn: async (ids: string[]) => {
+   265→   265→      const results = []
+   266→   266→      for (let i = 0; i < ids.length; i++) {
+   267→   267→        const result = await apiFetch(`/api/reservations/${ids[i]}`, {
+   268→   268→          method: 'PATCH',
+   269→   269→          headers: { 'Content-Type': 'application/json' },
+   270→   270→          body: JSON.stringify({ status: 'checked_out' }),
+   271→   271→        })
+   272→   272→        results.push(result)
+   273→   273→        toast.success(`Checked out ${i + 1} of ${ids.length} rooms...`)
+   274→   274→      }
+   275→   275→      return results
+   276→   276→    },
+   277→   277→    onSuccess: (_data, ids) => {
+   278→   278→      invalidate.afterCheckout(queryClient)
+   279→   279→      toast.success(`Batch checkout complete! ${ids.length} rooms checked out.`)
+   280→   280→      toast.info(`${ids.length} rooms marked for housekeeping - Vacant Dirty`)
+   281→   281→    },
+   282→   282→    onError: () => {
+   283→   283→      toast.error('Batch checkout failed. Some rooms may not have been processed.')
+   284→   284→    },
+   285→   285→  })
+   286→   286→
+   287→   287→  // ─── Handlers ─────────────────────────────────────────────────────
+   288→   288→
+   289→   289→  const getBalance = (dep: Departure) => dep.folios[0]?.balance || 0
+   290→   290→
+   291→   291→  const handleExpressCheckout = (dep: Departure) => {
+   292→   292→    checkoutMutation.mutate(dep.id, {
+   293→   293→      onSuccess: () => {
+   294→   294→        toast.success(`Express checkout complete for Room ${dep.room.number}`)
+   295→   295→        toast.info(`Room ${dep.room.number} marked for housekeeping - Vacant Dirty`)
+   296→   296→      },
+   297→   297→    })
+   298→   298→  }
+   299→   299→
+   300→   300→  const handleReviewFolio = (dep: Departure) => {
+   301→   301→    setSelectedDeparture(dep)
+   302→   302→    setFolioDialogOpen(true)
+   303→   303→  }
+   304→   304→
+   305→   305→  const handleNavigateToFolio = (dep: Departure) => {
+   306→   306→    useFolioContextStore.getState().setFolioContext({
+   307→   307→      reservationId: dep.id,
+   308→   308→      guestId: dep.guest?.id || '',
+   309→   309→      guestName: `${dep.guest?.firstName || ''} ${dep.guest?.lastName || ''}`.trim(),
+   310→   310→      roomNumber: dep.room?.number || '',
+   311→   311→      confirmationNo: dep.confirmationNo,
+   312→   312→    })
+   313→   313→    navigateTo('front-desk', 'folio')
+   314→   314→  }
+   315→   315→
+   316→   316→  const handleViewLedger = (dep: Departure) => {
+   317→   317→    useGuestLedgerContextStore.getState().setGuestLedgerContext({
+   318→   318→      guestId: dep.guest?.id || '',
+   319→   319→      guestName: `${dep.guest?.firstName || ''} ${dep.guest?.lastName || ''}`.trim(),
+   320→   320→    })
+   321→   321→    navigateTo('front-desk', 'guest-ledger')
+   322→   322→  }
+   323→   323→
+   324→   324→  const handleFolioSettleCheckout = () => {
+   325→   325→    setFolioDialogOpen(false)
+   326→   326→    setCheckoutDialogOpen(true)
+   327→   327→  }
+   328→   328→
+   329→   329→  const handleQuickCheckout = (dep: Departure) => {
+   330→   330→    setSelectedDeparture(dep)
+   331→   331→    setCheckoutDialogOpen(true)
+   332→   332→  }
+   333→   333→
+   334→   334→  const handleRequestLateCheckout = (dep: Departure) => {
+   335→   335→    setSelectedDeparture(dep)
+   336→   336→    setLateCheckoutOption('14:00')
+   337→   337→    setLateCheckoutDialogOpen(true)
+   338→   338→  }
+   339→   339→
+   340→   340→  const handleConfirmLateCheckout = () => {
+   341→   341→    if (!selectedDeparture) return
+   342→   342→    const option = LATE_CHECKOUT_OPTIONS[lateCheckoutOption]
+   343→   343→    const surcharge = Math.round(selectedDeparture.roomRate * option.surchargePercent / 100)
+   344→   344→
+   345→   345→    // Build new checkout datetime with the selected time
+   346→   346→    const currentCheckout = new Date(selectedDeparture.checkOut)
+   347→   347→    const [hours, minutes] = lateCheckoutOption.split(':').map(Number)
+   348→   348→    currentCheckout.setHours(hours, minutes, 0, 0)
+   349→   349→
+   350→   350→    lateCheckoutMutation.mutate({
+   351→   351→      reservationId: selectedDeparture.id,
+   352→   352→      newCheckOut: currentCheckout.toISOString(),
+   353→   353→      surcharge,
+   354→   354→    })
+   355→   355→  }
+   356→   356→
+   357→   357→  const handleOpenPaymentDialog = () => {
+   358→   358→    if (!selectedDeparture) return
+   359→   359→    const balance = getBalance(selectedDeparture)
+   360→   360→    setPaymentAmount(String(balance))
+   361→   361→    setPaymentMethod('cash')
+   362→   362→    setPaymentReference('')
+   363→   363→    setPaymentDialogOpen(true)
+   364→   364→  }
+   365→   365→
+   366→   366→  const handleRecordPayment = () => {
+   367→   367→    if (!selectedDeparture) return
+   368→   368→    const folioId = selectedDeparture.folios[0]?.id
+   369→   369→    if (!folioId) {
+   370→   370→      toast.error('No folio found for this reservation')
+   371→   371→      return
+   372→   372→    }
+   373→   373→    const amount = Number(paymentAmount)
+   374→   374→    if (isNaN(amount) || amount <= 0) {
+   375→   375→      toast.error('Please enter a valid payment amount')
+   376→   376→      return
+   377→   377→    }
+   378→   378→    paymentMutation.mutate({
+   379→   379→      folioId,
+   380→   380→      amount,
+   381→   381→      method: paymentMethod,
+   382→   382→      reference: paymentReference,
+   383→   383→    })
+   384→   384→  }
+   385→   385→
+   386→   386→  const confirmCheckout = () => {
+   387→   387→    if (!selectedDeparture) return
+   388→   388→    const roomNumber = selectedDeparture.room.number
+   389→   389→    checkoutMutation.mutate(selectedDeparture.id, {
+   390→   390→      onSuccess: () => {
+   391→   391→        setCheckoutDialogOpen(false)
+   392→   392→        setReceiptData(selectedDeparture)
+   393→   393→        setReceiptDialogOpen(true)
+   394→   394→        toast.info(`Room ${roomNumber} marked for housekeeping - Vacant Dirty`)
+   395→   395→      },
+   396→   396→    })
+   397→   397→  }
+   398→   398→
+   399→   399→  const handleBatchCheckout = () => {
+   400→   400→    const ids = zeroBalancePending.map((d) => d.id)
+   401→   401→    if (ids.length === 0) {
+   402→   402→      toast.info('No guests with zero balance to batch checkout')
+   403→   403→      return
+   404→   404→    }
+   405→   405→    batchCheckoutMutation.mutate(ids)
+   406→   406→  }
+   407→   407→
+   408→   408→  const handlePrintReceipt = () => {
+   409→   409→    toast.success('Receipt sent to printer')
+   410→   410→  }
+   411→   411→
+   412→   412→  const handleEmailReceipt = () => {
+   413→   413→    toast.success('Receipt emailed to guest')
+   414→   414→  }
+   415→   415→
+   416→   416→  // ─── Computed values ──────────────────────────────────────────────
+   417→   417→
+   418→   418→  const lateCheckoutFee = selectedDeparture
+   419→   419→    ? Math.round(selectedDeparture.roomRate * LATE_CHECKOUT_OPTIONS[lateCheckoutOption].surchargePercent / 100)
+   420→   420→    : 0
+   421→   421→
+   422→   422→  // ─── Render ────────────────────────────────────────────────────────
+   423→   423→
+   424→   424→  return (
+   425→   425→    <div className="flex flex-col gap-2">
+   426→   426→      {/* Header */}
+   427→   427→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+   428→   428→        <div>
+   429→   429→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+   430→   430→            {isShowingUpcoming ? 'Upcoming Departures' : "Today's Departures"}
+   431→   431→          </h2>
+   432→   432→          <p className="text-xs text-muted-foreground">
+   433→   433→            {isShowingUpcoming
+   434→   434→              ? `No departures today (${formatDate(today)}). Showing upcoming check-outs.`
+   435→   435→              : `Guest check-outs scheduled for ${formatDate(today)}`}
+   436→   436→          </p>
+   437→   437→        </div>
+   438→   438→        {zeroBalancePending.length > 0 && (
+   439→   439→          <Button
+   440→   440→            onClick={handleBatchCheckout}
+   441→   441→            className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+   442→   442→            disabled={batchCheckoutMutation.isPending}
+   443→   443→          >
+   444→   444→            <Zap className="size-4 mr-1.5" />
+   445→   445→            {batchCheckoutMutation.isPending
+   446→   446→              ? `Processing ${batchCheckoutMutation.submittedAt ? '...' : ''}`
+   447→   447→              : `Batch Checkout All Ready (${zeroBalancePending.length})`}
+   448→   448→          </Button>
+   449→   449→        )}
+   450→   450→      </div>
+   451→   451→
+   452→   452→      {/* Departures List */}
+   453→   453→      <Card className="py-0">
+   454→   454→        <CardContent className="p-0">
+   455→   455→          <div className="max-h-[600px] overflow-y-auto">
+   456→   456→            <Table>
+   457→   457→              <TableHeader>
+   458→   458→                <TableRow>
+   459→   459→                  <TableHead className="w-[40px]">
+   460→   460→                    <Checkbox
+   461→   461→                      checked={displayDepartures.length > 0 && selectedRows.size === displayDepartures.filter(d => d.status === 'checked_in').length && !isShowingUpcoming}
+   462→   462→                      onCheckedChange={(checked) => {
+   463→   463→                        if (checked) {
+   464→   464→                          setSelectedRows(new Set(displayDepartures.filter(d => d.status === 'checked_in').map(d => d.id)))
+   465→   465→                        } else {
+   466→   466→                          setSelectedRows(new Set())
+   467→   467→                        }
+   468→   468→                      }}
+   469→   469→                    />
+   470→   470→                  </TableHead>
+   471→   471→                  <TableHead className="w-[70px]">Room</TableHead>
+   472→   472→                  <TableHead>Guest</TableHead>
+   473→   473→                  <TableHead className="w-[100px]">Check-out</TableHead>
+   474→   474→                  <TableHead className="w-[110px] text-right">Folio Balance</TableHead>
+   475→   475→                  <TableHead className="w-[100px] text-right">Status</TableHead>
+   476→   476→                  <TableHead className="w-[50px]"></TableHead>
+   477→   477→                </TableRow>
+   478→   478→              </TableHeader>
+   479→   479→              <TableBody>
+   480→   480→                {isLoading ? (
+   481→   481→                  Array.from({ length: 5 }).map((_, i) => (
+   482→   482→                    <TableRow key={i}>
+   483→   483→                      {Array.from({ length: 7 }).map((_, j) => (
+   484→   484→                        <TableCell key={j}>
+   485→   485→                          <Skeleton className="h-4 w-full" />
+   486→   486→                        </TableCell>
+   487→   487→                      ))}
+   488→   488→                    </TableRow>
+   489→   489→                  ))
+   490→   490→                ) : displayDepartures.length === 0 ? (
+   491→   491→                  <TableRow>
+   492→   492→                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+   493→   493→                      <LogOut className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+   494→   494→                      No departures scheduled
+   495→   495→                    </TableCell>
+   496→   496→                  </TableRow>
+   497→   497→                ) : (
+   498→   498→                  displayDepartures.map((dep) => {
+   499→   499→                    const balance = getBalance(dep)
+   500→   500→                    const isPending = dep.status === 'checked_in'
+   501→   501→                    const isZeroBalance = balance === 0
+   502→   502→                    return (
+   503→   503→                      <TableRow key={dep.id}>
+   504→   504→                        <TableCell>
+   505→   505→                          <Checkbox
+   506→   506→                            checked={selectedRows.has(dep.id)}
+   507→   507→                            onCheckedChange={(checked) => {
+   508→   508→                              const next = new Set(selectedRows)
+   509→   509→                              if (checked) next.add(dep.id)
+   510→   510→                              else next.delete(dep.id)
+   511→   511→                              setSelectedRows(next)
+   512→   512→                            }}
+   513→   513→                            disabled={dep.status === 'checked_out'}
+   514→   514→                          />
+   515→   515→                        </TableCell>
+   516→   516→                        <TableCell className="font-bold font-mono">{dep.room.number}</TableCell>
+   517→   517→                        <TableCell>
+   518→   518→                          <div className="flex items-center gap-2">
+   519→   519→                            <span className="font-medium">{dep.guest.firstName} {dep.guest.lastName}</span>
+   520→   520→                            {dep.guest.vipLevel !== 'none' && (
+   521→   521→                              <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+   522→   522→                                VIP
+   523→   523→                              </Badge>
+   524→   524→                            )}
+   525→   525→                          </div>
+   526→   526→                          <p className="text-xs text-muted-foreground">{dep.confirmationNo}</p>
+   527→   527→                        </TableCell>
+   528→   528→                        <TableCell className="text-xs">
+   529→   529→                          <div>{formatDate(dep.checkOut)}</div>
+   530→   530→                          <div className="text-muted-foreground">{formatTime(dep.checkOut)}</div>
+   531→   531→                        </TableCell>
+   532→   532→                        <TableCell className="text-right">
+   533→   533→                          <div className="flex items-center justify-end gap-1.5">
+   534→   534→                            <span className={cn('font-medium', balance > 0 ? 'text-red-600' : 'text-green-600')}>
+   535→   535→                              {formatCurrency(balance)}
+   536→   536→                            </span>
+   537→   537→                            {/* Outstanding Balance Alert Badges */}
+   538→   538→                            {isPending && balance > 5000 && (
+   539→   539→                              <Badge className="bg-red-500 text-white text-[9px] px-1 py-0 animate-pulse border-0">
+   540→   540→                                HIGH
+   541→   541→                              </Badge>
+   542→   542→                            )}
+   543→   543→                            {isPending && balance > 0 && balance <= 5000 && (
+   544→   544→                              <Badge className="bg-orange-500 text-white text-[9px] px-1 py-0 border-0">
+   545→   545→                                DUE
+   546→   546→                              </Badge>
+   547→   547→                            )}
+   548→   548→                          </div>
+   549→   549→                        </TableCell>
+   550→   550→                        <TableCell className="text-right">
+   551→   551→                          {dep.status === 'checked_out' ? (
+   552→   552→                            <div className="flex items-center justify-end gap-1">
+   553→   553→                              <BedSingle className="size-3 text-yellow-500" />
+   554→   554→                              <StatusBadge status="vacant_dirty" />
+   555→   555→                            </div>
+   556→   556→                          ) : (
+   557→   557→                            <StatusBadge status="checked_in" />
+   558→   558→                          )}
+   559→   559→                        </TableCell>
+   560→   560→                        <TableCell className="text-right">
+   561→   561→                          {isPending ? (
+   562→   562→                            <DropdownMenu>
+   563→   563→                              <DropdownMenuTrigger asChild>
+   564→   564→                                <Button variant="ghost" size="icon" className="size-8">
+   565→   565→                                  <MoreHorizontal className="size-4" />
+   566→   566→                                </Button>
+   567→   567→                              </DropdownMenuTrigger>
+   568→   568→                              <DropdownMenuContent align="end">
+   569→   569→                                {isZeroBalance && (
+   570→   570→                                  <DropdownMenuItem onClick={() => handleExpressCheckout(dep)}>
+   571→   571→                                    <Zap className="size-4 mr-2 text-green-600" /> Express Checkout
+   572→   572→                                  </DropdownMenuItem>
+   573→   573→                                )}
+   574→   574→                                <DropdownMenuItem onClick={() => handleReviewFolio(dep)}>
+   575→   575→                                  <Eye className="size-4 mr-2" /> Review Folio
+   576→   576→                                </DropdownMenuItem>
+   577→   577→                                <DropdownMenuItem onClick={() => handleNavigateToFolio(dep)}>
+   578→   578→                                  <FileText className="size-4 mr-2" /> Full Folio
+   579→   579→                                </DropdownMenuItem>
+   580→   580→                                <DropdownMenuItem onClick={() => handleViewLedger(dep)}>
+   581→   581→                                  <BookOpen className="size-4 mr-2" /> View Ledger
+   582→   582→                                </DropdownMenuItem>
+   583→   583→                                <DropdownMenuSeparator />
+   584→   584→                                <DropdownMenuItem onClick={() => handleRequestLateCheckout(dep)}>
+   585→   585→                                  <Clock className="size-4 mr-2" /> Late Checkout
+   586→   586→                                </DropdownMenuItem>
+   587→   587→                                <DropdownMenuItem onClick={() => handleQuickCheckout(dep)}>
+   588→   588→                                  <LogOut className="size-4 mr-2" /> Checkout
+   589→   589→                                </DropdownMenuItem>
+   590→   590→                              </DropdownMenuContent>
+   591→   591→                            </DropdownMenu>
+   592→   592→                          ) : (
+   593→   593→                            <Badge variant="outline" className="text-xs">
+   594→   594→                              <CheckCircle2 className="size-3 mr-1" />
+   595→   595→                              Checked Out
+   596→   596→                            </Badge>
+   597→   597→                          )}
+   598→   598→                        </TableCell>
+   599→   599→                      </TableRow>
+   600→   600→                    )
+   601→   601→                  })
+   602→   602→                )}
+   603→   603→              </TableBody>
+   604→   604→            </Table>
+   605→   605→          </div>
+   606→   606→        </CardContent>
+   607→   607→      </Card>
+   608→   608→
+   609→   609→      {/* ─── Folio Review Dialog ─────────────────────────────────── */}
+   610→   610→      <Dialog open={folioDialogOpen} onOpenChange={setFolioDialogOpen}>
+   611→   611→        <DialogContent className="max-w-lg">
+   612→   612→          <DialogHeader>
+   613→   613→            <DialogTitle>Folio Review</DialogTitle>
+   614→   614→            <DialogDescription>
+   615→   615→              {selectedDeparture && (
+   616→   616→                <>Room {selectedDeparture.room.number} — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
+   617→   617→              )}
+   618→   618→            </DialogDescription>
+   619→   619→          </DialogHeader>
+   620→   620→          {selectedDeparture && (
+   621→   621→            <div className="space-y-4">
+   622→   622→              {/* Folio items table */}
+   623→   623→              <div className="rounded-lg border max-h-64 overflow-y-auto">
+   624→   624→                <Table>
+   625→   625→                  <TableHeader>
+   626→   626→                    <TableRow>
+   627→   627→                      <TableHead className="text-xs">Description</TableHead>
+   628→   628→                      <TableHead className="text-xs w-[90px]">Date</TableHead>
+   629→   629→                      <TableHead className="text-xs w-[90px] text-right">Amount</TableHead>
+   630→   630→                    </TableRow>
+   631→   631→                  </TableHeader>
+   632→   632→                  <TableBody>
+   633→   633→                    {/* Show mock folio items based on reservation data */}
+   634→   634→                    <TableRow>
+   635→   635→                      <TableCell className="text-sm">Room Charge ({selectedDeparture.room.type.name})</TableCell>
+   636→   636→                      <TableCell className="text-xs text-muted-foreground">{formatDate(selectedDeparture.checkIn)}</TableCell>
+   637→   637→                      <TableCell className="text-right text-sm font-medium text-red-600">
+   638→   638→                        {formatCurrency(selectedDeparture.totalAmount)}
+   639→   639→                      </TableCell>
+   640→   640→                    </TableRow>
+   641→   641→                    {selectedDeparture.paidAmount > 0 && (
+   642→   642→                      <TableRow>
+   643→   643→                        <TableCell className="text-sm">Advance Payment</TableCell>
+   644→   644→                        <TableCell className="text-xs text-muted-foreground">{formatDate(selectedDeparture.checkIn)}</TableCell>
+   645→   645→                        <TableCell className="text-right text-sm font-medium text-green-600">
+   646→   646→                          -{formatCurrency(selectedDeparture.paidAmount)}
+   647→   647→                      </TableCell>
+   648→   648→                      </TableRow>
+   649→   649→                    )}
+   650→   650→                    {(selectedDeparture.folios[0]?.items || []).map((item) => (
+   651→   651→                      <TableRow key={item.id}>
+   652→   652→                        <TableCell className="text-sm">{item.description}</TableCell>
+   653→   653→                        <TableCell className="text-xs text-muted-foreground">{formatDate(item.date)}</TableCell>
+   654→   654→                        <TableCell className={cn(
+   655→   655→                          'text-right text-sm font-medium',
+   656→   656→                          item.type === 'charge' ? 'text-red-600' : 'text-green-600',
+   657→   657→                        )}>
+   658→   658→                          {item.type === 'charge' ? '' : '-'}{formatCurrency(item.amount)}
+   659→   659→                        </TableCell>
+   660→   660→                      </TableRow>
+   661→   661→                    ))}
+   662→   662→                  </TableBody>
+   663→   663→                </Table>
+   664→   664→              </div>
+   665→   665→
+   666→   666→              {/* Totals */}
+   667→   667→              <div className="space-y-2 rounded-lg bg-muted/50 p-3">
+   668→   668→                <div className="flex justify-between text-sm">
+   669→   669→                  <span className="text-muted-foreground">Total Charges:</span>
+   670→   670→                  <span className="font-medium">{formatCurrency(selectedDeparture.totalAmount)}</span>
+   671→   671→                </div>
+   672→   672→                <div className="flex justify-between text-sm">
+   673→   673→                  <span className="text-muted-foreground">Total Payments:</span>
+   674→   674→                  <span className="font-medium text-green-600">-{formatCurrency(selectedDeparture.paidAmount)}</span>
+   675→   675→                </div>
+   676→   676→                <Separator />
+   677→   677→                <div className="flex justify-between text-sm font-bold">
+   678→   678→                  <span>Outstanding Balance:</span>
+   679→   679→                  <span className={cn(
+   680→   680→                    getBalance(selectedDeparture) > 0 ? 'text-red-600' : 'text-green-600',
+   681→   681→                  )}>
+   682→   682→                    {formatCurrency(getBalance(selectedDeparture))}
+   683→   683→                  </span>
+   684→   684→                </div>
+   685→   685→              </div>
+   686→   686→            </div>
+   687→   687→          )}
+   688→   688→          <DialogFooter>
+   689→   689→            <Button variant="outline" onClick={() => setFolioDialogOpen(false)}>Close</Button>
+   690→   690→            <Button onClick={handleFolioSettleCheckout}>
+   691→   691→              <ArrowRight className="size-4 mr-1.5" />
+   692→   692→              Settle &amp; Checkout
+   693→   693→            </Button>
+   694→   694→          </DialogFooter>
+   695→   695→        </DialogContent>
+   696→   696→      </Dialog>
+   697→   697→
+   698→   698→      {/* ─── Late Checkout Dialog ───────────────────────────────── */}
+   699→   699→      <Dialog open={lateCheckoutDialogOpen} onOpenChange={setLateCheckoutDialogOpen}>
+   700→   700→        <DialogContent className="max-w-md">
+   701→   701→          <DialogHeader>
+   702→   702→            <DialogTitle>Request Late Checkout</DialogTitle>
+   703→   703→            <DialogDescription>
+   704→   704→              {selectedDeparture && (
+   705→   705→                <>Room {selectedDeparture.room.number} — {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}</>
+   706→   706→              )}
+   707→   707→            </DialogDescription>
+   708→   708→          </DialogHeader>
+   709→   709→          {selectedDeparture && (
+   710→   710→            <div className="space-y-4">
+   711→   711→              <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+   712→   712→                <p className="font-medium">Current checkout: {formatTime(selectedDeparture.checkOut)}</p>
+   713→   713→                <p className="text-muted-foreground">Room rate: {formatCurrency(selectedDeparture.roomRate)}/night</p>
+   714→   714→              </div>
+   715→   715→
+   716→   716→              <RadioGroup value={lateCheckoutOption} onValueChange={(v) => setLateCheckoutOption(v as LateCheckoutOption)}>
+   717→   717→                {(Object.entries(LATE_CHECKOUT_OPTIONS) as [LateCheckoutOption, typeof LATE_CHECKOUT_OPTIONS[LateCheckoutOption]][]).map(([key, opt]) => {
+   718→   718→                  const fee = Math.round(selectedDeparture.roomRate * opt.surchargePercent / 100)
+   719→   719→                  return (
+   720→   720→                    <div
+   721→   721→                      key={key}
+   722→   722→                      className={cn(
+   723→   723→                        'flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-colors',
+   724→   724→                        lateCheckoutOption === key
+   725→   725→                          ? 'border-primary bg-primary/5'
+   726→   726→                          : 'hover:bg-muted/50',
+   727→   727→                      )}
+   728→   728→                      onClick={() => setLateCheckoutOption(key)}
+   729→   729→                    >
+   730→   730→                      <RadioGroupItem value={key} id={`late-${key}`} />
+   731→   731→                      <Label htmlFor={`late-${key}`} className="flex-1 cursor-pointer">
+   732→   732→                        <div className="flex items-center justify-between">
+   733→   733→                          <span className="font-medium">{opt.timeLabel}</span>
+   734→   734→                          <span className="text-sm text-muted-foreground">
+   735→   735→                            +{formatCurrency(fee)}
+   736→   736→                          </span>
+   737→   737→                        </div>
+   738→   738→                      </Label>
+   739→   739→                    </div>
+   740→   740→                  )
+   741→   741→                })}
+   742→   742→              </RadioGroup>
+   743→   743→
+   744→   744→              {/* Fee summary */}
+   745→   745→              <div className="rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 text-sm space-y-2">
+   746→   746→                <div className="flex items-start gap-2">
+   747→   747→                  <Clock className="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+   748→   748→                  <div>
+   749→   749→                    <p className="font-medium text-amber-700 dark:text-amber-300">Late Checkout Fee</p>
+   750→   750→                    <p className="text-amber-600 dark:text-amber-400">
+   751→   751→                      Extended to {LATE_CHECKOUT_OPTIONS[lateCheckoutOption].label} — Additional charge: <strong>{formatCurrency(lateCheckoutFee)}</strong>
+   752→   752→                    </p>
+   753→   753→                  </div>
+   754→   754→                </div>
+   755→   755→              </div>
+   756→   756→            </div>
+   757→   757→          )}
+   758→   758→          <DialogFooter>
+   759→   759→            <Button variant="outline" onClick={() => setLateCheckoutDialogOpen(false)}>Cancel</Button>
+   760→   760→            <Button
+   761→   761→              onClick={handleConfirmLateCheckout}
+   762→   762→              disabled={lateCheckoutMutation.isPending}
+   763→   763→            >
+   764→   764→              <Clock className="size-4 mr-1.5" />
+   765→   765→              {lateCheckoutMutation.isPending ? 'Processing...' : 'Confirm Late Checkout'}
+   766→   766→            </Button>
+   767→   767→          </DialogFooter>
+   768→   768→        </DialogContent>
+   769→   769→      </Dialog>
+   770→   770→
+   771→   771→      {/* ─── Payment Dialog ─────────────────────────────────────── */}
+   772→   772→      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+   773→   773→        <DialogContent className="max-w-md">
+   774→   774→          <DialogHeader>
+   775→   775→            <DialogTitle>Settle Balance</DialogTitle>
+   776→   776→            <DialogDescription>
+   777→   777→              {selectedDeparture && (
+   778→   778→                <>Record a payment for Room {selectedDeparture.room.number} — Outstanding: {formatCurrency(getBalance(selectedDeparture))}</>
+   779→   779→              )}
+   780→   780→            </DialogDescription>
+   781→   781→          </DialogHeader>
+   782→   782→          <div className="space-y-4">
+   783→   783→            {/* Payment Method */}
+   784→   784→            <div className="space-y-2">
+   785→   785→              <Label>Payment Method</Label>
+   786→   786→              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}>
+   787→   787→                <SelectTrigger className="w-full">
+   788→   788→                  <SelectValue placeholder="Select payment method" />
+   789→   789→                </SelectTrigger>
+   790→   790→                <SelectContent>
+   791→   791→                  {Object.entries(PAYMENT_METHOD_LABELS).map(([key, label]) => (
+   792→   792→                    <SelectItem key={key} value={key}>
+   793→   793→                      {label}
+   794→   794→                    </SelectItem>
+   795→   795→                  ))}
+   796→   796→                </SelectContent>
+   797→   797→              </Select>
+   798→   798→            </div>
+   799→   799→
+   800→   800→            {/* Amount */}
+   801→   801→            <div className="space-y-2">
+   802→   802→              <Label htmlFor="payment-amount">Amount ({preferences.currency})</Label>
+   803→   803→              <Input
+   804→   804→                id="payment-amount"
+   805→   805→                type="number"
+   806→   806→                placeholder="Enter amount"
+   807→   807→                value={paymentAmount}
+   808→   808→                onChange={(e) => setPaymentAmount(e.target.value)}
+   809→   809→                min={1}
+   810→   810→              />
+   811→   811→            </div>
+   812→   812→
+   813→   813→            {/* Reference */}
+   814→   814→            <div className="space-y-2">
+   815→   815→              <Label htmlFor="payment-reference">Reference / Note</Label>
+   816→   816→              <Input
+   817→   817→                id="payment-reference"
+   818→   818→                type="text"
+   819→   819→                placeholder="e.g. Transaction ID, Receipt No."
+   820→   820→                value={paymentReference}
+   821→   821→                onChange={(e) => setPaymentReference(e.target.value)}
+   822→   822→              />
+   823→   823→            </div>
+   824→   824→          </div>
+   825→   825→          <DialogFooter>
+   826→   826→            <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
+   827→   827→            <Button
+   828→   828→              onClick={handleRecordPayment}
+   829→   829→              disabled={paymentMutation.isPending}
+   830→   830→            >
+   831→   831→              <Banknote className="size-4 mr-1.5" />
+   832→   832→              {paymentMutation.isPending ? 'Recording...' : 'Record Payment'}
+   833→   833→            </Button>
+   834→   834→          </DialogFooter>
+   835→   835→        </DialogContent>
+   836→   836→      </Dialog>
+   837→   837→
+   838→   838→      {/* ─── Checkout Confirmation Dialog ───────────────────────── */}
+   839→   839→      <Dialog open={checkoutDialogOpen} onOpenChange={setCheckoutDialogOpen}>
+   840→   840→        <DialogContent className="max-w-md">
+   841→   841→          <DialogHeader>
+   842→   842→            <DialogTitle>Confirm Checkout</DialogTitle>
+   843→   843→          </DialogHeader>
+   844→   844→          {selectedDeparture && (
+   845→   845→            <div className="space-y-4">
+   846→   846→              {/* Guest & Room Info */}
+   847→   847→              <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+   848→   848→                <p className="font-semibold">
+   849→   849→                  {selectedDeparture.guest.firstName} {selectedDeparture.guest.lastName}
+   850→   850→                </p>
+   851→   851→                <p className="text-muted-foreground">
+   852→   852→                  Room {selectedDeparture.room.number} • {selectedDeparture.confirmationNo}
+   853→   853→                </p>
+   854→   854→                <p className="text-muted-foreground">
+   855→   855→                  {formatDate(selectedDeparture.checkIn)} → {formatDate(selectedDeparture.checkOut)}
+   856→   856→                </p>
+   857→   857→              </div>
+   858→   858→
+   859→   859→              {/* Folio Summary */}
+   860→   860→              <div className="space-y-2">
+   861→   861→                <h4 className="text-sm font-semibold">Folio Summary</h4>
+   862→   862→                <div className="grid grid-cols-2 gap-2 text-sm">
+   863→   863→                  <div className="flex justify-between">
+   864→   864→                    <span className="text-muted-foreground">Total Charges:</span>
+   865→   865→                    <span className="font-medium">{formatCurrency(selectedDeparture.totalAmount)}</span>
+   866→   866→                  </div>
+   867→   867→                  <div className="flex justify-between">
+   868→   868→                    <span className="text-muted-foreground">Payments:</span>
+   869→   869→                    <span className="font-medium">{formatCurrency(selectedDeparture.paidAmount)}</span>
+   870→   870→                  </div>
+   871→   871→                  <Separator className="col-span-2" />
+   872→   872→                  <div className="flex justify-between col-span-2">
+   873→   873→                    <span className="font-semibold">Outstanding Balance:</span>
+   874→   874→                    <span className={cn(
+   875→   875→                      'font-bold',
+   876→   876→                      getBalance(selectedDeparture) > 0 ? 'text-red-600' : 'text-green-600',
+   877→   877→                    )}>
+   878→   878→                      {formatCurrency(getBalance(selectedDeparture))}
+   879→   879→                    </span>
+   880→   880→                  </div>
+   881→   881→                </div>
+   882→   882→              </div>
+   883→   883→
+   884→   884→              {(getBalance(selectedDeparture)) > 0 && (
+   885→   885→                <div className="rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2">
+   886→   886→                  <AlertTriangle className="size-4 mt-0.5 shrink-0" />
+   887→   887→                  <span>This guest has an outstanding balance. Please ensure all charges are settled before checkout.</span>
+   888→   888→                </div>
+   889→   889→              )}
+   890→   890→
+   891→   891→              <p className="text-xs text-muted-foreground">
+   892→   892→                This will change the reservation status to <strong>Checked Out</strong> and update the room status to <strong>Vacant Dirty</strong> for housekeeping.
+   893→   893→              </p>
+   894→   894→            </div>
+   895→   895→          )}
+   896→   896→          <DialogFooter className="flex-col gap-2 sm:flex-row">
+   897→   897→            <Button variant="outline" onClick={() => setCheckoutDialogOpen(false)}>Cancel</Button>
+   898→   898→            {selectedDeparture && getBalance(selectedDeparture) > 0 && (
+   899→   899→              <Button variant="outline" onClick={handleOpenPaymentDialog}>
+   900→   900→                <CreditCard className="size-4 mr-1.5" />
+   901→   901→                Settle Balance
+   902→   902→              </Button>
+   903→   903→            )}
+   904→   904→            <Button
+   905→   905→              variant="destructive"
+   906→   906→              onClick={confirmCheckout}
+   907→   907→              disabled={checkoutMutation.isPending}
+   908→   908→            >
+   909→   909→              <LogOut className="size-4 mr-1.5" />
+   910→   910→              {checkoutMutation.isPending ? 'Processing...' : 'Confirm Checkout'}
+   911→   911→            </Button>
+   912→   912→          </DialogFooter>
+   913→   913→        </DialogContent>
+   914→   914→      </Dialog>
+   915→   915→
+   916→   916→      {/* ─── Checkout Summary Receipt Dialog ────────────────────── */}
+   917→   917→      <Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+   918→   918→        <DialogContent className="max-w-md">
+   919→   919→          <DialogHeader>
+   920→   920→            <DialogTitle>Checkout Summary</DialogTitle>
+   921→   921→            <DialogDescription>Guest checkout receipt</DialogDescription>
+   922→   922→          </DialogHeader>
+   923→   923→          {receiptData && (
+   924→   924→            <div className="space-y-4">
+   925→   925→              {/* Guest & Room */}
+   926→   926→              <div className="rounded-lg bg-muted/50 p-4 space-y-2 text-sm">
+   927→   927→                <div className="flex justify-between">
+   928→   928→                  <span className="text-muted-foreground">Guest:</span>
+   929→   929→                  <span className="font-semibold">{receiptData.guest.firstName} {receiptData.guest.lastName}</span>
+   930→   930→                </div>
+   931→   931→                <div className="flex justify-between">
+   932→   932→                  <span className="text-muted-foreground">Room:</span>
+   933→   933→                  <span className="font-medium">{receiptData.room.number} ({receiptData.room.type.name})</span>
+   934→   934→                </div>
+   935→   935→                <div className="flex justify-between">
+   936→   936→                  <span className="text-muted-foreground">Check-in:</span>
+   937→   937→                  <span>{formatDate(receiptData.checkIn)} {formatTime(receiptData.checkIn)}</span>
+   938→   938→                </div>
+   939→   939→                <div className="flex justify-between">
+   940→   940→                  <span className="text-muted-foreground">Check-out:</span>
+   941→   941→                  <span>{formatDate(receiptData.checkOut)} {formatTime(receiptData.checkOut)}</span>
+   942→   942→                </div>
+   943→   943→                <div className="flex justify-between">
+   944→   944→                  <span className="text-muted-foreground">Confirmation:</span>
+   945→   945→                  <span className="font-mono text-xs">{receiptData.confirmationNo}</span>
+   946→   946→                </div>
+   947→   947→              </div>
+   948→   948→
+   949→   949→              {/* Charges Breakdown */}
+   950→   950→              <div className="space-y-2">
+   951→   951→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+   952→   952→                  <Receipt className="size-3.5" />
+   953→   953→                  Charges Breakdown
+   954→   954→                </h4>
+   955→   955→                <div className="rounded-lg border p-3 space-y-1.5 text-sm">
+   956→   956→                  <div className="flex justify-between">
+   957→   957→                    <span className="text-muted-foreground">Room Charge ({receiptData.room.type.name})</span>
+   958→   958→                    <span>{formatCurrency(receiptData.totalAmount)}</span>
+   959→   959→                  </div>
+   960→   960→                  {(receiptData.folios[0]?.items || [])
+   961→   961→                    .filter((item) => item.type === 'charge')
+   962→   962→                    .map((item) => (
+   963→   963→                      <div key={item.id} className="flex justify-between">
+   964→   964→                        <span className="text-muted-foreground">{item.description}</span>
+   965→   965→                        <span>{formatCurrency(item.amount)}</span>
+   966→   966→                      </div>
+   967→   967→                    ))}
+   968→   968→                </div>
+   969→   969→              </div>
+   970→   970→
+   971→   971→              {/* Payments Breakdown */}
+   972→   972→              <div className="space-y-2">
+   973→   973→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+   974→   974→                  <CreditCard className="size-3.5" />
+   975→   975→                  Payments
+   976→   976→                </h4>
+   977→   977→                <div className="rounded-lg border p-3 space-y-1.5 text-sm">
+   978→   978→                  {receiptData.paidAmount > 0 && (
+   979→   979→                    <div className="flex justify-between">
+   980→   980→                      <span className="text-muted-foreground">Advance Payment</span>
+   981→   981→                      <span className="text-green-600">-{formatCurrency(receiptData.paidAmount)}</span>
+   982→   982→                    </div>
+   983→   983→                  )}
+   984→   984→                  {(receiptData.folios[0]?.items || [])
+   985→   985→                    .filter((item) => item.type === 'payment')
+   986→   986→                    .map((item) => (
+   987→   987→                      <div key={item.id} className="flex justify-between">
+   988→   988→                        <span className="text-muted-foreground">{item.description}</span>
+   989→   989→                        <span className="text-green-600">-{formatCurrency(item.amount)}</span>
+   990→   990→                      </div>
+   991→   991→                    ))}
+   992→   992→                </div>
+   993→   993→              </div>
+   994→   994→
+   995→   995→              {/* Final Balance */}
+   996→   996→              <div className="rounded-lg bg-muted p-3">
+   997→   997→                <div className="flex justify-between text-base font-bold">
+   998→   998→                  <span>Final Balance:</span>
+   999→   999→                  <span className={cn(
+  1000→  1000→                    getBalance(receiptData) > 0 ? 'text-red-600' : 'text-green-600',
+  1001→  1001→                  )}>
+  1002→  1002→                    {formatCurrency(getBalance(receiptData))}
+  1003→  1003→                  </span>
+  1004→  1004→                </div>
+  1005→  1005→              </div>
+  1006→  1006→
+  1007→  1007→              {/* Room Status */}
+  1008→  1008→              <div className="flex items-center gap-2 rounded-lg border border-yellow-300 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-800 p-3 text-sm">
+  1009→  1009→                <BedSingle className="size-4 text-yellow-600 dark:text-yellow-400" />
+  1010→  1010→                <span className="text-yellow-700 dark:text-yellow-300 font-medium">
+  1011→  1011→                  Room Status: Vacant Dirty — Marked for Housekeeping
+  1012→  1012→                </span>
+  1013→  1013→              </div>
+  1014→  1014→            </div>
+  1015→  1015→          )}
+  1016→  1016→          <DialogFooter className="flex-col gap-2 sm:flex-row">
+  1017→  1017→            <Button variant="outline" onClick={() => setReceiptDialogOpen(false)}>
+  1018→  1018→              <X className="size-4 mr-1.5" />
+  1019→  1019→              Close
+  1020→  1020→            </Button>
+  1021→  1021→            <Button variant="outline" onClick={handlePrintReceipt}>
+  1022→  1022→              <Printer className="size-4 mr-1.5" />
+  1023→  1023→              Print Receipt
+  1024→  1024→            </Button>
+  1025→  1025→            <Button onClick={handleEmailReceipt}>
+  1026→  1026→              <Mail className="size-4 mr-1.5" />
+  1027→  1027→              Email Receipt
+  1028→  1028→            </Button>
+  1029→  1029→          </DialogFooter>
+  1030→  1030→        </DialogContent>
+  1031→  1031→      </Dialog>
+  1032→  1032→    </div>
+  1033→  1033→  )
+  1034→  1034→}
+  1035→  1035→
