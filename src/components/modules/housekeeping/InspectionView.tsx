@@ -430,7 +430,7 @@ function InspectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetAndClose(); else onOpenChange(true) }}>
-      <DialogContent className="sm:max-w-lg max-w-[95vw] max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-lg max-w-[95vw] max-h-[100dvh] sm:max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
         {/* Fixed Header */}
         <div className="shrink-0 px-6 pt-6 pb-0">
           <DialogHeader>
@@ -446,7 +446,7 @@ function InspectionDialog({
         </div>
 
         {/* Scrollable Body */}
-        <ScrollArea className="flex-1 px-6 py-4 max-h-[60vh]">
+        <ScrollArea className="flex-1 min-h-0 px-6 py-4">
           <div className="space-y-4 pr-2">
             {/* Progress */}
             <div className="rounded-lg border p-3">
