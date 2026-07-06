@@ -197,7 +197,7 @@
    197→
    198→      {/* Camera Preview */}
    199→      {cameraOpen && (
-   200→        <div className="relative rounded-lg border overflow-hidden bg-black">
+   200→        <div className="relative rounded-lg border overflow-hidden bg-black max-h-36 sm:max-h-48">
    201→          <video
    202→            ref={videoRef}
    203→            autoPlay
@@ -233,10 +233,10 @@
    233→
    234→      {/* Photo Grid */}
    235→      {photos.length > 0 && (
-   236→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[160px] sm:max-h-[200px] overflow-y-auto">
+   236→        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
    237→          {photos.map((photo, idx) => (
-   238→            <div key={idx} className="relative group rounded-md border overflow-hidden aspect-square">
-   239→              <img src={photo} alt={`Evidence ${idx + 1}`} className="w-full h-full object-cover" />
+   238→            <div key={idx} className="relative group rounded-md border overflow-hidden">
+   239→              <img src={photo} alt={`Evidence ${idx + 1}`} className="w-full h-auto max-h-24 sm:max-h-28 object-cover" />
    240→              <button
    241→                onClick={() => onRemove(idx)}
    242→                className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-70 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"

@@ -11,9 +11,9 @@ cd "$(dirname "$0")"
 
 case "$MODE" in
   dev)
-    echo "Starting dev server (turbopack) on port 3000..."
+    echo "Starting dev server (webpack) on port 3000..."
     export NODE_OPTIONS="--max-old-space-size=4096"
-    exec npx next dev -p 3000 -H 0.0.0.0 --turbopack
+    exec npx next dev -p 3000 -H 0.0.0.0
     ;;
   prod)
     echo "Starting production server on port 3000..."
@@ -27,7 +27,7 @@ case "$MODE" in
     echo "Starting production server with watchdog..."
     if [ ! -f .next/BUILD_ID ]; then
       echo "Building for production..."
-      NODE_OPTIONS="--max-old-space-size=4096" npx next build --turbopack
+      NODE_OPTIONS="--max-old-space-size=4096" npx next build
     fi
     while true; do
       npx next start -p 3000 -H 0.0.0.0 </dev/null >>dev.log 2>&1
@@ -38,13 +38,13 @@ case "$MODE" in
   build)
     echo "Building for production..."
     export NODE_OPTIONS="--max-old-space-size=4096"
-    npx next build --turbopack
+    npx next build
     echo "Build complete. Run './start.sh prod' to start."
     ;;
   *)
     echo "Usage: $0 {dev|prod|watchdog|build}"
     echo ""
-    echo "  dev      - Development server with hot reload (turbopack)"
+    echo "  dev      - Development server with hot reload (webpack)"
     echo "  prod     - Production server (fast, stable)"
     echo "  watchdog - Production server with auto-restart"
     echo "  build    - Build for production"

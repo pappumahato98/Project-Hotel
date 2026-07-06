@@ -163,11 +163,11 @@
    163→                    {item.identityVerified ? 'Identity verified with ID' : 'Identity NOT verified'}
    164→                  </span>
    165→                </div>
-   166→                {item.claimAttachment && (
+   166→                {item.identityVerified && item.claimAttachment && (
    167→                  <div className="space-y-1.5">
    168→                    <p className="text-xs text-muted-foreground font-medium">ID Proof Attachment</p>
    169→                    <div className="rounded-lg border overflow-hidden max-w-[300px]">
-   170→                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+   170→                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto max-h-40 object-cover" />
    171→                    </div>
    172→                  </div>
    173→                )}
@@ -516,12 +516,12 @@
    516→      </Dialog>
    517→
    518→      {/* Claim Item Dialog */}
-   519→      <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
+   519→      {selectedItem && <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
    520→        <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)] max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
    521→          <DialogHeader>
    522→            <DialogTitle>Claim Item</DialogTitle>
    523→            <DialogDescription>
-   524→              {selectedItem && `Process claim for "${selectedItem.itemName}"`}
+   524→              {`Process claim for "${selectedItem.itemName}"`}
    525→            </DialogDescription>
    526→          </DialogHeader>
    527→          <ScrollArea className="flex-1 min-h-0 overflow-y-auto px-6">
@@ -596,7 +596,7 @@
    596→                </div>
    597→                {claimForm.claimAttachment && (
    598→                  <div className="rounded-md border overflow-hidden max-w-[200px]">
-   599→                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+   599→                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto max-h-32 object-cover" />
    600→                  </div>
    601→                )}
    602→                <p className="text-xs text-muted-foreground">Take a photo or upload the claimant&apos;s ID for verification</p>
@@ -608,7 +608,7 @@
    608→            <div className="flex justify-end gap-2">
    609→              <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
    610→              <Button onClick={() => claimMutation.mutate({
-   611→                id: selectedItem!.id,
+   611→                id: selectedItem.id,
    612→                claimedBy: claimForm.claimedBy,
    613→                identityVerified: claimForm.identityVerified,
    614→                claimAttachment: claimForm.claimAttachment,
@@ -618,7 +618,7 @@
    618→            </div>
    619→          </div>
    620→        </DialogContent>
-   621→      </Dialog>
+   621→      </Dialog>}
    622→    </div>
    623→  )
    624→}

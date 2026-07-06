@@ -163,11 +163,11 @@
    163→                    {item.identityVerified ? 'Identity verified with ID' : 'Identity NOT verified'}
    164→                  </span>
    165→                </div>
-   166→                {item.claimAttachment && (
+   166→                {item.identityVerified && item.claimAttachment && (
    167→                  <div className="space-y-1.5">
    168→                    <p className="text-xs text-muted-foreground font-medium">ID Proof Attachment</p>
    169→                    <div className="rounded-lg border overflow-hidden max-w-[300px]">
-   170→                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+   170→                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto max-h-40 object-cover" />
    171→                    </div>
    172→                  </div>
    173→                )}
@@ -516,109 +516,111 @@
    516→      </Dialog>
    517→
    518→      {/* Claim Item Dialog */}
-   519→      <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
+   519→      {selectedItem && <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
    520→        <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)] max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-   521→          <DialogHeader>
-   522→            <DialogTitle>Claim Item</DialogTitle>
-   523→            <DialogDescription>
-   524→              {selectedItem && `Process claim for "${selectedItem.itemName}"`}
-   525→            </DialogDescription>
-   526→          </DialogHeader>
-   527→          <ScrollArea className="flex-1 min-h-0 overflow-y-auto px-6">
-   528→            <div className="space-y-4 py-4">
-   529→              <div className="rounded-lg border p-3 space-y-2 text-sm">
-   530→                <div className="flex items-center gap-2">
-   531→                  <Package className="h-4 w-4 text-muted-foreground" />
-   532→                  <span className="font-medium">{selectedItem.itemName}</span>
-   533→                </div>
-   534→                <div className="flex items-center gap-2 text-muted-foreground text-xs">
-   535→                  <MapPin className="h-3 w-3" />
-   536→                  <span>Found: {format(new Date(selectedItem.foundDate), 'MMM d, yyyy')}</span>
-   537→                  {selectedItem.roomId && (
-   538→                    <>
-   539→                      <span>·</span>
-   540→                      <span>Room {selectedItem.roomId}</span>
-   541→                    </>
-   542→                  )}
-   543→                </div>
-   544→              </div>
-   545→
-   546→              <div className="space-y-2">
-   547→                <Label>Claimed By *</Label>
-   548→                <Input
-   549→                  placeholder="Guest / person name"
-   550→                  value={claimForm.claimedBy}
-   551→                  onChange={(e) => setClaimForm((f) => ({ ...f, claimedBy: e.target.value }))}
-   552→                />
-   553→              </div>
-   554→
-   555→              <div className="flex items-start gap-3 rounded-lg border p-3">
-   556→                <label className="flex items-center gap-2 cursor-pointer">
-   557→                  <Checkbox
-   558→                    checked={claimForm.identityVerified}
-   559→                    onCheckedChange={(checked) =>
-   560→                      setClaimForm((f) => ({ ...f, identityVerified: !!checked }))
-   561→                    }
-   562→                  />
-   563→                  <span className="text-sm">Identity verified with ID</span>
-   564→                </label>
-   565→              </div>
-   566→
-   567→              {claimForm.identityVerified && (
-   568→              <div className="space-y-2">
-   569→                <Label>ID Proof Attachment</Label>
-   570→                <div className="flex items-center gap-2">
-   571→                  <input
-   572→                    type="file"
-   573→                    accept="image/*"
-   574→                    className="hidden"
-   575→                    id="claim-attachment"
-   576→                    onChange={(e) => {
-   577→                      const file = e.target.files?.[0]
-   578→                      if (!file) return
-   579→                      const reader = new FileReader()
-   580→                      reader.onloadend = () => {
-   581→                        setClaimForm((f) => ({ ...f, claimAttachment: reader.result as string }))
-   582→                      }
-   583→                      reader.readAsDataURL(file)
-   584→                    }}
-   585→                  />
-   586→                  <Button type="button" variant="outline" className="gap-2" onClick={() => document.getElementById('claim-attachment')?.click()}>
-   587→                    <Camera className="h-4 w-4" />
-   588→                    {claimForm.claimAttachment ? 'Change Photo' : 'Capture/Upload ID'}
-   589→                  </Button>
-   590→                  {claimForm.claimAttachment && (
-   591→                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-red-500"
-   592→                      onClick={() => setClaimForm((f) => ({ ...f, claimAttachment: '' }))}>
-   593→                      <X className="h-3 w-3 mr-1" /> Remove
-   594→                    </Button>
-   595→                  )}
-   596→                </div>
-   597→                {claimForm.claimAttachment && (
-   598→                  <div className="rounded-md border overflow-hidden max-w-[200px]">
-   599→                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
-   600→                  </div>
-   601→                )}
-   602→                <p className="text-xs text-muted-foreground">Take a photo or upload the claimant&apos;s ID for verification</p>
-   603→              </div>
-   604→              )}
-   605→            </div>
-   606→          </ScrollArea>
-   607→          <div className="shrink-0 px-6 pb-4 pt-2 border-t">
-   608→            <div className="flex justify-end gap-2">
-   609→              <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
-   610→              <Button onClick={() => claimMutation.mutate({
-   611→                id: selectedItem!.id,
-   612→                claimedBy: claimForm.claimedBy,
-   613→                identityVerified: claimForm.identityVerified,
-   614→                claimAttachment: claimForm.claimAttachment,
-   615→              })} disabled={!claimForm.claimedBy || !claimForm.identityVerified || claimMutation.isPending}>
-   616→                {claimMutation.isPending ? 'Processing...' : 'Confirm Claim'}
-   617→              </Button>
-   618→            </div>
-   619→          </div>
-   620→        </DialogContent>
-   621→      </Dialog>
-   622→    </div>
-   623→  )
-   624→}
+   521→          <div className="shrink-0 px-6 pt-6 pb-2">
+   522→            <DialogHeader>
+   523→              <DialogTitle>Claim Item</DialogTitle>
+   524→              <DialogDescription>
+   525→                {`Process claim for "${selectedItem.itemName}"`}
+   526→              </DialogDescription>
+   527→            </DialogHeader>
+   528→          </div>
+   529→          <ScrollArea className="flex-1 min-h-0 overflow-y-auto px-6">
+   530→            <div className="space-y-4 py-4 pr-1">
+   531→              <div className="rounded-lg border p-3 space-y-2 text-sm">
+   532→                <div className="flex items-center gap-2">
+   533→                  <Package className="h-4 w-4 text-muted-foreground" />
+   534→                  <span className="font-medium">{selectedItem.itemName}</span>
+   535→                </div>
+   536→                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+   537→                  <MapPin className="h-3 w-3" />
+   538→                  <span>Found: {format(new Date(selectedItem.foundDate), 'MMM d, yyyy')}</span>
+   539→                  {selectedItem.roomId && (
+   540→                    <>
+   541→                      <span>·</span>
+   542→                      <span>Room {selectedItem.roomId}</span>
+   543→                    </>
+   544→                  )}
+   545→                </div>
+   546→              </div>
+   547→
+   548→              <div className="space-y-2">
+   549→                <Label>Claimed By *</Label>
+   550→                <Input
+   551→                  placeholder="Guest / person name"
+   552→                  value={claimForm.claimedBy}
+   553→                  onChange={(e) => setClaimForm((f) => ({ ...f, claimedBy: e.target.value }))}
+   554→                />
+   555→              </div>
+   556→
+   557→              <div className="flex items-start gap-3 rounded-lg border p-3">
+   558→                <label className="flex items-center gap-2 cursor-pointer">
+   559→                  <Checkbox
+   560→                    checked={claimForm.identityVerified}
+   561→                    onCheckedChange={(checked) =>
+   562→                      setClaimForm((f) => ({ ...f, identityVerified: !!checked }))
+   563→                    }
+   564→                  />
+   565→                  <span className="text-sm">Identity verified with ID</span>
+   566→                </label>
+   567→              </div>
+   568→
+   569→              {claimForm.identityVerified && (
+   570→              <div className="space-y-2">
+   571→                <Label>ID Proof Attachment</Label>
+   572→                <div className="flex items-center gap-2">
+   573→                  <input
+   574→                    type="file"
+   575→                    accept="image/*"
+   576→                    className="hidden"
+   577→                    id="claim-attachment"
+   578→                    onChange={(e) => {
+   579→                      const file = e.target.files?.[0]
+   580→                      if (!file) return
+   581→                      const reader = new FileReader()
+   582→                      reader.onloadend = () => {
+   583→                        setClaimForm((f) => ({ ...f, claimAttachment: reader.result as string }))
+   584→                      }
+   585→                      reader.readAsDataURL(file)
+   586→                    }}
+   587→                  />
+   588→                  <Button type="button" variant="outline" className="gap-2" onClick={() => document.getElementById('claim-attachment')?.click()}>
+   589→                    <Camera className="h-4 w-4" />
+   590→                    {claimForm.claimAttachment ? 'Change Photo' : 'Capture/Upload ID'}
+   591→                  </Button>
+   592→                  {claimForm.claimAttachment && (
+   593→                    <Button type="button" variant="ghost" size="sm" className="h-7 text-xs text-red-500"
+   594→                      onClick={() => setClaimForm((f) => ({ ...f, claimAttachment: '' }))}>
+   595→                      <X className="h-3 w-3 mr-1" /> Remove
+   596→                    </Button>
+   597→                  )}
+   598→                </div>
+   599→                {claimForm.claimAttachment && (
+   600→                  <div className="rounded-md border overflow-hidden max-w-[200px]">
+   601→                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto max-h-32 object-cover" />
+   602→                  </div>
+   603→                )}
+   604→                <p className="text-xs text-muted-foreground">Take a photo or upload the claimant&apos;s ID for verification</p>
+   605→              </div>
+   606→              )}
+   607→            </div>
+   608→          </ScrollArea>
+   609→          <div className="shrink-0 px-6 pb-4 pt-2 border-t">
+   610→            <div className="flex justify-end gap-2">
+   611→              <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
+   612→              <Button onClick={() => claimMutation.mutate({
+   613→                id: selectedItem.id,
+   614→                claimedBy: claimForm.claimedBy,
+   615→                identityVerified: claimForm.identityVerified,
+   616→                claimAttachment: claimForm.claimAttachment,
+   617→              })} disabled={!claimForm.claimedBy || !claimForm.identityVerified || claimMutation.isPending}>
+   618→                {claimMutation.isPending ? 'Processing...' : 'Confirm Claim'}
+   619→              </Button>
+   620→            </div>
+   621→          </div>
+   622→        </DialogContent>
+   623→      </Dialog>}
+   624→    </div>
+   625→  )
+   626→}

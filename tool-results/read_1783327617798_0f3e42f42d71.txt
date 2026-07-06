@@ -516,12 +516,12 @@
    516→      </Dialog>
    517→
    518→      {/* Claim Item Dialog */}
-   519→      <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
+   519→      {selectedItem && <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
    520→        <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)] max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
    521→          <DialogHeader>
    522→            <DialogTitle>Claim Item</DialogTitle>
    523→            <DialogDescription>
-   524→              {selectedItem && `Process claim for "${selectedItem.itemName}"`}
+   524→              {`Process claim for "${selectedItem.itemName}"`}
    525→            </DialogDescription>
    526→          </DialogHeader>
    527→          <ScrollArea className="flex-1 min-h-0 overflow-y-auto px-6">
@@ -608,7 +608,7 @@
    608→            <div className="flex justify-end gap-2">
    609→              <Button variant="outline" onClick={() => setClaimOpen(false)}>Cancel</Button>
    610→              <Button onClick={() => claimMutation.mutate({
-   611→                id: selectedItem!.id,
+   611→                id: selectedItem.id,
    612→                claimedBy: claimForm.claimedBy,
    613→                identityVerified: claimForm.identityVerified,
    614→                claimAttachment: claimForm.claimAttachment,
@@ -618,7 +618,7 @@
    618→            </div>
    619→          </div>
    620→        </DialogContent>
-   621→      </Dialog>
+   621→      </Dialog>}
    622→    </div>
    623→  )
    624→}

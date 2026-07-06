@@ -70,111 +70,118 @@ function ViewItemDialog({ item, open, onOpenChange }: { item: LostFoundItem | nu
   const StatusIcon = STATUS_ICON[item.status] || Package
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-w-[calc(100vw-1rem)] max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <StatusIcon className="h-5 w-5 text-primary" />
-            {item.itemName}
-          </DialogTitle>
-          <DialogDescription>
-            {formatCategory(item.category)} · {item.status === 'found' ? 'Unclaimed' : item.status === 'claimed' ? 'Claimed' : item.status}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 text-sm">
-          {/* Description */}
-          {item.description && (
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground mb-1">Description</p>
-              <p>{item.description}</p>
-            </div>
-          )}
+      <DialogContent className="sm:max-w-lg max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100vh-2rem)] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Fixed Header */}
+        <div className="shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <StatusIcon className="h-5 w-5 text-primary" />
+              {item.itemName}
+            </DialogTitle>
+            <DialogDescription>
+              {formatCategory(item.category)} · {item.status === 'found' ? 'Unclaimed' : item.status === 'claimed' ? 'Claimed' : item.status}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-          {/* Found Details */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground mb-1">Found By</p>
-              <p className="font-medium flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                {item.foundBy}
-              </p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground mb-1">Found Date & Time</p>
-              <p className="font-medium flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" />
-                {format(new Date(item.foundDate), 'MMM d, yyyy · hh:mm a')}
-              </p>
-            </div>
-            {item.roomId && (
+        {/* Scrollable Body */}
+        <ScrollArea className="flex-1 min-h-0 px-4 sm:px-6">
+          <div className="space-y-4 text-sm pb-4 pr-1">
+            {/* Description */}
+            {item.description && (
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground mb-1">Room</p>
-                <p className="font-medium flex items-center gap-1.5">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {item.roomId}
-                </p>
+                <p className="text-xs text-muted-foreground mb-1">Description</p>
+                <p>{item.description}</p>
               </div>
             )}
-            {item.storageLocation && (
+
+            {/* Found Details */}
+            <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border p-3">
-                <p className="text-xs text-muted-foreground mb-1">Storage Location</p>
+                <p className="text-xs text-muted-foreground mb-1">Found By</p>
                 <p className="font-medium flex items-center gap-1.5">
-                  <Warehouse className="h-3.5 w-3.5" />
-                  {item.storageLocation}
+                  <User className="h-3.5 w-3.5" />
+                  {item.foundBy}
                 </p>
               </div>
-            )}
-          </div>
-
-          {/* Claim Details (if claimed) */}
-          {item.status === 'claimed' && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <p className="font-semibold text-green-600 flex items-center gap-2">
-                  <Check className="h-4 w-4" />
-                  Claim Details
+              <div className="rounded-lg border p-3">
+                <p className="text-xs text-muted-foreground mb-1">Found Date & Time</p>
+                <p className="font-medium flex items-center gap-1.5">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  {format(new Date(item.foundDate), 'MMM d, yyyy · hh:mm a')}
                 </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground mb-1">Claimed By</p>
-                    <p className="font-medium flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5" />
-                      {item.claimedBy}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs text-muted-foreground mb-1">Claim Date</p>
-                    <p className="font-medium flex items-center gap-1.5">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      {item.claimDate ? format(new Date(item.claimDate), 'MMM d, yyyy · hh:mm a') : '—'}
-                    </p>
-                  </div>
+              </div>
+              {item.roomId && (
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Room</p>
+                  <p className="font-medium flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {item.roomId}
+                  </p>
                 </div>
-                <div className={cn(
-                  'flex items-center gap-2 rounded-lg border p-3',
-                  item.identityVerified ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
-                )}>
-                  {item.identityVerified ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-amber-600" />
-                  )}
-                  <span className={cn('text-sm font-medium', item.identityVerified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400')}>
-                    {item.identityVerified ? 'Identity verified with ID' : 'Identity NOT verified'}
-                  </span>
+              )}
+              {item.storageLocation && (
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Storage Location</p>
+                  <p className="font-medium flex items-center gap-1.5">
+                    <Warehouse className="h-3.5 w-3.5" />
+                    {item.storageLocation}
+                  </p>
                 </div>
-                {item.claimAttachment && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-muted-foreground font-medium">ID Proof Attachment</p>
-                    <div className="rounded-lg border overflow-hidden max-w-[300px]">
-                      <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+              )}
+            </div>
+
+            {/* Claim Details (if claimed) */}
+            {item.status === 'claimed' && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <p className="font-semibold text-green-600 flex items-center gap-2">
+                    <Check className="h-4 w-4" />
+                    Claim Details
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Claimed By</p>
+                      <p className="font-medium flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5" />
+                        {item.claimedBy}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Claim Date</p>
+                      <p className="font-medium flex items-center gap-1.5">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        {item.claimDate ? format(new Date(item.claimDate), 'MMM d, yyyy · hh:mm a') : '—'}
+                      </p>
                     </div>
                   </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+                  <div className={cn(
+                    'flex items-center gap-2 rounded-lg border p-3',
+                    item.identityVerified ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+                  )}>
+                    {item.identityVerified ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                    )}
+                    <span className={cn('text-sm font-medium', item.identityVerified ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400')}>
+                      {item.identityVerified ? 'Identity verified with ID' : 'Identity NOT verified'}
+                    </span>
+                  </div>
+                  {item.identityVerified && item.claimAttachment && (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">ID Proof Attachment</p>
+                      <div className="rounded-lg border overflow-hidden">
+                        <img src={item.claimAttachment} alt="ID Proof" className="w-full h-auto max-h-40 object-contain" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )
@@ -518,14 +525,16 @@ export function LostFoundView() {
       {/* Claim Item Dialog */}
       {selectedItem && <Dialog open={claimOpen} onOpenChange={setClaimOpen}>
         <DialogContent className="sm:max-w-md max-w-[calc(100vw-1rem)] max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-          <DialogHeader>
-            <DialogTitle>Claim Item</DialogTitle>
-            <DialogDescription>
-              {`Process claim for "${selectedItem.itemName}"`}
-            </DialogDescription>
-          </DialogHeader>
+          <div className="shrink-0 px-6 pt-6 pb-2">
+            <DialogHeader>
+              <DialogTitle>Claim Item</DialogTitle>
+              <DialogDescription>
+                {`Process claim for "${selectedItem.itemName}"`}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
           <ScrollArea className="flex-1 min-h-0 overflow-y-auto px-6">
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 pr-1">
               <div className="rounded-lg border p-3 space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
@@ -595,8 +604,8 @@ export function LostFoundView() {
                   )}
                 </div>
                 {claimForm.claimAttachment && (
-                  <div className="rounded-md border overflow-hidden max-w-[200px]">
-                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto object-cover" />
+                  <div className="rounded-md border overflow-hidden">
+                    <img src={claimForm.claimAttachment} alt="ID Proof" className="w-full h-auto max-h-32 object-contain bg-muted/30" />
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">Take a photo or upload the claimant&apos;s ID for verification</p>
