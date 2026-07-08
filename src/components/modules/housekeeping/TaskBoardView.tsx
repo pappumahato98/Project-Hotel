@@ -1172,7 +1172,7 @@ export function TaskBoardView() {
       <div className="rounded-lg border bg-card overflow-hidden">
         <div className="max-h-[calc(100vh-280px)] overflow-auto">
           <Table>
-            <TableHeader className="sticky top-0 z-10 bg-card">
+            <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
               <TableRow className="hover:bg-muted/40">
                 <TableHead className="w-10" />
                 <TableHead className="w-10">
