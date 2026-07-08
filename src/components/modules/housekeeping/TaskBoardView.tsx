@@ -292,7 +292,7 @@ function InlineRowActions({
   const canFail = s === 'cleaning' || s === 'in_progress' || s === 'cleaned'
 
   return (
-    <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center gap-0.5">
       {/* View Details — primary quick action */}
       <Button
         variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
