@@ -116,7 +116,7 @@ export function PayrollView() {
         <CardContent className="p-0">
           <ScrollArea className="max-h-[250px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
                   <TableHead>Department</TableHead>
                   <TableHead className="text-center">Employees</TableHead>
@@ -161,7 +161,7 @@ export function PayrollView() {
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead className="hidden md:table-cell">Position</TableHead>

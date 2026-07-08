@@ -1422,7 +1422,7 @@ function ActivityLogTab() {
           ) : (
             <ScrollArea className="max-h-[600px]">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-[140px]">Date</TableHead>
                     <TableHead className="w-[140px]">Action</TableHead>

@@ -627,7 +627,7 @@ export function InHouseView() {
       <Card className="py-0">
         <CardContent className="p-0 overflow-auto max-h-[calc(100vh-220px)]">
           <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
                   <TableHead className="w-[40px]" />
                   <TableHead className="w-[70px]">Room</TableHead>

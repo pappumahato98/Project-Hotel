@@ -320,7 +320,7 @@ export function CashierView() {
           ) : (
             <ScrollArea className="max-h-96">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                   <TableRow>
                     <TableHead className="text-xs">Cashier</TableHead>
                     <TableHead className="text-xs">Shift</TableHead>

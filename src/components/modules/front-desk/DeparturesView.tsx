@@ -561,7 +561,7 @@ export function DeparturesView() {
         <CardContent className="p-0">
           <div className="max-h-[600px] overflow-y-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
                   <TableHead className="w-[40px] pl-4">
                     <Checkbox
@@ -776,7 +776,7 @@ export function DeparturesView() {
               {/* Folio items table */}
               <div className="rounded-lg border max-h-64 overflow-y-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                     <TableRow>
                       <TableHead className="text-xs">Description</TableHead>
                       <TableHead className="text-xs w-[90px]">Date</TableHead>

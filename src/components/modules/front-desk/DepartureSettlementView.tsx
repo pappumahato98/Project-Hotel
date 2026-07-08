@@ -738,7 +738,7 @@ export function DepartureSettlementView() {
         <CardContent className="p-0">
           <div className="max-h-[500px] overflow-y-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
                   <TableHead className="w-[40px] px-2">
                     <div className="flex items-center justify-center">
@@ -947,7 +947,7 @@ export function DepartureSettlementView() {
                 ) : (
                   <div className="rounded-lg border max-h-48 overflow-y-auto">
                     <Table>
-                      <TableHeader>
+                      <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                         <TableRow>
                           <TableHead className="text-xs">Reservation #</TableHead>
                           <TableHead className="text-xs">Room</TableHead>
@@ -1009,7 +1009,7 @@ export function DepartureSettlementView() {
                 <h4 className="text-sm font-semibold">Charges &amp; Payments</h4>
                 <div className="rounded-lg border max-h-48 overflow-y-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                       <TableRow>
                         <TableHead className="text-xs">Description</TableHead>
                         <TableHead className="text-xs w-[90px]">Date</TableHead>

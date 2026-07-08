@@ -462,7 +462,7 @@ function AgingTab({ summary, stays, onNavigateToFolio, onNavigateToReservation }
             </h4>
             <div className="max-h-64 overflow-y-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                   <TableRow>
                     <TableHead className="text-xs">Confirmation #</TableHead>
                     <TableHead className="text-xs">Room</TableHead>
@@ -1172,7 +1172,7 @@ export function GuestLedgerView() {
                           <CollapsibleContent>
                             <div className="max-h-96 overflow-y-auto">
                               <Table>
-                                <TableHeader>
+                                <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                                   <TableRow>
                                     <TableHead className="text-xs">Date</TableHead>
                                     <TableHead className="text-xs">Type</TableHead>
@@ -1266,7 +1266,7 @@ export function GuestLedgerView() {
                         </div>
                         <div className="max-h-96 overflow-y-auto">
                           <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                               <TableRow>
                                 <TableHead className="text-xs">Date</TableHead>
                                 <TableHead className="text-xs">Stay</TableHead>
@@ -1336,7 +1336,7 @@ export function GuestLedgerView() {
           <CardContent>
             <div className="max-h-96 overflow-y-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                   <TableRow>
                     <TableHead className="text-xs">Date</TableHead>
                     <TableHead className="text-xs">Stay</TableHead>

@@ -1,0 +1,341 @@
+     1→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-344-          <ScrollArea className="max-h-[500px]">
+     2→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-345-            <Table>
+     3→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:346:              <TableHeader>
+     4→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-347-                <TableRow>
+     5→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-348-                  <TableHead>ID</TableHead>
+     6→--
+     7→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-674-                <h4 className="text-sm font-medium mb-2">Items ({selectedReq.items.length})</h4>
+     8→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-675-                <Table>
+     9→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx:676:                  <TableHeader>
+    10→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-677-                    <TableRow>
+    11→/home/z/my-project/src/components/modules/inventory/RequisitionsView.tsx-678-                      <TableHead>Item</TableHead>
+    12→--
+    13→/home/z/my-project/src/components/modules/inventory/StockView.tsx-328-          <ScrollArea className="max-h-[500px]">
+    14→/home/z/my-project/src/components/modules/inventory/StockView.tsx-329-            <Table>
+    15→/home/z/my-project/src/components/modules/inventory/StockView.tsx:330:              <TableHeader>
+    16→/home/z/my-project/src/components/modules/inventory/StockView.tsx-331-                <TableRow>
+    17→/home/z/my-project/src/components/modules/inventory/StockView.tsx-332-                  <TableHead>Item</TableHead>
+    18→--
+    19→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx-321-          <ScrollArea className="max-h-[500px]">
+    20→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx-322-            <Table>
+    21→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx:323:              <TableHeader>
+    22→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx-324-                <TableRow>
+    23→/home/z/my-project/src/components/modules/inventory/VendorsView.tsx-325-                  <TableHead>Vendor</TableHead>
+    24→--
+    25→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-479-          <ScrollArea className="max-h-[500px]">
+    26→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-480-            <Table>
+    27→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:481:              <TableHeader>
+    28→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-482-                <TableRow>
+    29→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-483-                  <TableHead>PO #</TableHead>
+    30→--
+    31→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-751-                <h4 className="text-sm font-medium mb-2">Items ({selectedPO.items.length})</h4>
+    32→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-752-                <Table>
+    33→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx:753:                  <TableHeader>
+    34→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-754-                    <TableRow>
+    35→/home/z/my-project/src/components/modules/inventory/PurchaseOrdersView.tsx-755-                      <TableHead>Item</TableHead>
+    36→--
+    37→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx-232-          <ScrollArea className="max-h-[500px]">
+    38→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx-233-            <Table>
+    39→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx:234:              <TableHeader>
+    40→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx-235-                <TableRow>
+    41→/home/z/my-project/src/components/modules/inventory/StockAdjustmentsView.tsx-236-                  <TableHead>Date</TableHead>
+    42→--
+    43→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx-392-            <ScrollArea className="max-h-[300px]">
+    44→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx-393-              <Table>
+    45→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx:394:                <TableHeader>
+    46→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx-395-                  <TableRow>
+    47→/home/z/my-project/src/components/modules/inventory/InventoryDashboardView.tsx-396-                    <TableHead>Vendor</TableHead>
+    48→--
+    49→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-562-          <div className="max-h-[600px] overflow-y-auto">
+    50→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-563-            <Table>
+    51→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:564:              <TableHeader>
+    52→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-565-                <TableRow>
+    53→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-566-                  <TableHead className="w-[40px] pl-4">
+    54→--
+    55→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-777-              <div className="rounded-lg border max-h-64 overflow-y-auto">
+    56→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-778-                <Table>
+    57→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx:779:                  <TableHeader>
+    58→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-780-                    <TableRow>
+    59→/home/z/my-project/src/components/modules/front-desk/DeparturesView.tsx-781-                      <TableHead className="text-xs">Description</TableHead>
+    60→--
+    61→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-739-          <div className="max-h-[500px] overflow-y-auto">
+    62→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-740-            <Table>
+    63→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx:741:              <TableHeader>
+    64→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-742-                <TableRow>
+    65→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-743-                  <TableHead className="w-[40px] px-2">
+    66→--
+    67→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-948-                  <div className="rounded-lg border max-h-48 overflow-y-auto">
+    68→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-949-                    <Table>
+    69→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx:950:                      <TableHeader>
+    70→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-951-                        <TableRow>
+    71→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-952-                          <TableHead className="text-xs">Reservation #</TableHead>
+    72→--
+    73→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-1010-                <div className="rounded-lg border max-h-48 overflow-y-auto">
+    74→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-1011-                  <Table>
+    75→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx:1012:                    <TableHeader>
+    76→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-1013-                      <TableRow>
+    77→/home/z/my-project/src/components/modules/front-desk/DepartureSettlementView.tsx-1014-                        <TableHead className="text-xs">Description</TableHead>
+    78→--
+    79→/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx-419-          ) : (
+    80→/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx-420-            <Table>
+    81→/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx:421:              <TableHeader>
+    82→/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx-422-                <TableRow>
+    83→/home/z/my-project/src/components/modules/front-desk/WaitlistView.tsx-423-                  <TableHead className="w-10 text-xs">#</TableHead>
+    84→--
+    85→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-241-      <CardContent className="p-0">
+    86→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-242-        <Table>
+    87→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:243:          <TableHeader>
+    88→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-244-            <TableRow>
+    89→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-245-              {Array.from({ length: cols }).map((_, i) => (
+    90→--
+    91→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-478-      <CardContent className="p-0">
+    92→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-479-        <Table>
+    93→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:480:          <TableHeader>
+    94→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-481-            <TableRow>
+    95→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-482-              <TableHead className="text-xs">Guest</TableHead>
+    96→--
+    97→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-589-      <CardContent className="p-0">
+    98→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-590-        <Table>
+    99→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:591:          <TableHeader>
+   100→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-592-            <TableRow>
+   101→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-593-              <TableHead className="text-xs">Guest</TableHead>
+   102→--
+   103→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-695-        <div className="max-h-96 overflow-y-auto">
+   104→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-696-          <Table>
+   105→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:697:            <TableHeader className="sticky top-0 bg-card z-10">
+   106→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-698-              <TableRow>
+   107→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-699-                <TableHead className="text-xs">Guest</TableHead>
+   108→--
+   109→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-795-        <div className="max-h-96 overflow-y-auto">
+   110→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-796-          <Table>
+   111→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:797:            <TableHeader className="sticky top-0 bg-card z-10">
+   112→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-798-              <TableRow>
+   113→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-799-                <TableHead className="text-xs">Date/Time</TableHead>
+   114→--
+   115→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-917-        <CardContent className="p-0">
+   116→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-918-          <Table>
+   117→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx:919:            <TableHeader>
+   118→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-920-              <TableRow>
+   119→/home/z/my-project/src/components/modules/front-desk/ReportsView.tsx-921-                <TableHead className="text-xs">Date</TableHead>
+   120→--
+   121→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-463-            <div className="max-h-64 overflow-y-auto">
+   122→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-464-              <Table>
+   123→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:465:                <TableHeader>
+   124→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-466-                  <TableRow>
+   125→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-467-                    <TableHead className="text-xs">Confirmation #</TableHead>
+   126→--
+   127→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1173-                            <div className="max-h-96 overflow-y-auto">
+   128→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1174-                              <Table>
+   129→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1175:                                <TableHeader>
+   130→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1176-                                  <TableRow>
+   131→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1177-                                    <TableHead className="text-xs">Date</TableHead>
+   132→--
+   133→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1267-                        <div className="max-h-96 overflow-y-auto">
+   134→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1268-                          <Table>
+   135→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1269:                            <TableHeader>
+   136→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1270-                              <TableRow>
+   137→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1271-                                <TableHead className="text-xs">Date</TableHead>
+   138→--
+   139→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1337-            <div className="max-h-96 overflow-y-auto">
+   140→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1338-              <Table>
+   141→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx:1339:                <TableHeader>
+   142→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1340-                  <TableRow>
+   143→/home/z/my-project/src/components/modules/front-desk/GuestLedgerView.tsx-1341-                    <TableHead className="text-xs">Date</TableHead>
+   144→--
+   145→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx-1004-          <div className="rounded-md">
+   146→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx-1005-            <Table>
+   147→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx:1006:              <TableHeader>
+   148→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx-1007-                <TableRow>
+   149→/home/z/my-project/src/components/modules/front-desk/ReservationsView.tsx-1008-                  <TableHead className="w-[120px]">Confirmation #</TableHead>
+   150→--
+   151→/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx-628-        <CardContent className="p-0 overflow-auto max-h-[calc(100vh-220px)]">
+   152→/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx-629-          <Table>
+   153→/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx:630:              <TableHeader>
+   154→/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx-631-                <TableRow>
+   155→/home/z/my-project/src/components/modules/front-desk/InHouseView.tsx-632-                  <TableHead className="w-[40px]" />
+   156→--
+   157→/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx-552-          <div className="max-h-[600px] overflow-y-auto">
+   158→/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx-553-            <Table>
+   159→/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx:554:              <TableHeader>
+   160→/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx-555-                <TableRow>
+   161→/home/z/my-project/src/components/modules/front-desk/SettlementView.tsx-556-                  <TableHead className="w-[40px] pl-4">
+   162→--
+   163→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1129-      <Card className="hidden md:block overflow-hidden">
+   164→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1130-        <Table>
+   165→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:1131:          <TableHeader>
+   166→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1132-            <TableRow>
+   167→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1133-              <TableHead className="w-[40%]">
+   168→--
+   169→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1520-                <div className="hidden md:block overflow-x-auto">
+   170→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1521-                  <Table>
+   171→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:1522:                    <TableHeader>
+   172→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1523-                      <TableRow>
+   173→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1524-                        <TableHead className="w-[140px]">Date</TableHead>
+   174→--
+   175→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1625-                <div className="hidden md:block overflow-x-auto">
+   176→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1626-                  <Table>
+   177→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx:1627:                    <TableHeader>
+   178→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1628-                      <TableRow>
+   179→/home/z/my-project/src/components/modules/front-desk/FolioView.tsx-1629-                        <TableHead className="w-[140px]">Date</TableHead>
+   180→--
+   181→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-107-          <ScrollArea className="max-h-[600px]">
+   182→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-108-            <Table>
+   183→/home/z/my-project/src/components/modules/accounting/JournalView.tsx:109:              <TableHeader>
+   184→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-110-                <TableRow>
+   185→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-111-                  <TableHead className="w-8"></TableHead>
+   186→--
+   187→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-173-                              <div className="space-y-1">
+   188→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-174-                                <Table>
+   189→/home/z/my-project/src/components/modules/accounting/JournalView.tsx:175:                                  <TableHeader>
+   190→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-176-                                    <TableRow>
+   191→/home/z/my-project/src/components/modules/accounting/JournalView.tsx-177-                                      <TableHead>Account</TableHead>
+   192→--
+   193→/home/z/my-project/src/components/modules/accounting/LedgerView.tsx-153-          <ScrollArea className="max-h-[600px]">
+   194→/home/z/my-project/src/components/modules/accounting/LedgerView.tsx-154-            <Table>
+   195→/home/z/my-project/src/components/modules/accounting/LedgerView.tsx:155:              <TableHeader>
+   196→/home/z/my-project/src/components/modules/accounting/LedgerView.tsx-156-                <TableRow>
+   197→/home/z/my-project/src/components/modules/accounting/LedgerView.tsx-157-                  <TableHead className="w-8"></TableHead>
+   198→--
+   199→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx-180-          <ScrollArea className="max-h-[500px]">
+   200→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx-181-            <Table>
+   201→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx:182:              <TableHeader>
+   202→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx-183-                <TableRow>
+   203→/home/z/my-project/src/components/modules/channel-manager/BookingsView.tsx-184-                  <TableHead>Confirmation</TableHead>
+   204→--
+   205→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx-159-          <ScrollArea className="max-h-[300px]">
+   206→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx-160-            <Table>
+   207→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx:161:              <TableHeader>
+   208→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx-162-                <TableRow>
+   209→/home/z/my-project/src/components/modules/channel-manager/ChannelsView.tsx-163-                  <TableHead>Channel</TableHead>
+   210→--
+   211→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx-283-          <ScrollArea className="max-h-[480px]">
+   212→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx-284-            <Table>
+   213→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx:285:              <TableHeader>
+   214→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx-286-                <TableRow>
+   215→/home/z/my-project/src/components/modules/crm/CampaignsView.tsx-287-                  <TableHead>Campaign</TableHead>
+   216→--
+   217→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx-372-        <ScrollArea className="max-h-[520px]">
+   218→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx-373-          <Table>
+   219→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx:374:            <TableHeader>
+   220→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx-375-              <TableRow>
+   221→/home/z/my-project/src/components/modules/crm/GuestProfilesView.tsx-376-                <TableHead>Guest</TableHead>
+   222→--
+   223→/home/z/my-project/src/components/modules/revenue/PricingView.tsx-63-          <ScrollArea className="max-h-[400px]">
+   224→/home/z/my-project/src/components/modules/revenue/PricingView.tsx-64-            <Table>
+   225→/home/z/my-project/src/components/modules/revenue/PricingView.tsx:65:              <TableHeader>
+   226→/home/z/my-project/src/components/modules/revenue/PricingView.tsx-66-                <TableRow>
+   227→/home/z/my-project/src/components/modules/revenue/PricingView.tsx-67-                  <TableHead>Rate Plan</TableHead>
+   228→--
+   229→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx-407-            <ScrollArea className="max-h-[500px]">
+   230→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx-408-              <Table>
+   231→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx:409:                <TableHeader>
+   232→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx-410-                  <TableRow>
+   233→/home/z/my-project/src/components/modules/help/ContactSupportView.tsx-411-                    <TableHead className="w-8" />
+   234→--
+   235→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx-261-                  <ScrollArea className="max-h-[350px]">
+   236→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx-262-                    <Table>
+   237→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx:263:                      <TableHeader>
+   238→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx-264-                        <TableRow>
+   239→/home/z/my-project/src/components/modules/hr/DepartmentsView.tsx-265-                          <TableHead>Name</TableHead>
+   240→--
+   241→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx-379-          <ScrollArea className="max-h-[500px]">
+   242→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx-380-            <Table>
+   243→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx:381:              <TableHeader>
+   244→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx-382-                <TableRow>
+   245→/home/z/my-project/src/components/modules/hr/EmployeesView.tsx-383-                  <TableHead>Name</TableHead>
+   246→--
+   247→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-109-          <ScrollArea className="max-h-[200px]">
+   248→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-110-            <Table>
+   249→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx:111:              <TableHeader>
+   250→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-112-                <TableRow>
+   251→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-113-                  <TableHead>Department</TableHead>
+   252→--
+   253→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-158-          <ScrollArea className="max-h-[400px]">
+   254→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-159-            <Table>
+   255→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx:160:              <TableHeader>
+   256→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-161-                <TableRow>
+   257→/home/z/my-project/src/components/modules/hr/AttendanceView.tsx-162-                  <TableHead>Employee</TableHead>
+   258→--
+   259→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-297-            <ScrollArea className="max-h-[280px]">
+   260→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-298-              <Table>
+   261→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx:299:                <TableHeader>
+   262→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-300-                  <TableRow>
+   263→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-301-                    <TableHead>Department</TableHead>
+   264→--
+   265→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-340-          <ScrollArea className="max-h-[500px]">
+   266→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-341-            <Table>
+   267→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx:342:              <TableHeader>
+   268→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-343-                <TableRow>
+   269→/home/z/my-project/src/components/modules/hr/PerformanceView.tsx-344-                  <TableHead className="w-[80px]">Rank</TableHead>
+   270→--
+   271→/home/z/my-project/src/components/modules/hr/LeaveManagementView.tsx-131-          <div className="max-h-96 overflow-y-auto">
+   272→/home/z/my-project/src/components/modules/hr/LeaveManagementView.tsx-132-            <Table>
+   273→/home/z/my-project/src/components/modules/hr/LeaveManagementView.tsx:133:              <TableHeader>
+   274→/home/z/my-project/src/components/modules/hr/LeaveManagementView.tsx-134-                <TableRow>
+   275→/home/z/my-project/src/components/modules/hr/LeaveManagementView.tsx-135-                  <TableHead className="pl-4">ID</TableHead>
+   276→--
+   277→/home/z/my-project/src/components/modules/hr/ShiftExchangeView.tsx-112-          <div className="max-h-96 overflow-y-auto">
+   278→/home/z/my-project/src/components/modules/hr/ShiftExchangeView.tsx-113-            <Table>
+   279→/home/z/my-project/src/components/modules/hr/ShiftExchangeView.tsx:114:              <TableHeader>
+   280→/home/z/my-project/src/components/modules/hr/ShiftExchangeView.tsx-115-                <TableRow>
+   281→/home/z/my-project/src/components/modules/hr/ShiftExchangeView.tsx-116-                  <TableHead className="pl-4">ID</TableHead>
+   282→--
+   283→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-117-          <ScrollArea className="max-h-[250px]">
+   284→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-118-            <Table>
+   285→/home/z/my-project/src/components/modules/hr/PayrollView.tsx:119:              <TableHeader>
+   286→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-120-                <TableRow>
+   287→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-121-                  <TableHead>Department</TableHead>
+   288→--
+   289→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-162-          <ScrollArea className="max-h-[500px]">
+   290→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-163-            <Table>
+   291→/home/z/my-project/src/components/modules/hr/PayrollView.tsx:164:              <TableHeader>
+   292→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-165-                <TableRow>
+   293→/home/z/my-project/src/components/modules/hr/PayrollView.tsx-166-                  <TableHead>Employee</TableHead>
+   294→--
+   295→/home/z/my-project/src/components/modules/operations/CashierView.tsx-321-            <ScrollArea className="max-h-96">
+   296→/home/z/my-project/src/components/modules/operations/CashierView.tsx-322-              <Table>
+   297→/home/z/my-project/src/components/modules/operations/CashierView.tsx:323:                <TableHeader>
+   298→/home/z/my-project/src/components/modules/operations/CashierView.tsx-324-                  <TableRow>
+   299→/home/z/my-project/src/components/modules/operations/CashierView.tsx-325-                    <TableHead className="text-xs">Cashier</TableHead>
+   300→--
+   301→/home/z/my-project/src/components/modules/operations/NightAuditView.tsx-414-            <ScrollArea className="max-h-96">
+   302→/home/z/my-project/src/components/modules/operations/NightAuditView.tsx-415-              <Table>
+   303→/home/z/my-project/src/components/modules/operations/NightAuditView.tsx:416:                <TableHeader>
+   304→/home/z/my-project/src/components/modules/operations/NightAuditView.tsx-417-                  <TableRow>
+   305→/home/z/my-project/src/components/modules/operations/NightAuditView.tsx-418-                    <TableHead>Date</TableHead>
+   306→--
+   307→/home/z/my-project/src/components/modules/maintenance/WorkOrdersView.tsx-212-          <ScrollArea className="max-h-[500px]">
+   308→/home/z/my-project/src/components/modules/maintenance/WorkOrdersView.tsx-213-            <Table>
+   309→/home/z/my-project/src/components/modules/maintenance/WorkOrdersView.tsx:214:              <TableHeader>
+   310→/home/z/my-project/src/components/modules/maintenance/WorkOrdersView.tsx-215-                <TableRow>
+   311→/home/z/my-project/src/components/modules/maintenance/WorkOrdersView.tsx-216-                  <TableHead className="w-12">ID</TableHead>
+   312→--
+   313→/home/z/my-project/src/components/modules/maintenance/AssetRegisterView.tsx-169-          <ScrollArea className="max-h-[500px]">
+   314→/home/z/my-project/src/components/modules/maintenance/AssetRegisterView.tsx-170-            <Table>
+   315→/home/z/my-project/src/components/modules/maintenance/AssetRegisterView.tsx:171:              <TableHeader>
+   316→/home/z/my-project/src/components/modules/maintenance/AssetRegisterView.tsx-172-                <TableRow>
+   317→/home/z/my-project/src/components/modules/maintenance/AssetRegisterView.tsx-173-                  <TableHead>Asset</TableHead>
+   318→--
+   319→/home/z/my-project/src/components/modules/events/BanquetOrdersView.tsx-128-              <ScrollArea className="max-h-[300px]">
+   320→/home/z/my-project/src/components/modules/events/BanquetOrdersView.tsx-129-                <Table>
+   321→/home/z/my-project/src/components/modules/events/BanquetOrdersView.tsx:130:                  <TableHeader>
+   322→/home/z/my-project/src/components/modules/events/BanquetOrdersView.tsx-131-                    <TableRow>
+   323→/home/z/my-project/src/components/modules/events/BanquetOrdersView.tsx-132-                      <TableHead>Service</TableHead>
+   324→--
+   325→/home/z/my-project/src/components/modules/events/EventsView.tsx-223-          <ScrollArea className="max-h-[500px]">
+   326→/home/z/my-project/src/components/modules/events/EventsView.tsx-224-            <Table>
+   327→/home/z/my-project/src/components/modules/events/EventsView.tsx:225:              <TableHeader>
+   328→/home/z/my-project/src/components/modules/events/EventsView.tsx-226-                <TableRow>
+   329→/home/z/my-project/src/components/modules/events/EventsView.tsx-227-                  <TableHead>Event</TableHead>
+   330→--
+   331→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx-365-        <ScrollArea className="max-h-[480px]">
+   332→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx-366-          <Table>
+   333→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx:367:            <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
+   334→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx-368-              <TableRow>
+   335→/home/z/my-project/src/components/modules/housekeeping/LostFoundView.tsx-369-                <TableHead className="w-[50px]"></TableHead>
+   336→--
+   337→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx-1173-        <div className="max-h-[calc(100vh-280px)] overflow-auto">
+   338→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx-1174-          <Table>
+   339→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx:1175:            <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
+   340→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx-1176-              <TableRow className="hover:bg-muted/40">
+   341→/home/z/my-project/src/components/modules/housekeeping/TaskBoardView.tsx-1177-                <TableHead className="w-10" />

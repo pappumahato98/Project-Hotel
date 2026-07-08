@@ -327,7 +327,7 @@ export function StockView() {
         <CardContent className="p-0">
           <ScrollArea className="max-h-[500px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
                   <TableHead>Item</TableHead>
                   <TableHead>Category</TableHead>
