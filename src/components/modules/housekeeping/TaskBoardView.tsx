@@ -285,9 +285,15 @@ function InlineRowActions({
   isForceMutated: boolean
 }) {
   const s = row.hkDisplayStatus
+  const canProgress = s === 'pending' || s === 'assigned'
+  const canMarkCleaned = s === 'cleaning' || s === 'in_progress'
+  const canInspect = s === 'cleaned'
+  const canReset = s === 'failed'
+  const canFail = s === 'cleaning' || s === 'in_progress' || s === 'cleaned'
+
   return (
     <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-      {/* View Details — always */}
+      {/* View Details — primary quick action */}
       <Button
         variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
         onClick={() => onViewDetail(row.roomId)}
@@ -296,71 +302,84 @@ function InlineRowActions({
         <Eye className="h-3.5 w-3.5" />
       </Button>
 
-      {/* Context-sensitive actions */}
-      {(s === 'pending' || s === 'assigned') && (
-        <Button
-          variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 text-sky-600 hover:text-sky-700 hover:bg-sky-50 dark:text-sky-400 dark:hover:bg-sky-950/40"
-          onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'in_progress')}
-          title="Start Cleaning"
-          disabled={isForceMutated}
-        >
-          <PlayCircle className="h-3 w-3" /> <span className="hidden sm:inline">Clean</span>
-        </Button>
-      )}
+      {/* Three-dot menu for all status actions */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {/* Start Cleaning */}
+          {canProgress && (
+            <DropdownMenuItem
+              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'in_progress')}
+              disabled={isForceMutated}
+              className="gap-2 text-sky-600 focus:text-sky-600 focus:bg-sky-50 dark:text-sky-400 dark:focus:bg-sky-950/40"
+            >
+              <PlayCircle className="h-4 w-4" /> Start Cleaning
+            </DropdownMenuItem>
+          )}
 
-      {(s === 'cleaning' || s === 'in_progress') && (
-        <Button
-          variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-          onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'cleaned')}
-          title="Mark Cleaned"
-          disabled={isForceMutated}
-        >
-          <CheckCircle className="h-3 w-3" /> <span className="hidden sm:inline">Cleaned</span>
-        </Button>
-      )}
+          {/* Mark Cleaned */}
+          {canMarkCleaned && (
+            <DropdownMenuItem
+              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'cleaned')}
+              disabled={isForceMutated}
+              className="gap-2 text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50 dark:text-emerald-400 dark:focus:bg-emerald-950/40"
+            >
+              <CheckCircle className="h-4 w-4" /> Mark Cleaned
+            </DropdownMenuItem>
+          )}
 
-      {s === 'cleaned' && (
-        <Button
-          variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 text-purple-600 hover:text-purple-700 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
-          onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'inspected')}
-          title="Mark Inspected"
-          disabled={isForceMutated}
-        >
-          <ShieldCheck className="h-3 w-3" /> <span className="hidden sm:inline">Inspect</span>
-        </Button>
-      )}
+          {/* Mark Inspected */}
+          {canInspect && (
+            <DropdownMenuItem
+              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'inspected')}
+              disabled={isForceMutated}
+              className="gap-2 text-purple-600 focus:text-purple-600 focus:bg-purple-50 dark:text-purple-400 dark:focus:bg-purple-950/40"
+            >
+              <ShieldCheck className="h-4 w-4" /> Mark Inspected
+            </DropdownMenuItem>
+          )}
 
-      {s === 'failed' && (
-        <Button
-          variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40"
-          onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'pending')}
-          title="Reset to Pending"
-          disabled={isForceMutated}
-        >
-          <RotateCcw className="h-3 w-3" /> <span className="hidden sm:inline">Pending</span>
-        </Button>
-      )}
+          {/* Reset to Pending */}
+          {canReset && (
+            <DropdownMenuItem
+              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'pending')}
+              disabled={isForceMutated}
+              className="gap-2 text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:text-amber-400 dark:focus:bg-amber-950/40"
+            >
+              <RotateCcw className="h-4 w-4" /> Reset to Pending
+            </DropdownMenuItem>
+          )}
 
-      {/* Rush — always available (not blocked by force-mutated) */}
-      <Button
-        variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 text-red-500 hover:text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-        onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'rush')}
-        title="Set Rush Priority"
-      >
-        <AlertTriangle className="h-3 w-3" /> <span className="hidden sm:inline">Rush</span>
-      </Button>
+          {/* Separator before rush/fail actions */}
+          <>
+              <DropdownMenuSeparator />
+              {/* Set Rush — always available */}
+              <DropdownMenuItem
+                onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'rush')}
+                className="gap-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50 dark:text-orange-400 dark:focus:bg-orange-950/40"
+              >
+                <AlertTriangle className="h-4 w-4" /> Set Rush Priority
+              </DropdownMenuItem>
 
-      {/* Mark Failed — show for in_progress/cleaning/cleaned */}
-      {(s === 'cleaning' || s === 'in_progress' || s === 'cleaned') && (
-        <Button
-          variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-          onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'failed')}
-          title="Mark Failed"
-          disabled={isForceMutated}
-        >
-          <XCircle className="h-3 w-3" /> <span className="hidden sm:inline">Fail</span>
-        </Button>
-      )}
+              {/* Mark Failed */}
+              {canFail && (
+                <DropdownMenuItem
+                  onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'failed')}
+                  disabled={isForceMutated}
+                  className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40"
+                >
+                  <XCircle className="h-4 w-4" /> Mark Failed
+                </DropdownMenuItem>
+              )}
+            </>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {isForceMutated && (
         <Badge variant="outline" className="text-[9px] text-red-500 border-red-300 dark:border-red-700 shrink-0">
