@@ -313,52 +313,45 @@ function InlineRowActions({
 
           <DropdownMenuSeparator />
 
-          {/* Start Cleaning */}
-          {canProgress && (
-            <DropdownMenuItem
-              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'in_progress')}
-              disabled={isForceMutated}
-              className="gap-2 text-sky-600 focus:text-sky-600 focus:bg-sky-50 dark:text-sky-400 dark:focus:bg-sky-950/40"
-            >
-              <PlayCircle className="h-4 w-4" /> Start Cleaning
-            </DropdownMenuItem>
-          )}
+          {/* Start Cleaning — only for pending/assigned */}
+          <DropdownMenuItem
+            onClick={() => canProgress && onStatusChange(row.roomId, row.hkTaskId, 'in_progress')}
+            disabled={!canProgress || isForceMutated}
+            className="gap-2 text-sky-600 focus:text-sky-600 focus:bg-sky-50 dark:text-sky-400 dark:focus:bg-sky-950/40 data-[disabled]:text-muted-foreground data-[disabled]:opacity-50"
+          >
+            <PlayCircle className="h-4 w-4" /> Start Cleaning
+          </DropdownMenuItem>
 
-          {/* Mark Cleaned */}
-          {canMarkCleaned && (
-            <DropdownMenuItem
-              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'cleaned')}
-              disabled={isForceMutated}
-              className="gap-2 text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50 dark:text-emerald-400 dark:focus:bg-emerald-950/40"
-            >
-              <CheckCircle className="h-4 w-4" /> Mark Cleaned
-            </DropdownMenuItem>
-          )}
+          {/* Mark Cleaned — only for cleaning/in_progress */}
+          <DropdownMenuItem
+            onClick={() => canMarkCleaned && onStatusChange(row.roomId, row.hkTaskId, 'cleaned')}
+            disabled={!canMarkCleaned || isForceMutated}
+            className="gap-2 text-emerald-600 focus:text-emerald-600 focus:bg-emerald-50 dark:text-emerald-400 dark:focus:bg-emerald-950/40 data-[disabled]:text-muted-foreground data-[disabled]:opacity-50"
+          >
+            <CheckCircle className="h-4 w-4" /> Mark Cleaned
+          </DropdownMenuItem>
 
-          {/* Mark Inspected */}
-          {canInspect && (
-            <DropdownMenuItem
-              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'inspected')}
-              disabled={isForceMutated}
-              className="gap-2 text-purple-600 focus:text-purple-600 focus:bg-purple-50 dark:text-purple-400 dark:focus:bg-purple-950/40"
-            >
-              <ShieldCheck className="h-4 w-4" /> Mark Inspected
-            </DropdownMenuItem>
-          )}
+          {/* Mark Inspected — only for cleaned */}
+          <DropdownMenuItem
+            onClick={() => canInspect && onStatusChange(row.roomId, row.hkTaskId, 'inspected')}
+            disabled={!canInspect || isForceMutated}
+            className="gap-2 text-purple-600 focus:text-purple-600 focus:bg-purple-50 dark:text-purple-400 dark:focus:bg-purple-950/40 data-[disabled]:text-muted-foreground data-[disabled]:opacity-50"
+          >
+            <ShieldCheck className="h-4 w-4" /> Mark Inspected
+          </DropdownMenuItem>
 
-          {/* Reset to Pending */}
-          {canReset && (
-            <DropdownMenuItem
-              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'pending')}
-              disabled={isForceMutated}
-              className="gap-2 text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:text-amber-400 dark:focus:bg-amber-950/40"
-            >
-              <RotateCcw className="h-4 w-4" /> Reset to Pending
-            </DropdownMenuItem>
-          )}
+          {/* Reset to Pending — only for failed */}
+          <DropdownMenuItem
+            onClick={() => canReset && onStatusChange(row.roomId, row.hkTaskId, 'pending')}
+            disabled={!canReset || isForceMutated}
+            className="gap-2 text-amber-600 focus:text-amber-600 focus:bg-amber-50 dark:text-amber-400 dark:focus:bg-amber-950/40 data-[disabled]:text-muted-foreground data-[disabled]:opacity-50"
+          >
+            <RotateCcw className="h-4 w-4" /> Reset to Pending
+          </DropdownMenuItem>
 
           {/* Separator before rush/fail actions */}
           <DropdownMenuSeparator />
+
           {/* Set Rush — always available */}
           <DropdownMenuItem
             onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'rush')}
@@ -367,16 +360,14 @@ function InlineRowActions({
             <AlertTriangle className="h-4 w-4" /> Set Rush Priority
           </DropdownMenuItem>
 
-          {/* Mark Failed */}
-          {canFail && (
-            <DropdownMenuItem
-              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'failed')}
-              disabled={isForceMutated}
-              className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40"
-            >
-              <XCircle className="h-4 w-4" /> Mark Failed
-            </DropdownMenuItem>
-          )}
+          {/* Mark Failed — only for cleaning/in_progress/cleaned */}
+          <DropdownMenuItem
+            onClick={() => canFail && onStatusChange(row.roomId, row.hkTaskId, 'failed')}
+            disabled={!canFail || isForceMutated}
+            className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40 data-[disabled]:text-muted-foreground data-[disabled]:opacity-50"
+          >
+            <XCircle className="h-4 w-4" /> Mark Failed
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
