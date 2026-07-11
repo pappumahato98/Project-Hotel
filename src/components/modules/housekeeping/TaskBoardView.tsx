@@ -293,16 +293,7 @@ function InlineRowActions({
 
   return (
     <div className="flex items-center gap-0.5">
-      {/* View Details — primary quick action */}
-      <Button
-        variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-        onClick={() => onViewDetail(row.roomId)}
-        title="View Details"
-      >
-        <Eye className="h-3.5 w-3.5" />
-      </Button>
-
-      {/* Three-dot menu for all status actions */}
+      {/* Three-dot action menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -312,6 +303,16 @@ function InlineRowActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          {/* View Details — always available */}
+          <DropdownMenuItem
+            onClick={() => onViewDetail(row.roomId)}
+            className="gap-2"
+          >
+            <Eye className="h-4 w-4" /> View Details
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
           {/* Start Cleaning */}
           {canProgress && (
             <DropdownMenuItem
@@ -357,27 +358,25 @@ function InlineRowActions({
           )}
 
           {/* Separator before rush/fail actions */}
-          <>
-              <DropdownMenuSeparator />
-              {/* Set Rush — always available */}
-              <DropdownMenuItem
-                onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'rush')}
-                className="gap-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50 dark:text-orange-400 dark:focus:bg-orange-950/40"
-              >
-                <AlertTriangle className="h-4 w-4" /> Set Rush Priority
-              </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {/* Set Rush — always available */}
+          <DropdownMenuItem
+            onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'rush')}
+            className="gap-2 text-orange-600 focus:text-orange-600 focus:bg-orange-50 dark:text-orange-400 dark:focus:bg-orange-950/40"
+          >
+            <AlertTriangle className="h-4 w-4" /> Set Rush Priority
+          </DropdownMenuItem>
 
-              {/* Mark Failed */}
-              {canFail && (
-                <DropdownMenuItem
-                  onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'failed')}
-                  disabled={isForceMutated}
-                  className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40"
-                >
-                  <XCircle className="h-4 w-4" /> Mark Failed
-                </DropdownMenuItem>
-              )}
-            </>
+          {/* Mark Failed */}
+          {canFail && (
+            <DropdownMenuItem
+              onClick={() => onStatusChange(row.roomId, row.hkTaskId, 'failed')}
+              disabled={isForceMutated}
+              className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-400 dark:focus:bg-red-950/40"
+            >
+              <XCircle className="h-4 w-4" /> Mark Failed
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
