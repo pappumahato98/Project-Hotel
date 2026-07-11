@@ -463,13 +463,16 @@ export const useNavigationStore = create<NavigationState>((set) => ({
   setSearchOpen: (open) => set({ searchOpen: open }),
 
   navigateTo: (module, subModule = null) =>
-    set((state) => ({
-      activeModule: module,
-      activeSubModule: subModule,
-      expandedItems: subModule && !state.expandedItems.includes(module)
-        ? [...state.expandedItems, module]
-        : state.expandedItems,
-    })),
+    set((state) => {
+      if (state.activeModule === module && state.activeSubModule === subModule) return state
+      return {
+        activeModule: module,
+        activeSubModule: subModule,
+        expandedItems: subModule && !state.expandedItems.includes(module)
+          ? [...state.expandedItems, module]
+          : state.expandedItems,
+      }
+    }),
 }))
 
 // ─── Folio Context State ──────────────────────────────

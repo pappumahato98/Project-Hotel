@@ -1,11 +1,12 @@
 'use client'
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Users, Contact, Award, Megaphone } from 'lucide-react'
+import { Contact, Award, Megaphone } from 'lucide-react'
 import { GuestProfilesView } from './GuestProfilesView'
 import { LoyaltyView } from './LoyaltyView'
 import { CampaignsView } from './CampaignsView'
 import { useNavigationStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 const CRM_TABS = [
   { id: 'profiles', label: 'Guest Profiles', icon: Contact },
@@ -15,7 +16,7 @@ const CRM_TABS = [
 
 export function CrmModule() {
   const { activeSubModule, navigateTo } = useNavigationStore()
-  const initialTab = activeSubModule === 'loyalty' ? 'loyalty'
+  const activeTab = activeSubModule === 'loyalty' ? 'loyalty'
     : activeSubModule === 'campaigns' ? 'campaigns'
     : 'profiles'
 
@@ -31,7 +32,7 @@ export function CrmModule() {
       </div>
 
       <Tabs
-        defaultValue={initialTab}
+        value={activeTab}
         onValueChange={(v) => navigateTo('crm', v)}
         className="flex-1"
       >
@@ -44,13 +45,13 @@ export function CrmModule() {
           ))}
         </TabsList>
 
-        <TabsContent value="profiles" className="mt-2">
+        <TabsContent value="profiles" forceMount className={cn("mt-2", activeTab !== 'profiles' && 'hidden')}>
           <GuestProfilesView />
         </TabsContent>
-        <TabsContent value="loyalty" className="mt-2">
+        <TabsContent value="loyalty" forceMount className={cn("mt-2", activeTab !== 'loyalty' && 'hidden')}>
           <LoyaltyView />
         </TabsContent>
-        <TabsContent value="campaigns" className="mt-2">
+        <TabsContent value="campaigns" forceMount className={cn("mt-2", activeTab !== 'campaigns' && 'hidden')}>
           <CampaignsView />
         </TabsContent>
       </Tabs>

@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ClipboardCheck, Search, ShieldCheck, PackageOpen } from 'lucide-react'
+import { ClipboardCheck, ShieldCheck, PackageOpen } from 'lucide-react'
 import { TaskBoardView } from './TaskBoardView'
 import { InspectionView } from './InspectionView'
 import { LostFoundView } from './LostFoundView'
 import { useNavigationStore } from '@/lib/store'
+import { cn } from '@/lib/utils'
 
 const HOUSEKEEPING_TABS = [
   { id: 'tasks', label: 'Task Board', icon: ClipboardCheck },
@@ -45,13 +45,13 @@ export function HousekeepingModule() {
           ))}
         </TabsList>
 
-        <TabsContent value="tasks" className="mt-2">
+        <TabsContent value="tasks" forceMount className={cn("mt-2", activeTab !== 'tasks' && 'hidden')}>
           <TaskBoardView />
         </TabsContent>
-        <TabsContent value="inspection" className="mt-2">
+        <TabsContent value="inspection" forceMount className={cn("mt-2", activeTab !== 'inspection' && 'hidden')}>
           <InspectionView />
         </TabsContent>
-        <TabsContent value="lost-found" className="mt-2">
+        <TabsContent value="lost-found" forceMount className={cn("mt-2", activeTab !== 'lost-found' && 'hidden')}>
           <LostFoundView />
         </TabsContent>
       </Tabs>
