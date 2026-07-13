@@ -30,10 +30,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import {
-  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
-} from '@/components/ui/alert-dialog'
+
 import { format } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
@@ -328,9 +325,6 @@ export function ReservationsView() {
   // Print Confirmation dialog state
   const [printOpen, setPrintOpen] = useState(false)
 
-  // Delete confirmation dialog state
-  const [deleteOpen, setDeleteOpen] = useState(false)
-
   // New reservation form state
   const [form, setForm] = useState<NewReservationForm>({ ...INITIAL_FORM })
 
@@ -521,22 +515,6 @@ export function ReservationsView() {
     },
   })
 
-  // Delete reservation mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) =>
-      apiFetch(`/api/reservations/${id}`, { method: 'DELETE' }),
-    
-    onSuccess: () => {
-      invalidate.afterReservationChange(queryClient)
-      setDeleteOpen(false)
-      setSelectedReservation(null)
-      toast.success('Reservation deleted successfully')
-    },
-    onError: () => {
-      toast.error('Failed to delete reservation')
-    },
-  })
-
   // ─── Date range handler ────────────────────────────────────────────
   const handleDateSelect = useCallback((day: Date | undefined) => {
     if (!day) return
@@ -694,16 +672,6 @@ export function ReservationsView() {
 
   const handlePrint = () => {
     window.print()
-  }
-
-  const openDeleteDialog = (reservation: Reservation) => {
-    setSelectedReservation(reservation)
-    setDeleteOpen(true)
-  }
-
-  const handleDelete = () => {
-    if (!selectedReservation) return
-    deleteMutation.mutate(selectedReservation.id)
   }
 
   return (
@@ -2034,34 +2002,6 @@ export function ReservationsView() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Delete Reservation Dialog ──────────────────────────────── */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Reservation</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete reservation{' '}
-              <span className="font-semibold font-mono">{selectedReservation?.confirmationNo}</span>?
-              {selectedReservation?.guest && (
-                <> This belongs to <span className="font-semibold">{selectedReservation.guest.firstName} {selectedReservation.guest.lastName}</span>.</>
-              )}
-              <br />
-              <br />
-              <span className="text-destructive font-medium">This action cannot be undone.</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete Reservation'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
