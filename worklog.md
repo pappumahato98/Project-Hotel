@@ -136,3 +136,32 @@ Stage Summary:
 - No code changes needed — all features verified via git diff + browser testing
 - Dev server compiles and runs without errors
 - Lint passes clean
+
+---
+Task ID: 2
+Agent: main
+Task: Reservations tab - fiscal-year reservation#, checkbox, conflict check, cancel blocking
+
+Work Log:
+- Added `reservationNumber String?` to Prisma Reservation model
+- Pushed schema to SQLite with `bun run db:push`
+- Created `getFiscalYearShort(date)` in API route: converts AD date to BS, determines FY short form (e.g. "82/83") based on Shrawan start
+- Created `generateReservationNumber(date)`: queries highest existing seq for FY prefix, increments
+- Modified POST /api/reservations: generates reservationNumber on create, returns 409 CONFLICT with conflict details when room+date overlap detected
+- Renamed table column "Confirmation #" → "Reservation #", displays reservationNumber with fallback to confirmationNo
+- Added descending sort by reservationNumber (highest first, nulls last)
+- Added checkbox column as first column with select-all, row highlighting on select
+- Added bulk action bar (Cancel Booking, Deselect All) for 2+ selected rows
+- Renamed "Cancel" → "Cancel Booking" in action menu, blocked for cancelled/checked_out/checked_in via `canCancel()` helper
+- Removed "Delete Reservation" from action menu entirely
+- Added conflict dialog showing existing reservation details when room/date overlap detected on create
+- Hid Check-in/Check-out columns on mobile, Source on smaller screens
+- Sticky table header with shadow
+- Lint passes clean, server compiles and serves pages (200)
+- Pushed to GitHub: commit 3c70d6c
+
+Stage Summary:
+- prisma/schema.prisma: +1 field (reservationNumber)
+- src/app/api/reservations/route.ts: +38 lines (fiscal year helpers, conflict check, sequence generation)
+- src/components/modules/front-desk/ReservationsView.tsx: ~250 insertions, ~35 deletions
+- All 5 user requirements implemented and pushed
