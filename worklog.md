@@ -165,3 +165,25 @@ Stage Summary:
 - src/app/api/reservations/route.ts: +38 lines (fiscal year helpers, conflict check, sequence generation)
 - src/components/modules/front-desk/ReservationsView.tsx: ~250 insertions, ~35 deletions
 - All 5 user requirements implemented and pushed
+
+---
+Task ID: 3
+Agent: main
+Task: Clean up orphaned delete code from ReservationsView.tsx
+
+Work Log:
+- Discovered commit 3c70d6c removed "Delete Reservation" from the action menu but left dead code: `deleteOpen` state, `deleteMutation`, `openDeleteDialog()`, `handleDelete()`, AlertDialog JSX dialog, and unused AlertDialog imports
+- Applied 4 diffs to remove all orphaned delete code (61 lines removed)
+- Ran lint: clean, 0 errors
+- Browser-verified all 5 features via agent-browser:
+  - Reservation # column with fiscal year format (old records show confirmationNo fallback)
+  - Cancelled row: "Cancel Booking" hidden, "Delete Reservation" absent
+  - Confirmed row: "Cancel Booking" present, "Delete Reservation" absent
+  - Checked In row: "Cancel Booking" blocked/hidden, "Delete Reservation" absent
+  - Checkbox column + bulk action bar ("Cancel Booking" + "Deselect All") appears when 2+ rows selected
+- Pushed to GitHub: commit 7e76d91
+
+Stage Summary:
+- ReservationsView.tsx: -61 lines (orphaned delete code cleanup)
+- All 5 features verified working in browser
+- Pushed: 7e76d91
