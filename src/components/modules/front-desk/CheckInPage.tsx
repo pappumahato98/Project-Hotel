@@ -6,7 +6,7 @@ import {
   ArrowLeft, ArrowRight, Check, Loader2, User, FileText, BedDouble,
   CreditCard, CalendarDays, AlertCircle, BadgeCheck, Plus, Trash2,
   ChevronDown, Building2, Phone, Mail, Hash, Clock, Star, Shield,
-  Search, Eye,
+  Search, Eye, Receipt, BookOpen,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dialog'
 import { formatDate, formatCurrency, getTodayString, nightsBetween, toDateOnly, fromDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useNavigationStore, useSettingsStore, useAuthStore } from '@/lib/store'
+import { useNavigationStore, useSettingsStore, useAuthStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
 import { RoomRatePostingDialog } from './RoomRatePostingDialog'
 
 // ─── Constants ──────────────────────────────────────────────────────────
@@ -150,6 +150,7 @@ export function CheckInPage() {
   const [reservationId, setReservationId] = useState<string | null>(null)
   const [reservation, setReservation] = useState<ReservationData | null>(null)
   const [isWalkIn, setIsWalkIn] = useState(false)
+  const [showMoreInfo, setShowMoreInfo] = useState(false)
 
   // ─── Step 1 state ──────────────────────────────────────────────
   const [detailsVerified, setDetailsVerified] = useState(false)
@@ -601,7 +602,7 @@ export function CheckInPage() {
 
   // ─── Render ────────────────────────────────────────────────────
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6 pb-32">
+    <div className={cn(showMoreInfo ? 'max-w-6xl' : 'max-w-4xl', 'mx-auto p-4 md:p-6 space-y-6 pb-32')}>
       {/* Page Header */}
       <div className="flex items-center gap-3">
         <Button
@@ -619,6 +620,14 @@ export function CheckInPage() {
           <p className="text-sm text-muted-foreground">
             {isWalkIn ? 'Create a new walk-in reservation and check in' : `Processing reservation ${reservation?.confirmationNo || ''}`}
           </p>
+          <button
+            type="button"
+            onClick={() => setShowMoreInfo(!showMoreInfo)}
+            className="text-xs text-primary hover:underline mt-0.5 inline-flex items-center gap-1"
+          >
+            <Receipt className="size-3" />
+            {showMoreInfo ? 'Hide Summary' : 'Show Summary'}
+          </button>
         </div>
       </div>
 
@@ -665,7 +674,9 @@ export function CheckInPage() {
         })}
       </div>
 
-      {/* Step Content */}
+      <div className="flex gap-4 items-start">
+        {/* Main Step Content (left panel) */}
+        <div className={cn('min-w-0', showMoreInfo ? 'flex-1' : 'w-full')}>
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -1462,10 +1473,139 @@ export function CheckInPage() {
           )}
         </CardContent>
       </Card>
+        </div>
+
+        {/* Summary Sidebar (right panel, only shown when showMoreInfo) */}
+        {showMoreInfo && (
+          <div className="w-72 shrink-0 hidden lg:block sticky top-4">
+            <Card className="p-4 space-y-4">
+              <h3 className="text-sm font-semibold">Reservation Summary</h3>
+
+              {/* Guest Info */}
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="size-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {isWalkIn
+                      ? `${walkInGuest?.firstName || ''} ${walkInGuest?.lastName || ''}`.trim() || 'New Guest'
+                      : `${reservation?.guest?.firstName || ''} ${reservation?.guest?.lastName || ''}`.trim() || 'Guest'}
+                  </p>
+                  {(!isWalkIn && reservation?.guest?.vipLevel && reservation.guest.vipLevel !== 'none') && (
+                    <span className="text-[10px] text-amber-600 font-medium">VIP {reservation.guest.vipLevel}</span>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Room Info */}
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Room</span>
+                  <span className="font-mono font-bold">{selectedRoom?.number || reservation?.room?.number || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-medium">{selectedRoom?.type?.name || reservation?.room?.type?.name || '—'}</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Pax & Dates */}
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Guests</span>
+                  <span className="font-medium">
+                    {isWalkIn
+                      ? `${walkInDates?.adults || 1}A${(walkInDates?.children || 0) > 0 ? ` +${walkInDates.children}C` : ''}`
+                      : `${reservation?.adults || 1}A${(reservation?.children || 0) > 0 ? ` +${reservation.children}C` : ''}`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Check-in</span>
+                  <span>{formatDate(isWalkIn ? (walkInDates?.checkIn || '') : (reservation?.checkIn || ''))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Check-out</span>
+                  <span>{formatDate(isWalkIn ? (walkInDates?.checkOut || '') : (reservation?.checkOut || ''))}</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Financial Summary */}
+              <div className="space-y-1.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Rate / Night</span>
+                  <span className="font-medium">{formatCurrency(isWalkIn ? (selectedRate || 0) : (reservation?.roomRate || 0))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-medium">{formatCurrency(isWalkIn ? grandTotal : (reservation?.totalAmount || 0))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Paid</span>
+                  <span className="text-emerald-600 font-medium">- {formatCurrency(isWalkIn ? 0 : (reservation?.paidAmount || 0))}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-bold">
+                  <span>Balance</span>
+                  <span className={balanceDue > 0 ? 'text-red-600' : 'text-emerald-600'}>{balanceDue <= 0 ? 'Settled' : formatCurrency(balanceDue)}</span>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Quick Actions */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Quick Actions</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-xs h-8"
+                  onClick={() => {
+                    const resId = reservation?.id
+                    const guestId = reservation?.guest?.id || ''
+                    const guestName = `${reservation?.guest?.firstName || ''} ${reservation?.guest?.lastName || ''}`.trim()
+                    const roomNum = selectedRoom?.number || reservation?.room?.number || ''
+                    const confNo = reservation?.confirmationNo || ''
+                    if (resId && guestId) {
+                      useFolioContextStore.getState().setFolioContext({ reservationId: resId, guestId, guestName, roomNumber: roomNum, confirmationNo: confNo })
+                      navigateTo('front-desk', 'folio')
+                    }
+                  }}
+                  disabled={!reservation?.id}
+                >
+                  <Receipt className="size-3.5 mr-1.5" /> View Folio
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-xs h-8"
+                  onClick={() => {
+                    const guestId = reservation?.guest?.id
+                    const guestName = `${reservation?.guest?.firstName || ''} ${reservation?.guest?.lastName || ''}`.trim()
+                    if (guestId) {
+                      useGuestLedgerContextStore.getState().setGuestLedgerContext({ guestId, guestName })
+                      navigateTo('front-desk', 'guest-ledger')
+                    }
+                  }}
+                  disabled={!reservation?.guest?.id}
+                >
+                  <BookOpen className="size-3.5 mr-1.5" /> Guest Ledger
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
 
       {/* ─── Footer Navigation ────────────────────────────────────── */}
       <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t px-4 md:px-6 py-3 z-50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className={cn(showMoreInfo ? 'max-w-6xl' : 'max-w-4xl', 'mx-auto flex items-center justify-between')}>
           <Button
             variant="outline"
             onClick={handleBack}

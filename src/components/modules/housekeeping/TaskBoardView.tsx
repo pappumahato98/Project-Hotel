@@ -25,6 +25,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -678,8 +682,12 @@ export function TaskBoardView() {
     guestName: string | null
   }>({ open: false, roomNumber: '', guestName: null })
 
-  // Ref to store pending single-row action
-  const pendingSingleAction = useRef<{ roomId: string; taskId: string | null; newStatus: string } | null>(null)
+  // Single-room occupied warning (AlertDialog)
+  const [singleOccupiedWarning, setSingleOccupiedWarning] = useState<{
+    roomId: string; action: string; roomNumber: string; taskId: string | null
+  } | null>(null)
+
+  // Ref to store pending single-row action (legacy, kept for bulk)
   const pendingBulkAction = useRef<{ roomIds: string[]; status: string } | null>(null)
 
   // Debounce search
@@ -864,7 +872,58 @@ export function TaskBoardView() {
     },
   })
 
-  // ── Execute a single room status change (with occupied check) ──
+  // ── Execute a room status action (direct mutation call) ──
+  const executeRoomAction = useCallback((roomId: string, taskId: string | null, newStatus: string, force = false) => {
+    // Rush is just a priority change, no occupied check needed
+    if (newStatus === 'rush') {
+      rowStatusMutation.mutate({ taskId, status: '', priority: 'rush' })
+      const row = tableRows.find(r => r.roomId === roomId)
+      toast.info(`Priority set to Rush for room ${row?.roomNumber}`)
+      return
+    }
+
+    if (!taskId) { toast.info('No active task for this room'); return }
+
+    if (force) {
+      forceMutation.mutate({ taskId, status: newStatus, reason: `Forced ${newStatus} on occupied room` })
+    } else {
+      rowStatusMutation.mutate({ taskId, status: newStatus })
+    }
+  }, [rowStatusMutation, forceMutation, tableRows])
+
+  // ── Guarded status change (checks occupied before executing) ──
+  const guardedStatusChange = useCallback((
+    roomId: string, newStatus: string, roomNumber: string, currentResStatus: string, taskId: string | null, force = false
+  ) => {
+    if (!force && currentResStatus === 'occupied' && newStatus !== 'rush') {
+      setSingleOccupiedWarning({ roomId, action: newStatus, roomNumber, taskId })
+      return
+    }
+    executeRoomAction(roomId, taskId, newStatus, force)
+  }, [executeRoomAction])
+
+  // ── Single-room action handlers ──
+  const handleClean = useCallback((roomId: string, roomNumber: string, currentResStatus: string, taskId: string | null) => {
+    guardedStatusChange(roomId, 'in_progress', roomNumber, currentResStatus, taskId)
+  }, [guardedStatusChange])
+
+  const handleInspect = useCallback((roomId: string, roomNumber: string, currentResStatus: string, taskId: string | null) => {
+    guardedStatusChange(roomId, 'inspected', roomNumber, currentResStatus, taskId)
+  }, [guardedStatusChange])
+
+  const handleRush = useCallback((roomId: string, roomNumber: string, currentResStatus: string, taskId: string | null) => {
+    guardedStatusChange(roomId, 'rush', roomNumber, currentResStatus, taskId)
+  }, [guardedStatusChange])
+
+  const handlePending = useCallback((roomId: string, roomNumber: string, currentResStatus: string, taskId: string | null) => {
+    guardedStatusChange(roomId, 'pending', roomNumber, currentResStatus, taskId)
+  }, [guardedStatusChange])
+
+  const handleFail = useCallback((roomId: string, roomNumber: string, currentResStatus: string, taskId: string | null) => {
+    guardedStatusChange(roomId, 'failed', roomNumber, currentResStatus, taskId)
+  }, [guardedStatusChange])
+
+  // ── Execute a single room status change (with occupied + force-mutated check) ──
   const executeSingleStatusChange = useCallback((roomId: string, taskId: string | null, newStatus: string, force = false) => {
     // Check if this room was previously force-mutated and is STILL occupied
     if (!force && forceMutatedRooms.has(roomId)) {
@@ -877,32 +936,10 @@ export function TaskBoardView() {
       setForceMutatedRooms(prev => { const next = new Set(prev); next.delete(roomId); return next })
     }
 
-    if (!force && newStatus !== 'rush') {
-      const occupied = getOccupiedInSet([roomId])
-      if (occupied.length > 0) {
-        pendingSingleAction.current = { roomId, taskId, newStatus }
-        setOccupiedWarning({ open: true, rooms: occupied, pendingAction: newStatus })
-        return
-      }
-    }
-
-    // Rush is just a priority change, no occupied check needed
-    if (newStatus === 'rush') {
-      rowStatusMutation.mutate({ taskId, status: '', priority: 'rush' })
-      const row = tableRows.find(r => r.roomId === roomId)
-      toast.info(`Priority set to Rush for room ${row?.roomNumber}`)
-      return
-    }
-
-    if (!taskId) { toast.info('No active task for this room'); return }
-
-    if (force) {
-      // Use force-mutation API action
-      forceMutation.mutate({ taskId, status: newStatus, reason: `Forced ${newStatus} on occupied room` })
-    } else {
-      rowStatusMutation.mutate({ taskId, status: newStatus })
-    }
-  }, [forceMutatedRooms, getOccupiedInSet, tableRows, rowStatusMutation, forceMutation])
+    // Delegate to guardedStatusChange for occupied check + execution
+    const row = tableRows.find(r => r.roomId === roomId)
+    guardedStatusChange(roomId, newStatus, row?.roomNumber || '', row?.reservationStatus || '', taskId, force)
+  }, [forceMutatedRooms, tableRows, guardedStatusChange])
 
   // ── Handle single row status change (entry point) ─────────
   const handleRowStatusChange = (roomId: string, taskId: string | null, newStatus: string) => {
@@ -923,15 +960,11 @@ export function TaskBoardView() {
     bulkStatusMutation.mutate({ roomIds: ids, status })
   }
 
-  // ── Handle occupied warning force action ──────────────────
+  // ── Handle occupied warning force action (bulk only) ──────
   const handleForceFromWarning = () => {
     setOccupiedWarning(prev => ({ ...prev, open: false }))
 
-    if (pendingSingleAction.current) {
-      const { roomId, taskId, newStatus } = pendingSingleAction.current
-      pendingSingleAction.current = null
-      executeSingleStatusChange(roomId, taskId, newStatus, true)
-    } else if (pendingBulkAction.current) {
+    if (pendingBulkAction.current) {
       const { roomIds, status } = pendingBulkAction.current
       pendingBulkAction.current = null
       bulkStatusMutation.mutate({ roomIds, status, force: true })
@@ -940,7 +973,6 @@ export function TaskBoardView() {
 
   const handleCancelWarning = () => {
     setOccupiedWarning(prev => ({ ...prev, open: false }))
-    pendingSingleAction.current = null
     pendingBulkAction.current = null
   }
 
@@ -1381,7 +1413,7 @@ export function TaskBoardView() {
         onOpenChange={(open) => !open && setSelectedTask(null)}
       />
 
-      {/* Occupied Room Warning Dialog */}
+      {/* Occupied Room Warning Dialog (bulk actions) */}
       <OccupiedWarningDialog
         open={occupiedWarning.open}
         onOpenChange={(open) => !open && handleCancelWarning()}
@@ -1390,6 +1422,37 @@ export function TaskBoardView() {
         onForce={handleForceFromWarning}
         onCancel={handleCancelWarning}
       />
+
+      {/* ─── Occupied Room Warning AlertDialog (single room) ──── */}
+      <AlertDialog open={!!singleOccupiedWarning} onOpenChange={(open) => { if (!open) setSingleOccupiedWarning(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-amber-500" />
+              Occupied Room Warning
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Room <strong>{singleOccupiedWarning?.roomNumber}</strong> is currently <strong>occupied</strong>.
+              The guest should be checked out or transferred to another room before changing housekeeping status.
+              Do you want to force this change?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSingleOccupiedWarning(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (singleOccupiedWarning) {
+                  executeRoomAction(singleOccupiedWarning.roomId, singleOccupiedWarning.taskId, singleOccupiedWarning.action, true)
+                  setSingleOccupiedWarning(null)
+                }
+              }}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              Force Change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Force-Mutated Room Blocked Dialog */}
       <ForceMutatedBlockDialog

@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import {
   ShieldCheck, BedDouble, Camera, Check, X, ClipboardCheck,
   ChevronRight, BadgePercent, AlertCircle, History, User, Clock, FileText, Trash2,
@@ -249,12 +250,38 @@ function PhotoCaptureSection({
         </div>
       )}
 
-      {/* Open Camera Button */}
+      {/* Open Camera Button / File Upload Fallback */}
       {!cameraOpen && (
-        <Button variant="outline" className="w-full gap-2" onClick={startCamera}>
-          <Camera className="h-4 w-4" />
-          {photos.length > 0 ? `Add More Photo (${photos.length} captured)` : 'Capture Photo Evidence'}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="flex-1 gap-2" onClick={startCamera}>
+            <Camera className="h-4 w-4" />
+            {photos.length > 0 ? `Camera (${photos.length})` : 'Capture Photo'}
+          </Button>
+          <label className="flex-1">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const reader = new FileReader()
+                reader.onload = () => {
+                  if (typeof reader.result === 'string') onCapture(reader.result)
+                }
+                reader.readAsDataURL(file)
+                e.target.value = ''
+              }}
+            />
+            <Button variant="outline" className="w-full gap-2" asChild>
+              <span>
+                <Camera className="h-4 w-4" />
+                Upload Photo
+              </span>
+            </Button>
+          </label>
+        </div>
       )}
     </div>
   )
@@ -502,10 +529,10 @@ function InspectionDialog({
             {/* Reject Reason (shown when Reject is clicked) */}
             {showRejectForm && (
               <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20 p-3 space-y-2">
-                <p className="text-sm font-semibold text-red-700 dark:text-red-400">
-                  <AlertCircle className="h-4 w-4 inline mr-1.5" />
+                <Label className="text-sm font-semibold text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4" />
                   Reason for Rejection (required)
-                </p>
+                </Label>
                 <Textarea
                   placeholder="Describe why this room failed inspection and needs to be recleaned..."
                   value={rejectReason}

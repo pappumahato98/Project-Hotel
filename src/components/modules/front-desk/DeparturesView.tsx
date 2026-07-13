@@ -569,12 +569,13 @@ export function DeparturesView() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="w-[70px]">Room</TableHead>
                   <TableHead>Guest</TableHead>
+                  <TableHead className="w-[70px]">Room</TableHead>
+                  <TableHead className="w-[120px]">Type & Pax</TableHead>
                   <TableHead className="w-[100px]">Check-out</TableHead>
-                  <TableHead className="w-[110px] text-right">Folio Balance</TableHead>
-                  <TableHead className="w-[100px] text-right">Status</TableHead>
-                  <TableHead className="w-[280px] text-right">Actions</TableHead>
+                  <TableHead className="w-[110px] text-right">Balance</TableHead>
+                  <TableHead className="w-[90px] text-right">Status</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -582,7 +583,7 @@ export function DeparturesView() {
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                      {Array.from({ length: 6 }).map((_, j) => (
+                      {Array.from({ length: 7 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -591,7 +592,7 @@ export function DeparturesView() {
                   ))
                 ) : departures.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       <LogOut className="size-8 mx-auto mb-2 text-muted-foreground/50" />
                       No departures scheduled for today
                     </TableCell>
@@ -610,45 +611,49 @@ export function DeparturesView() {
                             onCheckedChange={() => toggleSelect(dep.id)}
                           />
                         </TableCell>
-                        <TableCell className={cn('font-bold font-mono', compactView ? 'py-1.5' : '')}>{dep.room ? <>{dep.room.number} <RoomTypeBedBadge typeName={dep.room.type.name} bedConfig={dep.room.type.bedConfig} typeCode={dep.room.type.code} pax={(dep.adults ?? 1) + (dep.children ?? 0)} inline /></> : <span className="text-muted-foreground">Unassigned</span>}</TableCell>
+                        {/* Guest */}
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <span className="font-medium">{dep.guest.firstName} {dep.guest.lastName}</span>
-                            {isOverdue && (
-                              <Badge className="text-[10px] px-1 py-0 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border-0">
-                                OVERDUE
-                              </Badge>
-                            )}
                             {dep.guest.vipLevel !== 'none' && (
-                              <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                                VIP
-                              </Badge>
+                              <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-0">VIP</Badge>
+                            )}
+                            {isOverdue && (
+                              <Badge className="text-[10px] px-1 py-0 bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300 border-0">OVERDUE</Badge>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground">{dep.confirmationNo}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{dep.confirmationNo}</p>
                         </TableCell>
+                        {/* Room */}
+                        <TableCell className={cn('font-bold font-mono', compactView ? 'py-1.5' : '')}>
+                          {dep.room ? dep.room.number : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        {/* Type & Pax */}
+                        <TableCell>
+                          {dep.room ? (
+                            <RoomTypeBedBadge typeName={dep.room.type.name} bedConfig={dep.room.type.bedConfig} typeCode={dep.room.type.code} pax={(dep.adults ?? 1) + (dep.children ?? 0)} />
+                          ) : null}
+                        </TableCell>
+                        {/* Check-out */}
                         <TableCell className="text-xs">
                           <div>{formatDate(dep.checkOut)}</div>
                           <div className="text-muted-foreground">{formatTime(dep.checkOut)}</div>
                         </TableCell>
+                        {/* Balance */}
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1">
                             <span className={cn('font-medium', balance > 0 ? 'text-red-600' : 'text-green-600')}>
                               {formatCurrency(balance)}
                             </span>
-                            {/* Outstanding Balance Alert Badges */}
                             {isPending && balance > 5000 && (
-                              <Badge className="bg-red-500 text-white text-[9px] px-1 py-0 animate-pulse border-0">
-                                HIGH
-                              </Badge>
+                              <Badge className="bg-red-500 text-white text-[9px] px-1 py-0 animate-pulse border-0">HIGH</Badge>
                             )}
                             {isPending && balance > 0 && balance <= 5000 && (
-                              <Badge className="bg-orange-500 text-white text-[9px] px-1 py-0 border-0">
-                                DUE
-                              </Badge>
+                              <Badge className="bg-orange-500 text-white text-[9px] px-1 py-0 border-0">DUE</Badge>
                             )}
                           </div>
                         </TableCell>
+                        {/* Status */}
                         <TableCell className="text-right">
                           {dep.status === 'checked_out' ? (
                             <div className="flex items-center justify-end gap-1">
@@ -659,72 +664,46 @@ export function DeparturesView() {
                             <StatusBadge status="checked_in" />
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 flex-wrap">
-                            {isPending && (
-                              <>
-                                {/* Express Checkout (zero balance) */}
+                        {/* Actions - Hamburger */}
+                        <TableCell>
+                          {isPending ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="size-7" aria-label="Row actions">
+                                  <MoreVertical className="size-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
                                 {isZeroBalance && (
-                                  <Button
-                                    size="sm"
-                                    className="text-xs h-7 bg-green-600 hover:bg-green-700 text-white"
-                                    onClick={() => handleExpressCheckout(dep)}
-                                    disabled={checkoutMutation.isPending}
-                                  >
-                                    <Zap className="size-3 mr-0.5" /> Express
-                                  </Button>
+                                  <DropdownMenuItem onClick={() => handleExpressCheckout(dep)} disabled={checkoutMutation.isPending}>
+                                    <Zap className="size-4 mr-2 text-green-600" /> Express Checkout
+                                  </DropdownMenuItem>
                                 )}
-                                {/* Review Folio */}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7"
-                                  onClick={() => handleReviewFolio(dep)}
-                                >
-                                  <Eye className="size-3 mr-0.5" /> Review Folio
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7"
-                                  onClick={() => handleNavigateToFolio(dep)}
-                                >
-                                  <FileText className="size-3 mr-0.5" /> Full Folio
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7"
-                                  onClick={() => handleViewLedger(dep)}
-                                >
-                                  <BookOpen className="size-3 mr-0.5" /> View Ledger
-                                </Button>
-                                {/* Late Checkout */}
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs h-7"
-                                  onClick={() => handleRequestLateCheckout(dep)}
-                                >
-                                  <Clock className="size-3 mr-0.5" /> Late
-                                </Button>
-                                {/* Regular Checkout */}
-                                <Button
-                                  size="sm"
-                                  className="text-xs h-7"
-                                  onClick={() => handleQuickCheckout(dep)}
-                                >
-                                  <LogOut className="size-3 mr-0.5" /> Checkout
-                                </Button>
-                              </>
-                            )}
-                            {dep.status === 'checked_out' && (
-                              <Badge variant="outline" className="text-xs">
-                                <CheckCircle2 className="size-3 mr-1" />
-                                Checked Out
-                              </Badge>
-                            )}
-                          </div>
+                                <DropdownMenuItem onClick={() => handleReviewFolio(dep)}>
+                                  <Eye className="size-4 mr-2" /> Review Folio
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleNavigateToFolio(dep)}>
+                                  <FileText className="size-4 mr-2" /> Full Folio
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewLedger(dep)}>
+                                  <BookOpen className="size-4 mr-2" /> View Ledger
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleRequestLateCheckout(dep)}>
+                                  <Clock className="size-4 mr-2" /> Late Checkout
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleQuickCheckout(dep)} className="text-red-600 focus:text-red-600">
+                                  <LogOut className="size-4 mr-2" /> Checkout
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              <CheckCircle2 className="size-3 mr-1" />
+                              Done
+                            </Badge>
+                          )}
                         </TableCell>
                       </TableRow>
                     )

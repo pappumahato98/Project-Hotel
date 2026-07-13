@@ -1,0 +1,950 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useMemo } from 'react'
+     4→     4→import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+     5→     5→import { toast } from 'sonner'
+     6→     6→import { apiFetch } from '@/lib/api'
+     7→     7→import {
+     8→     8→  Wallet, CreditCard, Banknote, CheckCircle, Search, Filter, ArrowRight,
+     9→     9→  Smartphone, Building2, Loader2, MoreVertical, RefreshCw, Download, Printer, Rows3,
+    10→    10→} from 'lucide-react'
+    11→    11→
+    12→    12→import { Button } from '@/components/ui/button'
+    13→    13→import { Badge } from '@/components/ui/badge'
+    14→    14→import { Card, CardContent } from '@/components/ui/card'
+    15→    15→import { Skeleton } from '@/components/ui/skeleton'
+    16→    16→import { Input } from '@/components/ui/input'
+    17→    17→import { Label } from '@/components/ui/label'
+    18→    18→import { Separator } from '@/components/ui/separator'
+    19→    19→import {
+    20→    20→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    21→    21→} from '@/components/ui/select'
+    22→    22→import {
+    23→    23→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    24→    24→} from '@/components/ui/table'
+    25→    25→import {
+    26→    26→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+    27→    27→} from '@/components/ui/dialog'
+    28→    28→import {
+    29→    29→  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
+    30→    30→} from '@/components/ui/dropdown-menu'
+    31→    31→import { Checkbox } from '@/components/ui/checkbox'
+    32→    32→import { StatusBadge } from '@/components/shared/status-badge'
+    33→    33→import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
+    34→    34→import { formatCurrency, formatDate, nightsBetween } from '@/lib/format'
+    35→    35→import { cn } from '@/lib/utils'
+    36→    36→import { useNavigationStore, useFolioContextStore } from '@/lib/store'
+    37→    37→import { invalidate } from '@/lib/queryKeys'
+    38→    38→
+    39→    39→// ─── Types ──────────────────────────────────────────────────────────────
+    40→    40→
+    41→    41→interface SettlementGuest {
+    42→    42→  id: string
+    43→    43→  firstName: string
+    44→    44→  lastName: string
+    45→    45→  email: string
+    46→    46→  phone: string
+    47→    47→  vipLevel: string
+    48→    48→}
+    49→    49→
+    50→    50→interface SettlementRoom {
+    51→    51→  id: string
+    52→    52→  number: string
+    53→    53→  floor: number
+    54→    54→  wing: string
+    55→    55→  type: { name: string; code: string; bedConfig?: string }
+    56→    56→}
+    57→    57→
+    58→    58→interface SettlementFolio {
+    59→    59→  id: string
+    60→    60→  folioType: string
+    61→    61→  balance: number
+    62→    62→  status: string
+    63→    63→  payments?: { id: string; amount: number; createdAt: string }[]
+    64→    64→}
+    65→    65→
+    66→    66→interface InHouseReservation {
+    67→    67→  id: string
+    68→    68→  confirmationNo: string
+    69→    69→  guest: SettlementGuest
+    70→    70→  room: SettlementRoom
+    71→    71→  adults: number
+    72→    72→  children: number
+    73→    73→  checkIn: string
+    74→    74→  checkOut: string
+    75→    75→  roomRate: number
+    76→    76→  totalAmount: number
+    77→    77→  paidAmount: number
+    78→    78→  folios: SettlementFolio[]
+    79→    79→}
+    80→    80→
+    81→    81→type PaymentMethod = 'cash' | 'card' | 'bank_transfer' | 'digital_wallet'
+    82→    82→
+    83→    83→type BalanceFilter = 'all' | 'over_10k' | 'over_50k' | 'over_100k'
+    84→    84→
+    85→    85→const PAYMENT_METHOD_OPTIONS: { value: PaymentMethod; label: string; icon: React.ReactNode }[] = [
+    86→    86→  { value: 'cash', label: 'Cash', icon: <Banknote className="size-4" /> },
+    87→    87→  { value: 'card', label: 'Credit/Debit Card', icon: <CreditCard className="size-4" /> },
+    88→    88→  { value: 'bank_transfer', label: 'Bank Transfer', icon: <Building2 className="size-4" /> },
+    89→    89→  { value: 'digital_wallet', label: 'Digital Wallet', icon: <Smartphone className="size-4" /> },
+    90→    90→]
+    91→    91→
+    92→    92→const BALANCE_FILTER_OPTIONS: { value: BalanceFilter; label: string }[] = [
+    93→    93→  { value: 'all', label: 'All Balances' },
+    94→    94→  { value: 'over_10k', label: 'Over 10K NPR' },
+    95→    95→  { value: 'over_50k', label: 'Over 50K NPR' },
+    96→    96→  { value: 'over_100k', label: 'Over 100K NPR' },
+    97→    97→]
+    98→    98→
+    99→    99→// ─── Helpers ────────────────────────────────────────────────────────────
+   100→   100→
+   101→   101→function getOutstandingBalance(res: InHouseReservation): number {
+   102→   102→  return res.folios.reduce((sum, f) => sum + (f.balance > 0 ? f.balance : 0), 0)
+   103→   103→    || (res.totalAmount - res.paidAmount)
+   104→   104→}
+   105→   105→
+   106→   106→function getLastPayment(res: InHouseReservation): string | null {
+   107→   107→  const allPayments = res.folios.flatMap((f) => f.payments || [])
+   108→   108→  if (allPayments.length === 0) return null
+   109→   109→  const latest = allPayments.reduce((a, b) =>
+   110→   110→    new Date(a.createdAt) > new Date(b.createdAt) ? a : b
+   111→   111→  )
+   112→   112→  return new Date(latest.createdAt).toLocaleDateString()
+   113→   113→}
+   114→   114→
+   115→   115→function getVipBadge(vipLevel: string) {
+   116→   116→  if (vipLevel === 'none' || !vipLevel) return null
+   117→   117→  const level = vipLevel.charAt(0).toUpperCase() + vipLevel.slice(1)
+   118→   118→  return (
+   119→   119→    <Badge className="text-[10px] px-1 py-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-0">
+   120→   120→      {level}
+   121→   121→    </Badge>
+   122→   122→  )
+   123→   123→}
+   124→   124→
+   125→   125→// ─── Component ──────────────────────────────────────────────────────────
+   126→   126→
+   127→   127→export function SettlementView() {
+   128→   128→  const queryClient = useQueryClient()
+   129→   129→  const { navigateTo } = useNavigationStore()
+   130→   130→
+   131→   131→  // Dialog states
+   132→   132→  const [settleDialogOpen, setSettleDialogOpen] = useState(false)
+   133→   133→  const [batchDialogOpen, setBatchDialogOpen] = useState(false)
+   134→   134→
+   135→   135→  // Selected reservation for single settle
+   136→   136→  const [selectedReservation, setSelectedReservation] = useState<InHouseReservation | null>(null)
+   137→   137→
+   138→   138→  // Search & filter
+   139→   139→  const [searchQuery, setSearchQuery] = useState('')
+   140→   140→  const [balanceFilter, setBalanceFilter] = useState<BalanceFilter>('all')
+   141→   141→
+   142→   142→  // Payment form (single)
+   143→   143→  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
+   144→   144→  const [paymentAmount, setPaymentAmount] = useState('')
+   145→   145→  const [paymentReference, setPaymentReference] = useState('')
+   146→   146→  const [selectedFolioId, setSelectedFolioId] = useState<string | null>(null)
+   147→   147→
+   148→   148→  // Batch payment form
+   149→   149→  const [batchPaymentMethod, setBatchPaymentMethod] = useState<PaymentMethod>('cash')
+   150→   150→
+   151→   151→  // Checkbox selection
+   152→   152→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+   153→   153→  const [compactView, setCompactView] = useState(false)
+   154→   154→
+   155→   155→  const toggleSelect = (id: string) => {
+   156→   156→    setSelectedIds((prev) => {
+   157→   157→      const next = new Set(prev)
+   158→   158→      if (next.has(id)) next.delete(id)
+   159→   159→      else next.add(id)
+   160→   160→      return next
+   161→   161→    })
+   162→   162→  }
+   163→   163→
+   164→   164→  const handleRefresh = () => {
+   165→   165→    queryClient.invalidateQueries({ queryKey: ['reservations', 'checked_in', 'settlement'] })
+   166→   166→  }
+   167→   167→
+   168→   168→  const handlePrint = () => {
+   169→   169→    window.print()
+   170→   170→  }
+   171→   171→
+   172→   172→  // ─── Data Fetching ──────────────────────────────────────────────────
+   173→   173→
+   174→   174→  const { data, isLoading } = useQuery({
+   175→   175→    queryKey: ['reservations', 'checked_in', 'settlement'],
+   176→   176→    queryFn: async () => {
+   177→   177→      return apiFetch<{ reservations: InHouseReservation[]; total: number }>(
+   178→   178→        '/api/reservations?status=checked_in'
+   179→   179→      )
+   180→   180→    },
+   181→   181→    refetchInterval: 30000,
+   182→   182→  })
+   183→   183→
+   184→   184→  const reservations: InHouseReservation[] = data?.reservations || []
+   185→   185→
+   186→   186→  // ─── Computed ───────────────────────────────────────────────────────
+   187→   187→
+   188→   188→  const filteredReservations = useMemo(() => {
+   189→   189→    let result = reservations.filter((r) => getOutstandingBalance(r) > 0)
+   190→   190→
+   191→   191→    // Search filter
+   192→   192→    if (searchQuery.trim()) {
+   193→   193→      const q = searchQuery.toLowerCase().trim()
+   194→   194→      result = result.filter((r) => {
+   195→   195→        const guestName = r.guest ? `${r.guest.firstName} ${r.guest.lastName}`.toLowerCase() : ''
+   196→   196→        const roomNumber = r.room ? r.room.number.toLowerCase() : ''
+   197→   197→        const confirmationNo = r.confirmationNo.toLowerCase()
+   198→   198→        return guestName.includes(q) || roomNumber.includes(q) || confirmationNo.includes(q)
+   199→   199→      })
+   200→   200→    }
+   201→   201→
+   202→   202→    // Balance filter
+   203→   203→    switch (balanceFilter) {
+   204→   204→      case 'over_10k':
+   205→   205→        result = result.filter((r) => getOutstandingBalance(r) > 10000)
+   206→   206→        break
+   207→   207→      case 'over_50k':
+   208→   208→        result = result.filter((r) => getOutstandingBalance(r) > 50000)
+   209→   209→        break
+   210→   210→      case 'over_100k':
+   211→   211→        result = result.filter((r) => getOutstandingBalance(r) > 100000)
+   212→   212→        break
+   213→   213→    }
+   214→   214→
+   215→   215→    return result
+   216→   216→  }, [reservations, searchQuery, balanceFilter])
+   217→   217→
+   218→   218→  const totalOutstanding = filteredReservations.reduce(
+   219→   219→    (sum, r) => sum + getOutstandingBalance(r),
+   220→   220→    0
+   221→   221→  )
+   222→   222→  const guestCount = filteredReservations.length
+   223→   223→
+   224→   224→  // All reservations with outstanding balance (for batch)
+   225→   225→  const allOutstanding = reservations.filter((r) => getOutstandingBalance(r) > 0)
+   226→   226→  const batchTotalOutstanding = allOutstanding.reduce(
+   227→   227→    (sum, r) => sum + getOutstandingBalance(r),
+   228→   228→    0
+   229→   229→  )
+   230→   230→
+   231→   231→  // ─── Mutations ─────────────────────────────────────────────────────
+   232→   232→
+   233→   233→  // Single payment mutation — uses existing API pattern: POST /api/folio/{folioId}
+   234→   234→  const paymentMutation = useMutation({
+   235→   235→    mutationFn: async ({
+   236→   236→      folioId,
+   237→   237→      amount,
+   238→   238→      method,
+   239→   239→      reference,
+   240→   240→    }: {
+   241→   241→      folioId: string
+   242→   242→      amount: number
+   243→   243→      method: PaymentMethod
+   244→   244→      reference: string
+   245→   245→    }) => {
+   246→   246→      return apiFetch(`/api/folio/${folioId}`, {
+   247→   247→        method: 'POST',
+   248→   248→        headers: { 'Content-Type': 'application/json' },
+   249→   249→        body: JSON.stringify({ type: 'payment', paymentMethod: method, amount, reference }),
+   250→   250→      })
+   251→   251→    },
+   252→   252→    onSuccess: () => {
+   253→   253→      invalidate.afterFolioChange(queryClient)
+   254→   254→      setSettleDialogOpen(false)
+   255→   255→      setPaymentAmount('')
+   256→   256→      setPaymentReference('')
+   257→   257→      toast.success('Payment processed successfully')
+   258→   258→    },
+   259→   259→    onError: () => {
+   260→   260→      toast.error('Failed to process payment. Please try again.')
+   261→   261→    },
+   262→   262→  })
+   263→   263→
+   264→   264→  // Batch settlement mutation — settles each folio individually
+   265→   265→  const batchSettleMutation = useMutation({
+   266→   266→    mutationFn: async (method: PaymentMethod) => {
+   267→   267→      const results: { reservation: InHouseReservation; success: boolean; error?: string }[] = []
+   268→   268→      for (let i = 0; i < allOutstanding.length; i++) {
+   269→   269→        const res = allOutstanding[i]
+   270→   270→        // Process each folio with a positive balance
+   271→   271→        const foliosToSettle = res.folios.filter((f) => f.balance > 0)
+   272→   272→        if (foliosToSettle.length === 0) {
+   273→   273→          results.push({ reservation: res, success: false, error: 'No folio with balance found' })
+   274→   274→          continue
+   275→   275→        }
+   276→   276→        let allSuccess = true
+   277→   277→        for (const folio of foliosToSettle) {
+   278→   278→          try {
+   279→   279→            await apiFetch(`/api/folio/${folio.id}`, {
+   280→   280→              method: 'POST',
+   281→   281→              headers: { 'Content-Type': 'application/json' },
+   282→   282→              body: JSON.stringify({ type: 'payment', paymentMethod: method, amount: folio.balance, reference: '' }),
+   283→   283→            })
+   284→   284→          } catch {
+   285→   285→            allSuccess = false
+   286→   286→          }
+   287→   287→        }
+   288→   288→        if (allSuccess) {
+   289→   289→          results.push({ reservation: res, success: true })
+   290→   290→          toast.success(`Settled ${i + 1} of ${allOutstanding.length}: Room ${res.room.number}`)
+   291→   291→        } else {
+   292→   292→          results.push({ reservation: res, success: false, error: 'Payment failed on one or more folios' })
+   293→   293→        }
+   294→   294→      }
+   295→   295→      return results
+   296→   296→    },
+   297→   297→    onSuccess: (results) => {
+   298→   298→      invalidate.afterFolioChange(queryClient)
+   299→   299→      setBatchDialogOpen(false)
+   300→   300→      const successCount = results.filter((r) => r.success).length
+   301→   301→      const failCount = results.filter((r) => !r.success).length
+   302→   302→      if (failCount === 0) {
+   303→   303→        toast.success(`All ${successCount} accounts settled successfully!`)
+   304→   304→      } else {
+   305→   305→        toast.warning(`Settled ${successCount} accounts. ${failCount} failed.`)
+   306→   306→      }
+   307→   307→    },
+   308→   308→    onError: () => {
+   309→   309→      toast.error('Batch settlement failed. Please try again.')
+   310→   310→    },
+   311→   311→  })
+   312→   312→
+   313→   313→  // ─── Handlers ───────────────────────────────────────────────────────
+   314→   314→
+   315→   315→  const handleSettleClick = (res: InHouseReservation) => {
+   316→   316→    setSelectedReservation(res)
+   317→   317→    // Default to the first folio with a positive balance, or the first folio
+   318→   318→    const folioWithBalance = res.folios.find((f) => f.balance > 0) || res.folios[0]
+   319→   319→    setSelectedFolioId(folioWithBalance?.id || null)
+   320→   320→    const balance = folioWithBalance?.balance ?? getOutstandingBalance(res)
+   321→   321→    setPaymentAmount(String(balance))
+   322→   322→    setPaymentMethod('cash')
+   323→   323→    setPaymentReference('')
+   324→   324→    setSettleDialogOpen(true)
+   325→   325→  }
+   326→   326→
+   327→   327→  const handleProcessPayment = () => {
+   328→   328→    if (!selectedReservation) return
+   329→   329→    const folioId = selectedFolioId || selectedReservation.folios[0]?.id
+   330→   330→    if (!folioId) {
+   331→   331→      toast.error('No folio found for this reservation')
+   332→   332→      return
+   333→   333→    }
+   334→   334→    const amount = Number(paymentAmount)
+   335→   335→    if (isNaN(amount) || amount <= 0) {
+   336→   336→      toast.error('Please enter a valid payment amount')
+   337→   337→      return
+   338→   338→    }
+   339→   339→    paymentMutation.mutate({
+   340→   340→      folioId,
+   341→   341→      amount,
+   342→   342→      method: paymentMethod,
+   343→   343→      reference: paymentReference,
+   344→   344→    })
+   345→   345→  }
+   346→   346→
+   347→   347→  const handleSettleAll = () => {
+   348→   348→    if (allOutstanding.length === 0) {
+   349→   349→      toast.info('No outstanding balances to settle')
+   350→   350→      return
+   351→   351→    }
+   352→   352→    setBatchPaymentMethod('cash')
+   353→   353→    setBatchDialogOpen(true)
+   354→   354→  }
+   355→   355→
+   356→   356→  const handleConfirmBatchSettle = () => {
+   357→   357→    batchSettleMutation.mutate(batchPaymentMethod)
+   358→   358→  }
+   359→   359→
+   360→   360→  const toggleSelectAll = () => {
+   361→   361→    if (selectedIds.size === filteredReservations.length && filteredReservations.length > 0) {
+   362→   362→      setSelectedIds(new Set())
+   363→   363→    } else {
+   364→   364→      setSelectedIds(new Set(filteredReservations.map((r) => r.id)))
+   365→   365→    }
+   366→   366→  }
+   367→   367→
+   368→   368→  const handleExportCSV = () => {
+   369→   369→    const headers = ['Room', 'Guest', 'Confirmation', 'Nights', 'Outstanding', 'Last Payment']
+   370→   370→    const rows = filteredReservations.map((r) => [
+   371→   371→      r.room?.number ?? 'Unassigned',
+   372→   372→      r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '—',
+   373→   373→      r.confirmationNo,
+   374→   374→      String(r.checkIn && r.checkOut ? nightsBetween(r.checkIn, r.checkOut) : 0),
+   375→   375→      String(getOutstandingBalance(r)),
+   376→   376→      getLastPayment(r) || '—',
+   377→   377→    ])
+   378→   378→    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
+   379→   379→    const blob = new Blob([csv], { type: 'text/csv' })
+   380→   380→    const url = URL.createObjectURL(blob)
+   381→   381→    const a = document.createElement('a')
+   382→   382→    a.href = url
+   383→   383→    a.download = 'settlement.csv'
+   384→   384→    a.click()
+   385→   385→    URL.revokeObjectURL(url)
+   386→   386→  }
+   387→   387→
+   388→   388→  const handleSettleSelected = () => {
+   389→   389→    const ids = Array.from(selectedIds)
+   390→   390→    if (ids.length === 0) return
+   391→   391→    // Open settle dialog for first selected
+   392→   392→    const first = filteredReservations.find((r) => r.id === ids[0])
+   393→   393→    if (first) {
+   394→   394→      setSelectedReservation(first)
+   395→   395→      const balance = getOutstandingBalance(first)
+   396→   396→      setPaymentAmount(String(balance))
+   397→   397→      setPaymentMethod('cash')
+   398→   398→      setPaymentReference('')
+   399→   399→      setSettleDialogOpen(true)
+   400→   400→    }
+   401→   401→  }
+   402→   402→
+   403→   403→  const handleViewFolio = (res: InHouseReservation) => {
+   404→   404→    useFolioContextStore.getState().setFolioContext({
+   405→   405→      reservationId: res.id,
+   406→   406→      guestId: res.guest.id,
+   407→   407→      guestName: `${res.guest.firstName} ${res.guest.lastName}`.trim(),
+   408→   408→      roomNumber: res.room.number,
+   409→   409→      confirmationNo: res.confirmationNo,
+   410→   410→    })
+   411→   411→    navigateTo('front-desk', 'folio')
+   412→   412→  }
+   413→   413→
+   414→   414→  // ─── Render ─────────────────────────────────────────────────────────
+   415→   415→
+   416→   416→  const selectedBalance = selectedReservation
+   417→   417→    ? (selectedFolioId
+   418→   418→        ? selectedReservation.folios.find((f) => f.id === selectedFolioId)?.balance ?? 0
+   419→   419→        : getOutstandingBalance(selectedReservation))
+   420→   420→    : 0
+   421→   421→
+   422→   422→  return (
+   423→   423→    <div className="flex flex-col gap-2">
+   424→   424→      {/* Header */}
+   425→   425→      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+   426→   426→        <div>
+   427→   427→          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+   428→   428→            Settlement
+   429→   429→          </h2>
+   430→   430→          <p className="text-xs text-muted-foreground">
+   431→   431→            View and settle outstanding guest folio balances
+   432→   432→          </p>
+   433→   433→        </div>
+   434→   434→        <div className="flex items-center gap-2 shrink-0">
+   435→   435→          <DropdownMenu>
+   436→   436→            <DropdownMenuTrigger asChild>
+   437→   437→              <Button variant="outline" size="icon" className="size-8" aria-label="Actions menu">
+   438→   438→                <MoreVertical className="size-4" />
+   439→   439→                <span className="sr-only">Actions</span>
+   440→   440→              </Button>
+   441→   441→            </DropdownMenuTrigger>
+   442→   442→            <DropdownMenuContent align="end">
+   443→   443→              <DropdownMenuItem onClick={handleRefresh}>
+   444→   444→                <RefreshCw className="size-4 mr-2" />
+   445→   445→                Refresh Data
+   446→   446→              </DropdownMenuItem>
+   447→   447→              <DropdownMenuItem onClick={handleExportCSV}>
+   448→   448→                <Download className="size-4 mr-2" />
+   449→   449→                Export to CSV
+   450→   450→              </DropdownMenuItem>
+   451→   451→              <DropdownMenuItem onClick={handlePrint}>
+   452→   452→                <Printer className="size-4 mr-2" />
+   453→   453→                Print List
+   454→   454→              </DropdownMenuItem>
+   455→   455→              <DropdownMenuSeparator />
+   456→   456→              <DropdownMenuItem onClick={() => setCompactView((v) => !v)}>
+   457→   457→                <Rows3 className="size-4 mr-2" />
+   458→   458→                {compactView ? 'Normal View' : 'Compact View'}
+   459→   459→              </DropdownMenuItem>
+   460→   460→            </DropdownMenuContent>
+   461→   461→          </DropdownMenu>
+   462→   462→          {allOutstanding.length > 0 && (
+   463→   463→            <Button
+   464→   464→              onClick={handleSettleAll}
+   465→   465→              className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+   466→   466→            >
+   467→   467→              <CheckCircle className="size-4 mr-1.5" />
+   468→   468→              Settle All ({allOutstanding.length})
+   469→   469→            </Button>
+   470→   470→          )}
+   471→   471→        </div>
+   472→   472→      </div>
+   473→   473→
+   474→   474→      {/* Summary Stats */}
+   475→   475→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   476→   476→        <Card className="py-0">
+   477→   477→          <CardContent className="p-4 flex items-center gap-3">
+   478→   478→            <div className="flex items-center justify-center size-10 rounded-lg bg-red-100 dark:bg-red-950">
+   479→   479→              <Wallet className="size-5 text-red-600 dark:text-red-400" />
+   480→   480→            </div>
+   481→   481→            <div>
+   482→   482→              <p className="text-xs text-muted-foreground font-medium">Total Outstanding</p>
+   483→   483→              <p className="text-lg font-bold text-red-600 dark:text-red-400">
+   484→   484→                {formatCurrency(totalOutstanding)}
+   485→   485→              </p>
+   486→   486→            </div>
+   487→   487→          </CardContent>
+   488→   488→        </Card>
+   489→   489→        <Card className="py-0">
+   490→   490→          <CardContent className="p-4 flex items-center gap-3">
+   491→   491→            <div className="flex items-center justify-center size-10 rounded-lg bg-amber-100 dark:bg-amber-950">
+   492→   492→              <CreditCard className="size-5 text-amber-600 dark:text-amber-400" />
+   493→   493→            </div>
+   494→   494→            <div>
+   495→   495→              <p className="text-xs text-muted-foreground font-medium">Guests with Balance</p>
+   496→   496→              <p className="text-lg font-bold">{guestCount}</p>
+   497→   497→            </div>
+   498→   498→          </CardContent>
+   499→   499→        </Card>
+   500→   500→        <Card className="py-0">
+   501→   501→          <CardContent className="p-4 flex items-center gap-3">
+   502→   502→            <div className="flex items-center justify-center size-10 rounded-lg bg-green-100 dark:bg-green-950">
+   503→   503→              <Banknote className="size-5 text-green-600 dark:text-green-400" />
+   504→   504→            </div>
+   505→   505→            <div>
+   506→   506→              <p className="text-xs text-muted-foreground font-medium">Avg. Balance</p>
+   507→   507→              <p className="text-lg font-bold">
+   508→   508→                {guestCount > 0 ? formatCurrency(Math.round(totalOutstanding / guestCount)) : formatCurrency(0)}
+   509→   509→              </p>
+   510→   510→            </div>
+   511→   511→          </CardContent>
+   512→   512→        </Card>
+   513→   513→      </div>
+   514→   514→
+   515→   515→      {/* Search & Filter Bar */}
+   516→   516→      <Card className="py-0">
+   517→   517→        <CardContent className="p-3 flex flex-col sm:flex-row gap-3">
+   518→   518→          <div className="relative flex-1">
+   519→   519→            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   520→   520→            <Input
+   521→   521→              placeholder="Search by guest name, room number, or confirmation..."
+   522→   522→              className="pl-9 h-9 text-sm"
+   523→   523→              value={searchQuery}
+   524→   524→              onChange={(e) => setSearchQuery(e.target.value)}
+   525→   525→            />
+   526→   526→          </div>
+   527→   527→          <div className="flex items-center gap-2 shrink-0">
+   528→   528→            <Filter className="size-4 text-muted-foreground" />
+   529→   529→            <Select
+   530→   530→              value={balanceFilter}
+   531→   531→              onValueChange={(v) => setBalanceFilter(v as BalanceFilter)}
+   532→   532→            >
+   533→   533→              <SelectTrigger className="h-9 w-[180px] text-sm">
+   534→   534→                <SelectValue />
+   535→   535→              </SelectTrigger>
+   536→   536→              <SelectContent>
+   537→   537→                {BALANCE_FILTER_OPTIONS.map((opt) => (
+   538→   538→                  <SelectItem key={opt.value} value={opt.value}>
+   539→   539→                    {opt.label}
+   540→   540→                  </SelectItem>
+   541→   541→                ))}
+   542→   542→              </SelectContent>
+   543→   543→            </Select>
+   544→   544→          </div>
+   545→   545→        </CardContent>
+   546→   546→      </Card>
+   547→   547→
+   548→   548→      {/* Outstanding Accounts Table */}
+   549→   549→      <div className="relative">
+   550→   550→      <Card className="py-0">
+   551→   551→        <CardContent className="p-0">
+   552→   552→          <div className="max-h-[600px] overflow-y-auto">
+   553→   553→            <Table>
+   554→   554→              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
+   555→   555→                <TableRow>
+   556→   556→                  <TableHead className="w-[40px] pl-4">
+   557→   557→                    <Checkbox
+   558→   558→                      checked={filteredReservations.length > 0 && selectedIds.size === filteredReservations.length}
+   559→   559→                      onCheckedChange={toggleSelectAll}
+   560→   560→                    />
+   561→   561→                  </TableHead>
+   562→   562→                  <TableHead className="w-[80px]">Room</TableHead>
+   563→   563→                  <TableHead>Guest</TableHead>
+   564→   564→                  <TableHead className="w-[100px] hidden md:table-cell">Confirmation</TableHead>
+   565→   565→                  <TableHead className="w-[70px] text-center hidden lg:table-cell">Nights</TableHead>
+   566→   566→                  <TableHead className="w-[120px] text-right">Outstanding</TableHead>
+   567→   567→                  <TableHead className="w-[100px] text-center hidden md:table-cell">Last Payment</TableHead>
+   568→   568→                  <TableHead className="w-[160px] text-right">Actions</TableHead>
+   569→   569→                </TableRow>
+   570→   570→              </TableHeader>
+   571→   571→              <TableBody>
+   572→   572→                {isLoading ? (
+   573→   573→                  Array.from({ length: 6 }).map((_, i) => (
+   574→   574→                    <TableRow key={i}>
+   575→   575→                        <TableCell><Skeleton className="h-4 w-4" /></TableCell>
+   576→   576→                    {Array.from({ length: 7 }).map((_, j) => (
+   577→   577→                        <TableCell key={j}>
+   578→   578→                          <Skeleton className="h-4 w-full" />
+   579→   579→                        </TableCell>
+   580→   580→                      ))}
+   581→   581→                    </TableRow>
+   582→   582→                  ))
+   583→   583→                ) : filteredReservations.length === 0 ? (
+   584→   584→                  <TableRow>
+   585→   585→                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+   586→   586→                      <Wallet className="size-8 mx-auto mb-2 text-muted-foreground/50" />
+   587→   587→                      {searchQuery || balanceFilter !== 'all'
+   588→   588→                        ? 'No matching accounts found'
+   589→   589→                        : 'All accounts are settled'}
+   590→   590→                    </TableCell>
+   591→   591→                  </TableRow>
+   592→   592→                ) : (
+   593→   593→                  filteredReservations.map((res) => {
+   594→   594→                    const balance = getOutstandingBalance(res)
+   595→   595→                    const nights = res.checkIn && res.checkOut ? nightsBetween(res.checkIn, res.checkOut) : 0
+   596→   596→                    const lastPay = getLastPayment(res)
+   597→   597→                    return (
+   598→   598→                      <TableRow key={res.id} className={selectedIds.has(res.id) ? 'bg-primary/5' : ''}>
+   599→   599→                        <TableCell className={cn('pl-4', compactView ? 'py-1.5' : '')}>
+   600→   600→                          <Checkbox
+   601→   601→                            checked={selectedIds.has(res.id)}
+   602→   602→                            onCheckedChange={() => toggleSelect(res.id)}
+   603→   603→                          />
+   604→   604→                        </TableCell>
+   605→   605→                        {/* Room */}
+   606→   606→                        <TableCell className={cn('font-bold font-mono', compactView ? 'py-1.5' : '')}>
+   607→   607→                          {res.room ? (
+   608→   608→                            <>
+   609→   609→                              {res.room.number}
+   610→   610→                              <RoomTypeBedBadge
+   611→   611→                                typeName={res.room.type.name}
+   612→   612→                                bedConfig={res.room.type.bedConfig}
+   613→   613→                                typeCode={res.room.type.code}
+   614→   614→                                inline
+   615→   615→                                className="ml-1"
+   616→   616→                              />
+   617→   617→                            </>
+   618→   618→                          ) : (
+   619→   619→                            <span className="text-muted-foreground">Unassigned</span>
+   620→   620→                          )}
+   621→   621→                        </TableCell>
+   622→   622→
+   623→   623→                        {/* Guest */}
+   624→   624→                        <TableCell>
+   625→   625→                          <div className="flex items-center gap-2">
+   626→   626→                            <span className="font-medium">
+   627→   627→                              {res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : '—'}
+   628→   628→                            </span>
+   629→   629→                            {res.guest && getVipBadge(res.guest.vipLevel)}
+   630→   630→                          </div>
+   631→   631→                          <p className="text-xs text-muted-foreground md:hidden">
+   632→   632→                            {res.confirmationNo}
+   633→   633→                          </p>
+   634→   634→                        </TableCell>
+   635→   635→
+   636→   636→                        {/* Confirmation */}
+   637→   637→                        <TableCell className="text-xs font-mono hidden md:table-cell">
+   638→   638→                          {res.confirmationNo}
+   639→   639→                        </TableCell>
+   640→   640→
+   641→   641→                        {/* Nights */}
+   642→   642→                        <TableCell className="text-center hidden lg:table-cell">
+   643→   643→                          <span className="text-sm font-medium">{nights}</span>
+   644→   644→                        </TableCell>
+   645→   645→
+   646→   646→                        {/* Outstanding Balance */}
+   647→   647→                        <TableCell className="text-right">
+   648→   648→                          <span className={cn(
+   649→   649→                            'font-semibold',
+   650→   650→                            balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600',
+   651→   651→                          )}>
+   652→   652→                            {formatCurrency(balance)}
+   653→   653→                          </span>
+   654→   654→                        </TableCell>
+   655→   655→
+   656→   656→                        {/* Last Payment */}
+   657→   657→                        <TableCell className="text-center text-xs text-muted-foreground hidden md:table-cell">
+   658→   658→                          {lastPay || '—'}
+   659→   659→                        </TableCell>
+   660→   660→
+   661→   661→                        {/* Actions */}
+   662→   662→                        <TableCell className="text-right">
+   663→   663→                          <div className="flex justify-end gap-1 flex-wrap">
+   664→   664→                            <Button
+   665→   665→                              size="sm"
+   666→   666→                              className="text-xs h-7 bg-green-600 hover:bg-green-700 text-white"
+   667→   667→                              onClick={() => handleSettleClick(res)}
+   668→   668→                            >
+   669→   669→                              <Banknote className="size-3 mr-0.5" />
+   670→   670→                              Settle
+   671→   671→                            </Button>
+   672→   672→                            <Button
+   673→   673→                              size="sm"
+   674→   674→                              variant="outline"
+   675→   675→                              className="text-xs h-7"
+   676→   676→                              onClick={() => handleViewFolio(res)}
+   677→   677→                            >
+   678→   678→                              <ArrowRight className="size-3 mr-0.5" />
+   679→   679→                              <span className="hidden sm:inline">View Folio</span>
+   680→   680→                              <span className="sm:hidden">Folio</span>
+   681→   681→                            </Button>
+   682→   682→                          </div>
+   683→   683→                        </TableCell>
+   684→   684→                      </TableRow>
+   685→   685→                    )
+   686→   686→                  })
+   687→   687→                )}
+   688→   688→              </TableBody>
+   689→   689→            </Table>
+   690→   690→          </div>
+   691→   691→        </CardContent>
+   692→   692→      </Card>
+   693→   693→
+   694→   694→      {/* Floating Action Bar */}
+   695→   695→      {selectedIds.size > 0 && (
+   696→   696→        <div className="mt-2 flex items-center justify-between rounded-lg border bg-background p-3 shadow-lg">
+   697→   697→          <span className="text-sm font-medium">
+   698→   698→            {selectedIds.size} selected
+   699→   699→          </span>
+   700→   700→          <div className="flex items-center gap-2">
+   701→   701→            <Button
+   702→   702→              size="sm"
+   703→   703→              className="bg-green-600 hover:bg-green-700 text-white"
+   704→   704→              onClick={handleSettleSelected}
+   705→   705→            >
+   706→   706→              <Banknote className="size-4 mr-1.5" />
+   707→   707→              Settle Selected
+   708→   708→            </Button>
+   709→   709→            <Button size="sm" variant="outline" onClick={() => setSelectedIds(new Set())}>
+   710→   710→              Deselect All
+   711→   711→            </Button>
+   712→   712→          </div>
+   713→   713→        </div>
+   714→   714→      )}
+   715→   715→      </div>
+   716→   716→
+   717→   717→      {/* ─── Single Settlement Dialog ───────────────────────────────── */}
+   718→   718→      <Dialog open={settleDialogOpen} onOpenChange={setSettleDialogOpen}>
+   719→   719→        <DialogContent className="sm:max-w-md">
+   720→   720→          <DialogHeader>
+   721→   721→            <DialogTitle className="flex items-center gap-2">
+   722→   722→              <Banknote className="size-5 text-green-600" />
+   723→   723→              Settle Account
+   724→   724→            </DialogTitle>
+   725→   725→            <DialogDescription>
+   726→   726→              Process payment for this guest&apos;s outstanding balance
+   727→   727→            </DialogDescription>
+   728→   728→          </DialogHeader>
+   729→   729→
+   730→   730→          {selectedReservation && (
+   731→   731→            <div className="flex flex-col gap-4">
+   732→   732→              {/* Guest Info */}
+   733→   733→              <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
+   734→   734→                <div className="flex items-center justify-between">
+   735→   735→                  <span className="text-sm font-medium">
+   736→   736→                    {selectedReservation.guest ? `${selectedReservation.guest.firstName} ${selectedReservation.guest.lastName}` : 'Unknown Guest'}
+   737→   737→                    {selectedReservation.guest && getVipBadge(selectedReservation.guest.vipLevel)}
+   738→   738→                  </span>
+   739→   739→                </div>
+   740→   740→                <div className="flex items-center justify-between text-xs text-muted-foreground">
+   741→   741→                  <span>{selectedReservation.room ? `Room ${selectedReservation.room.number} · ${selectedReservation.room.type.name}` : 'Unassigned Room'}</span>
+   742→   742→                  <span className="font-mono">{selectedReservation.confirmationNo}</span>
+   743→   743→                </div>
+   744→   744→
+   745→   745→                {/* Folio selector when multiple folios exist */}
+   746→   746→                {selectedReservation.folios.length > 1 && (
+   747→   747→                  <>
+   748→   748→                    <Separator />
+   749→   749→                    <div className="space-y-1.5">
+   750→   750→                      <Label className="text-xs font-medium text-muted-foreground">Settle Folio</Label>
+   751→   751→                      <Select value={selectedFolioId || ''} onValueChange={(v) => {
+   752→   752→                        setSelectedFolioId(v)
+   753→   753→                        const f = selectedReservation.folios.find((f) => f.id === v)
+   754→   754→                        if (f) setPaymentAmount(String(f.balance))
+   755→   755→                      }}>
+   756→   756→                        <SelectTrigger className="h-8 text-sm">
+   757→   757→                          <SelectValue placeholder="Select folio..." />
+   758→   758→                        </SelectTrigger>
+   759→   759→                        <SelectContent>
+   760→   760→                          {selectedReservation.folios
+   761→   761→                            .filter((f) => f.balance > 0)
+   762→   762→                            .map((f) => (
+   763→   763→                              <SelectItem key={f.id} value={f.id}>
+   764→   764→                                <span className="capitalize">{f.folioType}</span>
+   765→   765→                                <span className="text-muted-foreground"> — {formatCurrency(f.balance)}</span>
+   766→   766→                              </SelectItem>
+   767→   767→                            ))}
+   768→   768→                        </SelectContent>
+   769→   769→                      </Select>
+   770→   770→                    </div>
+   771→   771→                  </>
+   772→   772→                )}
+   773→   773→
+   774→   774→                <Separator />
+   775→   775→                <div className="flex items-center justify-between">
+   776→   776→                  <span className="text-sm text-muted-foreground">
+   777→   777→                    {selectedReservation.folios.length > 1 ? 'Selected Folio Balance' : 'Outstanding Balance'}
+   778→   778→                  </span>
+   779→   779→                  <span className="text-xl font-bold text-red-600 dark:text-red-400">
+   780→   780→                    {formatCurrency(selectedBalance)}
+   781→   781→                  </span>
+   782→   782→                </div>
+   783→   783→              </div>
+   784→   784→
+   785→   785→              {/* Payment Method */}
+   786→   786→              <div className="space-y-2">
+   787→   787→                <Label className="text-sm font-medium">Payment Method</Label>
+   788→   788→                <div className="grid grid-cols-2 gap-2">
+   789→   789→                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
+   790→   790→                    <Button
+   791→   791→                      key={opt.value}
+   792→   792→                      type="button"
+   793→   793→                      variant={paymentMethod === opt.value ? 'default' : 'outline'}
+   794→   794→                      className={cn(
+   795→   795→                        'h-10 justify-start gap-2 text-sm',
+   796→   796→                        paymentMethod === opt.value && 'bg-green-600 hover:bg-green-700 text-white',
+   797→   797→                      )}
+   798→   798→                      onClick={() => setPaymentMethod(opt.value)}
+   799→   799→                    >
+   800→   800→                      {opt.icon}
+   801→   801→                      {opt.label}
+   802→   802→                    </Button>
+   803→   803→                  ))}
+   804→   804→                </div>
+   805→   805→              </div>
+   806→   806→
+   807→   807→              {/* Amount */}
+   808→   808→              <div className="space-y-2">
+   809→   809→                <Label htmlFor="settle-amount" className="text-sm font-medium">
+   810→   810→                  Amount (NPR)
+   811→   811→                </Label>
+   812→   812→                <Input
+   813→   813→                  id="settle-amount"
+   814→   814→                  type="number"
+   815→   815→                  min="1"
+   816→   816→                  step="1"
+   817→   817→                  value={paymentAmount}
+   818→   818→                  onChange={(e) => setPaymentAmount(e.target.value)}
+   819→   819→                  className="h-10 text-base font-semibold"
+   820→   820→                />
+   821→   821→              </div>
+   822→   822→
+   823→   823→              {/* Reference */}
+   824→   824→              <div className="space-y-2">
+   825→   825→                <Label htmlFor="settle-reference" className="text-sm font-medium">
+   826→   826→                  Reference Number <span className="text-muted-foreground font-normal">(optional)</span>
+   827→   827→                </Label>
+   828→   828→                <Input
+   829→   829→                  id="settle-reference"
+   830→   830→                  placeholder="e.g. REF-123, transaction ID..."
+   831→   831→                  value={paymentReference}
+   832→   832→                  onChange={(e) => setPaymentReference(e.target.value)}
+   833→   833→                  className="h-10 text-sm"
+   834→   834→                />
+   835→   835→              </div>
+   836→   836→            </div>
+   837→   837→          )}
+   838→   838→
+   839→   839→          <DialogFooter className="gap-2 sm:gap-0">
+   840→   840→            <Button
+   841→   841→              variant="outline"
+   842→   842→              onClick={() => setSettleDialogOpen(false)}
+   843→   843→              disabled={paymentMutation.isPending}
+   844→   844→            >
+   845→   845→              Cancel
+   846→   846→            </Button>
+   847→   847→            <Button
+   848→   848→              className="bg-green-600 hover:bg-green-700 text-white"
+   849→   849→              onClick={handleProcessPayment}
+   850→   850→              disabled={paymentMutation.isPending}
+   851→   851→            >
+   852→   852→              {paymentMutation.isPending ? (
+   853→   853→                <Loader2 className="size-4 mr-1.5 animate-spin" />
+   854→   854→              ) : (
+   855→   855→                <CheckCircle className="size-4 mr-1.5" />
+   856→   856→              )}
+   857→   857→              Process Payment
+   858→   858→            </Button>
+   859→   859→          </DialogFooter>
+   860→   860→        </DialogContent>
+   861→   861→      </Dialog>
+   862→   862→
+   863→   863→      {/* ─── Batch Settlement Dialog ───────────────────────────────── */}
+   864→   864→      <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+   865→   865→        <DialogContent className="sm:max-w-md">
+   866→   866→          <DialogHeader>
+   867→   867→            <DialogTitle className="flex items-center gap-2">
+   868→   868→              <CheckCircle className="size-5 text-green-600" />
+   869→   869→              Settle All Outstanding
+   870→   870→            </DialogTitle>
+   871→   871→            <DialogDescription>
+   872→   872→              Process payments for all {allOutstanding.length} guests with outstanding balances
+   873→   873→            </DialogDescription>
+   874→   874→          </DialogHeader>
+   875→   875→
+   876→   876→          <div className="flex flex-col gap-4">
+   877→   877→            {/* Summary */}
+   878→   878→            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+   879→   879→              <div className="flex items-center justify-between">
+   880→   880→                <span className="text-sm text-muted-foreground">Accounts to Settle</span>
+   881→   881→                <span className="text-sm font-semibold">{allOutstanding.length}</span>
+   882→   882→              </div>
+   883→   883→              <Separator />
+   884→   884→              <div className="flex items-center justify-between">
+   885→   885→                <span className="text-sm text-muted-foreground">Total Outstanding</span>
+   886→   886→                <span className="text-xl font-bold text-red-600 dark:text-red-400">
+   887→   887→                  {formatCurrency(batchTotalOutstanding)}
+   888→   888→                </span>
+   889→   889→              </div>
+   890→   890→            </div>
+   891→   891→
+   892→   892→            {/* Payment Method */}
+   893→   893→            <div className="space-y-2">
+   894→   894→              <Label className="text-sm font-medium">Payment Method (applied to all)</Label>
+   895→   895→              <div className="grid grid-cols-2 gap-2">
+   896→   896→                {PAYMENT_METHOD_OPTIONS.map((opt) => (
+   897→   897→                  <Button
+   898→   898→                    key={opt.value}
+   899→   899→                    type="button"
+   900→   900→                    variant={batchPaymentMethod === opt.value ? 'default' : 'outline'}
+   901→   901→                    className={cn(
+   902→   902→                      'h-10 justify-start gap-2 text-sm',
+   903→   903→                      batchPaymentMethod === opt.value && 'bg-green-600 hover:bg-green-700 text-white',
+   904→   904→                    )}
+   905→   905→                    onClick={() => setBatchPaymentMethod(opt.value)}
+   906→   906→                  >
+   907→   907→                    {opt.icon}
+   908→   908→                    {opt.label}
+   909→   909→                  </Button>
+   910→   910→                ))}
+   911→   911→              </div>
+   912→   912→            </div>
+   913→   913→
+   914→   914→            {/* Progress indicator */}
+   915→   915→            {batchSettleMutation.isPending && (
+   916→   916→              <div className="rounded-lg border border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950 p-3">
+   917→   917→                <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-300">
+   918→   918→                  <Loader2 className="size-4 animate-spin" />
+   919→   919→                  Processing payments... Please wait.
+   920→   920→                </div>
+   921→   921→              </div>
+   922→   922→            )}
+   923→   923→          </div>
+   924→   924→
+   925→   925→          <DialogFooter className="gap-2 sm:gap-0">
+   926→   926→            <Button
+   927→   927→              variant="outline"
+   928→   928→              onClick={() => setBatchDialogOpen(false)}
+   929→   929→              disabled={batchSettleMutation.isPending}
+   930→   930→            >
+   931→   931→              Cancel
+   932→   932→            </Button>
+   933→   933→            <Button
+   934→   934→              className="bg-green-600 hover:bg-green-700 text-white"
+   935→   935→              onClick={handleConfirmBatchSettle}
+   936→   936→              disabled={batchSettleMutation.isPending}
+   937→   937→            >
+   938→   938→              {batchSettleMutation.isPending ? (
+   939→   939→                <Loader2 className="size-4 mr-1.5 animate-spin" />
+   940→   940→              ) : (
+   941→   941→                <CheckCircle className="size-4 mr-1.5" />
+   942→   942→              )}
+   943→   943→              Settle All — {formatCurrency(batchTotalOutstanding)}
+   944→   944→            </Button>
+   945→   945→          </DialogFooter>
+   946→   946→        </DialogContent>
+   947→   947→      </Dialog>
+   948→   948→    </div>
+   949→   949→  )
+   950→   950→}

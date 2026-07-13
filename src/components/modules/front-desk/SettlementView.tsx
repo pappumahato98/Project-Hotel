@@ -559,13 +559,14 @@ export function SettlementView() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="w-[80px]">Room</TableHead>
                   <TableHead>Guest</TableHead>
+                  <TableHead className="w-[70px]">Room</TableHead>
+                  <TableHead className="w-[120px]">Type & Pax</TableHead>
                   <TableHead className="w-[100px] hidden md:table-cell">Confirmation</TableHead>
                   <TableHead className="w-[70px] text-center hidden lg:table-cell">Nights</TableHead>
                   <TableHead className="w-[120px] text-right">Outstanding</TableHead>
                   <TableHead className="w-[100px] text-center hidden md:table-cell">Last Payment</TableHead>
-                  <TableHead className="w-[160px] text-right">Actions</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -573,7 +574,7 @@ export function SettlementView() {
                   Array.from({ length: 6 }).map((_, i) => (
                     <TableRow key={i}>
                         <TableCell><Skeleton className="h-4 w-4" /></TableCell>
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -582,7 +583,7 @@ export function SettlementView() {
                   ))
                 ) : filteredReservations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
                       <Wallet className="size-8 mx-auto mb-2 text-muted-foreground/50" />
                       {searchQuery || balanceFilter !== 'all'
                         ? 'No matching accounts found'
@@ -602,37 +603,33 @@ export function SettlementView() {
                             onCheckedChange={() => toggleSelect(res.id)}
                           />
                         </TableCell>
-                        {/* Room */}
-                        <TableCell className={cn('font-bold font-mono', compactView ? 'py-1.5' : '')}>
-                          {res.room ? (
-                            <>
-                              {res.room.number}
-                              <RoomTypeBedBadge
-                                typeName={res.room.type.name}
-                                bedConfig={res.room.type.bedConfig}
-                                typeCode={res.room.type.code}
-                                inline
-                                className="ml-1"
-                              />
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">Unassigned</span>
-                          )}
-                        </TableCell>
-
                         {/* Guest */}
                         <TableCell>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <span className="font-medium">
                               {res.guest ? `${res.guest.firstName} ${res.guest.lastName}` : '—'}
                             </span>
                             {res.guest && getVipBadge(res.guest.vipLevel)}
                           </div>
-                          <p className="text-xs text-muted-foreground md:hidden">
+                          <p className="text-xs text-muted-foreground md:hidden font-mono">
                             {res.confirmationNo}
                           </p>
                         </TableCell>
-
+                        {/* Room */}
+                        <TableCell className={cn('font-bold font-mono', compactView ? 'py-1.5' : '')}>
+                          {res.room ? res.room.number : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        {/* Type & Pax */}
+                        <TableCell>
+                          {res.room ? (
+                            <RoomTypeBedBadge
+                              typeName={res.room.type.name}
+                              bedConfig={res.room.type.bedConfig}
+                              typeCode={res.room.type.code}
+                              pax={res.adults + res.children}
+                            />
+                          ) : null}
+                        </TableCell>
                         {/* Confirmation */}
                         <TableCell className="text-xs font-mono hidden md:table-cell">
                           {res.confirmationNo}
@@ -658,28 +655,24 @@ export function SettlementView() {
                           {lastPay || '—'}
                         </TableCell>
 
-                        {/* Actions */}
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 flex-wrap">
-                            <Button
-                              size="sm"
-                              className="text-xs h-7 bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => handleSettleClick(res)}
-                            >
-                              <Banknote className="size-3 mr-0.5" />
-                              Settle
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs h-7"
-                              onClick={() => handleViewFolio(res)}
-                            >
-                              <ArrowRight className="size-3 mr-0.5" />
-                              <span className="hidden sm:inline">View Folio</span>
-                              <span className="sm:hidden">Folio</span>
-                            </Button>
-                          </div>
+                        {/* Actions - Hamburger */}
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="size-7" aria-label="Row actions">
+                                <MoreVertical className="size-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => handleSettleClick(res)}>
+                                <Banknote className="size-4 mr-2 text-green-600" /> Settle Account
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleViewFolio(res)}>
+                                <ArrowRight className="size-4 mr-2" /> View Folio
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     )

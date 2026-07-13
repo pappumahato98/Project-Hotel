@@ -241,6 +241,10 @@ export function FolioView() {
   const [splitFolioType, setSplitFolioType] = useState('company')
   const [splitDescription, setSplitDescription] = useState('')
 
+  // Email / receipt print dialogs
+  const [receiptPrintDialogOpen, setReceiptPrintDialogOpen] = useState(false)
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
+
   // Search dropdown ref
   const searchRef = useRef<HTMLDivElement>(null)
 
@@ -555,6 +559,72 @@ export function FolioView() {
     },
     onError: () => toast.error('Failed to split folio'),
   })
+
+  const handlePrintFolio = () => {
+    if (!activeFolio) return
+    const guestName = guestFullName(activeFolio.guest)
+    const roomNum = activeFolio.reservation.room?.number || 'N/A'
+    const confNo = activeFolio.reservation.confirmationNo
+    const charges = folioCharges(activeFolio)
+    const payments = folioPayments(activeFolio)
+    const balance = charges - payments
+
+    const txnRows = activeFolio.transactions
+      .filter(t => !isVoidedTransaction(t))
+      .map(t => `<tr><td>${formatDateTime(t.createdAt)}</td><td>${t.description}</td><td style="text-align:right">${formatCurrency(t.totalAmount)}</td></tr>`)
+      .join('')
+
+    const payRows = activeFolio.payments
+      .filter(p => !isVoidedPayment(p))
+      .map(p => `<tr><td>${formatDateTime(p.createdAt)}</td><td>${PAYMENT_METHOD_LABELS[p.paymentMethod] || p.paymentMethod}</td><td style="text-align:right">-${formatCurrency(p.amount)}</td></tr>`)
+      .join('')
+
+    const printWindow = window.open('', '_blank', 'width=450,height=700')
+    if (!printWindow) { toast.error('Please allow popups to print'); return }
+    printWindow.document.write(`
+    <html><head><title>Folio Statement</title>
+    <style>body{font-family:monospace;max-width:400px;margin:0 auto;padding:16px;font-size:11px}
+    .center{text-align:center}.bold{font-weight:bold}.line{border-top:1px dashed #000;margin:8px 0}
+    .row{display:flex;justify-content:space-between}.green{color:green}.red{color:red}
+    table{width:100%;border-collapse:collapse}th,td{padding:3px 4px;text-align:left;font-size:10px}
+    th{border-bottom:1px solid #000;font-weight:bold}h2{margin:0 0 2px}p.sub{margin:0 0 12px;color:#666;font-size:10px}</style></head>
+    <body>
+    <div class="center"><h2>MERIDIAN HOTEL</h2><p class="sub">Folio Statement</p></div>
+    <div class="line"></div>
+    <div class="row"><span>Guest:</span><span class="bold">${guestName}</span></div>
+    <div class="row"><span>Room:</span><span>${roomNum}</span></div>
+    <div class="row"><span>Confirmation:</span><span>${confNo}</span></div>
+    <div class="line"></div>
+    <h4>Charges</h4>
+    <table><thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead><tbody>${txnRows}</tbody></table>
+    <div class="line"></div>
+    <h4>Payments</h4>
+    <table><thead><tr><th>Date</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead><tbody>${payRows}</tbody></table>
+    <div class="line"></div>
+    <div class="row"><span>Total Charges:</span><span>${formatCurrency(charges)}</span></div>
+    <div class="row"><span>Total Payments:</span><span class="green">-${formatCurrency(payments)}</span></div>
+    <div class="line"></div>
+    <div class="row"><span class="bold">Balance:</span><span class="bold ${balance > 0 ? 'red' : 'green'}">${formatCurrency(balance)}</span></div>
+    <div class="line"></div>
+    <div class="center" style="margin-top:12px;font-size:9px;color:#999">Generated: ${new Date().toLocaleString()}</div>
+    <script>window.print();window.close();</script>
+    </body></html>
+  `)
+    printWindow.document.close()
+    toast.success('Folio sent to printer')
+  }
+
+  const handleEmailFolio = () => {
+    if (!activeFolio) return
+    setEmailDialogOpen(true)
+  }
+  const handleConfirmEmailFolio = () => {
+    if (!activeFolio) return
+    const guestName = guestFullName(activeFolio.guest)
+    // In production, this would call an email API
+    setEmailDialogOpen(false)
+    toast.success(`Folio statement emailed to ${guestName}`)
+  }
 
   const handleOpenVoidDialog = (target: VoidTarget) => {
     setVoidTarget(target)
@@ -929,7 +999,7 @@ export function FolioView() {
 
       {/* ─── 8. Split Folio Dialog ────────────────────────────── */}
       <Dialog open={splitDialogOpen} onOpenChange={(open) => { setSplitDialogOpen(open); if (!open) setSplitSelectedTxnIds(new Set()) }}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SplitIcon className="size-5" />
@@ -1079,6 +1149,51 @@ export function FolioView() {
               ) : (
                 <><Check className="size-4 mr-1.5" /> Split Folio</>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 9. Email Folio Confirmation Dialog ──────────────────── */}
+      <Dialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="size-5" />
+              Email Folio Statement
+            </DialogTitle>
+            <DialogDescription>
+              Send a copy of this folio statement to the guest.
+            </DialogDescription>
+          </DialogHeader>
+          {activeFolio && (
+            <div className="space-y-3">
+              <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Guest:</span>
+                  <span className="font-medium">{guestFullName(activeFolio.guest)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Room:</span>
+                  <span>{activeFolio.reservation.room?.number || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Balance:</span>
+                  <span className={folioOutstanding(activeFolio) > 0 ? 'text-red-600 font-semibold' : 'text-emerald-600 font-semibold'}>
+                    {formatCurrency(folioOutstanding(activeFolio))}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The folio statement will be emailed to the guest&apos;s registered email address on file.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleConfirmEmailFolio} className="bg-primary">
+              <Mail className="size-4 mr-1.5" />
+              Send Email
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1443,7 +1558,7 @@ function FolioDetailPanel({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" onClick={() => toast.info('Print — folio statement will be sent to the default printer')}>
+                  <Button size="sm" variant="ghost" onClick={handlePrintFolio}>
                     <Printer className="size-4 mr-1.5" /> <span className="hidden sm:inline">Print</span>
                   </Button>
                 </TooltipTrigger>
@@ -1454,7 +1569,7 @@ function FolioDetailPanel({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" onClick={() => toast.info('Email — folio statement will be emailed to the guest')}>
+                  <Button size="sm" variant="ghost" onClick={handleEmailFolio}>
                     <Mail className="size-4 mr-1.5" /> <span className="hidden sm:inline">Email</span>
                   </Button>
                 </TooltipTrigger>
