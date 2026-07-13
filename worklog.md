@@ -109,3 +109,30 @@ Stage Summary:
 - TaskBoardView blocks occupied room status changes with warning dialog
 - InspectionView has mobile photo capture fallback
 - Reject/reassign requires reason text before submission
+---
+Task ID: 1
+Agent: main
+Task: Verify all 7 feature requirements from previous session are implemented and working
+
+Work Log:
+- Checked git log: current HEAD is bbe5b6c (one commit ahead of 91be200)
+- Reviewed full diffs for all 6 modified files vs 91be200
+- DeparturesView: column restructure (Guest→Room→Type&Pax), hamburger menu, checkbox — all present
+- SettlementView: column restructure, hamburger menu, checkbox — all present
+- FolioView: handlePrintFolio(), handleEmailFolio(), email dialog, split folio widened — all present
+- CheckInPage: showMoreInfo state, split-screen summary sidebar, quick actions (Folio/Ledger) — all present
+- TaskBoardView: AlertDialog for occupied guard, guardedStatusChange(), executeRoomAction(), individual handlers — all present
+- InspectionView: dialog screen adaptation (95vw/100dvh), photo upload fallback, Label fix — all present
+- Ran bun run lint: clean, no errors
+- Started dev server: compiled successfully
+- Browser verification (agent-browser):
+  - Departures tab: confirmed columns (Guest→Room→Type&Pax), checkbox, hamburger with Express/Review Folio/Full Folio/View Ledger/Late Checkout/Checkout
+  - Settlement tab: confirmed columns (Guest→Room→Type&Pax→Confirmation→Nights→Outstanding→Last Payment), checkbox, hamburger with Settle Account/View Folio
+  - TaskBoard: confirmed hamburger with View Details/Start Cleaning/Mark Cleaned/Mark Inspected/Reset to Pending/Set Rush/Mark Failed
+  - Inspection: confirmed Capture Photo + Upload Photo buttons, checklist, Reject & Reassign, Approve, Inspection History
+
+Stage Summary:
+- ALL 7 feature requirements were already implemented in commit bbe5b6c
+- No code changes needed — all features verified via git diff + browser testing
+- Dev server compiles and runs without errors
+- Lint passes clean
