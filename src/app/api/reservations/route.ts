@@ -1,6 +1,41 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
+import { adToBS } from '@/lib/nepali-calendar'
+
+// ─── Nepali Fiscal Year Helpers ─────────────────────────────
+// FY starts Shrawan (BS month 4). Short form: "82/83" = FY 2082/2083
+function getFiscalYearShort(date: Date): string {
+  const bs = adToBS(date)
+  // BS month is 1-indexed; Shrawan = month 4
+  if (bs.month >= 4) {
+    const y1 = String(bs.year % 100).padStart(2, '0')
+    const y2 = String((bs.year + 1) % 100).padStart(2, '0')
+    return `${y1}/${y2}`
+  }
+  const y1 = String((bs.year - 1) % 100).padStart(2, '0')
+  const y2 = String(bs.year % 100).padStart(2, '0')
+  return `${y1}/${y2}`
+}
+
+async function generateReservationNumber(date: Date): Promise<string> {
+  const fy = getFiscalYearShort(date)
+  const prefix = `Res-${fy}-`
+  // Find the highest existing number for this fiscal year prefix
+  const reservations = await db.reservation.findMany({
+    where: { reservationNumber: { startsWith: prefix } },
+    select: { reservationNumber: true },
+    orderBy: { reservationNumber: 'desc' },
+    take: 1,
+  })
+  let nextSeq = 1
+  if (reservations.length > 0 && reservations[0].reservationNumber) {
+    const parts = reservations[0].reservationNumber.split('-')
+    const lastSeq = parseInt(parts[parts.length - 1], 10)
+    if (!isNaN(lastSeq)) nextSeq = lastSeq + 1
+  }
+  return `${prefix}${String(nextSeq).padStart(3, '0')}`
+}
 
 // ─── Settings helper ──────────────────────────────────────
 async function getSettingsMap() {
@@ -205,6 +240,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to generate unique confirmation number' }, { status: 500 })
     }
 
+    // ── Conflict check: room + date overlap ──
+    if (roomId) {
+      const conflicting = await db.reservation.findFirst({
+        where: {
+          roomId,
+          status: { notIn: ['cancelled', 'no_show'] },
+          checkIn: { lt: checkOutDate },
+          checkOut: { gt: checkInDate },
+        },
+        include: {
+          guest: { select: { firstName: true, lastName: true } },
+          room: { select: { number: true } },
+        },
+      })
+      if (conflicting) {
+        return NextResponse.json({
+          error: 'CONFLICT',
+          conflict: {
+            confirmationNo: conflicting.confirmationNo,
+            reservationNumber: conflicting.reservationNumber,
+            guestName: conflicting.guest ? `${conflicting.guest.firstName} ${conflicting.guest.lastName}` : 'Unknown',
+            roomNumber: conflicting.room?.number || 'N/A',
+            checkIn: conflicting.checkIn.toISOString(),
+            checkOut: conflicting.checkOut.toISOString(),
+            status: conflicting.status,
+          },
+        }, { status: 409 })
+      }
+    }
+
+    // Generate fiscal-year sequential reservation number
+    const reservationNumber = await generateReservationNumber(checkInDate)
+
     // Apply default check-in/out times if only dates are provided (no time portion)
     if (checkInDate.getHours() === 0 && checkInDate.getMinutes() === 0) {
       const [h, m] = defaultCheckInTime.split(':').map(Number)
@@ -224,6 +292,7 @@ export async function POST(request: Request) {
     const reservation = await db.reservation.create({
       data: {
         confirmationNo,
+        reservationNumber,
         guestId: guestId || null,
         roomId: roomId || null,
         roomTypeId: roomTypeId || null,

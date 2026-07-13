@@ -185,9 +185,10 @@ model Guest {
 
 // ─── RESERVATIONS ──────────────────────────────────────────────
 model Reservation {
-  id            String   @id @default(cuid())
-  confirmationNo String @unique
-  propertyId    String
+  id              String   @id @default(cuid())
+  confirmationNo  String @unique
+  reservationNumber String? // Fiscal-year sequential: "Res-82/83-001"
+  propertyId      String
   guestId       String?
   roomId        String?
   roomTypeId    String?

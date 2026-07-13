@@ -6,8 +6,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import {
   Plus, Search, MoreHorizontal, Eye, LogIn, XCircle, UserX, CalendarRange,
-  Edit, Copy, FileText, Printer, Trash2, StickyNote, BedDouble,
-  Users, ArrowDownToLine, ArrowUpFromLine, DollarSign, Hotel,
+  Edit, Copy, FileText, Printer, StickyNote, BedDouble, AlertTriangle, Hotel,
   CalendarIcon, X, LayoutGrid, BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -74,6 +73,7 @@ interface ReservationFolio {
 interface Reservation {
   id: string
   confirmationNo: string
+  reservationNumber: string | null
   status: string
   reservationType: string
   adults: number
@@ -256,6 +256,50 @@ export function ReservationsView() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
 
+  // Checkbox selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const toggleSelectAll = () => {
+    if (selectedIds.size === reservations.length && reservations.length > 0) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(reservations.map((r) => r.id)))
+    }
+  }
+
+  // Conflict dialog state
+  const [conflictOpen, setConflictOpen] = useState(false)
+  const [conflictData, setConflictData] = useState<any>(null)
+
+  // Bulk cancel mutation
+  const bulkCancelMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = []
+      for (const id of ids) {
+        const r = await apiFetch(`/api/reservations/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'cancelled' }),
+        })
+        results.push(r)
+      }
+      return results
+    },
+    onSuccess: (_data, ids) => {
+      invalidate.afterReservationChange(queryClient)
+      setSelectedIds(new Set())
+      toast.success(`${ids.length} reservation(s) cancelled`)
+    },
+    onError: () => toast.error('Bulk cancel failed'),
+  })
+
   // Debounced search for realtime filtering
   const debouncedSearch = useDebounce(searchQuery, 300)
 
@@ -319,7 +363,19 @@ export function ReservationsView() {
     },
   })
 
-  const reservations: Reservation[] = data?.reservations || []
+  const rawReservations: Reservation[] = data?.reservations || []
+
+  // Sort by reservationNumber descending (highest first), nulls last
+  const reservations = rawReservations.length > 0
+    ? [...rawReservations].sort((a, b) => {
+        const na = a.reservationNumber || ''
+        const nb = b.reservationNumber || ''
+        if (na && nb) return nb.localeCompare(na)
+        if (na) return -1
+        if (nb) return 1
+        return 0
+      })
+    : rawReservations
 
   // ─── Summary Stats ──────────────────────────────────────────────────
   const todayStr = getTodayString()
@@ -349,7 +405,7 @@ export function ReservationsView() {
 
   // ─── Mutations ───────────────────────────────────────────────────────
 
-  // Create reservation mutation
+  // Create reservation mutation (raw fetch for conflict capture)
   const createMutation = useMutation({
     mutationFn: async (formData: NewReservationForm) => {
       let guestId = formData.guestId
@@ -367,7 +423,7 @@ export function ReservationsView() {
         guestId = gd.guest.id
       }
       const roomType = ROOM_TYPES.find((rt) => rt.id === formData.roomTypeId)
-      return apiFetch('/api/reservations', {
+      const res = await fetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -384,14 +440,30 @@ export function ReservationsView() {
           notes: formData.notes || undefined,
         }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        if (data.error === 'CONFLICT' && data.conflict) {
+          const err: any = new Error('CONFLICT')
+          err.conflict = data.conflict
+          throw err
+        }
+        throw new Error(data.error || `Request failed (HTTP ${res.status})`)
+      }
+      return res.json()
     },
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
       setNewResOpen(false)
+      setDuplicateOpen(false)
       setForm({ ...INITIAL_FORM, checkIn: getTodayString() })
       toast.success('Reservation created successfully')
     },
-    onError: (err: Error) => {
+    onError: (err: any) => {
+      if (err.message === 'CONFLICT' && err.conflict) {
+        setConflictData(err.conflict)
+        setConflictOpen(true)
+        return
+      }
       toast.error(err.message || 'Failed to create reservation')
     },
   })
@@ -526,9 +598,13 @@ export function ReservationsView() {
     navigateTo('front-desk', 'guest-ledger')
   }
 
+  const canCancel = (status: string) => !['cancelled', 'checked_out', 'checked_in'].includes(status)
+
   const handleCancel = (reservation: Reservation) => {
-    updateMutation.mutate({ id: reservation.id, status: 'cancelled' })
-    toast.success('Reservation cancelled')
+    if (!canCancel(reservation.status)) return
+    updateMutation.mutate({ id: reservation.id, status: 'cancelled' }, {
+      onSuccess: () => toast.success('Booking cancelled'),
+    })
   }
 
   const handleNoShow = (reservation: Reservation) => {
@@ -1003,15 +1079,21 @@ export function ReservationsView() {
         <CardContent className="p-0">
           <div className="rounded-md">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-card shadow-[0_1px_2px_0_rgb(0_0_0/0.05)] dark:shadow-[0_1px_2px_0_rgb(0_0_0/0.3)]">
                 <TableRow>
-                  <TableHead className="w-[120px]">Confirmation #</TableHead>
+                  <TableHead className="w-[40px] pl-4">
+                    <Checkbox
+                      checked={reservations.length > 0 && selectedIds.size === reservations.length}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
+                  <TableHead className="w-[140px]">Reservation #</TableHead>
                   <TableHead className="min-w-[180px]">Guest</TableHead>
                   <TableHead className="w-[80px]">Room</TableHead>
-                  <TableHead className="w-[100px]">Check-in</TableHead>
-                  <TableHead className="w-[100px]">Check-out</TableHead>
+                  <TableHead className="w-[100px] hidden md:table-cell">Check-in</TableHead>
+                  <TableHead className="w-[100px] hidden md:table-cell">Check-out</TableHead>
                   <TableHead className="w-[110px]">Status</TableHead>
-                  <TableHead className="w-[90px]">Source</TableHead>
+                  <TableHead className="w-[90px] hidden lg:table-cell">Source</TableHead>
                   <TableHead className="w-[100px] text-right">Amount</TableHead>
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
@@ -1020,6 +1102,7 @@ export function ReservationsView() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
+                      <TableCell><Skeleton className="h-4 w-4" /></TableCell>
                       {Array.from({ length: 9 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
@@ -1029,7 +1112,7 @@ export function ReservationsView() {
                   ))
                 ) : reservations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <CalendarRange className="size-8 text-muted-foreground/50" />
                         <span>No reservations found</span>
@@ -1040,14 +1123,20 @@ export function ReservationsView() {
                   reservations.map((res) => (
                     <TableRow
                       key={res.id}
-                      className="cursor-pointer hover:bg-muted/50"
+                      className={cn("cursor-pointer hover:bg-muted/50", selectedIds.has(res.id) && "bg-primary/5")}
                       onClick={() => {
                         setSelectedReservation(res)
                         setDetailOpen(true)
                       }}
                     >
+                      <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(res.id)}
+                          onCheckedChange={() => toggleSelect(res.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono text-xs font-medium">
-                        {res.confirmationNo}
+                        {res.reservationNumber || res.confirmationNo}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -1093,12 +1182,12 @@ export function ReservationsView() {
                           <span className="text-amber-600 dark:text-amber-400 text-xs">Unassigned</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-xs">{formatDate(res.checkIn)}</TableCell>
-                      <TableCell className="text-xs">{formatDate(res.checkOut)}</TableCell>
+                      <TableCell className="text-xs hidden md:table-cell">{formatDate(res.checkIn)}</TableCell>
+                      <TableCell className="text-xs hidden md:table-cell">{formatDate(res.checkOut)}</TableCell>
                       <TableCell>
                         <StatusBadge status={res.status} />
                       </TableCell>
-                      <TableCell className="text-xs capitalize">{res.source?.replace('_', ' ')}</TableCell>
+                      <TableCell className="text-xs capitalize hidden lg:table-cell">{res.source?.replace('_', ' ')}</TableCell>
                       <TableCell className="text-right font-medium">
                         {formatCurrency(res.totalAmount)}
                       </TableCell>
@@ -1140,21 +1229,18 @@ export function ReservationsView() {
                             <DropdownMenuItem onClick={() => handleViewLedger(res)}>
                               <BookOpen className="size-4 mr-2" /> View Guest Ledger
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleCancel(res)} variant="destructive">
-                              <XCircle className="size-4 mr-2" /> Cancel
-                            </DropdownMenuItem>
-                            {res.status === 'confirmed' && (
-                              <DropdownMenuItem onClick={() => handleNoShow(res)}>
-                                <UserX className="size-4 mr-2" /> Mark No-Show
-                              </DropdownMenuItem>
-                            )}
-                            {(res.status === 'cancelled' || res.status === 'draft') && (
+                            {canCancel(res.status) && (
                               <>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => openDeleteDialog(res)} variant="destructive">
-                                  <Trash2 className="size-4 mr-2" /> Delete
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleCancel(res) }} className="text-red-600 focus:text-red-600">
+                                  <XCircle className="size-4 mr-2" /> Cancel Booking
                                 </DropdownMenuItem>
                               </>
+                            )}
+                            {res.status === 'confirmed' && (
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleNoShow(res) }}>
+                                <UserX className="size-4 mr-2" /> Mark No-Show
+                              </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -1168,6 +1254,38 @@ export function ReservationsView() {
         </CardContent>
       </Card>
 
+      {/* ─── Bulk Action Bar ───────────────────────────────────────── */}
+      {selectedIds.size > 0 && (
+        <div className="mt-2 flex items-center justify-between rounded-lg border bg-background p-3 shadow-lg">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              className="text-xs"
+              onClick={() => {
+                const cancellable = Array.from(selectedIds).filter((id) => {
+                  const r = reservations.find((res) => res.id === id)
+                  return r && canCancel(r.status)
+                })
+                if (cancellable.length === 0) {
+                  toast.info('No cancellable reservations selected')
+                  return
+                }
+                bulkCancelMutation.mutate(cancellable)
+              }}
+              disabled={bulkCancelMutation.isPending}
+            >
+              <XCircle className="size-3.5 mr-1.5" />
+              {bulkCancelMutation.isPending ? 'Cancelling...' : 'Cancel Booking'}
+            </Button>
+            <Button size="sm" variant="outline" className="text-xs" onClick={() => setSelectedIds(new Set())}>
+              Deselect All
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ─── Reservation Detail Dialog ──────────────────────────────── */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
@@ -1175,7 +1293,7 @@ export function ReservationsView() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-3">
-                  Reservation {selectedReservation.confirmationNo}
+                  Reservation {selectedReservation.reservationNumber || selectedReservation.confirmationNo}
                   <StatusBadge status={selectedReservation.status} />
                 </DialogTitle>
                 <DialogDescription>Detailed reservation information.</DialogDescription>
@@ -1755,7 +1873,7 @@ export function ReservationsView() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-muted-foreground text-xs">Confirmation #</span>
-                    <p className="font-mono font-bold">{selectedReservation.confirmationNo}</p>
+                    <p className="font-mono font-bold">{selectedReservation.reservationNumber || selectedReservation.confirmationNo}</p>
                   </div>
                   <div>
                     <span className="text-muted-foreground text-xs">Status</span>
@@ -1860,6 +1978,58 @@ export function ReservationsView() {
             <Button onClick={handlePrint}>
               <Printer className="size-4 mr-1.5" /> Print
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Room/Date Conflict Dialog ──────────────────────────────── */}
+      <Dialog open={conflictOpen} onOpenChange={setConflictOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="size-5" />
+              Reservation Conflict
+            </DialogTitle>
+            <DialogDescription>
+              This room already has an active reservation for the selected dates.
+            </DialogDescription>
+          </DialogHeader>
+          {conflictData && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20 p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Reservation #</span>
+                  <span className="font-mono font-medium">{conflictData.reservationNumber || conflictData.confirmationNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Guest</span>
+                  <span className="font-medium">{conflictData.guestName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Room</span>
+                  <span className="font-mono font-bold">{conflictData.roomNumber}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Check-in</span>
+                  <span>{formatDate(conflictData.checkIn)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Check-out</span>
+                  <span>{formatDate(conflictData.checkOut)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status</span>
+                  <StatusBadge status={conflictData.status} />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Please choose a different room or adjust the dates to avoid this conflict.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setConflictOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
