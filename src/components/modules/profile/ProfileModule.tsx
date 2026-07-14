@@ -207,7 +207,7 @@ function PersonalInfoTab() {
       return apiFetch('/api/auth/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user?.id, ...data }),
+        body: JSON.stringify(data),
       })
     },
     onSuccess: (_data, variables) => {
@@ -515,7 +515,7 @@ function EmploymentDetailsTab() {
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null
-      return apiFetch(`/api/auth/profile?userId=${user.id}`)
+      return apiFetch('/api/auth/profile')
     },
     enabled: !!user?.id,
   })
@@ -701,13 +701,14 @@ function SecurityTab() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: user?.email,
           currentPassword: passwords.currentPassword,
           newPassword: passwords.newPassword,
         }),
       })
-      toast.success('Password changed successfully')
+      toast.success('Password changed. Please sign in again.')
       setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      // Server invalidates all sessions — log out locally
+      setTimeout(() => logout(), 1500)
     } catch {
       toast.error('Failed to change password')
     } finally {
@@ -737,12 +738,10 @@ function SecurityTab() {
   const handleClearSessions = async () => {
     try {
       // Log activity
-      await fetch('/api/auth/activity-log', {
+      await apiFetch('/api/auth/activity-log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user?.id,
-          userName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User',
           action: 'Clear Sessions',
           module: 'Security',
           details: 'User cleared all sessions and logged out',
@@ -1300,7 +1299,6 @@ function ActivityLogTab() {
     queryFn: async () => {
       if (!user?.id) return { logs: [], stats: { total: 0, logins: 0, today: 0 }, modules: [] }
       const params = new URLSearchParams({
-        userId: user.id,
         limit: '50',
         ...(filter !== 'all' ? { module: filter } : {}),
       })

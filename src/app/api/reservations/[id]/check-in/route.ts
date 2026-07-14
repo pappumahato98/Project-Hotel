@@ -143,7 +143,6 @@ export async function POST(
     return NextResponse.json({ reservation: updatedReservation })
   } catch (error) {
     console.error('Check-in error:', error)
-    const msg = error instanceof Error ? error.message : 'Failed to check in reservation'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to check in reservation' }, { status: 500 })
   }
 }

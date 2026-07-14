@@ -1,16 +1,25 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
-// GET /api/auth/activity-log?userId=xxx&limit=50&module=xxx — Fetch activity log
+// GET /api/auth/activity-log — Fetch activity log
+// Users can only see their own logs; admins can see all or filter by userId
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+
   try {
     const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId')
     const limit = parseInt(searchParams.get('limit') ?? '50', 10)
     const module_ = searchParams.get('module')
 
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
+    // Non-admin users can only see their own logs
+    // Admins can optionally pass userId to view another user's logs
+    let userId: string
+    if (auth.user.role === 'admin' && searchParams.get('userId')) {
+      userId = searchParams.get('userId')!
+    } else {
+      userId = auth.user.userId
     }
 
     const where: Record<string, unknown> = { userId }
@@ -58,22 +67,26 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/auth/activity-log — Log an activity
+// Uses session-derived userId; ignores any userId in the body
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+
   try {
     const body = await req.json()
-    const { userId, userName, action, module, details, ipAddress } = body
+    const { action, module, details, ipAddress } = body
 
-    if (!userId || !userName || !action) {
+    if (!action) {
       return NextResponse.json(
-        { error: 'userId, userName, and action are required' },
+        { error: 'action is required' },
         { status: 400 }
       )
     }
 
     const log = await db.activityLog.create({
       data: {
-        userId,
-        userName,
+        userId: auth.user.userId, // Session-derived, not from body
+        userName: `${auth.user.firstName} ${auth.user.lastName}`.trim() || auth.user.email,
         action,
         module: module ?? 'General',
         details: details ?? null,

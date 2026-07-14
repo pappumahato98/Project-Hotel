@@ -148,7 +148,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ document }, { status: 201 })
   } catch (error) {
     console.error('Create guest document error:', error)
-    const msg = error instanceof Error ? error.message : 'Failed to create guest document'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create guest document' }, { status: 500 })
   }
 }

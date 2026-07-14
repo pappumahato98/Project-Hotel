@@ -348,7 +348,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reservation }, { status: 201 })
   } catch (error) {
     console.error('Create reservation error:', error)
-    const msg = error instanceof Error ? error.message : 'Failed to create reservation'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create reservation' }, { status: 500 })
   }
 }

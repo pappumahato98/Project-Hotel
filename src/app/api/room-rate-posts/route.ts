@@ -164,8 +164,7 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
   } catch (error) {
     console.error('Create room rate post error:', error)
-    const msg = error instanceof Error ? error.message : 'Failed to create room rate post'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to create room rate post' }, { status: 500 })
   }
 }
 

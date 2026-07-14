@@ -1,24 +1,39 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash } from 'crypto'
-
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
-}
-
-function verifyPassword(password: string, hashedPassword: string): boolean {
-  const hash = hashPassword(password)
-  return hash === hashedPassword
-}
+import { verifyPassword, hashPassword, isLegacyHash, destroyAllUserSessions, passwordChangeLimiter, logSecurityEvent } from '@/lib/security'
+import { requireAuth, getClientIp, getClientUA } from '@/lib/security/auth-helpers'
 
 export async function PUT(req: NextRequest) {
+  // Require authenticated session
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+
+  // Rate limiting by IP
+  const ip = getClientIp(req)
+  const rateResult = passwordChangeLimiter(ip)
+  if (!rateResult.success) {
+    await logSecurityEvent({
+      type: 'rate_limit_exceeded', level: 'warning',
+      userId: auth.user.userId, email: auth.user.email,
+      ipAddress: ip, path: '/api/auth/password', method: 'PUT',
+      details: `Password change rate limit exceeded for user ${auth.user.email}`,
+    })
+    return NextResponse.json(
+      { error: 'Too many password change attempts. Try again later.', retryAfter: Math.ceil((rateResult.resetAt - Date.now()) / 1000) },
+      { status: 429 }
+    )
+  }
+
   try {
     const body = await req.json()
-    const { email, currentPassword, newPassword } = body
+    const { currentPassword, newPassword } = body
 
-    if (!email || !currentPassword || !newPassword) {
+    // Use session-derived identity — ignore email in body
+    const email = auth.user.email
+
+    if (!currentPassword || !newPassword) {
       return NextResponse.json(
-        { error: 'Email, current password, and new password are required' },
+        { error: 'Current password and new password are required' },
         { status: 400 }
       )
     }
@@ -31,14 +46,11 @@ export async function PUT(req: NextRequest) {
     }
 
     const user = await db.authUser.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { id: auth.user.userId },
     })
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     if (!user.active) {
@@ -48,34 +60,41 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    const valid = verifyPassword(currentPassword, user.password)
+    const valid = await verifyPassword(currentPassword, user.password)
     if (!valid) {
+      await logSecurityEvent({
+        type: 'password_change_failure', level: 'warning',
+        userId: user.id, email: user.email,
+        ipAddress: ip, path: '/api/auth/password', method: 'PUT',
+        details: 'Password change attempt with incorrect current password',
+      })
       return NextResponse.json(
         { error: 'Current password is incorrect' },
         { status: 401 }
       )
     }
 
-    const newHashedPassword = hashPassword(newPassword)
+    // Hash new password with bcrypt
+    const newHashedPassword = await hashPassword(newPassword)
 
     await db.authUser.update({
       where: { id: user.id },
       data: { password: newHashedPassword },
     })
 
-    // Log password change activity
-    await db.activityLog.create({
-      data: {
-        userId: user.id,
-        userName: `${user.firstName} ${user.lastName}`.trim() || user.email,
-        action: 'Change Password',
-        module: 'Security',
-        details: 'User changed their account password',
-      },
+    // Destroy ALL sessions for this user (force re-login on all devices)
+    await destroyAllUserSessions(user.id)
+
+    await logSecurityEvent({
+      type: 'password_change', level: 'info',
+      userId: user.id, email: user.email,
+      ipAddress: ip, userAgent: getClientUA(req),
+      path: '/api/auth/password', method: 'PUT',
+      details: 'Password changed successfully — all sessions invalidated',
     })
 
     return NextResponse.json({
-      message: 'Password changed successfully',
+      message: 'Password changed successfully. Please log in again.',
     })
   } catch (error) {
     console.error('Password change error:', error)

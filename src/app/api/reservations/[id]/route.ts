@@ -222,8 +222,7 @@ export async function PATCH(
     return NextResponse.json({ reservation })
   } catch (error) {
     console.error('Update reservation error:', error)
-    const msg = error instanceof Error ? error.message : 'Failed to update reservation'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update reservation' }, { status: 500 })
   }
 }
 

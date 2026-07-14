@@ -1599,12 +1599,14 @@ function SecurityTab() {
       await apiFetch('/api/auth/password', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user?.email, currentPassword, newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       })
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      toast.success('Password changed successfully')
+      toast.success('Password changed. Please sign in again.')
+      // Server invalidates all sessions — log out locally
+      setTimeout(() => { useAuthStore.getState().logout() }, 1500)
     } catch {
       toast.error('Failed to change password. Please try again.')
     }

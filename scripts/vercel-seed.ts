@@ -8,10 +8,10 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import { createClient } from '@libsql/client'
-import { createHash } from 'crypto'
+import bcrypt from 'bcryptjs'
 
-function hashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10)
 }
 
 function createDb() {
@@ -82,7 +82,7 @@ async function main() {
 
     // ─── AUTH USERS ──────────────────────────────────────
     const password = 'password123'
-    const hashed = hashPassword(password)
+    const hashed = await hashPassword(password)
     const users = [
       { email: 'admin@meridian.com', firstName: 'Admin', lastName: 'User', role: 'admin', department: 'Management', position: 'Administrator' },
       { email: 'gm@meridian.com', firstName: 'Raj', lastName: 'Sharma', role: 'gm', department: 'Management', position: 'General Manager' },
@@ -98,7 +98,7 @@ async function main() {
     console.log(`  ✅ ${users.length} Auth Users (password: ${password})`)
 
     // ─── SETTINGS (minimal defaults) ─────────────────────
-    await db.setting.createMany({
+    await db.systemSetting.createMany({
       data: [
         { key: 'hotel_name', value: 'Meridian Hotel', category: 'general' },
         { key: 'currency', value: 'NPR', category: 'general' },

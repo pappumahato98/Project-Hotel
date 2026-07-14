@@ -1,18 +1,16 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, getClientIp } from '@/lib/security/auth-helpers'
+import { logSecurityEvent } from '@/lib/security'
 
-// GET /api/auth/profile?userId=xxx — Fetch user profile
+// GET /api/auth/profile — Fetch current user's profile (session-derived)
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+
   try {
-    const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId')
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
-    }
-
     const user = await db.authUser.findUnique({
-      where: { id: userId },
+      where: { id: auth.user.userId },
       select: {
         id: true,
         email: true,
@@ -58,15 +56,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PUT /api/auth/profile — Update user profile
+// PUT /api/auth/profile — Update current user's own profile (session-derived)
 export async function PUT(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+
   try {
     const body = await req.json()
-    const { userId, ...updates } = body
-
-    if (!userId) {
-      return NextResponse.json({ error: 'userId is required' }, { status: 400 })
-    }
+    // Use session-derived userId — ignore any userId in the body
+    const userId = auth.user.userId
 
     // Allowed fields for profile update
     const allowedFields = [
@@ -77,8 +75,8 @@ export async function PUT(req: NextRequest) {
 
     const data: Record<string, string | boolean | null> = {}
     for (const key of allowedFields) {
-      if (key in updates) {
-        data[key] = updates[key]
+      if (key in body) {
+        data[key] = body[key]
       }
     }
 
@@ -95,7 +93,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Check for email uniqueness if changing email
-    if (data.email && data.email !== '') {
+    if (data.email && String(data.email).trim() !== '') {
       const existing = await db.authUser.findFirst({
         where: { email: String(data.email).toLowerCase(), NOT: { id: userId } },
       })

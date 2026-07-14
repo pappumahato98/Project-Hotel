@@ -118,8 +118,7 @@ export async function PATCH(
     return NextResponse.json({ document })
   } catch (error) {
     console.error('Update guest document error:', error)
-    const msg = error instanceof Error ? error.message : 'Failed to update guest document'
-    return NextResponse.json({ error: msg }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to update guest document' }, { status: 500 })
   }
 }
 
