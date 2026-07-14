@@ -212,3 +212,23 @@ Stage Summary:
 - Local dev still uses file:db/custom.db (zero behavior change)
 - Vercel deployment ready: just set DATABASE_URL to Turso URL in Vercel env vars
 - Free Turso tier: 9GB storage, 25M reads/mo, 3M writes/mo
+
+---
+Task ID: 5
+Agent: main
+Task: Full automation — one-command setup + auto-deploy pipeline
+
+Work Log:
+- Created `scripts/vercel-seed.ts`: Turso-aware auto-seed that creates Property, 4 Room Types, 48 Rooms, 6 Auth Users, Settings — skips if DB has data
+- Created `scripts/setup.sh`: one-command script that installs Turso CLI, creates DB in Singapore, pushes schema, seeds data, installs Vercel CLI, links project, sets DATABASE_URL env var, triggers first deploy
+- Updated `vercel.json` build pipeline: `prisma generate → prisma db push → tsx vercel-seed → next build`
+- Added `tsx@4.19.0` to devDependencies (required for running vercel-seed in build)
+- Added npm scripts: `setup`, `seed:vercel`, `vercel-build`
+- Full pipeline verified locally: schema sync (already in sync) → seed skip (data exists) → build 0 errors
+- Pushed: 9420383
+
+Stage Summary:
+- 5 files changed, 356 insertions
+- Every `git push` → GitHub → Vercel auto-builds with schema sync + auto-seed
+- User runs `bun run setup` once → Turso + Vercel fully configured
+- Free tier: Turso (9GB, 25M reads/mo) + Vercel (100GB bandwidth, serverless)
