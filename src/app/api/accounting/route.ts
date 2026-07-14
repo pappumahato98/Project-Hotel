@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Settings helper ──────────────────────────────────────
 async function getSettingsMap() {
@@ -15,7 +16,9 @@ async function getSettingsMap() {
   return map
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req, ['admin', 'gm'])
+  if (auth instanceof NextResponse) return auth
   try {
     // Ledger accounts
     const accounts = await db.ledgerAccount.findMany({
@@ -63,7 +66,9 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request, ['admin', 'gm'])
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const { date, description, reference, createdBy, lines } = body

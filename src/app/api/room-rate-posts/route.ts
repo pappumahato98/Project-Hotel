@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // Helper: read tax/service charge settings from DB
 async function getSettingsMap() {
@@ -20,7 +21,9 @@ async function getSettingsMap() {
 }
 
 // POST /api/room-rate-posts — Create room rate post(s)
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const {
@@ -167,7 +170,9 @@ export async function POST(request: Request) {
 }
 
 // GET /api/room-rate-posts — List rate posts
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const reservationId = searchParams.get('reservationId')

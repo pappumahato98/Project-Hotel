@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request, ['admin', 'gm'])
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     const entry = await db.journalEntry.findUnique({
@@ -31,9 +34,11 @@ export async function GET(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request, ['admin', 'gm'])
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     const body = await request.json()
@@ -65,9 +70,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request, ['admin', 'gm'])
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     await db.journalEntry.delete({ where: { id } })

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Settings helper ──────────────────────────────────────
 async function getSettingsMap() {
@@ -16,9 +17,11 @@ async function getSettingsMap() {
 
 // POST: Post a new charge or record a payment
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     const body = await request.json()
@@ -142,9 +145,11 @@ export async function POST(
 
 // DELETE: Void a transaction or payment (soft delete)
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     const body = await request.json()
@@ -248,9 +253,11 @@ export async function DELETE(
 }
 
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     const body = await request.json()

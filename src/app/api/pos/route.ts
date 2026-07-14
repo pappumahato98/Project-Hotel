@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface TableItem {
@@ -250,7 +251,9 @@ const GUEST_RESERVATIONS = [
 ]
 
 // ─── GET Handler ─────────────────────────────────────────────────────
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   const { searchParams } = new URL(request.url)
   const section = searchParams.get('section') ?? 'all'
 
@@ -442,7 +445,9 @@ export async function GET(request: Request) {
 }
 
 // ─── POST Handler - Create Order ────────────────────────────────────
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     // ─── Fetch system settings ─────────────────────────────
     const dbSettings = await db.systemSetting.findMany()

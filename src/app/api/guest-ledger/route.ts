@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Default tax rate ────────────────────────────────────
 const DEFAULT_TAX_RATE = 13
 
 // ─── GET: Aggregate guest ledger across all folios ───────
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const guestId = searchParams.get('guestId')
@@ -231,7 +234,9 @@ export async function GET(request: Request) {
 }
 
 // ─── POST: Post a charge or payment to a guest's open folio ─
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const { folioId, type, transactionType, description, amount, paymentMethod, reference, cardType } = body

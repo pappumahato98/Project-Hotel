@@ -1,8 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
   try {
     // Banquet orders are stored as JSON in Event notes
     // First try to load from DB Events with banquet order data
@@ -120,7 +123,9 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const { eventId, eventName, items, status, orderDate } = body
@@ -149,7 +154,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const { eventId, status, items, orderDate } = body

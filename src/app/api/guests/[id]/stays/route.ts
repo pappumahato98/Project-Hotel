@@ -1,11 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // GET /api/guests/[id]/stays — Fetch guest's past and current stays
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
 

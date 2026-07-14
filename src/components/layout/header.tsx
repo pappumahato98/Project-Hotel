@@ -421,7 +421,13 @@ function UserMenu() {
 
   const roleBadgeColor = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Invalidate session on server
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
+    } catch {
+      // Server unreachable — clear local state anyway
+    }
     logout()
     toast.success('Signed out successfully')
   }

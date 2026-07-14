@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Default Settings ───────────────────────────────────────────
 const DEFAULT_SETTINGS: Record<string, unknown> = {
@@ -253,7 +254,9 @@ async function seedDefaults() {
 }
 
 // ─── GET: Fetch all settings as flat key → parsed value ────────
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
   try {
     const count = await db.systemSetting.count()
 
@@ -276,7 +279,9 @@ export async function GET() {
 }
 
 // ─── PUT: Upsert settings and return full settings object ───────
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body: Record<string, unknown> = await request.json()
 

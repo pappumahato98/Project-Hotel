@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Date helpers ─────────────────────────────────────────
 function toDateOnly(d: Date): string {
@@ -14,7 +15,9 @@ function toDateOnly(d: Date): string {
 // Fetches ALL rate postings across the property with filters
 // Query params: status, dateFrom, dateTo, roomId, search, page, limit
 // ──────────────────────────────────────────────────────────
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
 

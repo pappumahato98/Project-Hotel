@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Settings helper ──────────────────────────────────────
 async function getSettingsMap() {
@@ -87,7 +88,9 @@ async function recalcReservationTotals(reservationId: string) {
 // ──────────────────────────────────────────────────────────
 // GET /api/room-rate-posting?reservationId=xxx
 // ──────────────────────────────────────────────────────────
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const reservationId = searchParams.get('reservationId')
@@ -139,7 +142,9 @@ export async function GET(request: Request) {
 // ──────────────────────────────────────────────────────────
 // POST /api/room-rate-posting
 // ──────────────────────────────────────────────────────────
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const { reservationId, dates, postedBy } = body as {
@@ -374,7 +379,9 @@ export async function POST(request: Request) {
 // ──────────────────────────────────────────────────────────
 // DELETE /api/room-rate-posting?id=xxx
 // ──────────────────────────────────────────────────────────
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')

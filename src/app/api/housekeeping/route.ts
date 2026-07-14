@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // Force recompile for new Prisma client model (HkInspectionAudit)
 
@@ -17,7 +18,9 @@ async function getSettingsMap() {
   return map
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
@@ -106,7 +109,9 @@ export async function GET(request: Request) {
 }
 
 // POST: Various housekeeping actions
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const { action } = body

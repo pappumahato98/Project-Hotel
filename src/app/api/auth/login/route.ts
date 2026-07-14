@@ -1,13 +1,8 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash, randomUUID } from 'crypto'
-
-// Simple password verification using SHA-256 hash comparison
-// (The seed script also stores this same hash format)
-function verifyPassword(password: string, hashedPassword: string): boolean {
-  const hash = createHash('sha256').update(password).digest('hex')
-  return hash === hashedPassword
-}
+import { verifyPassword, hashPassword, isLegacyHash } from '@/lib/security'
+import { createSession, loginLimiter, logSecurityEvent } from '@/lib/security'
+import { getClientIp, getClientUA } from '@/lib/security/auth-helpers'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,11 +16,32 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Rate limiting by IP
+    const ip = getClientIp(req)
+    const rateResult = loginLimiter(ip)
+    if (!rateResult.success) {
+      await logSecurityEvent({
+        type: 'rate_limit_exceeded', level: 'warning',
+        ipAddress: ip, path: '/api/auth/login', method: 'POST',
+        email: email.toLowerCase(),
+        details: `Login rate limit exceeded for IP: ${ip}`,
+      })
+      return NextResponse.json(
+        { error: 'Too many login attempts. Try again later.', retryAfter: Math.ceil((rateResult.resetAt - Date.now()) / 1000) },
+        { status: 429 }
+      )
+    }
+
     const user = await db.authUser.findUnique({
       where: { email: email.toLowerCase() },
     })
 
     if (!user) {
+      await logSecurityEvent({
+        type: 'auth_failure', level: 'info',
+        ipAddress: ip, path: '/api/auth/login', method: 'POST',
+        email: email.toLowerCase(), details: 'Login attempt with non-existent email',
+      })
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -39,8 +55,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const valid = verifyPassword(password, user.password)
+    const valid = await verifyPassword(password, user.password)
     if (!valid) {
+      await logSecurityEvent({
+        type: 'auth_failure', level: 'warning',
+        userId: user.id, email: user.email,
+        ipAddress: ip, path: '/api/auth/login', method: 'POST',
+        details: 'Login attempt with wrong password',
+      })
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -53,8 +75,25 @@ export async function POST(req: NextRequest) {
       data: { lastLoginAt: new Date() },
     })
 
-    // Generate session token
-    const token = randomUUID()
+    // Migrate legacy SHA-256 hash to bcrypt in background (don't block response)
+    if (isLegacyHash(user.password)) {
+      hashPassword(password).then(hashed =>
+        db.authUser.update({ where: { id: user.id }, data: { password: hashed } }).catch(() => {})
+      )
+    }
+
+    // Create server-side session
+    const token = await createSession(user, {
+      ipAddress: ip,
+      userAgent: getClientUA(req),
+    })
+
+    await logSecurityEvent({
+      type: 'auth_success', level: 'info',
+      userId: user.id, email: user.email,
+      ipAddress: ip, path: '/api/auth/login', method: 'POST',
+      details: `User logged in successfully (role: ${user.role})`,
+    })
 
     const { password: _, ...safeUser } = user
 

@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 import { adToBS } from '@/lib/nepali-calendar'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Nepali Fiscal Year Helpers ─────────────────────────────
 // FY starts Shrawan (BS month 4). Short form: "82/83" = FY 2082/2083
@@ -50,7 +51,9 @@ async function getSettingsMap() {
   return map
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
@@ -184,7 +187,9 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const {

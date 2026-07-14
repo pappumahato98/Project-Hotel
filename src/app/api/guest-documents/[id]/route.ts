@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // Fields allowed to be updated via PATCH
 const ALLOWED_FIELDS = new Set([
@@ -23,9 +24,11 @@ const DATE_FIELDS = ['docExpiry', 'issueDate'] as const
  * Fetch a single guest document by ID.
  */
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
 
@@ -60,9 +63,11 @@ export async function GET(
  * Update guest document fields.
  */
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
     const body = await request.json()
@@ -123,9 +128,11 @@ export async function PATCH(
  * Delete a guest document.
  */
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
 

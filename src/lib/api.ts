@@ -1,18 +1,61 @@
 /**
  * Safe fetch wrapper that handles non-JSON responses gracefully.
+ * Automatically attaches Bearer token from auth store.
  * Prevents "Unexpected token '<', '<!DOCTYPE'... is not valid JSON" errors
  * when the backend server is temporarily unavailable.
  */
+
+// Cached reference to auth store (lazy to avoid import issues in SSR)
+let _getToken: (() => string | null) | null = null
+
+/** Call once from client to register the token getter */
+export function initAuthFetch(getToken: () => string | null) {
+  _getToken = getToken
+}
+
 export async function apiFetch<T = unknown>(
   url: string,
-  options?: RequestInit
+  options: RequestInit = {}
 ): Promise<T> {
+  // Skip auth for login endpoint
+  const isLoginRequest = url === '/api/auth/login'
+
+  // Attach Bearer token if available
+  if (!isLoginRequest && _getToken) {
+    const token = _getToken()
+    if (token) {
+      options.headers = {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      }
+    }
+  }
+
   let res: Response
   try {
     res = await fetch(url, options)
   } catch {
     throw new Error('Server unavailable. Please try again.')
   }
+
+  // Handle 401 — session expired, redirect to login
+  if (res.status === 401 && !isLoginRequest && typeof window !== 'undefined') {
+    // Clear stale auth state
+    try {
+      const { useAuthStore } = await import('@/lib/store')
+      const store = useAuthStore.getState()
+      if (store.isAuthenticated) {
+        store.logout()
+        // Only redirect if not already on login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.reload()
+        }
+      }
+    } catch {
+      // Store import failed, continue with error
+    }
+  }
+
   if (!res.ok) {
     const contentType = res.headers.get('content-type') || ''
     if (contentType.includes('text/html')) {
@@ -25,6 +68,10 @@ export async function apiFetch<T = unknown>(
       // JSON parse failed — fall through to generic message
     }
     if (errData?.error && typeof errData.error === 'string') {
+      // Add retryAfter info if present (rate limiting)
+      if (errData.retryAfter && typeof errData.retryAfter === 'number') {
+        throw new Error(`${errData.error} Try again in ${errData.retryAfter}s.`)
+      }
       throw new Error(errData.error)
     }
     throw new Error(`Request failed (HTTP ${res.status})`)

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Valid document types ─────────────────────────────────
 const VALID_DOC_TYPES = new Set([
@@ -14,7 +15,9 @@ const VALID_DOC_TYPES = new Set([
  * GET /api/guest-documents?reservationId=xxx
  * Fetch all guest documents for a reservation, sorted by createdAt desc.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const { searchParams } = new URL(request.url)
     const reservationId = searchParams.get('reservationId')
@@ -58,7 +61,9 @@ export async function GET(request: Request) {
  * POST /api/guest-documents
  * Create a new guest document record.
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
     const {

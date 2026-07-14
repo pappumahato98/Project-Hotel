@@ -260,3 +260,49 @@ Stage Summary:
 - Production build compiles successfully (54 pages + 66 API routes, 0 errors)
 - Sandbox limitation: dev server too heavy for 4GB RAM with browser; production server works
 - Project is verified and ready for Vercel deployment
+
+---
+Task ID: 7
+Agent: main + 4 subagents
+Task: Build full security system — authentication, authorization, RBAC, rate limiting, audit logging, error leakage fix
+
+Work Log:
+- Security audit: 58 API routes, ZERO had auth, ZERO had RBAC, passwords used unsalted SHA-256
+- Added Session + SecurityEvent models to Prisma schema, pushed to DB
+- Installed bcryptjs@3.0.3 for secure password hashing (bcrypt cost 10, auto-migrates legacy SHA-256)
+- Created src/lib/security/ (6 files):
+  - session-store.ts: In-memory cache + DB-backed sessions, 24h expiry, 5-session-per-user cap
+  - password.ts: bcrypt hash/verify + legacy SHA-256 migration support
+  - rate-limiter.ts: In-memory rate limiter (login: 5/min, API: 100/min, password: 3/15min)
+  - audit.ts: Security event logging (14 event types, 3 severity levels)
+  - auth-helpers.ts: requireAuth(), requireRole(), getClientIp(), getClientUA()
+  - index.ts: Barrel exports
+- Fixed all 6 auth routes:
+  - login: bcrypt + server sessions + rate limiting + security audit logging
+  - logout: Destroys server-side session
+  - me: Uses session-derived userId (not query param)
+  - profile: Uses session-derived userId (not body param)
+  - password: Requires session + rate limiting + destroys all user sessions on change
+  - activity-log: Requires session, users can only see own logs (admin can see all)
+- Updated src/lib/api.ts: Auto-attaches Bearer token from auth store to ALL apiFetch calls, handles 401 → auto-logout
+- Updated src/components/providers.tsx: Registers token getter with initAuthFetch()
+- Updated src/components/layout/header.tsx: Logout calls server endpoint to invalidate session
+- Applied requireAuth to ALL 64 business API routes (52 files):
+  - All routes: requireAuth(req) — returns 401 if no valid session
+  - settings/reset: requireAuth(req, ['admin']) — admin only
+  - payroll: requireAuth(req, ['admin', 'gm']) — admin/gm only
+  - accounting: requireAuth(req, ['admin', 'gm']) — admin/gm only
+  - employees POST/PATCH/DELETE: requireAuth(req, ['admin', 'gm']) — admin/gm only
+  - employees GET: requireAuth(req) — all authenticated roles
+- Fixed error message leakage in 8 routes (replaced error.message with generic messages)
+- Verified: lint 0 errors, build 0 errors, unauthenticated requests return 401
+
+Stage Summary:
+- 72 files created/modified
+- Security infrastructure: 6 new lib files, 2 new Prisma models
+- Auth: bcrypt password hashing, server-side sessions, Bearer token auth
+- Authorization: RBAC on 5 sensitive route groups, all other routes require authentication
+- Rate limiting: Login (5/min/IP), password change (3/15min/IP), API (100/min/IP)
+- Audit: 14 security event types logged to SecurityEvent table
+- Client: apiFetch auto-sends Bearer token, auto-logout on 401
+- Privacy: 8 error leakage points fixed

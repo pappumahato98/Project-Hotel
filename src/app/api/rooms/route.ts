@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Seed helper: only seeds if rooms table is empty ──────────
 async function ensureSeedData() {
@@ -188,7 +189,9 @@ async function ensureSeedData() {
   })
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
   try {
     await ensureSeedData()
 
