@@ -187,3 +187,28 @@ Stage Summary:
 - ReservationsView.tsx: -61 lines (orphaned delete code cleanup)
 - All 5 features verified working in browser
 - Pushed: 7e76d91
+
+---
+Task ID: 4
+Agent: main
+Task: Configure project for Vercel deployment
+
+Work Log:
+- Audited project: SQLite (file-based) incompatible with Vercel serverless (ephemeral FS)
+- No `postinstall` for Prisma, build script had local Docker commands, `experimental.cpus` conflicts with Vercel
+- Added `@libsql/client` + `@prisma/adapter-libsql` packages
+- Updated `src/lib/db.ts`: auto-detects Turso (libsql://) vs local SQLite (file:), uses adapter for cloud connections
+- Kept Prisma schema as `sqlite` provider (compatible with both local and Turso via adapter)
+- Created `vercel.json`: build command, security headers, sin1 region (Singapore, closest to Nepal)
+- Updated `package.json`: added `postinstall` (prisma generate), `vercel-build` script, fixed `build` to use standard `next build`, moved standalone to `build:standalone`
+- Updated `next.config.ts`: removed `experimental.cpus`, added `serverExternalPackages: ['@libsql/client']`, added `fs`/`path` fallbacks for client bundles
+- Created `.env.example` documenting DATABASE_URL formats (local file: vs Turso libsql://)
+- Updated `.gitignore`: track `.env.example`, ignore `tool-results/`
+- Verified: `bun run lint` clean, `next build` compiled in 20.1s with 0 errors (54 pages + 66 API routes)
+- Pushed: 8bf88aa
+
+Stage Summary:
+- 7 files changed, 183 insertions, 36 deletions
+- Local dev still uses file:db/custom.db (zero behavior change)
+- Vercel deployment ready: just set DATABASE_URL to Turso URL in Vercel env vars
+- Free Turso tier: 9GB storage, 25M reads/mo, 3M writes/mo
