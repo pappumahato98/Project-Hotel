@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   staticPageGenerationTimeout: 120,
   // Turbopack config (Next.js 16 default)
   turbopack: {},
-  // Webpack fallback config
+  // Webpack fallback config (used by Vercel / non-Turbopack builds)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.optimization = {
@@ -38,6 +38,17 @@ const nextConfig: NextConfig = {
         },
       }
     }
+    // Mark server-only packages as external for client bundles
+    if (!isServer) {
+      config.resolve = {
+        ...config.resolve,
+        fallback: {
+          ...(config.resolve?.fallback as Record<string, string>),
+          fs: false,
+          path: false,
+        },
+      }
+    }
     return config
   },
   allowedDevOrigins: [
@@ -45,9 +56,8 @@ const nextConfig: NextConfig = {
     '127.0.0.1',
     'localhost',
   ],
-  experimental: {
-    cpus: 1,
-  },
+  // Server config
+  serverExternalPackages: ['@libsql/client'],
 };
 
 export default nextConfig;
