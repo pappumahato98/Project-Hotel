@@ -394,7 +394,11 @@ export const useSettingsStore = create<SettingsState>()(
           set({ settings: { ...DEFAULT_SETTINGS, ...data }, _loaded: true, _loading: false })
           return data
         } catch (err) {
-          console.error('Failed to sync settings from backend:', err)
+          // 401 is expected when not authenticated — don't pollute console
+          const msg = err instanceof Error ? err.message : ''
+          if (!msg.includes('401') && !msg.includes('Authentication')) {
+            console.error('Failed to sync settings from backend:', err)
+          }
         }
         set({ _loading: false })
         return get().settings

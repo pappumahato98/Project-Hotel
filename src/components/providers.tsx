@@ -24,9 +24,22 @@ export function Providers({ children }: { children: React.ReactNode }) {
     initAuthFetch(() => useAuthStore.getState().token)
   }, [])
 
-  // Sync settings from backend once after mount
+  // Sync settings from backend once after mount — only when authenticated
   useEffect(() => {
-    useSettingsStore.getState().syncFromBackend()
+    const auth = useAuthStore.getState()
+    if (auth.isAuthenticated) {
+      useSettingsStore.getState().syncFromBackend()
+    }
+  }, [])
+
+  // Also sync settings after login
+  useEffect(() => {
+    const unsub = useAuthStore.subscribe((state, prev) => {
+      if (!prev.isAuthenticated && state.isAuthenticated) {
+        useSettingsStore.getState().syncFromBackend(true)
+      }
+    })
+    return unsub
   }, [])
 
   return (

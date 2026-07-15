@@ -367,3 +367,20 @@ Stage Summary:
 - Edited: src/components/auth/login-page.tsx (removed fake token fallback)
 - Dead code: src/lib/api-auth.ts (no imports, can be deleted later)
 - Login now works: server-side sessions + Bearer tokens flow end-to-end
+
+---
+Task ID: 10
+Agent: main
+Task: Fix "Console Error: Authentication required" on login page
+
+Work Log:
+- Root cause: `providers.tsx` called `useSettingsStore.getState().syncFromBackend()` on mount, even when user not authenticated
+- This triggered `apiFetch('/api/settings')` → 401 → `console.error('Failed to sync settings from backend:', err)`
+- Fix 1 (providers.tsx): Guarded `syncFromBackend()` with `isAuthenticated` check, added Zustand subscriber to sync after login
+- Fix 2 (store.ts): `syncFromBackend` catch block now suppresses console.error for 401/Authentication errors (safety net)
+- Verified: dev log shows zero `/api/settings` requests on page load, agent-browser shows zero console errors on login page
+
+Stage Summary:
+- 2 files changed: providers.tsx, store.ts
+- No more "Authentication required" console error on login page
+- Settings sync now happens: (a) on mount if already authenticated, or (b) after successful login via Zustand subscription
