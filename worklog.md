@@ -338,3 +338,32 @@ Stage Summary:
 - Zero code changes needed — everything was already in place from previous session
 - Production build clean (0 errors), lint clean (0 errors)
 - All 10 security test categories pass with 100% success rate
+
+---
+Task ID: 9
+Agent: main
+Task: Fix login not working
+
+Work Log:
+- Root cause: `src/middleware.ts` (old auth system) checked for `x-user-id` header and returned 401 on ALL API routes before route handlers could run
+- The new security system uses `Authorization: Bearer <token>` but middleware was still checking for `x-user-id`
+- Also found: login-page.tsx had demo fallback with fake tokens (`'demo-admin-token'`) that would pass auth store but fail on every API call (401 → auto-logout loop)
+- Fix 1: Deleted `src/middleware.ts` (redundant — every route already has requireAuth())
+- Fix 2: Removed demo fallback from login-page.tsx — login always goes through server API now
+- Fix 3: Removed unused `DEMO_USERS` constant from login-page.tsx
+- Fix 4: Cleaned up `src/lib/api-auth.ts` (dead code, no longer imported)
+- Verified via production server (curl):
+  - Unauthenticated → 401
+  - Admin login → token + dashboard data (44 rooms, 45% occ, NPR 201,080)
+  - Staff login → token + dashboard 200
+  - Staff RBAC → payroll blocked ("Insufficient permissions")
+  - Logout → token invalidated (401 on retry)
+  - GM login → legacy SHA-256 auto-migrated to bcrypt
+- Note: Next.js 16 deprecated `middleware.ts` in favor of `proxy.ts`. Removed entirely since redundant.
+- Production build: 0 errors
+
+Stage Summary:
+- Deleted: src/middleware.ts (old x-user-id auth gate blocking all requests)
+- Edited: src/components/auth/login-page.tsx (removed fake token fallback)
+- Dead code: src/lib/api-auth.ts (no imports, can be deleted later)
+- Login now works: server-side sessions + Bearer tokens flow end-to-end

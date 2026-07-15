@@ -18,27 +18,8 @@ export function LoginPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
-  // Fallback demo users — used ONLY when server is unreachable
-  const DEMO_USERS: Record<string, { user: { id: string; email: string; firstName: string; lastName: string; role: string; department: string; position: string; avatarUrl: string | null; phone: string | null; dateOfBirth: string | null; gender: string | null; address: string | null; city: string | null; country: string | null; nationality: string | null; idType: string | null; idNumber: string | null; twoFactorEnabled: boolean; lastLoginAt: string | null; createdAt: string }; token: string }> = {
-    'admin@meridian.com': {
-      user: { id: 'demo-admin', email: 'admin@meridian.com', firstName: 'Admin', lastName: 'User', role: 'admin', department: 'Management', position: 'Administrator', avatarUrl: null, phone: null, dateOfBirth: null, gender: null, address: null, city: null, country: null, nationality: null, idType: null, idNumber: null, twoFactorEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() },
-      token: 'demo-admin-token',
-    },
-    'gm@meridian.com': {
-      user: { id: 'demo-gm', email: 'gm@meridian.com', firstName: 'Rajesh', lastName: 'Sharma', role: 'general_manager', department: 'Management', position: 'General Manager', avatarUrl: null, phone: null, dateOfBirth: null, gender: null, address: null, city: null, country: null, nationality: null, idType: null, idNumber: null, twoFactorEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() },
-      token: 'demo-gm-token',
-    },
-    'sunita@meridian.com': {
-      user: { id: 'demo-staff', email: 'sunita@meridian.com', firstName: 'Sunita', lastName: 'Thapa', role: 'front_desk', department: 'Front Office', position: 'Receptionist', avatarUrl: null, phone: null, dateOfBirth: null, gender: null, address: null, city: null, country: null, nationality: null, idType: null, idNumber: null, twoFactorEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() },
-      token: 'demo-staff-token',
-    },
-  }
-
-  // Demo login — tries server first, falls back to local data
+  // Demo login — always uses server (no offline fallback with fake tokens)
   const handleDemoLogin = async (demoEmail: string) => {
-    const demo = DEMO_USERS[demoEmail]
-    if (!demo) return
-
     setLoading(true)
     setEmail(demoEmail)
     setPassword('password123')
@@ -50,14 +31,12 @@ export function LoginPage() {
         body: JSON.stringify({ email: demoEmail, password: 'password123' }),
       })
       login(data.user, data.token)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Login failed'
+      setError(msg)
+    } finally {
       setLoading(false)
-      return
-    } catch {
-      // Server unreachable — use fallback
     }
-    // Fallback: use local demo data
-    login(demo.user, demo.token)
-    setLoading(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,19 +56,9 @@ export function LoginPage() {
       login(data.user, data.token)
       setLoading(false)
     } catch (err) {
-      // If aborted (timeout) or network error → try demo fallback
-      const demo = DEMO_USERS[trimmedEmail]
-      if (demo && password === 'password123') {
-        // Silent fallback — user doesn't see an error
-        login(demo.user, demo.token)
-        setLoading(false)
-      } else if (demo) {
-        setError('Server unreachable. Try the "Quick Demo Login" button below.')
-        setLoading(false)
-      } else {
-        setError('Network error. Please try again.')
-        setLoading(false)
-      }
+      const msg = err instanceof Error ? err.message : 'Login failed'
+      setError(msg)
+      setLoading(false)
     }
   }
 
