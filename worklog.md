@@ -384,3 +384,150 @@ Stage Summary:
 - 2 files changed: providers.tsx, store.ts
 - No more "Authentication required" console error on login page
 - Settings sync now happens: (a) on mount if already authenticated, or (b) after successful login via Zustand subscription
+
+---
+Task ID: 11
+Agent: general-purpose
+Task: Print/Export/Email/Stub function inventory
+
+Work Log:
+- Searched all 7 patterns across src/: window.print/handlePrint/printWindow, handleExport/handleDownload/downloadCsv/exportTo, handleEmail/sendEmail/emailFolio, toast.info, coming soon/not yet/not implemented/placeholder, TODO/FIXME/HACK, generateReport/handleReport
+- Read 5-line context for each match to categorize as REAL / PLACEHOLDER / MISSING / BROKEN
+- Checked for "In production, this would" comments indicating stub behavior
+- Verified lib/print.ts is dead code (exported but never imported)
+- Verified api/folio/[id]/email/route.ts exists but is never called from any client component
+
+Complete Inventory Table:
+
+### PRINT Functions (9 total)
+
+| # | Module | Feature | File:Line | Function | Status |
+|---|--------|---------|-----------|----------|--------|
+| 1 | Settlement | Print settlement list | SettlementView.tsx:168 | `handlePrint()` | PLACEHOLDER — bare `window.print()` prints entire page, not formatted data |
+| 2 | Guest Ledger | Print ledger | GuestLedgerView.tsx:879 | `handlePrint()` | PLACEHOLDER — bare `window.print()` prints entire page, not formatted data |
+| 3 | Folio | Print folio statement | FolioView.tsx:563 | `handlePrintFolio()` | REAL — opens new window with formatted monospace receipt HTML, calls window.print() |
+| 4 | Departures | Print departures list | DeparturesView.tsx:153 | `handlePrint()` | PLACEHOLDER — bare `window.print()` prints entire page, not formatted data |
+| 5 | Departures | Print checkout receipt | DeparturesView.tsx:454 | `handlePrintReceipt()` | REAL — opens new window with formatted monospace receipt |
+| 6 | Reservations | Print reservation | ReservationsView.tsx:673 | `handlePrint()` | PLACEHOLDER — bare `window.print()` prints entire page |
+| 7 | POS Daily Sales | Print report | DailySalesReportView.tsx:361 | `handlePrint()` | PLACEHOLDER — `setTimeout(() => toast.info('Print dialog would open here'), 500)` |
+| 8 | Shift Handover | Print handover | ShiftHandoverView.tsx:430 | inline `() => toast.info('Print function initiated')` | PLACEHOLDER — no function body, inline toast stub |
+| 9 | Lib utility | Shared print | lib/print.ts:20 | `openPrintDialog()` | BROKEN — REAL code but ZERO imports anywhere (dead code) |
+
+### EXPORT Functions (10 total)
+
+| # | Module | Feature | File:Line | Function | Status |
+|---|--------|---------|-----------|----------|--------|
+| 10 | Settlement | Export CSV | SettlementView.tsx:368 | `handleExportCSV()` | REAL — builds CSV from filtered data, triggers download |
+| 11 | Guest Ledger | Export CSV | GuestLedgerView.tsx:883 | `handleExport()` | REAL — builds CSV from ledger transactions, triggers download |
+| 12 | Room Rate Posting | Export | RoomRatePostingPage.tsx:291 | `handleExport()` | REAL — builds CSV from pending reservations |
+| 13 | Reports | Export CSV | ReportsView.tsx:1133 | `handleExportCSV()` | REAL — uses `exportToCSV()` utility, reads query cache |
+| 14 | Departures | Export CSV | DeparturesView.tsx:310 | `handleExportCSV()` | REAL — builds CSV from departures data |
+| 15 | POS Daily Sales | Export | DailySalesReportView.tsx:366 | `handleExport()` | PLACEHOLDER — `setTimeout(() => toast.info('Download would start here'), 500)` |
+| 16 | HR Schedules | Export | SchedulesView.tsx:121 | `handleExport()` | REAL — builds CSV from schedule data |
+| 17 | HR Payroll | Export | PayrollView.tsx:57 | inline `() => toast.info('Payroll export initiated')` | PLACEHOLDER — no function body, inline toast stub |
+| 18 | Shift Handover | Export | ShiftHandoverView.tsx:434 | inline `() => toast.info('Export function initiated')` | PLACEHOLDER — no function body, inline toast stub |
+| 19 | Settings | Export Guest List/Reservations/Revenue | SettingsModule.tsx:1816 | `handleExportData()` | PLACEHOLDER — `toast.success(\`${type} data exported successfully\`)`, no actual export |
+
+### EMAIL Functions (3 client + 1 API)
+
+| # | Module | Feature | File:Line | Function | Status |
+|---|--------|---------|-----------|----------|--------|
+| 20 | Folio | Email folio (open dialog) | FolioView.tsx:617 | `handleEmailFolio()` | REAL — opens email confirmation dialog |
+| 21 | Folio | Email folio (confirm) | FolioView.tsx:621 | `handleConfirmEmailFolio()` | PLACEHOLDER — comment "In production, this would call an email API", never calls existing `/api/folio/[id]/email` route, just shows success toast |
+| 22 | Departures | Email receipt | DeparturesView.tsx:490 | `handleEmailReceipt()` | PLACEHOLDER — comment "In production, this would call an email API", no API call, just shows success toast |
+| 23 | API | Folio email endpoint | api/folio/[id]/email/route.ts:6 | `POST handler` | PLACEHOLDER — full logic with SMTP settings, but Nodemailer code is commented out; only `console.log()` the email, returns fake 200 success |
+
+### OTHER Stubs (toast.info used as placeholder, not informational)
+
+| # | Module | Feature | File:Line | Context | Status |
+|---|--------|---------|-----------|---------|--------|
+| 24 | Room Detail | Create work order | RoomDetailDrawer.tsx:217 | `case 'work-order': toast.info('...Feature coming soon')` | PLACEHOLDER |
+| 25 | Settings Dialog | 2FA toggle | SettingsDialog.tsx:836 | `toast.info('Two-Factor Authentication is coming soon!')`, switch disabled | PLACEHOLDER |
+| 26 | Calendar | Edit reservation (×3) | CalendarView.tsx:1123, 1147, 1241 | `onClick={() => toast.info('Edit functionality available')}` | PLACEHOLDER |
+| 27 | Folio | Post to Room | FolioView.tsx:1537 | `onClick={() => toast.info('Post to Room — charges...')}` | PLACEHOLDER |
+| 28 | CRM Loyalty | Redeem points | LoyaltyView.tsx:183 | `toast.info(\`Redemption "${itemName}" initiated...\`)` | PLACEHOLDER |
+| 29 | CRM Campaigns | Select segment | CampaignsView.tsx:488 | `toast.info('Segment selected for campaign targeting')` | PLACEHOLDER |
+| 30 | Guest Directory | Message guest | GuestDirectoryView.tsx:162 | `toast.info(\`Message sent to Room...\`)` | PLACEHOLDER |
+| 31 | POS Daily Sales | Entire report data | DailySalesReportView.tsx:353 | `return MOCK_REPORT` — hardcoded mock, no API | BROKEN |
+
+### Report Functions
+
+| # | Module | Feature | File:Line | Function | Status |
+|---|--------|---------|-----------|----------|--------|
+| — | (none) | generateReport / handleReport | — | — | MISSING — zero matches in entire codebase |
+
+### TODO/FIXME/HACK Comments
+
+| # | Module | Feature | File:Line | Function | Status |
+|---|--------|---------|-----------|----------|--------|
+| — | (none) | TODO/FIXME/HACK | — | — | MISSING — zero matches in entire codebase |
+
+Stage Summary:
+- Total print functions: 3 real, 5 placeholder, 1 broken (dead code)
+- Total export functions: 5 real, 5 placeholder
+- Total email functions: 1 real (opens dialog), 2 placeholder (client), 1 placeholder (API logs to console)
+- Total other stubs: 8 placeholder, 1 broken (mock data)
+- Total report generation functions: 0 (MISSING)
+- Total TODO/FIXME/HACK comments: 0
+- Critical gaps: (1) FolioView handleConfirmEmailFolio doesn't call the existing API route, (2) DeparturesView handleEmailReceipt has no API at all, (3) POS DailySalesReportView is 100% mock data, (4) lib/print.ts is dead code, (5) Shift Handover print/export are inline toast stubs, (6) Settings data export buttons do nothing
+
+---
+Task ID: 8
+Agent: general-purpose
+Task: DB schema and data integrity verification
+
+Work Log:
+- Ran `bunx prisma validate` — schema is valid ✅
+- Counted rows in all 42 tables (892 total rows across 46 DB tables)
+- Extra 3 tables in DB vs expected list: DailyRate, RatePlan, RoomRestriction (all present in schema, just weren't in original 42-table checklist)
+- Referential integrity checks (all passed except 2 minor items):
+  - 0 orphaned reservations (roomId, guestId) ✅
+  - 0 orphaned folios ✅
+  - 0 orphaned folio transactions/payments ✅
+  - 0 orphaned order items ✅
+  - 0 orphaned journal entry lines ✅
+  - 0 orphaned room move logs ✅
+  - 0 orphaned HkTasks, HkInspectionAudits, PosOrders ✅
+  - 0 orphaned sessions or security events ✅
+  - 1 reservation with NULL guestId (cancelled, conf# QYYJVQYF) — seed data edge case
+  - 2 empty folios (no transactions, status=open) — likely pre-allocated
+- Data quality checks:
+  - All 6 AuthUser emails valid and properly formatted ✅
+  - Room status distribution: occupied=20, vacant_dirty=11, inspected=6, vacant_clean=4, cleaning=3 (total 44)
+  - Reservation status distribution: confirmed=20, checked_in=20, checked_out=9, cancelled=4 (total 53)
+  - 0 reservations with checkIn > checkOut ✅
+  - 0 duplicate reservationNumbers ✅
+  - 0 duplicate room numbers ✅
+  - 0 negative amounts in transactions, payments, or journal entries ✅
+  - All 6 journal entries are balanced (debit = credit) ✅
+  - All folio guestIds match their reservation's guestId ✅
+  - All rooms have valid typeId and propertyId ✅
+- Folio balance audit:
+  - 7 closed folios have stored `balance` field that does NOT match `SUM(totalAmount) - SUM(payments)`
+  - All 7 stored balances are positive while computed values are negative (payments >> charges)
+  - This is seed data inconsistency — Folio.balance was likely set to payment total rather than charge-payment delta
+- Index audit (28 user indexes):
+  - Session: token (unique), userId, expiresAt ✅
+  - SecurityEvent: userId, type, level, createdAt ✅
+  - ActivityLog: userId, createdAt ✅
+  - Unique constraints: AuthUser.email, Room.number+propertyId, RoomType.code, Property.code, Outlet.code, RatePlan.code, LedgerAccount.code, Reservation.confirmationNo, SystemSetting.key, BookingContact.reservationId, SupportTicket.ticketNo, DailyRate.ratePlanId+date ✅
+  - 8 MISSING FK indexes (performance risk on joins/lookups):
+    1. Reservation.roomId → Room
+    2. Reservation.guestId → Guest
+    3. FolioTransaction.folioId → Folio
+    4. FolioPayment.folioId → Folio
+    5. OrderItem.orderId → PosOrder
+    6. JournalEntryLine.entryId → JournalEntry
+    7. HkTask.roomId → Room
+    8. HkInspectionAudit.hkTaskId → HkTask
+- Session hygiene: All 15 sessions in DB are expired (not cleaned up)
+- No _prisma_migrations table (using `prisma db push`)
+
+Stage Summary:
+- Schema: VALID — no structural issues
+- Referential integrity: CLEAN — 0 orphaned FK references (1 reservation with NULL guestId is a seed edge case, not an orphan)
+- Data quality: GOOD — no invalid emails, no date inversions, no duplicates, no negative amounts, all journals balanced
+- Folio balance: 7 closed folios have stored balance ≠ computed balance (seed data inconsistency, not a code bug)
+- Missing indexes: 8 FK columns lack indexes — recommend adding for query performance
+- Session cleanup: 15 expired sessions not purged (consider adding TTL cleanup job)
+- No code changes made (verification only)

@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     for (const reservation of checkedInReservations) {
       // Check if a rate post exists for today
-      const todayPost = await db.roomRatePost.findFirst({
+      const todayPost = await db.roomRatePosting.findFirst({
         where: {
           reservationId: reservation.id,
           postDate: {
