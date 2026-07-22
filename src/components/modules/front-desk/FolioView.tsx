@@ -758,6 +758,8 @@ export function FolioView() {
                   setSplitDescription('')
                   setSplitDialogOpen(true)
                 }}
+                onPrintFolio={handlePrintFolio}
+                onEmailFolio={handleEmailFolio}
               />
             </div>
           </div>
@@ -1362,6 +1364,7 @@ function FolioDetailPanel({
   creditLimit, creditPct, currency, taxRate, activityTimeline,
   onBack, onViewGuestLedger, onViewInHouse, onChargeClick, onPaymentClick,
   onVoidTransaction, onVoidPayment, onNotesChange, folioNotes, onSplitClick,
+  onPrintFolio, onEmailFolio,
 }: {
   folio: Folio
   loading: boolean
@@ -1383,6 +1386,8 @@ function FolioDetailPanel({
   onNotesChange: (v: string) => void
   folioNotes: string
   onSplitClick: () => void
+  onPrintFolio: () => void
+  onEmailFolio: () => void
 }) {
   const ratePerNight = folio.reservation.roomRate
 
@@ -1558,7 +1563,7 @@ function FolioDetailPanel({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" onClick={handlePrintFolio}>
+                  <Button size="sm" variant="ghost" onClick={onPrintFolio}>
                     <Printer className="size-4 mr-1.5" /> <span className="hidden sm:inline">Print</span>
                   </Button>
                 </TooltipTrigger>
@@ -1569,7 +1574,7 @@ function FolioDetailPanel({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" onClick={handleEmailFolio}>
+                  <Button size="sm" variant="ghost" onClick={onEmailFolio}>
                     <Mail className="size-4 mr-1.5" /> <span className="hidden sm:inline">Email</span>
                   </Button>
                 </TooltipTrigger>
