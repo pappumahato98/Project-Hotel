@@ -140,11 +140,11 @@ const ROW_HEIGHT = 48
 const VISIBLE_DAYS = 21
 
 const RESERVATION_STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  confirmed: { bg: 'bg-teal-500/85', text: 'text-white', border: 'border-teal-600' },
-  checked_in: { bg: 'bg-emerald-500/85', text: 'text-white', border: 'border-emerald-600' },
-  checked_out: { bg: 'bg-gray-400/75', text: 'text-gray-700', border: 'border-gray-400' },
-  cancelled: { bg: 'bg-red-400/75', text: 'text-white', border: 'border-red-500' },
-  no_show: { bg: 'bg-orange-500/85', text: 'text-white', border: 'border-orange-600' },
+  confirmed: { bg: 'bg-teal-700', text: 'text-white', border: 'border-teal-800' },
+  checked_in: { bg: 'bg-emerald-700', text: 'text-white', border: 'border-emerald-800' },
+  checked_out: { bg: 'bg-gray-500', text: 'text-gray-100', border: 'border-gray-600' },
+  cancelled: { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700' },
+  no_show: { bg: 'bg-orange-700', text: 'text-white', border: 'border-orange-800' },
 }
 
 const ROOM_STATUS_COLORS: Record<string, string> = {
@@ -492,23 +492,23 @@ export function ReservationCalendarView() {
     <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
       {/* Booking Status */}
       <div className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-teal-500/85" />
+        <span className="inline-block w-3 h-3 rounded-sm bg-teal-700" />
         <span className="text-muted-foreground">Confirmed</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500/85" />
+        <span className="inline-block w-3 h-3 rounded-sm bg-emerald-700" />
         <span className="text-muted-foreground">In-House</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-gray-400/75" />
+        <span className="inline-block w-3 h-3 rounded-sm bg-gray-500" />
         <span className="text-muted-foreground">Checked Out</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-red-400/75" />
+        <span className="inline-block w-3 h-3 rounded-sm bg-red-600" />
         <span className="text-muted-foreground">Cancelled</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="inline-block w-3 h-3 rounded-sm bg-orange-500/85" />
+        <span className="inline-block w-3 h-3 rounded-sm bg-orange-700" />
         <span className="text-muted-foreground">No-Show</span>
       </div>
       <Separator orientation="vertical" className="h-4 mx-0" />
