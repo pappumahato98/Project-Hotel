@@ -2,6 +2,38 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { apiFetch } from '@/lib/api'
 
+// ─── Auth helpers (manual localStorage, not Zustand persist) ──────
+// Zustand persist + Next.js HMR causes double-rehydration that resets auth state.
+// Using manual localStorage avoids this issue entirely.
+const AUTH_TOKEN_KEY = 'meridian-auth-token'
+const AUTH_USER_KEY = 'meridian-auth-user'
+
+function loadStoredAuth(): { user: unknown; token: string | null } {
+  if (typeof window === 'undefined') return { user: null, token: null }
+  try {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY)
+    const userStr = localStorage.getItem(AUTH_USER_KEY)
+    const user = userStr ? JSON.parse(userStr) : null
+    return { user, token }
+  } catch {
+    return { user: null, token: null }
+  }
+}
+
+function saveAuthToStorage(user: unknown, token: string) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(AUTH_TOKEN_KEY, token)
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
+}
+
+function clearAuthStorage() {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  localStorage.removeItem(AUTH_USER_KEY)
+  // Clear old format key
+  localStorage.removeItem('meridian-auth')
+}
+
 // ─── Auth State ────────────────────────────────────────────────
 interface AuthUser {
   id: string
@@ -37,38 +69,29 @@ interface AuthState {
   _setHasHydrated: (v: boolean) => void
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isAuthenticated: false,
-      token: null,
-      _hasHydrated: false,
-      login: (user, token) => set({ user, isAuthenticated: true, token }),
-      logout: () => set({ user: null, isAuthenticated: false, token: null }),
-      updateUser: (updates) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...updates } : null,
-        })),
-      _setHasHydrated: (v) => set({ _hasHydrated: v }),
-    }),
-    {
-      name: 'meridian-auth',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-        token: state.token,
-      }),
-      onRehydrateStorage: () => {
-        return (state) => {
-          queueMicrotask(() => {
-            state?._setHasHydrated(true)
-          })
-        }
-      },
-    }
-  )
-)
+// Restore auth from localStorage at store creation time.
+// Each HMR re-evaluation reads the latest localStorage (which is stable).
+const stored = loadStoredAuth()
+
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: (stored.user as AuthUser) ?? null,
+  isAuthenticated: !!stored.token,
+  token: stored.token,
+  _hasHydrated: true,
+  login: (user, token) => {
+    saveAuthToStorage(user, token)
+    set({ user, isAuthenticated: true, token })
+  },
+  logout: () => {
+    clearAuthStorage()
+    set({ user: null, isAuthenticated: false, token: null })
+  },
+  updateUser: (updates) =>
+    set((state) => ({
+      user: state.user ? { ...state.user, ...updates } : null,
+    })),
+  _setHasHydrated: (v) => set({ _hasHydrated: v }),
+}))
 
 // ─── Property State ──────────────────────────────────────────────
 export interface Property {
