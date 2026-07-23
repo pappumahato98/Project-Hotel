@@ -7,10 +7,15 @@
 
 // Cached reference to auth store (lazy to avoid import issues in SSR)
 let _getToken: (() => string | null) | null = null
+let _getUserId: (() => string | null) | null = null
 
-/** Call once from client to register the token getter */
-export function initAuthFetch(getToken: () => string | null) {
+/** Call once from client to register the token and user-id getters */
+export function initAuthFetch(
+  getToken: () => string | null,
+  getUserId?: () => string | null
+) {
   _getToken = getToken
+  _getUserId = getUserId ?? null
 }
 
 export async function apiFetch<T = unknown>(
@@ -20,13 +25,14 @@ export async function apiFetch<T = unknown>(
   // Skip auth for login endpoint
   const isLoginRequest = url === '/api/auth/login'
 
-  // Attach Bearer token if available
+  // Attach Bearer token and x-user-id header if available
   if (!isLoginRequest && _getToken) {
     const token = _getToken()
     if (token) {
       options.headers = {
         ...options.headers,
         Authorization: `Bearer ${token}`,
+        ...(!!_getUserId ? { 'x-user-id': _getUserId() ?? '' } : {}),
       }
     }
   }

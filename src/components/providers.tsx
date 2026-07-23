@@ -21,7 +21,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Register auth token getter so apiFetch auto-attaches Bearer tokens
   useEffect(() => {
-    initAuthFetch(() => useAuthStore.getState().token)
+    initAuthFetch(
+      () => useAuthStore.getState().token,
+      () => useAuthStore.getState().user?.id ?? null
+    )
   }, [])
 
   // Sync settings from backend once after mount — only when authenticated

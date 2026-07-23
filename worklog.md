@@ -531,3 +531,34 @@ Stage Summary:
 - Missing indexes: 8 FK columns lack indexes — recommend adding for query performance
 - Session cleanup: 15 expired sessions not purged (consider adding TTL cleanup job)
 - No code changes made (verification only)
+
+---
+Task ID: login-fix
+Agent: main
+Task: Fix login issue - user unable to stay logged in after login
+
+Work Log:
+- Investigated full auth flow: login API, login-page component, apiFetch, middleware, providers.tsx, auth store
+- Identified ROOT CAUSE: Dual auth system mismatch
+  - Middleware (`src/middleware.ts`) enforces `x-user-id` header on all protected API routes
+  - `apiFetch` (`src/lib/api.ts`) only sends `Authorization: Bearer <token>` — never sends `x-user-id`
+  - After successful login, all subsequent API calls (settings, dashboard) were blocked with 401
+  - `apiFetch` 401 handler triggers `store.logout()` → immediate redirect to login page
+  - User appeared to never stay logged in
+- Fixed `src/lib/api.ts`:
+  - Added `_getUserId` getter alongside `_getToken`
+  - Updated `initAuthFetch` to accept optional `getUserId` parameter
+  - Updated `apiFetch` to attach both `Authorization: Bearer <token>` AND `x-user-id` headers
+- Fixed `src/components/providers.tsx`:
+  - Updated `initAuthFetch` call to pass `() => useAuthStore.getState().user?.id ?? null`
+- Verified end-to-end with agent browser:
+  - Clicked Admin demo login → login POST 200
+  - Settings GET 200 (was 401 before)
+  - Dashboard GET 200 (was 401 before)
+  - No console errors
+  - User stays logged in with full app shell visible
+
+Stage Summary:
+- Login flow now works correctly — `x-user-id` header is sent with all API requests
+- Files changed: `src/lib/api.ts`, `src/components/providers.tsx`
+- Lint passes clean, no console errors
