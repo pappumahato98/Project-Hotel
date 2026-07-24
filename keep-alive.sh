@@ -1,8 +1,8 @@
 #!/bin/bash
-# Start or keep-alive the Next.js dev server
+# Start or keep-alive the Next.js dev server using bun
 PIDFILE="/home/z/my-project/.server.pid"
 LOGFILE="/home/z/my-project/dev.log"
-SERVER_CMD="NODE_OPTIONS='--max-old-space-size=4096' node /home/z/my-project/node_modules/.bin/next dev -p 3000 -H 0.0.0.0 --turbopack"
+SERVER_CMD="cd /home/z/my-project && bun run dev"
 
 start_server() {
   if [ -f "$PIDFILE" ]; then
@@ -19,13 +19,13 @@ start_server() {
 
 # Try to start, wait, then check
 start_server
-sleep 12
+sleep 10
 # Verify
 if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ 2>/dev/null | grep -q "200"; then
   exit 0
 else
   # Server died, try once more
   start_server
-  sleep 12
+  sleep 10
   exit 0
 fi

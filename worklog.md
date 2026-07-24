@@ -769,3 +769,28 @@ Stage Summary:
 - Created: src/app/global-error.tsx, src/app/loading.tsx
 - Updated: src/app/error.tsx (auth error detection, better UX)
 - All routes still protected via requireAuth() in their handlers
+
+---
+Task ID: dev-server-fix
+Agent: main
+Task: Fix live server dev with sandbox active connection
+
+Work Log:
+- Diagnosed stale duplicate processes (2x bun run dev, 2x bun --hot) blocking port 3000
+- Killed all stale processes (PIDs 1325, 1343, 1373, 1392)
+- Identified keep-alive.sh was using `node` instead of `bun` to run dev server
+- Updated keep-alive.sh to use `bun run dev` properly
+- Discovered background processes were dying due to parent shell process termination
+- Used `(nohup bash -c "..." </dev/null > /dev/null 2>&1 &) pattern with reparent to PID 1 for persistence
+- Created run-server.sh for reliable server startup
+- Restarted both services: Next.js dev server (port 3000) and Realtime mini-service (port 3004)
+- Verified via Agent Browser: login page renders, admin login succeeds, full dashboard loads with all modules
+- Confirmed all API routes working (auth/login, settings, dashboard all return 200)
+- Screenshot saved: sandbox-live-verify.png
+
+Stage Summary:
+- Dev server running persistently on port 3000 (HTTP 200, all APIs functional)
+- Realtime service running on port 3004 (health check ok)
+- keep-alive.sh fixed to use bun instead of node
+- run-server.sh created as reliable startup script
+- Full end-to-end verification passed: login → dashboard → all modules visible
