@@ -87,6 +87,7 @@ export const NAV_ITEMS: NavItem[] = [
     color: 'text-green-600',
     children: [
       { id: 'tasks', label: 'Task Board' },
+      { id: 'workflow', label: 'Work Flow' },
       { id: 'inspection', label: 'Inspections' },
       { id: 'lost-found', label: 'Lost & Found' },
     ],

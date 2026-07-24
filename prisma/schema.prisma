@@ -107,6 +107,7 @@ model Room {
   reservations Reservation[]
   hkTasks     HkTask[]
   workOrders  WorkOrder[]
+  hkWorkFlows HkWorkFlow[]
 
   @@unique([number, propertyId])
 }
@@ -388,6 +389,27 @@ model LostFound {
   identityVerified Boolean @default(false)
   claimAttachment  String?  // base64 or filename of claimant ID photo
   createdAt     DateTime @default(now())
+}
+
+// ─── HOUSEKEEPING WORKFLOW ───────────────────────────────────
+model HkWorkFlow {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  priority        String   @default("low")       // low, medium, high, na
+  category        String   @default("maintenance") // maintenance, repair, service, inspection, safety
+  area            String?                          // area or room reference
+  roomId          String?
+  status          String   @default("open")      // open, in_progress, completed
+  assignedTo      String?
+  assignedByName  String?
+  requestedDate   DateTime @default(now())
+  dueDate         DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  room            Room?    @relation(fields: [roomId], references: [id])
 }
 
 // ─── EVENTS & BANQUET ────────────────────────────────────────

@@ -1,8 +1,9 @@
 'use client'
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ClipboardCheck, ShieldCheck, PackageOpen } from 'lucide-react'
+import { ClipboardCheck, ShieldCheck, PackageOpen, GitBranch } from 'lucide-react'
 import { TaskBoardView } from './TaskBoardView'
+import { WorkflowView } from './WorkflowView'
 import { InspectionView } from './InspectionView'
 import { LostFoundView } from './LostFoundView'
 import { useNavigationStore } from '@/lib/store'
@@ -10,13 +11,15 @@ import { cn } from '@/lib/utils'
 
 const HOUSEKEEPING_TABS = [
   { id: 'tasks', label: 'Task Board', icon: ClipboardCheck },
+  { id: 'workflow', label: 'Work Flow', icon: GitBranch },
   { id: 'inspection', label: 'Inspections', icon: ShieldCheck },
   { id: 'lost-found', label: 'Lost & Found', icon: PackageOpen },
 ]
 
 export function HousekeepingModule() {
   const { activeSubModule, navigateTo } = useNavigationStore()
-  const activeTab = activeSubModule === 'inspection' ? 'inspection'
+  const activeTab = activeSubModule === 'workflow' ? 'workflow'
+    : activeSubModule === 'inspection' ? 'inspection'
     : activeSubModule === 'lost-found' ? 'lost-found'
     : 'tasks'
 
@@ -36,7 +39,7 @@ export function HousekeepingModule() {
         onValueChange={(v) => navigateTo('housekeeping', v)}
         className="flex-1"
       >
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-grid h-9 sm:h-10">
+        <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-grid h-9 sm:h-10">
           {HOUSEKEEPING_TABS.map((tab) => (
             <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5 sm:gap-2">
               <tab.icon className="h-4 w-4 sm:h-4 sm:w-4" />
@@ -47,6 +50,9 @@ export function HousekeepingModule() {
 
         <TabsContent value="tasks" forceMount className={cn("mt-2", activeTab !== 'tasks' && 'hidden')}>
           <TaskBoardView />
+        </TabsContent>
+        <TabsContent value="workflow" forceMount className={cn("mt-2", activeTab !== 'workflow' && 'hidden')}>
+          <WorkflowView />
         </TabsContent>
         <TabsContent value="inspection" forceMount className={cn("mt-2", activeTab !== 'inspection' && 'hidden')}>
           <InspectionView />
