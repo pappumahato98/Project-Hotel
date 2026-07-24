@@ -179,89 +179,86 @@ export function FrontDeskModule() {
         'z-20 flex items-center shrink-0 bg-background/70 backdrop-blur-xl backdrop-saturate-150 supports:[backdrop-filter]:bg-background/50 border-b shadow-sm',
         isCalendar ? 'px-4 pt-3 pb-2' : 'px-4 md:px-6 pt-3 pb-3',
       )}>
-        <div className="flex items-center gap-2 flex-wrap w-full">
-          {/* Gear icon — customize tabs (before Dashboard tab) */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-              >
-                <Settings2 className="h-4 w-4" />
-                <span className="sr-only">Customize tabs</span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-0">
-              <div className="px-4 py-3 border-b">
-                <h4 className="text-sm font-semibold">Customize Tabs</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Toggle tabs on or off
-                </p>
-              </div>
-              <div className="max-h-72 overflow-y-auto overscroll-contain">
-                <div className="p-2">
-                  {TAB_KEYS.map((key) => {
-                    const def = SUB_MODULES[key]
-                    const Icon = def.icon
-                    const isChecked = !disabledSubModules.includes(key)
-
-                    return (
-                      <label
-                        key={key}
-                        className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="text-sm truncate">{def.label}</span>
-                        </div>
-                        <Switch
-                          checked={isChecked}
-                          onCheckedChange={() => toggleSubModule(key)}
-                          className="shrink-0"
-                        />
-                      </label>
-                    )
-                  })}
-                </div>
-              </div>
-              <div className="border-t p-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs text-muted-foreground"
-                  onClick={resetSubModules}
+        <Tabs
+          value={currentSubModule}
+          onValueChange={setActiveSubModule}
+          className="w-full"
+        >
+          <TabsList className="flex flex-wrap gap-1 sm:gap-1.5 w-full h-auto bg-muted/50 rounded-lg p-1 items-start">
+            {/* Customize Tabs button — always first in the same row as all tabs */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center justify-center h-7 sm:h-8 w-7 sm:w-8 shrink-0 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                 >
-                  Reset All
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+                  <Settings2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="sr-only">Customize tabs</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-64 p-0">
+                <div className="px-4 py-3 border-b">
+                  <h4 className="text-sm font-semibold">Customize Tabs</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Toggle tabs on or off
+                  </p>
+                </div>
+                <div className="max-h-72 overflow-y-auto overscroll-contain">
+                  <div className="p-2">
+                    {TAB_KEYS.map((key) => {
+                      const def = SUB_MODULES[key]
+                      const Icon = def.icon
+                      const isChecked = !disabledSubModules.includes(key)
 
-          <Tabs
-            value={currentSubModule}
-            onValueChange={setActiveSubModule}
-            className="w-full"
-          >
-            <TabsList className="flex flex-wrap gap-1 sm:gap-1.5 w-full h-auto bg-muted/50 rounded-lg p-1 items-start">
-              {TAB_KEYS.filter((key) => !disabledSubModules.includes(key)).map((key) => {
-                const def = SUB_MODULES[key]
-                const Icon = def.icon
-
-                return (
-                  <TabsTrigger
-                    key={key}
-                    value={key}
-                    className="h-7 sm:h-8 flex-none text-[10px] sm:text-xs md:text-sm px-1.5 sm:px-2 md:px-3"
+                      return (
+                        <label
+                          key={key}
+                          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="text-sm truncate">{def.label}</span>
+                          </div>
+                          <Switch
+                            checked={isChecked}
+                            onCheckedChange={() => toggleSubModule(key)}
+                            className="shrink-0"
+                          />
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="border-t p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-muted-foreground"
+                    onClick={resetSubModules}
                   >
-                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-0.5 sm:mr-1 shrink-0" />
-                    <span className="truncate">{def.label}</span>
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </Tabs>
-        </div>
+                    Reset All
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {TAB_KEYS.filter((key) => !disabledSubModules.includes(key)).map((key) => {
+              const def = SUB_MODULES[key]
+              const Icon = def.icon
+
+              return (
+                <TabsTrigger
+                  key={key}
+                  value={key}
+                  className="h-7 sm:h-8 flex-none text-[10px] sm:text-xs md:text-sm px-1.5 sm:px-2 md:px-3"
+                >
+                  <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-0.5 sm:mr-1 shrink-0" />
+                  <span className="truncate">{def.label}</span>
+                </TabsTrigger>
+              )
+            })}
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Content area — Calendar manages its own scroll; others use parent scroll */}

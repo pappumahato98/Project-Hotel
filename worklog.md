@@ -794,3 +794,24 @@ Stage Summary:
 - keep-alive.sh fixed to use bun instead of node
 - run-server.sh created as reliable startup script
 - Full end-to-end verification passed: login → dashboard → all modules visible
+
+---
+Task ID: customize-btn-in-tablist
+Agent: main
+Task: Relocate Customize Tabs button to always be in the same row as Dashboard, inside the TabsList
+
+Work Log:
+- Read FrontDeskModule.tsx — found Customize Tabs button was a sibling of the Tabs component in an outer div.flex wrapper
+- This caused the button to wrap to a different row than the Dashboard tab when tabs wrapped
+- Moved the Customize Tabs Popover inside the TabsList, as the first child element (before Dashboard tab trigger)
+- Changed from shadcn Button to native button element with matching styles (h-7 sm:h-8, shrink-0, rounded-md)
+- Changed PopoverContent align from "end" to "start" since button is now left-aligned
+- Verified via Agent Browser: button is first item inside tablist, always before Dashboard
+- Tested hiding 6 tabs (Waitlist, Wake-up Calls, Guest Dir., Guest Ledger, Rate Posting, Settlement) — Customize button remained in same row
+- Reset All still works correctly, all APIs returning 200, no lint errors
+
+Stage Summary:
+- Customize Tabs button is now permanently inside the TabsList, always first item before Dashboard
+- Regardless of how many tabs are hidden, the button stays anchored in the same row
+- File: src/components/modules/front-desk/FrontDeskModule.tsx
+- Screenshots: customize-btn-in-tablist.png, customize-btn-tabs-hidden.png
