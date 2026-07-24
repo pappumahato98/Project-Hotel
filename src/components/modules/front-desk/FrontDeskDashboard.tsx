@@ -275,7 +275,7 @@ export function FrontDeskDashboard() {
   } = useQuery<DashboardData>({
     queryKey: ['front-desk-dashboard'],
     queryFn: () => apiFetch('/api/front-desk/dashboard'),
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   })
 
   const snapshot = data?.snapshot

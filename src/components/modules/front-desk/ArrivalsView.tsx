@@ -200,7 +200,7 @@ export function ArrivalsView() {
       const params = new URLSearchParams({ status: 'confirmed', checkInDate: today })
       return apiFetch(`/api/reservations?${params.toString()}`)
     },
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   })
 
   const { data: roomsData } = useQuery({

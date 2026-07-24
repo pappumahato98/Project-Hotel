@@ -126,7 +126,7 @@ export function InHouseView() {
   const [earlyCheckoutOpen, setEarlyCheckoutOpen] = useState(false)
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
 
-  const [selectedReservation, setSelectedReservation] = useState<InHouseReservation | null>(null)
+  const [selectedReservationId, setSelectedReservationId] = useState<string | null>(null)
   const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
 
@@ -164,10 +164,16 @@ export function InHouseView() {
     queryFn: async () => {
       return apiFetch('/api/reservations?status=checked_in')
     },
-    refetchInterval: 30000,
+    refetchInterval: 10000,
   })
 
   const reservations: InHouseReservation[] = (data?.reservations || []).filter((r: any) => r.room)
+
+  // Keep selectedReservation in sync with live query data (no stale snapshots)
+  const selectedReservation = useMemo(
+    () => (selectedReservationId ? reservations.find((r) => r.id === selectedReservationId) ?? null : null),
+    [selectedReservationId, reservations]
+  )
 
   // ── Fetch vacant clean rooms for transfer ──────────────────
   const { data: vacantRoomsData } = useQuery({
@@ -342,7 +348,7 @@ export function InHouseView() {
   }
 
   function handlePostCharge(reservation: InHouseReservation) {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     resetChargeForm()
     setChargeDialogOpen(true)
   }
@@ -400,7 +406,7 @@ export function InHouseView() {
   }
 
   function handleTransferRoom(reservation: InHouseReservation) {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     setSelectedNewRoomId('')
     setTransferDialogOpen(true)
   }
@@ -414,7 +420,7 @@ export function InHouseView() {
   }
 
   function handleExtendStay(reservation: InHouseReservation) {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     setNewCheckOut(undefined)
     setExtendDialogOpen(true)
   }
@@ -433,7 +439,7 @@ export function InHouseView() {
   }
 
   function handleEarlyCheckout(reservation: InHouseReservation) {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     setEarlyCheckOutDate(undefined)
     setEarlyCheckoutOpen(true)
   }
@@ -447,7 +453,7 @@ export function InHouseView() {
   }
 
   function handleAddNote(reservation: InHouseReservation) {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     setNoteText('')
     setNoteDialogOpen(true)
   }
@@ -494,7 +500,7 @@ export function InHouseView() {
   }
 
   function handleWakeUpCall(reservation: InHouseReservation) {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     const existing = wakeUpCalls[reservation.id]
     if (existing?.set) {
       setWakeUpTime(existing.time)
@@ -530,13 +536,13 @@ export function InHouseView() {
 
   // Toggle inline row expansion
   const handleRowClick = useCallback((reservation: InHouseReservation) => {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     setExpandedRowId(prev => prev === reservation.id ? null : reservation.id)
   }, [])
 
   // Open full detail dialog
   const handleViewFullDetails = useCallback((reservation: InHouseReservation) => {
-    setSelectedReservation(reservation)
+    setSelectedReservationId(reservation.id)
     setDetailDialogOpen(true)
   }, [])
 

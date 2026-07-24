@@ -857,7 +857,7 @@ export function DashboardModule() {
   const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => apiFetch('/api/dashboard'),
-    refetchInterval: 30000, // refresh every 30s
+    refetchInterval: 10000, // refresh every 10s
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
   })

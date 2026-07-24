@@ -593,3 +593,35 @@ Stage Summary:
 - Auth now properly persists across page reloads
 - Files changed: `src/lib/store.ts`, `src/components/providers.tsx`
 - Lint passes clean, all API calls return 200
+
+---
+Task ID: realtime-charge-fix
+Agent: main
+Task: Fix post charge real-time database updates not reflecting in In-House view
+
+Work Log:
+- Investigated full post charge flow: InHouseView → apiFetch → /api/folio/[id] → DB → recalc balance
+- Tested with agent browser: post charge worked, table balance updated (NPR2,444 → NPR3,194) but expanded detail showed stale TOTAL AMOUNT
+- Identified issues:
+  1. Global `staleTime: 30s` + `refetchOnWindowFocus: false` — too aggressive, blocks fresh data
+  2. `refetchInterval: 30000` on in-house query — 30 seconds too slow for real-time feel
+  3. `selectedReservation` stored as stale local state copy — didn't update when query refetched
+  4. All front-desk views had 30s polling intervals
+- Fixed `src/components/providers.tsx`:
+  - `staleTime: 30 * 1000` → `staleTime: 5 * 1000`
+  - `refetchOnWindowFocus: false` → `refetchOnWindowFocus: true`
+- Fixed `src/components/modules/front-desk/InHouseView.tsx`:
+  - Changed `selectedReservation` from `useState<InHouseReservation>` to `selectedReservationId` string
+  - Added `useMemo` to derive `selectedReservation` from live `reservations` query data
+  - All `setSelectedReservation(res)` → `setSelectedReservationId(res.id)`
+  - `refetchInterval: 30000` → `refetchInterval: 10000`
+- Updated refetchInterval to 10s across all front-desk views:
+  - DeparturesView, ArrivalsView, SettlementView, DepartureSettlementView, FrontDeskDashboard, DashboardModule
+- Lint and build both pass clean
+
+Stage Summary:
+- In-house balance now updates in real-time after posting charges
+- Expanded detail card stays in sync with latest query data
+- All front-desk views poll every 10 seconds instead of 30
+- Window focus triggers data refresh
+- Data considered stale after 5 seconds instead of 30
