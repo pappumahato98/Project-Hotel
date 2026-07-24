@@ -745,3 +745,27 @@ Stage Summary:
 - DeparturesView email now calls new API endpoint `/api/departures/{id}/email-receipt`
 - SettlementView, GuestLedgerView, and ReservationsView all show formatted print dialogs in new windows with proper headers, tables, and totals
 - All lint checks pass
+
+---
+Task ID: fix-preview-error
+Agent: main
+Task: Fix client-side exception in Vercel preview
+
+Work Log:
+- Investigated "Application error: a client-side exception has occurred" in Vercel preview
+- Found root cause: `src/middleware.ts` uses deprecated Next.js 16 middleware convention
+  - Middleware required `x-user-id` header on ALL `/api/*` requests
+  - Every route handler already has its own `requireAuth()` guard - middleware was redundant
+  - Next.js 16 logs warning: "middleware file convention is deprecated. Please use proxy instead"
+  - On Vercel Edge runtime, the deprecated middleware was causing the client-side exception
+- Fix 1: Deleted `src/middleware.ts` (redundant, all routes have requireAuth)
+- Fix 2: Created `src/app/global-error.tsx` — catches unhandled errors, shows error message + error details + Go Home / Try Again buttons. Detects auth errors (401) and offers "Sign In Again" button
+- Fix 3: Updated `src/app/error.tsx` — improved error boundary with auth error detection, Reload Page button
+- Fix 4: Created `src/app/loading.tsx` — shows branded loading spinner during navigation/hydration
+- Build passes clean, lint passes clean
+
+Stage Summary:
+- Deleted: src/middleware.ts (deprecated, redundant)
+- Created: src/app/global-error.tsx, src/app/loading.tsx
+- Updated: src/app/error.tsx (auth error detection, better UX)
+- All routes still protected via requireAuth() in their handlers
