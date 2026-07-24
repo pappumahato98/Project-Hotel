@@ -180,31 +180,7 @@ export function FrontDeskModule() {
         isCalendar ? 'px-4 pt-3 pb-2' : 'px-4 md:px-6 pt-3 pb-3',
       )}>
         <div className="flex items-center gap-2 flex-wrap w-full">
-          <Tabs
-            value={currentSubModule}
-            onValueChange={setActiveSubModule}
-            className="w-full"
-          >
-            <TabsList className="flex flex-wrap gap-1 sm:gap-1.5 w-full h-auto bg-muted/50 rounded-lg p-1 items-start">
-              {TAB_KEYS.filter((key) => !disabledSubModules.includes(key)).map((key) => {
-                const def = SUB_MODULES[key]
-                const Icon = def.icon
-
-                return (
-                  <TabsTrigger
-                    key={key}
-                    value={key}
-                    className="h-7 sm:h-8 flex-none text-[10px] sm:text-xs md:text-sm px-1.5 sm:px-2 md:px-3"
-                  >
-                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-0.5 sm:mr-1 shrink-0" />
-                    <span className="truncate">{def.label}</span>
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </Tabs>
-
-          {/* Gear icon — customize tabs */}
+          {/* Gear icon — customize tabs (before Dashboard tab) */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -261,6 +237,30 @@ export function FrontDeskModule() {
               </div>
             </PopoverContent>
           </Popover>
+
+          <Tabs
+            value={currentSubModule}
+            onValueChange={setActiveSubModule}
+            className="w-full"
+          >
+            <TabsList className="flex flex-wrap gap-1 sm:gap-1.5 w-full h-auto bg-muted/50 rounded-lg p-1 items-start">
+              {TAB_KEYS.filter((key) => !disabledSubModules.includes(key)).map((key) => {
+                const def = SUB_MODULES[key]
+                const Icon = def.icon
+
+                return (
+                  <TabsTrigger
+                    key={key}
+                    value={key}
+                    className="h-7 sm:h-8 flex-none text-[10px] sm:text-xs md:text-sm px-1.5 sm:px-2 md:px-3"
+                  >
+                    <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4 mr-0.5 sm:mr-1 shrink-0" />
+                    <span className="truncate">{def.label}</span>
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </Tabs>
         </div>
       </div>
 
