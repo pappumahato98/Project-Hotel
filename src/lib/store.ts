@@ -34,6 +34,27 @@ function clearAuthStorage() {
   localStorage.removeItem('meridian-auth')
 }
 
+/**
+ * Hydrate auth state from localStorage into the Zustand store.
+ * Must be called only on the client after mount (never during SSR).
+ * Returns true if auth was restored from localStorage.
+ */
+export function hydrateAuthFromStorage(): boolean {
+  if (typeof window === 'undefined') return false
+  const stored = loadStoredAuth()
+  if (stored.token) {
+    useAuthStore.setState({
+      user: stored.user as AuthUser,
+      isAuthenticated: true,
+      token: stored.token,
+      _hasHydrated: true,
+    })
+    return true
+  }
+  useAuthStore.setState({ _hasHydrated: true })
+  return false
+}
+
 // ─── Auth State ────────────────────────────────────────────────
 interface AuthUser {
   id: string
@@ -69,15 +90,14 @@ interface AuthState {
   _setHasHydrated: (v: boolean) => void
 }
 
-// Restore auth from localStorage at store creation time.
-// Each HMR re-evaluation reads the latest localStorage (which is stable).
-const stored = loadStoredAuth()
-
+// Auth store always starts unauthenticated (safe for SSR).
+// Client-side hydration from localStorage happens via hydrateAuthFromStorage()
+// called in Providers.tsx useEffect after mount.
 export const useAuthStore = create<AuthState>()((set) => ({
-  user: (stored.user as AuthUser) ?? null,
-  isAuthenticated: !!stored.token,
-  token: stored.token,
-  _hasHydrated: true,
+  user: null,
+  isAuthenticated: false,
+  token: null,
+  _hasHydrated: false,
   login: (user, token) => {
     saveAuthToStorage(user, token)
     set({ user, isAuthenticated: true, token })

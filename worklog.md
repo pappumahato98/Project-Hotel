@@ -562,3 +562,34 @@ Stage Summary:
 - Login flow now works correctly — `x-user-id` header is sent with all API requests
 - Files changed: `src/lib/api.ts`, `src/components/providers.tsx`
 - Lint passes clean, no console errors
+
+---
+Task ID: login-persist-fix
+Agent: main
+Task: Fix repeated login page appearing after login (auth not persisting across reloads)
+
+Work Log:
+- Tested login flow: login works on first attempt but auth is lost after page reload
+- Identified root cause: `const stored = loadStoredAuth()` at module level in store.ts runs during SSR where `window` is undefined → returns `{ user: null, token: null }` → store initializes with `isAuthenticated: false`
+- On client hydration, the server-rendered state (unauthenticated) wins over localStorage data
+- Fixed `src/lib/store.ts`:
+  - Removed module-level `const stored = loadStoredAuth()` initialization
+  - Added exported `hydrateAuthFromStorage()` function that reads localStorage and calls `useAuthStore.setState()` directly
+  - Store now starts with `isAuthenticated: false` and `_hasHydrated: false` (SSR-safe)
+  - Hydration from localStorage happens on client only, via useEffect in Providers
+- Fixed `src/components/providers.tsx`:
+  - Added `hydrateAuthFromStorage()` call as the first useEffect on mount
+  - Combined hydrate + initAuthFetch + syncFromBackend into a single mount effect for correct ordering
+  - Kept subscription-based syncFromBackend for fresh login detection
+- Verified end-to-end:
+  - Login works ✅
+  - Page reload preserves auth ✅ (was broken before)
+  - Multiple reloads all persist auth ✅
+  - Settings + Dashboard APIs load (200) after reload ✅
+  - No console errors ✅
+  - No 401 responses ✅
+
+Stage Summary:
+- Auth now properly persists across page reloads
+- Files changed: `src/lib/store.ts`, `src/components/providers.tsx`
+- Lint passes clean, all API calls return 200
