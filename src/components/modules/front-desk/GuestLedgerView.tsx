@@ -877,11 +877,96 @@ export function GuestLedgerView() {
   }, [voidTarget, voidReason, voidMutation])
 
   const handlePrint = useCallback(() => {
-    window.print()
-  }, [])
+    if (!ledger) return
+    const printWindow = window.open('', '_blank', 'width=800,height=600')
+    if (!printWindow) {
+      toast.error('Please allow pop-ups to print')
+      return
+    }
+    const guestName = `${ledger.guest.firstName} ${ledger.guest.lastName}`
+    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    // Compute running balance
+    let runningBalance = 0
+    const txRows = ledger.transactions.map((tx) => {
+      if (tx.type === 'charge') {
+        runningBalance += tx.totalAmount
+      } else {
+        runningBalance -= tx.amount
+      }
+      const amountStr = tx.type === 'charge' ? formatCurrency(tx.totalAmount) : `-${formatCurrency(tx.amount)}`
+      return `<tr>
+        <td>${formatDate(tx.createdAt)}</td>
+        <td>${tx.type === 'charge' ? 'Charge' : 'Payment'}</td>
+        <td>${tx.description}</td>
+        <td style="text-align:right">${amountStr}</td>
+        <td style="text-align:right">${formatCurrency(runningBalance)}</td>
+      </tr>`
+    }).join('')
+    const summary = ledger.summary
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Guest Ledger - Meridian Hotel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; padding: 24px; color: #000; }
+    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+    .hotel-name { font-size: 22px; font-weight: bold; letter-spacing: 2px; }
+    .title { font-size: 16px; margin-top: 4px; color: #333; }
+    .date { font-size: 12px; color: #666; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th { background: #f5f5f5; border: 1px solid #ccc; padding: 8px 10px; text-align: left; font-size: 12px; font-weight: 600; }
+    td { border: 1px solid #ddd; padding: 6px 10px; font-size: 12px; }
+    tr:nth-child(even) td { background: #fafafa; }
+    .totals { margin-top: 16px; display: flex; justify-content: space-between; padding: 12px 0; border-top: 2px double #000; font-weight: bold; font-size: 14px; }
+    .footer { text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px dashed #ccc; font-size: 10px; color: #999; }
+    @media print { .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="hotel-name">MERIDIAN HOTEL</div>
+    <div class="title">Guest Ledger — ${guestName}</div>
+    <div class="date">${dateStr}</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th style="text-align:right">Amount</th>
+        <th style="text-align:right">Running Balance</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${txRows}
+    </tbody>
+  </table>
+  <div class="totals">
+    <span>Total Charges: ${formatCurrency(summary.totalCharges)}</span>
+    <span>Total Payments: ${formatCurrency(summary.totalPayments)}</span>
+    <span>Outstanding: ${formatCurrency(summary.outstandingBalance)}</span>
+  </div>
+  <div class="footer">Generated: ${new Date().toLocaleString()}</div>
+  <div class="no-print" style="text-align:center;margin-top:12px;">
+    <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;border:2px solid #000;background:#f5f5f5;border-radius:4px;">Print Report</button>
+  </div>
+  <script>setTimeout(() => { window.print(); }, 500);</script>
+</body>
+</html>`)
+    printWindow.document.close()
+  }, [ledger])
 
   const handleExport = useCallback(() => {
     if (!ledger) return
+    function escapeCsvField(value: string | number | null | undefined): string {
+      const str = String(value ?? '')
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
     const rows = ledger.transactions.map((tx) => [
       tx.createdAt,
       tx.type,
@@ -894,8 +979,8 @@ export function GuestLedgerView() {
       tx.totalAmount,
     ])
     const csvContent = [
-      ['Date', 'Type', 'Category', 'Description', 'Confirmation#', 'Room', 'Amount', 'Tax', 'Total'].join(','),
-      ...rows.map((r) => r.join(',')),
+      ['Date', 'Type', 'Category', 'Description', 'Confirmation#', 'Room', 'Amount', 'Tax', 'Total'].map(escapeCsvField).join(','),
+      ...rows.map((r) => r.map(escapeCsvField).join(',')),
     ].join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)

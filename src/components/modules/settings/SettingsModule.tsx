@@ -1813,8 +1813,74 @@ function BackupTab() {
     }
   }, [settings.lastBackupDate])
 
-  const handleExportData = (type: string) => {
-    toast.success(`${type} data exported successfully`)
+  function escapeCsvField(value: string | number | null | undefined): string {
+    const str = String(value ?? '')
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+  }
+
+  function downloadCsv(filename: string, csvContent: string) {
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleExportData = async (type: string) => {
+    try {
+      if (type === 'Guest List') {
+        const guests = await apiFetch<any[]>('/api/guests')
+        const rows: string[][] = [
+          ['Name', 'Email', 'Phone', 'VIP', 'Country'],
+          ...(guests || []).map((g: any) => [
+            g.name || `${g.firstName || ''} ${g.lastName || ''}`.trim(),
+            g.email || '',
+            g.phone || '',
+            g.isVip ? 'Yes' : 'No',
+            g.country || '',
+          ]),
+        ]
+        const csvContent = rows.map(r => r.map(escapeCsvField).join(',')).join('\n')
+        downloadCsv('guest-list.csv', csvContent)
+        toast.success('Guest list exported successfully')
+      } else if (type === 'Reservations') {
+        const reservations = await apiFetch<any[]>('/api/reservations')
+        const rows: string[][] = [
+          ['Confirmation #', 'Guest', 'Room', 'Check-in', 'Check-out', 'Status', 'Total'],
+          ...(reservations || []).map((r: any) => [
+            r.confirmationNo || '',
+            r.guestName || `${r.guest?.firstName || ''} ${r.guest?.lastName || ''}`.trim(),
+            r.roomNumber || r.room?.number || '',
+            r.checkIn || '',
+            r.checkOut || '',
+            r.status || '',
+            String(r.totalAmount ?? r.total ?? 0),
+          ]),
+        ]
+        const csvContent = rows.map(r => r.map(escapeCsvField).join(',')).join('\n')
+        downloadCsv('reservations.csv', csvContent)
+        toast.success('Reservations exported successfully')
+      } else if (type === 'Revenue Report') {
+        const report = await apiFetch<any>('/api/front-desk/reports?type=revenue')
+        const rows: string[][] = [
+          ['Metric', 'Value'],
+          ['Total Revenue', String(report.totalRevenue ?? 0)],
+          ['Total Paid', String(report.totalPaid ?? 0)],
+          ['Outstanding', String(report.outstanding ?? 0)],
+          ['Average Rate', String(report.averageRate ?? 0)],
+        ]
+        const csvContent = rows.map(r => r.map(escapeCsvField).join(',')).join('\n')
+        downloadCsv('revenue-report.csv', csvContent)
+        toast.success('Revenue report exported successfully')
+      }
+    } catch (err) {
+      toast.error(`Failed to export ${type}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    }
   }
 
   const handleResetAllSettings = () => {

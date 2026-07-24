@@ -35,6 +35,14 @@ interface DeptTotal {
   totalNetPay: number
 }
 
+function escapeCsvField(value: string | number | null | undefined): string {
+  const str = String(value ?? '')
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
+}
+
 function fetchPayroll() {
   return apiFetch('/api/payroll')
 }
@@ -45,6 +53,40 @@ export function PayrollView() {
     queryFn: fetchPayroll,
   })
 
+  const handleExportPayroll = () => {
+    if (!data?.employees) {
+      toast.error('No payroll data to export')
+      return
+    }
+    const monthStr = (data.month || new Date().toISOString().slice(0, 7)).replace(/[^\d-]/g, '')
+    const rows: string[][] = [
+      ['Employee Name', 'Position', 'Department', 'Base Salary', 'Variable Pay', 'Overtime', 'Deductions', 'Net Pay'],
+      ...data.employees.map((emp: PayrollEmployee) => [
+        emp.name,
+        emp.position,
+        emp.department,
+        String(emp.baseSalary),
+        String(emp.variablePay),
+        String(emp.overtime),
+        String(emp.deductions),
+        String(emp.netPay),
+      ]),
+    ]
+    if (data.summary) {
+      rows.push([])
+      rows.push(['TOTAL', '', '', String(data.summary.totalBaseSalary), String(data.summary.totalVariablePay), String(data.summary.totalOvertime ?? 0), String(data.summary.totalDeductions), String(data.summary.totalNetPay)])
+    }
+    const csvContent = rows.map(r => r.map(escapeCsvField).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `payroll-${monthStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Payroll exported as CSV')
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
@@ -54,7 +96,7 @@ export function PayrollView() {
             Payroll summary for {data?.month ?? '...'}
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.info('Payroll export initiated')}>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPayroll}>
           <Download className="h-4 w-4" />
           Export
         </Button>

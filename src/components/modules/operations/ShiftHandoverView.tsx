@@ -123,6 +123,121 @@ export function ShiftHandoverView() {
     toast.success('Handover report regenerated')
   }
 
+  const handleExportShiftHandover = () => {
+    const s = sections
+    const dateStr = format(new Date(), 'yyyy-MM-dd')
+    const rows: string[][] = [
+      ['Shift Handover Report'],
+      [`Generated: ${data.generatedAt}`],
+      [`Shift: ${data.shiftType}`],
+      [`Outgoing Supervisor: ${data.outgoingSupervisor}`],
+      [`Incoming Supervisor: ${data.incomingSupervisor}`],
+      [''],
+      ['Category', 'Metric', 'Value'],
+      ['Guest Statistics', 'In-House Guests', String(s.inHouseGuests)],
+      ['Guest Statistics', 'Arrivals Checked In', String(s.arrivals.checkedIn)],
+      ['Guest Statistics', 'Arrivals Pending', String(s.arrivals.pending)],
+      ['Guest Statistics', 'Departures Done', String(s.departures.done)],
+      ['Guest Statistics', 'Departures Pending', String(s.departures.pending)],
+      ['Operations', 'HK Task Completion %', String(s.hkTaskCompletion)],
+      ['Operations', 'Open Work Orders', String(s.openWorkOrders)],
+      ['Operations', 'Open POS Tables', String(s.openPosTables)],
+      ['Financial', 'Cashier Balance', String(s.cashierBalance)],
+      ['Financial', 'Folios Above Credit', String(s.pendingFoliosAboveCredit)],
+      [''],
+      ['VIP In-House', 'Room', 'Reason'],
+      ...s.vipInHouse.map(v => ['VIP', v.room, v.reason]),
+      [''],
+      ['Special Notes'],
+      ...s.specialNotes.map(n => [n]),
+    ]
+    const csvContent = rows.map(r => r.map(c => {
+      const val = String(c ?? '')
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`
+      }
+      return val
+    }).join(',')).join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `shift-handover-${dateStr}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('Shift handover exported as CSV')
+  }
+
+  const handlePrintShiftHandover = () => {
+    const s = sections
+    const printWindow = window.open('', '_blank', 'width=500,height=700')
+    if (!printWindow) {
+      toast.error('Please allow pop-ups to print')
+      return
+    }
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Shift Handover Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 400px; margin: 0 auto; padding: 20px 10px; color: #000; }
+    .header { text-align: center; margin-bottom: 16px; border-bottom: 2px dashed #000; padding-bottom: 12px; }
+    .hotel-name { font-size: 18px; font-weight: bold; letter-spacing: 2px; }
+    .title { font-size: 14px; margin-top: 4px; }
+    .date { font-size: 10px; color: #555; margin-top: 4px; }
+    .info { margin-bottom: 12px; }
+    .info-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px dotted #ccc; }
+    .info-label { color: #555; }
+    .info-value { font-weight: bold; }
+    .section { margin-bottom: 12px; }
+    .section-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; border-bottom: 1px solid #000; padding-bottom: 2px; }
+    .row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px; }
+    .footer { text-align: center; margin-top: 16px; padding-top: 12px; border-top: 1px dashed #000; font-size: 10px; color: #555; }
+    @media print { body { width: 80mm; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="hotel-name">Shift Handover Report</div>
+    <div class="title">${data.shiftType} Shift</div>
+    <div class="date">Generated: ${format(new Date(data.generatedAt), 'MMM dd, yyyy hh:mm a')}</div>
+  </div>
+  <div class="info">
+    <div class="info-row"><span class="info-label">Outgoing Supervisor:</span><span class="info-value">${data.outgoingSupervisor}</span></div>
+    <div class="info-row"><span class="info-label">Incoming Supervisor:</span><span class="info-value">${data.incomingSupervisor}</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Guest Statistics</div>
+    <div class="row"><span>In-House Guests:</span><span>${s.inHouseGuests}</span></div>
+    <div class="row"><span>Arrivals (Checked In / Pending):</span><span>${s.arrivals.checkedIn} / ${s.arrivals.pending}</span></div>
+    <div class="row"><span>Departures (Done / Pending):</span><span>${s.departures.done} / ${s.departures.pending}</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Operations</div>
+    <div class="row"><span>HK Task Completion:</span><span>${s.hkTaskCompletion}%</span></div>
+    <div class="row"><span>Open Work Orders:</span><span>${s.openWorkOrders}</span></div>
+    <div class="row"><span>Open POS Tables:</span><span>${s.openPosTables}</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Financial</div>
+    <div class="row"><span>Cashier Balance:</span><span>${formatNPR(s.cashierBalance)}</span></div>
+    <div class="row"><span>Folios Above Credit Limit:</span><span>${s.pendingFoliosAboveCredit}</span></div>
+  </div>
+  ${s.vipInHouse.length > 0 ? `<div class="section"><div class="section-title">VIP In-House</div>${s.vipInHouse.map(v => `<div class="row"><span>${v.name} - Room ${v.room}</span></div><div class="row" style="color:#666;"><span>${v.reason}</span></div>`).join('')}</div>` : ''}
+  ${s.specialNotes.length > 0 ? `<div class="section"><div class="section-title">Special Notes</div>${s.specialNotes.map((n, i) => `<div class="row"><span>${i + 1}. ${n}</span></div>`).join('')}</div>` : ''}
+  <div class="footer">
+    <p>Shift Handover — Confidential</p>
+  </div>
+  <div class="no-print" style="text-align:center; margin-top:12px;">
+    <button onclick="window.print()" style="padding:8px 24px; font-size:14px; cursor:pointer; border:2px solid #000; background:#f5f5f5; border-radius:4px;">Print Report</button>
+  </div>
+  <script>setTimeout(() => { window.print(); }, 500);</script>
+</body>
+</html>`)
+    printWindow.document.close()
+  }
+
   return (
     <div className="flex flex-col gap-2">
       {/* ── Header Banner ─────────────────────────────────────── */}
@@ -427,11 +542,11 @@ export function ShiftHandoverView() {
                 <ArrowRightLeft className="mr-2 h-4 w-4" />
                 Regenerate
               </Button>
-              <Button variant="outline" size="sm" onClick={() => toast.info('Print function initiated')}>
+              <Button variant="outline" size="sm" onClick={handlePrintShiftHandover}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print
               </Button>
-              <Button variant="outline" size="sm" onClick={() => toast.info('Export function initiated')}>
+              <Button variant="outline" size="sm" onClick={handleExportShiftHandover}>
                 <Download className="mr-2 h-4 w-4" />
                 Export
               </Button>

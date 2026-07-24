@@ -487,11 +487,21 @@ export function DeparturesView() {
     toast.success('Receipt sent to printer')
   }
 
-  const handleEmailReceipt = () => {
+  const handleEmailReceipt = async () => {
     if (!receiptData) return
-    const guestEmail = receiptData.guest.email || 'no email on file'
-    // In production, this would call an email API
-    toast.success(`Receipt emailed to ${guestEmail}`)
+    try {
+      const res = await apiFetch<{ success: boolean; message: string; data: { to: string } }>(
+        `/api/departures/${receiptData.id}/email-receipt`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customMessage: '' }),
+        },
+      )
+      toast.success(`Receipt emailed to ${res.data.to}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to email receipt')
+    }
   }
 
   // ─── Computed values ──────────────────────────────────────────────

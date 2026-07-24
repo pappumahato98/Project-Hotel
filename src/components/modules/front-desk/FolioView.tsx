@@ -618,12 +618,22 @@ export function FolioView() {
     if (!activeFolio) return
     setEmailDialogOpen(true)
   }
-  const handleConfirmEmailFolio = () => {
+  const handleConfirmEmailFolio = async () => {
     if (!activeFolio) return
-    const guestName = guestFullName(activeFolio.guest)
-    // In production, this would call an email API
     setEmailDialogOpen(false)
-    toast.success(`Folio statement emailed to ${guestName}`)
+    try {
+      const res = await apiFetch<{ success: boolean; message: string; data: { to: string } }>(
+        `/api/folio/${activeFolio.id}/email`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customMessage: '' }),
+        },
+      )
+      toast.success(`Folio statement emailed to ${res.data.to}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to email folio statement')
+    }
   }
 
   const handleOpenVoidDialog = (target: VoidTarget) => {

@@ -661,3 +661,87 @@ Stage Summary:
 - Polling reduced from ~2s (excessive) to 5s (intentional)
 - Dashboard stats also refresh on charge post via invalidate.afterFolioChange
 - Other front-desk views poll every 10s (unchanged)
+---
+Task ID: 1-c
+Agent: subagent
+Task: Real CSV exports + dead code cleanup
+
+Work Log:
+- Read and analyzed all 5 target files: ShiftHandoverView.tsx, PayrollView.tsx, SettingsModule.tsx, GuestLedgerView.tsx, lib/print.ts
+- Read supporting files: lib/api.ts, lib/format.ts for understanding available utilities
+- C1: ShiftHandoverView.tsx — Replaced `toast.info('Export function initiated')` with `handleExportShiftHandover` that builds a CSV with shift handover data (guest stats, operations, financial, VIP, notes) and triggers download as `shift-handover-YYYY-MM-DD.csv`. Replaced `toast.info('Print function initiated')` with `handlePrintShiftHandover` that opens a new window with receipt-style HTML layout and auto-triggers print dialog.
+- C2: PayrollView.tsx — Replaced `toast.info('Payroll export initiated')` with `handleExportPayroll` that builds CSV from component's `data` state (employee name, position, department, base salary, variable pay, overtime, deductions, net pay) with totals row. Downloads as `payroll-YYYY-MM.csv`. Added `escapeCsvField` helper.
+- C3: SettingsModule.tsx — Replaced `handleExportData` stub (was just `toast.success(...)`) with real async export logic using `apiFetch`. For "Guest List": fetches `/api/guests`, builds CSV (name, email, phone, vip, country). For "Reservations": fetches `/api/reservations`, builds CSV (confirmation#, guest, room, check-in, check-out, status, total). For "Revenue Report": fetches `/api/front-desk/reports?type=revenue`, builds CSV (total revenue, total paid, outstanding, avg rate). Added `escapeCsvField` and `downloadCsv` helpers. Added error handling with toast notifications.
+- C4: GuestLedgerView.tsx — Fixed `handleExport` CSV generation by adding `escapeCsvField` helper function that properly wraps fields containing commas, quotes, or newlines in double quotes and doubles existing double quotes. Applied escaping to both header and data rows.
+- C5: lib/print.ts — Verified both exports (`openPrintDialog`, `buildReceiptCharges`) are properly exported. Confirmed file is not imported anywhere but remains lint-clean and available for future use.
+- Ran `bun run lint` — all files pass with zero errors.
+
+Stage Summary:
+- 5 files modified across 4 components + 1 utility
+- All toast.info toast stubs replaced with real CSV download/print functionality
+- Proper CSV escaping applied everywhere (escapeCsvField helper)
+- lib/print.ts verified clean and available for future use
+- Lint passes with zero errors
+
+---
+Task ID: 1-a
+Agent: subagent
+Task: POS Daily Sales real API + view connection + print/export
+
+Work Log:
+- Read existing DailySalesReportView.tsx, pos/route.ts, front-desk/reports/route.ts, Prisma schema (PosOrder, OrderItem, Outlet, MenuItem), lib/db.ts, lib/api.ts, auth-helpers.ts
+- Created API endpoint src/app/api/pos/daily-sales/route.ts with GET handler:
+  - Accepts optional `date` query param (defaults to today)
+  - Queries closed/voided PosOrders for the date with Outlet and OrderItems (with MenuItem)
+  - Computes totalRevenue, totalOrders, avgOrderValue, taxCollected
+  - Groups by outlet with icon mapping (restaurant→utensils, bar→wine, room_service→bell, spa→flower, business_center→monitor, default→store)
+  - Groups by MenuItem category with amount and percentage
+  - Derives payment breakdown from paymentStatus (unpaid→Room Charge, paid→distributed by outlet type)
+  - Top 5 items by quantity sold with rank, name, qtySold, revenue
+  - Hourly sales grouped by hour with revenue and orders
+  - Returns DailyReportData-matching JSON response
+- Updated DailySalesReportView.tsx:
+  - Replaced MOCK_REPORT with useQuery hook (useDailySalesReport) fetching /api/pos/daily-sales?date=
+  - Added loading skeleton (LoadingSkeleton component using Skeleton UI)
+  - Added error state display
+  - Added NoDataState when report has zero orders
+  - Falls back to empty FALLBACK_REPORT when API returns no data
+  - Refetches automatically when date changes via queryKey
+  - Made outlet filter Select dynamic (populated from actual API data)
+- Implemented real handlePrint:
+  - Builds formatted HTML with print stylesheet, summary cards grid, and all report tables
+  - Opens print window via window.open with auto-print on load
+  - Handles popup blocked scenario with toast error
+- Implemented real handleExport:
+  - Builds CSV with BOM for Excel compatibility
+  - Includes all sections: Summary, By Outlet, By Category, By Payment, Top Items, Hourly Sales
+  - Triggers download via Blob URL with filename pos-daily-sales-{date}.csv
+- Lint passes with zero errors
+
+Stage Summary:
+- API endpoint: src/app/api/pos/daily-sales/route.ts (GET, authenticated, date-filtered)
+- View: src/components/modules/pos/DailySalesReportView.tsx (useQuery, skeleton loading, error/no-data states, print/export)
+- Print: formatted HTML print window with summary grid + all 5 report tables
+- Export: real CSV download with all report sections
+
+---
+Task ID: 1-b
+Agent: subagent
+Task: Email API wiring + formatted print dialogs
+
+Work Log:
+- Connected FolioView `handleConfirmEmailFolio` to real `/api/folio/${id}/email` API via `apiFetch` POST with `{ customMessage: '' }` body; shows success toast with guest email from response, error toast on failure
+- Created `src/app/api/departures/[id]/email-receipt/route.ts` — POST handler that fetches reservation with guest/room/folios, requires auth, reads hotel settings, computes charges/payments/balance, logs email to console, returns structured response; returns 400 if no guest email
+- Connected DeparturesView `handleEmailReceipt` to real `/api/departures/${id}/email-receipt` API via `apiFetch` POST with `{ customMessage: '' }` body; shows success/error toasts
+- Replaced `window.print()` in SettlementView with formatted print window showing "Meridian Hotel - Settlement List" with date, table of guests (room, name, confirmation, outstanding balance, last payment), and totals; moved handler after computed values to satisfy React Compiler memoization preservation
+- Replaced `window.print()` in GuestLedgerView with formatted print window showing "Meridian Hotel - Guest Ledger" with guest name, date, table of all transactions (date, type, description, amount, running balance), and totals at bottom; updated useCallback deps to include `ledger`
+- Replaced `window.print()` in ReservationsView with formatted print window showing "Meridian Hotel - Reservation Details" with guest info, room & dates, reservation details (confirmation, status, type, source, rate, amount, guaranteed, company, special requests, notes)
+- Confirmed ShiftHandoverView already has a fully implemented formatted print handler — no changes needed
+- Verified all files already import `useMemo` where needed — no additional imports required
+- Ran `bun run lint` — passes cleanly with 0 errors
+
+Stage Summary:
+- FolioView email now calls real API endpoint `/api/folio/{id}/email`
+- DeparturesView email now calls new API endpoint `/api/departures/{id}/email-receipt`
+- SettlementView, GuestLedgerView, and ReservationsView all show formatted print dialogs in new windows with proper headers, tables, and totals
+- All lint checks pass

@@ -671,7 +671,82 @@ export function ReservationsView() {
   }
 
   const handlePrint = () => {
-    window.print()
+    if (!selectedReservation) return
+    const r = selectedReservation
+    const guestName = r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '—'
+    const roomNum = r.room ? r.room.number : 'N/A'
+    const roomType = r.room ? r.room.type.name : 'N/A'
+    const printWindow = window.open('', '_blank', 'width=600,height=700')
+    if (!printWindow) {
+      toast.error('Please allow pop-ups to print')
+      return
+    }
+    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const nights = nightsBetween(r.checkIn, r.checkOut)
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <title>Reservation Details - Meridian Hotel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; padding: 24px; color: #000; max-width: 600px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 12px; }
+    .hotel-name { font-size: 22px; font-weight: bold; letter-spacing: 2px; }
+    .title { font-size: 16px; margin-top: 4px; color: #333; }
+    .date { font-size: 12px; color: #666; margin-top: 4px; }
+    .section { margin: 16px 0; }
+    .section-title { font-size: 14px; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+    .info-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+    .info-label { color: #555; }
+    .info-value { font-weight: 600; }
+    .footer { text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px dashed #ccc; font-size: 10px; color: #999; }
+    @media print { .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="hotel-name">MERIDIAN HOTEL</div>
+    <div class="title">Reservation Details</div>
+    <div class="date">${dateStr}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Guest Information</div>
+    <div class="info-row"><span class="info-label">Name:</span><span class="info-value">${guestName}</span></div>
+    <div class="info-row"><span class="info-label">Email:</span><span class="info-value">${r.guest?.email || '—'}</span></div>
+    <div class="info-row"><span class="info-label">Phone:</span><span class="info-value">${r.guest?.phone || '—'}</span></div>
+    <div class="info-row"><span class="info-label">VIP:</span><span class="info-value">${r.guest?.vipLevel || 'none'}</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Room & Dates</div>
+    <div class="info-row"><span class="info-label">Room:</span><span class="info-value">${roomNum} (${roomType})</span></div>
+    <div class="info-row"><span class="info-label">Check-in:</span><span class="info-value">${formatDate(r.checkIn)}</span></div>
+    <div class="info-row"><span class="info-label">Check-out:</span><span class="info-value">${formatDate(r.checkOut)}</span></div>
+    <div class="info-row"><span class="info-label">Nights:</span><span class="info-value">${nights}</span></div>
+    <div class="info-row"><span class="info-label">Guests:</span><span class="info-value">${r.adults} adults${r.children > 0 ? `, ${r.children} children` : ''}</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Reservation Details</div>
+    <div class="info-row"><span class="info-label">Confirmation #:</span><span class="info-value">${r.confirmationNo}</span></div>
+    ${r.reservationNumber ? `<div class="info-row"><span class="info-label">Reservation #:</span><span class="info-value">${r.reservationNumber}</span></div>` : ''}
+    <div class="info-row"><span class="info-label">Status:</span><span class="info-value">${r.status.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase())}</span></div>
+    <div class="info-row"><span class="info-label">Type:</span><span class="info-value">${r.reservationType.replace(/_/g, ' ').replace(/\w/g, l => l.toUpperCase())}</span></div>
+    <div class="info-row"><span class="info-label">Source:</span><span class="info-value">${(r.source || 'direct').replace(/_/g, ' ')}</span></div>
+    <div class="info-row"><span class="info-label">Rate/Night:</span><span class="info-value">${formatCurrency(r.roomRate)}</span></div>
+    <div class="info-row"><span class="info-label">Total Amount:</span><span class="info-value">${formatCurrency(r.totalAmount)}</span></div>
+    <div class="info-row"><span class="info-label">Paid:</span><span class="info-value">${formatCurrency(r.paidAmount)}</span></div>
+    <div class="info-row"><span class="info-label">Guaranteed:</span><span class="info-value">${r.guaranteed ? 'Yes' : 'No'}</span></div>
+    ${r.company ? `<div class="info-row"><span class="info-label">Company:</span><span class="info-value">${r.company}</span></div>` : ''}
+    ${r.specialRequests ? `<div class="info-row"><span class="info-label">Special Requests:</span><span class="info-value">${r.specialRequests}</span></div>` : ''}
+    ${r.notes ? `<div class="info-row"><span class="info-label">Notes:</span><span class="info-value">${r.notes}</span></div>` : ''}
+  </div>
+  <div class="footer">Generated: ${new Date().toLocaleString()}</div>
+  <div class="no-print" style="text-align:center;margin-top:12px;">
+    <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;border:2px solid #000;background:#f5f5f5;border-radius:4px;">Print Reservation</button>
+  </div>
+  <script>setTimeout(() => { window.print(); }, 500);</script>
+</body>
+</html>`)
+    printWindow.document.close()
   }
 
   return (

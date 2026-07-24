@@ -1,12 +1,15 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { apiFetch } from '@/lib/api'
 
 import {
   TrendingUp, DollarSign, Receipt, Percent, CreditCard,
   Smartphone, BedDouble, Banknote, Calendar, Printer, Download,
-  UtensilsCrossed, Wine, Flower2, BellRing, Monitor,
+  UtensilsCrossed, Wine, Flower2, BellRing, Monitor, Store,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -21,9 +24,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatNPR } from './pos-types'
 
-// ─── Mock Data ─────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────
 interface DailyReportData {
   totalRevenue: number
   totalOrders: number
@@ -36,58 +40,17 @@ interface DailyReportData {
   hourlySales: { hour: string; revenue: number; orders: number }[]
 }
 
-const MOCK_REPORT: DailyReportData = {
-  totalRevenue: 287450,
-  totalOrders: 186,
-  avgOrderValue: 1545,
-  taxCollected: 37368,
-  byOutlet: [
-    { name: 'Restaurant', revenue: 132800, orders: 78, icon: 'utensils' },
-    { name: 'Bar & Lounge', revenue: 62400, orders: 52, icon: 'wine' },
-    { name: 'Room Service', revenue: 38200, orders: 28, icon: 'bell' },
-    { name: 'Spa', revenue: 31500, orders: 18, icon: 'flower' },
-    { name: 'Business Center', revenue: 22550, orders: 10, icon: 'monitor' },
-  ],
-  byCategory: [
-    { name: 'Main Course', amount: 98500, percentage: 34.3 },
-    { name: 'Beverages', amount: 62300, percentage: 21.7 },
-    { name: 'Appetizers', amount: 48200, percentage: 16.8 },
-    { name: 'Desserts', amount: 28400, percentage: 9.9 },
-    { name: 'Services', amount: 31500, percentage: 10.9 },
-    { name: 'Other', amount: 18550, percentage: 6.5 },
-  ],
-  byPayment: [
-    { method: 'Cash', amount: 86235, percentage: 30.0, icon: 'banknote' },
-    { method: 'Card', amount: 115000, percentage: 40.0, icon: 'creditcard' },
-    { method: 'Mobile (eSewa/Khalti)', amount: 51761, percentage: 18.0, icon: 'smartphone' },
-    { method: 'Room Charge', amount: 34454, percentage: 12.0, icon: 'bed' },
-  ],
-  topItems: [
-    { rank: 1, name: 'Chicken Momo (8pc)', qtySold: 42, revenue: 18900 },
-    { rank: 2, name: 'Thali Set', qtySold: 38, revenue: 24700 },
-    { rank: 3, name: 'Draft Beer (Pint)', qtySold: 65, revenue: 22750 },
-    { rank: 4, name: 'Paneer Tikka', qtySold: 34, revenue: 11900 },
-    { rank: 5, name: 'Masala Tea', qtySold: 56, revenue: 4480 },
-  ],
-  hourlySales: [
-    { hour: '7 AM', revenue: 4200, orders: 6 },
-    { hour: '8 AM', revenue: 12800, orders: 18 },
-    { hour: '9 AM', revenue: 8900, orders: 12 },
-    { hour: '10 AM', revenue: 3200, orders: 4 },
-    { hour: '11 AM', revenue: 5600, orders: 8 },
-    { hour: '12 PM', revenue: 28400, orders: 22 },
-    { hour: '1 PM', revenue: 32100, orders: 26 },
-    { hour: '2 PM', revenue: 18600, orders: 14 },
-    { hour: '3 PM', revenue: 8400, orders: 6 },
-    { hour: '4 PM', revenue: 5200, orders: 4 },
-    { hour: '5 PM', revenue: 9800, orders: 8 },
-    { hour: '6 PM', revenue: 22400, orders: 18 },
-    { hour: '7 PM', revenue: 38600, orders: 28 },
-    { hour: '8 PM', revenue: 42100, orders: 30 },
-    { hour: '9 PM', revenue: 35800, orders: 24 },
-    { hour: '10 PM', revenue: 18300, orders: 12 },
-    { hour: '11 PM', revenue: 6050, orders: 6 },
-  ],
+// ─── Fallback Mock Data ──────────────────────────────────────────────
+const FALLBACK_REPORT: DailyReportData = {
+  totalRevenue: 0,
+  totalOrders: 0,
+  avgOrderValue: 0,
+  taxCollected: 0,
+  byOutlet: [],
+  byCategory: [],
+  byPayment: [],
+  topItems: [],
+  hourlySales: [],
 }
 
 const OUTLET_ICONS: Record<string, React.ElementType> = {
@@ -96,6 +59,7 @@ const OUTLET_ICONS: Record<string, React.ElementType> = {
   bell: BellRing,
   flower: Flower2,
   monitor: Monitor,
+  store: Store,
 }
 
 const PAYMENT_ICONS: Record<string, React.ElementType> = {
@@ -103,6 +67,116 @@ const PAYMENT_ICONS: Record<string, React.ElementType> = {
   creditcard: CreditCard,
   smartphone: Smartphone,
   bed: BedDouble,
+}
+
+// ─── Query Hook ─────────────────────────────────────────────────────
+function useDailySalesReport(date: string) {
+  return useQuery<DailyReportData>({
+    queryKey: ['pos-daily-sales', date],
+    queryFn: () => apiFetch<DailyReportData>(`/api/pos/daily-sales?date=${date}`),
+    staleTime: 60_000, // 1 minute
+  })
+}
+
+// ─── Loading Skeleton ────────────────────────────────────────────────
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="py-3">
+            <CardContent className="flex items-center gap-2 px-3 py-0">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        <Card className="py-3">
+          <CardContent className="px-3 py-0 space-y-3">
+            <Skeleton className="h-4 w-28" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex justify-between">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <Card className="py-3">
+          <CardContent className="px-3 py-0 space-y-3">
+            <Skeleton className="h-4 w-32" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex justify-between">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-12" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+        <Card className="py-3">
+          <CardContent className="px-3 py-0 space-y-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-full rounded-full" />
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 rounded-lg" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="py-3">
+          <CardContent className="px-3 py-0 space-y-3">
+            <Skeleton className="h-4 w-32" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex justify-between">
+                <Skeleton className="h-3 w-8" />
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+      <Card className="py-3">
+        <CardContent className="px-3 py-0 space-y-3">
+          <Skeleton className="h-4 w-32" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-5 flex-1 rounded" />
+              <Skeleton className="h-3 w-14" />
+              <Skeleton className="h-3 w-10" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ─── No Data State ──────────────────────────────────────────────────
+function NoDataState({ date }: { date: string }) {
+  return (
+    <Card className="py-12">
+      <CardContent className="flex flex-col items-center justify-center text-center gap-2">
+        <Receipt className="h-8 w-8 text-muted-foreground" />
+        <p className="text-sm font-medium text-muted-foreground">No Sales Data</p>
+        <p className="text-xs text-muted-foreground">No closed or voided orders found for {date}.</p>
+      </CardContent>
+    </Card>
+  )
 }
 
 // ─── Summary Cards ───────────────────────────────────────────────────
@@ -133,7 +207,7 @@ function SummaryCards({ data }: { data: DailyReportData }) {
   )
 }
 
-// ─── Sales by Outlet ──────────────────────────────────────────────────
+// ─── Sales by Outlet ─────────────────────────────────────────────────
 function SalesByOutlet({ outlets, totalRevenue }: { outlets: DailyReportData['byOutlet']; totalRevenue: number }) {
   const maxRevenue = Math.max(...outlets.map((o) => o.revenue))
 
@@ -177,7 +251,7 @@ function SalesByOutlet({ outlets, totalRevenue }: { outlets: DailyReportData['by
   )
 }
 
-// ─── Sales by Category ────────────────────────────────────────────────
+// ─── Sales by Category ───────────────────────────────────────────────
 function SalesByCategory({ categories }: { categories: DailyReportData['byCategory'] }) {
   return (
     <Card className="rounded-lg border">
@@ -210,7 +284,7 @@ function SalesByCategory({ categories }: { categories: DailyReportData['byCatego
   )
 }
 
-// ─── Payment Method Breakdown ──────────────────────────────────────────
+// ─── Payment Method Breakdown ────────────────────────────────────────
 function PaymentBreakdown({ payments }: { payments: DailyReportData['byPayment'] }) {
   const colors = [
     'bg-emerald-500',
@@ -218,6 +292,19 @@ function PaymentBreakdown({ payments }: { payments: DailyReportData['byPayment']
     'bg-violet-500',
     'bg-amber-500',
   ]
+
+  if (payments.length === 0) {
+    return (
+      <Card className="rounded-lg border">
+        <CardHeader className="pb-3 px-3 pt-3">
+          <CardTitle className="text-sm">Payment Method Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent className="px-3 pb-3">
+          <p className="text-xs text-muted-foreground text-center py-4">No payment data available</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card className="rounded-lg border">
@@ -260,8 +347,21 @@ function PaymentBreakdown({ payments }: { payments: DailyReportData['byPayment']
   )
 }
 
-// ─── Top Selling Items ────────────────────────────────────────────────
+// ─── Top Selling Items ───────────────────────────────────────────────
 function TopSellingItems({ items }: { items: DailyReportData['topItems'] }) {
+  if (items.length === 0) {
+    return (
+      <Card className="rounded-lg border">
+        <CardHeader className="pb-3 px-3 pt-3">
+          <CardTitle className="text-sm">Top 5 Selling Items</CardTitle>
+        </CardHeader>
+        <CardContent className="px-3 pb-3">
+          <p className="text-xs text-muted-foreground text-center py-4">No items sold</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="rounded-lg border">
       <CardHeader className="pb-3 px-3 pt-3">
@@ -299,8 +399,21 @@ function TopSellingItems({ items }: { items: DailyReportData['topItems'] }) {
   )
 }
 
-// ─── Hourly Sales Trend ───────────────────────────────────────────────
+// ─── Hourly Sales Trend ──────────────────────────────────────────────
 function HourlySalesTrend({ hourly }: { hourly: DailyReportData['hourlySales'] }) {
+  if (hourly.length === 0) {
+    return (
+      <Card className="rounded-lg border">
+        <CardHeader className="pb-3 px-3 pt-3">
+          <CardTitle className="text-sm">Hourly Sales Trend</CardTitle>
+        </CardHeader>
+        <CardContent className="px-3 pb-3">
+          <p className="text-xs text-muted-foreground text-center py-4">No hourly data available</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const maxRevenue = Math.max(...hourly.map((h) => h.revenue))
 
   return (
@@ -342,30 +455,184 @@ function HourlySalesTrend({ hourly }: { hourly: DailyReportData['hourlySales'] }
   )
 }
 
-// ─── Main DailySalesReportView ───────────────────────────────────────
+// ─── CSV Export Helper ───────────────────────────────────────────────
+function buildCsvContent(report: DailyReportData, date: string): string {
+  const lines: string[] = []
+
+  // Header
+  lines.push(`POS Daily Sales Report — ${date}`)
+  lines.push('')
+
+  // Summary
+  lines.push('=== SUMMARY ===')
+  lines.push(`Total Revenue,NPR ${report.totalRevenue.toLocaleString()}`)
+  lines.push(`Total Orders,${report.totalOrders}`)
+  lines.push(`Avg Order Value,NPR ${report.avgOrderValue.toLocaleString()}`)
+  lines.push(`Tax Collected,NPR ${report.taxCollected.toLocaleString()}`)
+  lines.push('')
+
+  // By Outlet
+  lines.push('=== SALES BY OUTLET ===')
+  lines.push('Outlet,Revenue,Orders')
+  for (const o of report.byOutlet) {
+    lines.push(`"${o.name}",${o.revenue},${o.orders}`)
+  }
+  lines.push('')
+
+  // By Category
+  lines.push('=== SALES BY CATEGORY ===')
+  lines.push('Category,Amount,Share (%)')
+  for (const c of report.byCategory) {
+    lines.push(`"${c.name}",${c.amount},${c.percentage}`)
+  }
+  lines.push('')
+
+  // By Payment
+  lines.push('=== PAYMENT BREAKDOWN ===')
+  lines.push('Method,Amount,Share (%)')
+  for (const p of report.byPayment) {
+    lines.push(`"${p.method}",${p.amount},${p.percentage}`)
+  }
+  lines.push('')
+
+  // Top Items
+  lines.push('=== TOP SELLING ITEMS ===')
+  lines.push('Rank,Item Name,Qty Sold,Revenue')
+  for (const item of report.topItems) {
+    lines.push(`${item.rank},"${item.name}",${item.qtySold},${item.revenue}`)
+  }
+  lines.push('')
+
+  // Hourly
+  lines.push('=== HOURLY SALES ===')
+  lines.push('Hour,Revenue,Orders')
+  for (const h of report.hourlySales) {
+    lines.push(`${h.hour},${h.revenue},${h.orders}`)
+  }
+
+  return lines.join('\n')
+}
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+// ─── Print Helper ────────────────────────────────────────────────────
+function buildPrintHtml(report: DailyReportData, date: string): string {
+  const outletRows = report.byOutlet.map(o =>
+    `<tr><td>${o.name}</td><td style="text-align:right">NPR ${o.revenue.toLocaleString()}</td><td style="text-align:right">${o.orders}</td></tr>`
+  ).join('')
+
+  const categoryRows = report.byCategory.map(c =>
+    `<tr><td>${c.name}</td><td style="text-align:right">NPR ${c.amount.toLocaleString()}</td><td style="text-align:right">${c.percentage}%</td></tr>`
+  ).join('')
+
+  const paymentRows = report.byPayment.map(p =>
+    `<tr><td>${p.method}</td><td style="text-align:right">NPR ${p.amount.toLocaleString()}</td><td style="text-align:right">${p.percentage}%</td></tr>`
+  ).join('')
+
+  const topItemRows = report.topItems.map(item =>
+    `<tr><td style="text-align:center">${item.rank}</td><td>${item.name}</td><td style="text-align:right">${item.qtySold}</td><td style="text-align:right">NPR ${item.revenue.toLocaleString()}</td></tr>`
+  ).join('')
+
+  const hourlyRows = report.hourlySales.map(h =>
+    `<tr><td>${h.hour}</td><td style="text-align:right">NPR ${h.revenue.toLocaleString()}</td><td style="text-align:right">${h.orders}</td></tr>`
+  ).join('')
+
+  return `
+<html><head><title>POS Daily Sales Report — ${date}</title>
+<style>
+  body{font-family:'Segoe UI',system-ui,sans-serif;max-width:700px;margin:0 auto;padding:24px;font-size:12px;color:#1a1a1a}
+  h1{font-size:18px;margin:0 0 4px 0}
+  h2{font-size:14px;margin:20px 0 8px 0;border-bottom:1px solid #e5e7eb;padding-bottom:4px;color:#374151}
+  .meta{color:#6b7280;font-size:11px;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;margin-bottom:12px}
+  th{background:#f9fafb;text-align:left;font-weight:600;font-size:11px;padding:6px 8px;border-bottom:2px solid #e5e7eb}
+  td{padding:5px 8px;border-bottom:1px solid #f3f4f6;font-size:11px}
+  .summary{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px}
+  .summary-card{background:#f9fafb;border-radius:8px;padding:12px}
+  .summary-card .label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.5px}
+  .summary-card .value{font-size:16px;font-weight:700;margin-top:2px}
+  @media print{body{padding:12px} .no-print{display:none}}
+</style></head><body>
+<h1>POS Daily Sales Report</h1>
+<p class="meta">Date: ${date}</p>
+
+<div class="summary">
+  <div class="summary-card"><div class="label">Total Revenue</div><div class="value">NPR ${report.totalRevenue.toLocaleString()}</div></div>
+  <div class="summary-card"><div class="label">Total Orders</div><div class="value">${report.totalOrders}</div></div>
+  <div class="summary-card"><div class="label">Avg Order Value</div><div class="value">NPR ${report.avgOrderValue.toLocaleString()}</div></div>
+  <div class="summary-card"><div class="label">Tax Collected</div><div class="value">NPR ${report.taxCollected.toLocaleString()}</div></div>
+</div>
+
+<h2>Sales by Outlet</h2>
+<table><thead><tr><th>Outlet</th><th style="text-align:right">Revenue</th><th style="text-align:right">Orders</th></tr></thead><tbody>${outletRows}</tbody></table>
+
+<h2>Sales by Category</h2>
+<table><thead><tr><th>Category</th><th style="text-align:right">Amount</th><th style="text-align:right">Share</th></tr></thead><tbody>${categoryRows}</tbody></table>
+
+<h2>Payment Breakdown</h2>
+<table><thead><tr><th>Method</th><th style="text-align:right">Amount</th><th style="text-align:right">Share</th></tr></thead><tbody>${paymentRows}</tbody></table>
+
+<h2>Top 5 Selling Items</h2>
+<table><thead><tr><th style="text-align:center">#</th><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Revenue</th></tr></thead><tbody>${topItemRows}</tbody></table>
+
+<h2>Hourly Sales</h2>
+<table><thead><tr><th>Hour</th><th style="text-align:right">Revenue</th><th style="text-align:right">Orders</th></tr></thead><tbody>${hourlyRows}</tbody></table>
+
+<script>window.onload=function(){window.print()}</script>
+</body></html>`
+}
+
+// ─── Main DailySalesReportView ──────────────────────────────────────
 export default function DailySalesReportView() {
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().split('T')[0])
   const [outletFilter, setOutletFilter] = useState('all')
 
-  // Simulate different data for different dates (in real app, would fetch from API)
-  const report = useMemo(() => {
-    // Use mock data for demo; in production this would be fetched based on date
-    return MOCK_REPORT
-  }, [reportDate])
+  const { data: report, isLoading, isError, error } = useDailySalesReport(reportDate)
+
+  // Use fallback when no data is returned from the API
+  const reportData = report ?? FALLBACK_REPORT
+
+  const hasData = reportData.totalOrders > 0 || reportData.byOutlet.length > 0
 
   const filteredOutlet = useMemo(() => {
-    if (outletFilter === 'all') return report.byOutlet
-    return report.byOutlet.filter((o) => o.name.toLowerCase().replace(/[\s&]/g, '-') === outletFilter)
-  }, [report, outletFilter])
+    if (outletFilter === 'all') return reportData.byOutlet
+    return reportData.byOutlet.filter((o) => o.name.toLowerCase().replace(/[\s&]/g, '-') === outletFilter)
+  }, [reportData, outletFilter])
 
   const handlePrint = () => {
-    toast.success('Preparing print view...')
-    setTimeout(() => toast.info('Print dialog would open here'), 500)
+    if (!hasData) {
+      toast.info('No data to print for this date')
+      return
+    }
+    const html = buildPrintHtml(reportData, reportDate)
+    const printWindow = window.open('', '_blank', 'width=750,height=900')
+    if (!printWindow) {
+      toast.error('Please allow popups to print')
+      return
+    }
+    printWindow.document.write(html)
+    printWindow.document.close()
   }
 
   const handleExport = () => {
-    toast.success('Exporting report as CSV...')
-    setTimeout(() => toast.info('Download would start here'), 500)
+    if (!hasData) {
+      toast.info('No data to export for this date')
+      return
+    }
+    const csv = buildCsvContent(reportData, reportDate)
+    const filename = `pos-daily-sales-${reportDate}.csv`
+    downloadCsv(csv, filename)
+    toast.success('Report exported as CSV')
   }
 
   return (
@@ -386,65 +653,90 @@ export default function DailySalesReportView() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Outlets</SelectItem>
-              <SelectItem value="restaurant">Restaurant</SelectItem>
-              <SelectItem value="bar-lounge">Bar & Lounge</SelectItem>
-              <SelectItem value="room-service">Room Service</SelectItem>
-              <SelectItem value="spa">Spa</SelectItem>
-              <SelectItem value="business-center">Business Center</SelectItem>
+              {reportData.byOutlet.map((o) => (
+                <SelectItem key={o.name.toLowerCase().replace(/[\s&]/g, '-')} value={o.name.toLowerCase().replace(/[\s&]/g, '-')}>
+                  {o.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-1 text-[11px]" onClick={handlePrint}>
+          <Button variant="outline" className="gap-1 text-[11px]" onClick={handlePrint} disabled={isLoading}>
             <Printer className="h-3.5 w-3.5" />
             Print
           </Button>
-          <Button variant="outline" className="gap-1 text-[11px]" onClick={handleExport}>
+          <Button variant="outline" className="gap-1 text-[11px]" onClick={handleExport} disabled={isLoading}>
             <Download className="h-3.5 w-3.5" />
             Export
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <SummaryCards data={report} />
+      {/* Loading state */}
+      {isLoading && <LoadingSkeleton />}
 
-      {/* Tab Sections */}
-      <Tabs defaultValue="outlets">
-        <TabsList>
-          <TabsTrigger value="outlets" className="text-xs gap-1.5">
-            <TrendingUp className="h-3 w-3" />
-            By Outlet
-          </TabsTrigger>
-          <TabsTrigger value="category" className="text-xs">
-            Category
-          </TabsTrigger>
-          <TabsTrigger value="payment" className="text-xs">
-            Payments
-          </TabsTrigger>
-          <TabsTrigger value="items" className="text-xs">
-            Top Items
-          </TabsTrigger>
-          <TabsTrigger value="hourly" className="text-xs">
-            Hourly
-          </TabsTrigger>
-        </TabsList>
+      {/* Error state */}
+      {isError && !isLoading && (
+        <Card className="py-8">
+          <CardContent className="flex flex-col items-center justify-center text-center gap-2">
+            <p className="text-sm text-destructive">Failed to load sales data</p>
+            <p className="text-xs text-muted-foreground">{error?.message || 'An unexpected error occurred'}</p>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* All tab contents rendered (tabs are purely for visual navigation) */}
-        <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
-          <SalesByOutlet outlets={filteredOutlet} totalRevenue={report.totalRevenue} />
-          <SalesByCategory categories={report.byCategory} />
-        </div>
+      {/* Data loaded — show content */}
+      {!isLoading && !isError && (
+        <>
+          {/* No data state */}
+          {!hasData ? (
+            <NoDataState date={reportDate} />
+          ) : (
+            <>
+              {/* Summary Cards */}
+              <SummaryCards data={reportData} />
 
-        <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
-          <PaymentBreakdown payments={report.byPayment} />
-          <TopSellingItems items={report.topItems} />
-        </div>
+              {/* Tab Sections */}
+              <Tabs defaultValue="outlets">
+                <TabsList>
+                  <TabsTrigger value="outlets" className="text-xs gap-1.5">
+                    <TrendingUp className="h-3 w-3" />
+                    By Outlet
+                  </TabsTrigger>
+                  <TabsTrigger value="category" className="text-xs">
+                    Category
+                  </TabsTrigger>
+                  <TabsTrigger value="payment" className="text-xs">
+                    Payments
+                  </TabsTrigger>
+                  <TabsTrigger value="items" className="text-xs">
+                    Top Items
+                  </TabsTrigger>
+                  <TabsTrigger value="hourly" className="text-xs">
+                    Hourly
+                  </TabsTrigger>
+                </TabsList>
 
-        <div className="mt-2">
-          <HourlySalesTrend hourly={report.hourlySales} />
-        </div>
-      </Tabs>
+                {/* All tab contents rendered (tabs are purely for visual navigation) */}
+                <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
+                  <SalesByOutlet outlets={filteredOutlet} totalRevenue={reportData.totalRevenue} />
+                  <SalesByCategory categories={reportData.byCategory} />
+                </div>
+
+                <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-2">
+                  <PaymentBreakdown payments={reportData.byPayment} />
+                  <TopSellingItems items={reportData.topItems} />
+                </div>
+
+                <div className="mt-2">
+                  <HourlySalesTrend hourly={reportData.hourlySales} />
+                </div>
+              </Tabs>
+            </>
+          )}
+        </>
+      )}
     </div>
   )
 }
