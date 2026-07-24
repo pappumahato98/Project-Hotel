@@ -164,7 +164,7 @@ export function InHouseView() {
     queryFn: async () => {
       return apiFetch('/api/reservations?status=checked_in')
     },
-    refetchInterval: 10000,
+    refetchInterval: 5000,
   })
 
   const reservations: InHouseReservation[] = (data?.reservations || []).filter((r: any) => r.room)
@@ -216,7 +216,7 @@ export function InHouseView() {
   }).length
   const activeWakeUpCalls = Object.values(wakeUpCalls).filter((w) => w.set).length
 
-  // ── Post charge mutation ───────────────────────────────────
+  // ── Post charge mutation (with optimistic update) ─────────
   const postChargeMutation = useMutation({
     mutationFn: async ({
       folioId, transactionType, description, amount,
@@ -240,15 +240,48 @@ export function InHouseView() {
         }),
       })
     },
+    onMutate: async ({ folioId, amount }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['in-house'] })
+
+      // Snapshot current data for rollback
+      const previousData = queryClient.getQueryData(['in-house'])
+
+      // Optimistically update the folio balance
+      const taxRate = settings.taxRate / 100
+      const chargeTotal = amount + (amount * taxRate)
+
+      queryClient.setQueryData(['in-house'], (old: any) => {
+        if (!old?.reservations) return old
+        return {
+          ...old,
+          reservations: old.reservations.map((r: InHouseReservation) => ({
+            ...r,
+            folios: r.folios.map((f) =>
+              f.id === folioId ? { ...f, balance: f.balance + chargeTotal } : f
+            ),
+          })),
+        }
+      })
+
+      return { previousData }
+    },
     onSuccess: () => {
       invalidate.afterFolioChange(queryClient)
-      queryClient.invalidateQueries({ queryKey: ['in-house'] })
       setChargeDialogOpen(false)
       resetChargeForm()
       toast.success('Charge posted successfully')
     },
-    onError: () => {
+    onError: (_err, _vars, context) => {
+      // Roll back optimistic update on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['in-house'], context.previousData)
+      }
       toast.error('Failed to post charge')
+    },
+    onSettled: () => {
+      // Refetch in-house data once to sync optimistic update with server
+      queryClient.invalidateQueries({ queryKey: ['in-house'] })
     },
   })
 

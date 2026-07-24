@@ -625,3 +625,39 @@ Stage Summary:
 - All front-desk views poll every 10 seconds instead of 30
 - Window focus triggers data refresh
 - Data considered stale after 5 seconds instead of 30
+
+---
+Task ID: realtime-fix
+Agent: main
+Task: Fix in-house charge posting real-time update issue
+
+Work Log:
+- Investigated full charge posting flow: InHouseView → postChargeMutation → POST /api/folio/[id] → DB update → query invalidation → refetch
+- Tested with agent browser: confirmed charge posting DID work, balance updated (105,088 → 105,838)
+- Identified issues:
+  1. No optimistic updates — balance only changed after server refetch completed (~50-200ms delay)
+  2. Excessive polling — staleTime:5000 + refetchOnWindowFocus:true caused ~2s refetch intervals instead of 10s
+  3. Redundant invalidations — onSuccess called invalidate.afterFolioChange + invalidateQueries(['in-house']), and onSettled also called invalidateQueries(['in-house'])
+- Fix 1: Added optimistic updates to postChargeMutation (onMutate)
+  - Snapshots current data for rollback
+  - Immediately updates folio balance in cache (balance + amount + tax)
+  - Rolls back on error
+  - Refetches once on settled to sync with server
+- Fix 2: Changed global QueryClient defaults in providers.tsx
+  - staleTime: 5000 → 30000 (30s, reduce unnecessary refetches)
+  - refetchOnWindowFocus: false (prevent focus-triggered spam)
+- Fix 3: Reduced in-house refetchInterval from 10s to 5s (more real-time for critical view)
+- Fix 4: Removed redundant invalidation in onSuccess (onSettled handles it)
+- Verified end-to-end with agent browser:
+  - Posted Minibar charge (NPR300)
+  - Balance updated INSTANTLY via optimistic update (105,838 → 106,288)
+  - Old balance value no longer present on page within 500ms
+  - Expanded detail also showed updated balance
+- Lint passes clean
+
+Stage Summary:
+- Files changed: src/components/modules/front-desk/InHouseView.tsx, src/components/providers.tsx
+- Charge posting now updates balance INSTANTLY via optimistic updates (before server response)
+- Polling reduced from ~2s (excessive) to 5s (intentional)
+- Dashboard stats also refresh on charge post via invalidate.afterFolioChange
+- Other front-desk views poll every 10s (unchanged)
