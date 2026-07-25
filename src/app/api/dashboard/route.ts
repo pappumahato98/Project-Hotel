@@ -152,6 +152,24 @@ export async function GET(req: NextRequest) {
       where: { status: { in: ['pending', 'assigned', 'in_progress'] } },
     })
 
+    // Open workflow tasks (housekeeping)
+    const openWorkflowTasks = await db.hkWorkFlow.count({
+      where: { status: { in: ['open', 'in_progress'] } },
+    })
+
+    // High-priority open workflow tasks for alerts
+    const highPriorityWorkflowTasks = await db.hkWorkFlow.findMany({
+      where: {
+        status: { in: ['open', 'in_progress'] },
+        priority: { in: ['high', 'medium'] },
+      },
+      include: {
+        room: { select: { id: true, number: true, floor: true, wing: true } },
+      },
+      orderBy: { requestedDate: 'asc' },
+      take: 5,
+    })
+
     // Open POS orders
     const openPosOrders = await db.posOrder.count({
       where: { status: { in: ['open', 'in_progress', 'ready'] } },
@@ -297,6 +315,19 @@ export async function GET(req: NextRequest) {
           creditLimit: defaultCreditLimit,
         })),
         pendingHkTasks,
+        openWorkflowTasks,
+        highPriorityWorkflowTasks: highPriorityWorkflowTasks.map((w) => ({
+          id: w.id,
+          title: w.title,
+          priority: w.priority,
+          status: w.status,
+          category: w.category,
+          area: w.area,
+          room: w.room ? { number: w.room.number, floor: w.room.floor } : null,
+          assignedByName: w.assignedByName,
+          dueDate: w.dueDate,
+          requestedDate: w.requestedDate,
+        })),
         openPosOrders,
       },
       revenueChart: revenueChartData,

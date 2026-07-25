@@ -74,6 +74,19 @@ interface DashboardData {
       creditLimit: number
     }>
     pendingHkTasks: number
+    openWorkflowTasks: number
+    highPriorityWorkflowTasks: Array<{
+      id: string
+      title: string
+      priority: string
+      status: string
+      category: string
+      area: string | null
+      room: { number: string; floor: number } | null
+      assignedByName: string | null
+      dueDate: string | null
+      requestedDate: string
+    }>
     openPosOrders: number
   }
   revenueChart: Array<{
@@ -364,6 +377,7 @@ function QuickStatsRow({ data }: { data: DashboardData }) {
     { label: "Today's Departures", value: kpis.departures, icon: CalendarX, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950 dark:text-orange-400' },
     { label: 'Open POS Orders', value: alerts.openPosOrders, icon: ShoppingCart, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950 dark:text-amber-400' },
     { label: 'Pending HK Tasks', value: alerts.pendingHkTasks, icon: ClipboardList, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950 dark:text-rose-400' },
+    { label: 'Open Workflow', value: alerts.openWorkflowTasks, icon: Wrench, color: 'text-violet-600 bg-violet-50 dark:bg-violet-950 dark:text-violet-400' },
   ]
 
   return (
@@ -399,7 +413,8 @@ function OperationalAlerts({ data }: { data: DashboardData }) {
     alerts.outOfOrderCount > 0 ||
     alerts.unassignedArrivals > 0 ||
     alerts.creditLimitBreaches.length > 0 ||
-    alerts.overdueCheckouts > 0
+    alerts.overdueCheckouts > 0 ||
+    alerts.highPriorityWorkflowTasks.length > 0
 
   if (!hasAlerts) return null
 
@@ -474,6 +489,21 @@ function OperationalAlerts({ data }: { data: DashboardData }) {
             <AlertDescription className="text-rose-700 dark:text-rose-300">
               {alerts.creditLimitBreaches.map((b) =>
                 `${b.guestName}${b.roomNumber ? ` (Room ${b.roomNumber})` : ''}: ${formatNPR(b.balance)}`
+              ).join(' • ')}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* High Priority Workflow Tasks */}
+        {alerts.highPriorityWorkflowTasks.length > 0 && (
+          <Alert className="border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100">
+            <ClipboardList className="size-4 text-violet-600 dark:text-violet-400" />
+            <AlertTitle className="text-violet-800 dark:text-violet-200">
+              {alerts.highPriorityWorkflowTasks.length} High-Priority Workflow Task{alerts.highPriorityWorkflowTasks.length > 1 ? 's' : ''}
+            </AlertTitle>
+            <AlertDescription className="text-violet-700 dark:text-violet-300">
+              {alerts.highPriorityWorkflowTasks.slice(0, 3).map((w) =>
+                `${w.title}${w.room ? ` (Room ${w.room.number})` : w.area ? ` (${w.area})` : ''}${w.priority === 'high' ? ' ⚠️' : ''}`
               ).join(' • ')}
             </AlertDescription>
           </Alert>
@@ -874,7 +904,7 @@ export function DashboardModule() {
     alerts: data?.alerts ?? {
       vipArrivals: [], overdueCheckouts: 0,
       emergencyWorkOrders: [], outOfOrderRooms: [], outOfOrderCount: 0,
-      unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0, openPosOrders: 0,
+      unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0, openWorkflowTasks: 0, highPriorityWorkflowTasks: [], openPosOrders: 0,
     },
     revenueChart: data?.revenueChart ?? [],
     recentActivity: data?.recentActivity ?? [],

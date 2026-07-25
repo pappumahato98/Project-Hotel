@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils'
 import {
   Plus, Search, MoreHorizontal, ChevronDown, ChevronUp,
   CircleDot, Clock, CheckCircle2, AlertCircle,
-  Paperclip, Eye, Pencil, Trash2,
+  Paperclip, Eye, Pencil, Trash2, BedDouble, User,
 } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────
@@ -57,6 +57,24 @@ interface WorkflowSummary {
   open: number
   inProgress: number
   completed: number
+}
+
+interface RoomOption {
+  id: string
+  number: string
+  floor: number
+  wing: string | null
+  status: string
+  type?: { name: string; code: string } | null
+}
+
+interface EmployeeOption {
+  id: string
+  firstName: string
+  lastName: string
+  department: string
+  position: string
+  status: string
 }
 
 // ─── Constants ───────────────────────────────────────────
@@ -122,13 +140,13 @@ export function WorkflowView() {
   // Add form state
   const [addForm, setAddForm] = useState({
     title: '', description: '', priority: 'low', category: 'maintenance',
-    area: '', assignedByName: '', dueDate: '',
+    area: '', roomId: '', assignedTo: '', assignedByName: '', dueDate: '',
   })
 
   // Edit form state
   const [editForm, setEditForm] = useState({
     title: '', description: '', priority: 'low', category: 'maintenance',
-    area: '', assignedByName: '', dueDate: '',
+    area: '', roomId: '', assignedTo: '', assignedByName: '', dueDate: '',
   })
 
   // Collapsed sections
@@ -137,6 +155,21 @@ export function WorkflowView() {
   const toggleSection = (status: string) => {
     setCollapsedSections((prev) => ({ ...prev, [status]: !prev[status] }))
   }
+
+  // ─── Fetch Rooms & Employees for dropdowns ──────────────
+  const { data: roomsData } = useQuery({
+    queryKey: ['rooms-list'],
+    queryFn: () => apiFetch('/api/rooms'),
+    staleTime: 60000,
+  })
+  const roomsList: RoomOption[] = (roomsData as any)?.rooms ?? []
+
+  const { data: employeesData } = useQuery({
+    queryKey: ['employees-list'],
+    queryFn: () => apiFetch('/api/employees?status=active'),
+    staleTime: 60000,
+  })
+  const employeesList: EmployeeOption[] = (employeesData as any)?.employees ?? []
 
   // ─── Fetch ─────────────────────────────────────────────
   const { data, isLoading } = useQuery({
@@ -162,7 +195,7 @@ export function WorkflowView() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['housekeeping-workflow'] })
       setShowAddDialog(false)
-      setAddForm({ title: '', description: '', priority: 'low', category: 'maintenance', area: '', assignedByName: '', dueDate: '' })
+      setAddForm({ title: '', description: '', priority: 'low', category: 'maintenance', area: '', roomId: '', assignedTo: '', assignedByName: '', dueDate: '' })
       toast.success('Task created successfully')
     },
     onError: () => toast.error('Failed to create task'),
@@ -234,6 +267,8 @@ export function WorkflowView() {
       priority: item.priority,
       category: item.category,
       area: item.area || '',
+      roomId: item.roomId || '',
+      assignedTo: item.assignedTo || '',
       assignedByName: item.assignedByName || '',
       dueDate: item.dueDate ? new Date(item.dueDate).toISOString().split('T')[0] : '',
     })
@@ -594,8 +629,29 @@ export function WorkflowView() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
+                <label className="text-xs font-medium">Room (optional)</label>
+                <Select value={addForm.roomId} onValueChange={(v) => {
+                  const rm = roomsList.find(r => r.id === v)
+                  setAddForm({ ...addForm, roomId: v, area: v ? (rm ? `Floor ${rm.floor} - ${rm.wing || ''}` : '') : addForm.area })
+                }}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roomsList.map((rm) => (
+                      <SelectItem key={rm.id} value={rm.id}>
+                        <span className="flex items-center gap-1.5">
+                          <BedDouble className="h-3 w-3 text-muted-foreground" />
+                          Room {rm.number} — {rm.type?.name || 'Standard'} (F{rm.floor})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
                 <label className="text-xs font-medium">Area</label>
-                <Select value={addForm.area} onValueChange={(v) => setAddForm({ ...addForm, area: v })}>
+                <Select value={addForm.area} onValueChange={(v) => setAddForm({ ...addForm, area: v, roomId: '' })}>
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder="Select area" />
                   </SelectTrigger>
@@ -606,24 +662,38 @@ export function WorkflowView() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <label className="text-xs font-medium">Assign To</label>
+                <Select value={addForm.assignedTo} onValueChange={(v) => {
+                  const emp = employeesList.find(e => e.id === v)
+                  setAddForm({ ...addForm, assignedTo: v, assignedByName: emp ? `${emp.firstName} ${emp.lastName}` : '' })
+                }}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employeesList.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        <span className="flex items-center gap-1.5">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {emp.firstName} {emp.lastName} — {emp.department}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-xs font-medium">Due Date</label>
                 <Input
-                  placeholder="Staff name"
-                  value={addForm.assignedByName}
-                  onChange={(e) => setAddForm({ ...addForm, assignedByName: e.target.value })}
+                  type="date"
+                  value={addForm.dueDate}
+                  onChange={(e) => setAddForm({ ...addForm, dueDate: e.target.value })}
                   className="h-9 text-xs"
                 />
               </div>
-            </div>
-            <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Due Date</label>
-              <Input
-                type="date"
-                value={addForm.dueDate}
-                onChange={(e) => setAddForm({ ...addForm, dueDate: e.target.value })}
-                className="h-9 text-xs"
-              />
             </div>
           </div>
           <DialogFooter>
@@ -677,11 +747,22 @@ export function WorkflowView() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1">
-                    <label className="text-xs font-medium text-muted-foreground">Area / Room</label>
+                    <label className="text-xs font-medium text-muted-foreground">Room</label>
                     <span className="text-sm">
-                      {selectedItem.room ? `Room ${selectedItem.room.number}` : selectedItem.area || '—'}
+                      {selectedItem.room ? (
+                        <span className="inline-flex items-center gap-1">
+                          <BedDouble className="h-3.5 w-3.5 text-muted-foreground" />
+                          Room {selectedItem.room.number} (F{selectedItem.room.floor}{selectedItem.room.wing ? ` · ${selectedItem.room.wing}` : ''})
+                        </span>
+                      ) : '—'}
                     </span>
                   </div>
+                  <div className="grid gap-1">
+                    <label className="text-xs font-medium text-muted-foreground">Area</label>
+                    <span className="text-sm">{selectedItem.area || '—'}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1">
                     <label className="text-xs font-medium text-muted-foreground">Status</label>
                     <div className={cn(
@@ -792,8 +873,29 @@ export function WorkflowView() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
+                <label className="text-xs font-medium">Room (optional)</label>
+                <Select value={editForm.roomId} onValueChange={(v) => {
+                  const rm = roomsList.find(r => r.id === v)
+                  setEditForm({ ...editForm, roomId: v, area: v ? (rm ? `Floor ${rm.floor} - ${rm.wing || ''}` : '') : editForm.area })
+                }}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roomsList.map((rm) => (
+                      <SelectItem key={rm.id} value={rm.id}>
+                        <span className="flex items-center gap-1.5">
+                          <BedDouble className="h-3 w-3 text-muted-foreground" />
+                          Room {rm.number} — {rm.type?.name || 'Standard'} (F{rm.floor})
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
                 <label className="text-xs font-medium">Area</label>
-                <Select value={editForm.area} onValueChange={(v) => setEditForm({ ...editForm, area: v })}>
+                <Select value={editForm.area} onValueChange={(v) => setEditForm({ ...editForm, area: v, roomId: '' })}>
                   <SelectTrigger className="h-9 text-xs">
                     <SelectValue placeholder="Select area" />
                   </SelectTrigger>
@@ -804,24 +906,38 @@ export function WorkflowView() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
                 <label className="text-xs font-medium">Assign To</label>
+                <Select value={editForm.assignedTo} onValueChange={(v) => {
+                  const emp = employeesList.find(e => e.id === v)
+                  setEditForm({ ...editForm, assignedTo: v, assignedByName: emp ? `${emp.firstName} ${emp.lastName}` : '' })
+                }}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select staff" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employeesList.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        <span className="flex items-center gap-1.5">
+                          <User className="h-3 w-3 text-muted-foreground" />
+                          {emp.firstName} {emp.lastName} — {emp.department}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <label className="text-xs font-medium">Due Date</label>
                 <Input
-                  placeholder="Staff name"
-                  value={editForm.assignedByName}
-                  onChange={(e) => setEditForm({ ...editForm, assignedByName: e.target.value })}
+                  type="date"
+                  value={editForm.dueDate}
+                  onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
                   className="h-9 text-xs"
                 />
               </div>
-            </div>
-            <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Due Date</label>
-              <Input
-                type="date"
-                value={editForm.dueDate}
-                onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
-                className="h-9 text-xs"
-              />
             </div>
           </div>
           <DialogFooter>
