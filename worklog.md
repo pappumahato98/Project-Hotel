@@ -1014,3 +1014,44 @@ Stage Summary:
 - Commit b30a1f7 pushed to origin/main
 - Codebase is now clean with no dead code, no debug console.logs, no stale imports
 - .gitignore updated to prevent screenshot/script/state file reaccumulation
+---
+Task ID: deep-audit
+Agent: main
+Task: Deep codebase audit - find and permanently remove all unnecessary/dead code, unused dependencies, tracking code, and bugs
+
+Work Log:
+- Launched 5 parallel scan agents to audit the entire codebase
+- Console statements scan: 142 found (140 console.error in API catch blocks, 2 console.warn in layout.tsx chunk recovery) - all legitimate error handling, zero debug logs
+- Commented-out code scan: 0 instances found across 172 files - completely clean
+- Tracking/analytics scan: 0 external tracking, analytics, or telemetry code found
+- Unused lib exports scan: 20 unused exports found across 6 files
+- Unused dependencies scan: 28 unused packages found in package.json
+- Unused components scan: 5 dead files found (CheckInWizard, CheckInPage, ReservationCalendarView, HelpSupportPage) + 12 unused illustration exports + 1 unused HolidayBadge
+
+Cleanup Actions:
+- Deleted 4 dead component files (CheckInWizard 2,165 lines, CheckInPage 1,700 lines, ReservationCalendarView 1,271 lines, HelpSupportPage 520 lines)
+- Removed 12 unused SVG illustration components from illustrations.tsx (kept EmptyState + NoScheduleIllustration)
+- Removed 7 unused nepali-calendar exports + bsToTotalDays helper + NEPALI_DAYS constant
+- Removed unused sortData function from sort-csv.ts
+- Removed 5 unused formatters from format.ts + isNepaliEnabled helper + unused nepali-calendar import
+- Removed 5 unused re-exports from security/index.ts
+- Removed unused HolidayBadge from dual-calendar.tsx
+- Removed 28 unused dependencies (32 packages total with transitive), moved prisma to devDependencies
+- Deleted redundant package-lock.json
+- Removed agent artifact files (console_results.txt, scan_console.py)
+
+Verification:
+- ESLint: 0 errors
+- Dev server: compiled successfully
+- Browser verification: page renders correctly, zero console errors, clean HMR connection
+- Committed as 2647c85 and pushed to origin/main
+
+Stage Summary:
+- Total lines removed: 19,537 across 14 files
+- Dependencies removed: 28 direct (32 with transitive)
+- Dead component files removed: 4 (~5,657 lines)
+- Dead code in lib files: 20 unused exports removed
+- Zero tracking/analytics/telemetry code found
+- Zero commented-out code found
+- Zero debug console.log statements found
+- Codebase is now clean, lean, and production-ready
