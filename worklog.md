@@ -962,3 +962,28 @@ Stage Summary:
    - All existing UI structure, styling, and dialogs preserved
 4. Ran `prisma generate` and `prisma db push` to sync database
 5. ESLint passes with zero errors on both files
+---
+Task ID: sync-workflow
+Agent: main
+Task: Complete pending Work Flow tab integrations — sync with Rooms, HR, and Dashboard modules
+
+Work Log:
+- Assessed current state: Work Flow tab had static Area dropdown and free-text Assignee input
+- Added `useQuery` hooks for `/api/rooms` and `/api/employees?status=active` in WorkflowView
+- Added RoomOption and EmployeeOption types for dropdown data
+- Replaced "Area" field in Add/Edit dialogs with Room dropdown (showing room number, type, floor)
+- Added Employee dropdown for "Assign To" showing name + department from HR module
+- Added `roomId` and `assignedTo` fields to form state and mutations
+- Room and Area are mutually exclusive: selecting a room clears area, selecting area clears room
+- Updated Detail dialog to show room info separately from area with BedDouble icon
+- Updated Dashboard API: added `openWorkflowTasks` count and `highPriorityWorkflowTasks` list
+- Updated Dashboard UI: added "Open Workflow" stat badge and "High-Priority Workflow Tasks" alert
+- Ran ESLint — 0 errors
+- Verified in browser: Room dropdown shows all rooms, Employee dropdown shows all active staff
+- Committed as e93bcba and pushed to origin/main
+
+Stage Summary:
+- WorkflowView now syncs with Rooms module (room dropdown) and HR module (employee dropdown)
+- Dashboard now shows open workflow count and high-priority workflow alerts
+- All 3 files changed: WorkflowView.tsx, DashboardModule.tsx, dashboard/route.ts
+- Git commit: e93bcba "Sync Work Flow tab with Rooms, HR & Dashboard modules"
