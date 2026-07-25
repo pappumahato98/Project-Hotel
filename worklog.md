@@ -987,3 +987,30 @@ Stage Summary:
 - Dashboard now shows open workflow count and high-priority workflow alerts
 - All 3 files changed: WorkflowView.tsx, DashboardModule.tsx, dashboard/route.ts
 - Git commit: e93bcba "Sync Work Flow tab with Rooms, HR & Dashboard modules"
+
+---
+Task ID: deep-cleanup
+Agent: main
+Task: Deep codebase audit and cleanup — remove all unnecessary/dead code
+
+Work Log:
+- Launched 2 exploration agents: one for file-level audit, one for code-level audit
+- Agent 1 found 370+ unused files across 10 categories
+- Agent 2 found 24 console.log debug statements, 120+ unused imports, 1 commented-out nodemailer block
+- Verified all findings before deletion — restored 2 false positives (radio-group.tsx, alert.tsx were actually used)
+- Deleted 7 unused shared components, 19 unused UI components, 1 provider, 3 hooks, 7 lib files
+- Deleted 5 unused API routes (api/route.ts, auth/me, calendar, room-rate-posts duplicate)
+- Deleted 148+ root screenshot PNGs, upload/ dir contents, agent-ctx/, download/, examples/
+- Deleted 15+ sandbox scripts, auth state dumps, verification reports
+- Removed 23 console.log lines from folio email and departures email receipt routes
+- Removed 4 console.log lines from room-rate-posting route
+- Removed commented-out Nodemailer block (15 lines) from folio email route
+- Cleaned 120+ unused imports across 45+ module component files
+- Updated .gitignore with comprehensive patterns to prevent reaccumulation
+- Lint passes clean, dev server returns 200
+
+Stage Summary:
+- 534 files changed, 10,163 lines deleted
+- Commit b30a1f7 pushed to origin/main
+- Codebase is now clean with no dead code, no debug console.logs, no stale imports
+- .gitignore updated to prevent screenshot/script/state file reaccumulation
