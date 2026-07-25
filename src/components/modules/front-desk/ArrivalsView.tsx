@@ -20,7 +20,6 @@ import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
@@ -31,7 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
-import { formatDate, formatTime, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
+import { formatDate, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore, useNavigationStore, useFrontDeskContextStore, useGuestLedgerContextStore } from '@/lib/store'
 

@@ -41,7 +41,7 @@ import {
 // ScrollArea removed — nested scrolling contexts break row click events
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
-import { formatDate, formatCurrency, toDateOnly, fromDateOnly } from '@/lib/format'
+import { formatDate, formatCurrency, toDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useSettingsStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
 

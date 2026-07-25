@@ -19,7 +19,6 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   ArrowUpDown, Plus, ArrowDown, ArrowRight, ArrowUp, AlertCircle, Package,

@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, BookOpen, X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { useState, Fragment } from 'react'
 import { formatNPR } from '@/lib/utils'
 import { cn } from '@/lib/utils'

@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Download, DollarSign, TrendingUp, Users, Banknote } from 'lucide-react'
 import { formatNPR } from '@/lib/utils'
 

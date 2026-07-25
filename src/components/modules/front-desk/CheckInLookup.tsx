@@ -1,8 +1,8 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Search, User, Users, Clock, Loader2, Check, Zap, ArrowLeft, X, CheckCircle2,
   Crown, Mail, Phone, CalendarDays, Star, BedDouble, Minus, Plus,
@@ -11,15 +11,12 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -29,11 +26,10 @@ import {
 } from '@/components/ui/popover'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
-import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/components/shared/step-indicator'
+
 import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useAuthStore, useSettingsStore, useNavigationStore, useFrontDeskContextStore, type CheckInSession } from '@/lib/store'
-import { RoomRatePostingDialog } from './RoomRatePostingDialog'
+import { useNavigationStore, useFrontDeskContextStore, type CheckInSession } from '@/lib/store'
 // Types
 
 interface ReservationData {

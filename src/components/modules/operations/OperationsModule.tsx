@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useNavigationStore } from '@/lib/store'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MoonStar, CalendarClock, Banknote, ArrowRightLeft } from 'lucide-react'
 import { NightAuditView } from './NightAuditView'
 import { DayCloseView } from './DayCloseView'

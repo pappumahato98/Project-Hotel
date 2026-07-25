@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'

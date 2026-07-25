@@ -29,9 +29,8 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
-import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
-import { formatCurrency, formatDate, nightsBetween } from '@/lib/format'
+import { formatCurrency, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useFolioContextStore } from '@/lib/store'
 import { invalidate } from '@/lib/queryKeys'

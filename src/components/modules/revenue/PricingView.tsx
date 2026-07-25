@@ -1,5 +1,4 @@
 'use client'
-import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
@@ -10,7 +9,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { DollarSign, Percent, Tag, Settings2 } from 'lucide-react'
+import { Percent, Tag, Settings2 } from 'lucide-react'
 import { formatNPR } from '@/lib/utils'
 
 interface RatePlan {

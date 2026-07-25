@@ -19,7 +19,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -27,7 +26,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
-import { formatDate, formatCurrency, getTodayString, nightsBetween, toDateOnly, fromDateOnly } from '@/lib/format'
+import { formatDate, formatCurrency, getTodayString, nightsBetween, toDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useSettingsStore, useAuthStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
 import { RoomRatePostingDialog } from './RoomRatePostingDialog'

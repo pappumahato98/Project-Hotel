@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,7 +17,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
-import { Building2, Users, DollarSign, UserCircle, Plus, ChevronRight, X } from 'lucide-react'
+import { Building2, Users, DollarSign, UserCircle, Plus, ChevronRight } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency } from '@/lib/format'
 

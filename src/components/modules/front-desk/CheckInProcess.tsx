@@ -1,7 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useCallback, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   FileText, BedDouble, Shield, CreditCard,
@@ -14,12 +14,11 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -35,7 +34,7 @@ import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/componen
 import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
 import { invalidate } from '@/lib/queryKeys'
 import { cn } from '@/lib/utils'
-import { useAuthStore, useSettingsStore, useNavigationStore, useFrontDeskContextStore, type CheckInSession } from '@/lib/store'
+import { useAuthStore, useSettingsStore, useFrontDeskContextStore, type CheckInSession } from '@/lib/store'
 import { RoomRatePostingDialog } from './RoomRatePostingDialog'
 
 // ─── Constants ──────────────────────────────────────────────────────────

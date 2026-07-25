@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
-import { invalidate, qk } from '@/lib/queryKeys'
+import { qk } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import {
   Clock, AlertTriangle, Crown, Phone, Plus, Search, Trash2,

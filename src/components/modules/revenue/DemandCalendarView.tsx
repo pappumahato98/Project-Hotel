@@ -1,10 +1,8 @@
 'use client'
-import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { TrendingUp, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

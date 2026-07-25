@@ -89,36 +89,7 @@ export async function POST(
 
     const emailSubject = `Folio Statement — ${guestName} — Room ${roomNumber} — ${folio.reservation.confirmationNo}`
 
-    // Log the email that would be sent (in production, integrate with SMTP/Nodemailer)
-    console.log('═══════════════════════════════════════════════════════════')
-    console.log(`📧 FOLIO STATEMENT EMAIL`)
-    console.log(`   To:      ${guestEmail}`)
-    console.log(`   From:    ${settingsMap.smtpUser || 'noreply@meridianhotel.com'}`)
-    console.log(`   Subject: ${emailSubject}`)
-    console.log(`   Guest:   ${guestName} (VIP: ${folio.guest.vipLevel})`)
-    console.log(`   Room:    ${roomNumber} | Conf: ${folio.reservation.confirmationNo}`)
-    console.log(`   Charges: NPR ${totalCharges.toFixed(2)} | Payments: NPR ${totalPayments.toFixed(2)} | Balance: NPR ${outstandingBalance.toFixed(2)}`)
-    console.log(`   Transactions: ${folio.transactions.length} | Payments: ${folio.payments.length}`)
-    if (customMessage) {
-      console.log(`   Custom Message: ${customMessage}`)
-    }
-    console.log('═══════════════════════════════════════════════════════════')
-
-    // In production, you would use Nodemailer or similar:
-    //
-    // import nodemailer from 'nodemailer'
-    // const transporter = nodemailer.createTransport({
-    //   host: settingsMap.smtpHost,
-    //   port: parseInt(settingsMap.smtpPort || '587'),
-    //   secure: settingsMap.smtpEncryption === 'ssl',
-    //   auth: { user: settingsMap.smtpUser, pass: settingsMap.smtpPass },
-    // })
-    // await transporter.sendMail({
-    //   from: `"${settingsMap.emailFromName}" <${settingsMap.smtpUser}>`,
-    //   to: guestEmail,
-    //   subject: emailSubject,
-    //   html: htmlBody,
-    // })
+    // In production, integrate with SMTP/Nodemailer to send the email
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Plus, Users, Briefcase, Clock } from 'lucide-react'
+import { Plus, Briefcase, Clock } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'

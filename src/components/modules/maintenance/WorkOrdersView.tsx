@@ -1,9 +1,8 @@
 'use client'
-import { toast } from 'sonner'
 
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Search, AlertTriangle, Wrench, Clock, CheckCircle, ArrowRight, X } from 'lucide-react'
+import { Search, AlertTriangle, Wrench, Clock, ArrowRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 

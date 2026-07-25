@@ -81,17 +81,7 @@ export async function POST(
 
     const emailSubject = `Checkout Receipt — ${guestName} — Room ${roomNumber} — ${reservation.confirmationNo}`
 
-    // Log the email that would be sent
-    console.log('═══════════════════════════════════════════════════════════')
-    console.log(`📧 CHECKOUT RECEIPT EMAIL`)
-    console.log(`   To:      ${guestEmail}`)
-    console.log(`   Subject: ${emailSubject}`)
-    console.log(`   Guest:   ${guestName} (VIP: ${reservation.guest.vipLevel})`)
-    console.log(`   Room:    ${roomNumber} (${roomType}) | Conf: ${reservation.confirmationNo}`)
-    console.log(`   Dates:   ${checkIn} → ${checkOut}`)
-    console.log(`   Charges: NPR ${totalCharges.toFixed(2)} | Payments: NPR ${totalPayments.toFixed(2)} | Balance: NPR ${outstandingBalance.toFixed(2)}`)
-    console.log(`   Transactions: ${allTransactions.length} | Payments: ${allPayments.length}`)
-    console.log('═══════════════════════════════════════════════════════════')
+    // In production, integrate with SMTP/Nodemailer to send the receipt
 
     return NextResponse.json({
       success: true,

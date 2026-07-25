@@ -1,7 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { toast } from 'sonner'
+import React, { useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import {
   Receipt, DollarSign, TrendingUp, Ban, Calendar, Filter,
@@ -21,7 +20,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useQuery } from '@tanstack/react-query'
-import { formatNPR, timeAgo, type OrderItem } from './pos-types'
+import { formatNPR, timeAgo } from './pos-types'
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface HistoryOrder {

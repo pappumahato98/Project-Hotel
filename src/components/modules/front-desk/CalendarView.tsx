@@ -45,7 +45,7 @@ import {
 } from '@/components/ui/tooltip'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { EmptyState, NoScheduleIllustration } from '@/components/shared/illustrations'
-import { formatDate, formatCurrency, getTodayString, nightsBetween } from '@/lib/format'
+import { formatDate, formatCurrency, nightsBetween } from '@/lib/format'
 import { adToBS, isNepaliHoliday, getNepaliMonthShortEnglish } from '@/lib/nepali-calendar'
 import { usePreferencesStore } from '@/lib/store'
 import { cn } from '@/lib/utils'

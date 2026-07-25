@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import { apiFetch } from '@/lib/api'
-import { toast } from 'sonner'
 import { useQuery } from '@tanstack/react-query'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
