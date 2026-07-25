@@ -16,34 +16,6 @@ export function handleSort(
   return { field: newField, direction: 'asc' }
 }
 
-export function sortData<T>(data: T[], config: SortConfig): T[] {
-  if (!config.field) return data
-  const { field, direction } = config
-  return [...data].sort((a, b) => {
-    const getVal = (obj: T, path: string): unknown => {
-      return path.split('.').reduce((acc: unknown, key: string) => {
-        if (acc && typeof acc === 'object') {
-          return (acc as Record<string, unknown>)[key]
-        }
-        return undefined
-      }, obj)
-    }
-    const aFinal = getVal(a, field)
-    const bFinal = getVal(b, field)
-
-    if (aFinal == null && bFinal == null) return 0
-    if (aFinal == null) return direction === 'asc' ? 1 : -1
-    if (bFinal == null) return direction === 'asc' ? -1 : 1
-
-    if (typeof aFinal === 'number' && typeof bFinal === 'number') {
-      return direction === 'asc' ? aFinal - bFinal : bFinal - aFinal
-    }
-    const aStr = String(aFinal).toLowerCase()
-    const bStr = String(bFinal).toLowerCase()
-    return direction === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr)
-  })
-}
-
 // ─── CSV Export Utility ───────────────────────────────────────────
 
 export function exportToCSV(data: Record<string, unknown>[], filename: string) {

@@ -53,11 +53,6 @@ const NEPALI_MONTHS_SHORT_ENGLISH: string[] = [
 // Nepali digits
 const NEPALI_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९']
 
-// Nepali day names
-const NEPALI_DAYS: string[] = [
-  'आइतबार', 'सोमबार', 'मंगलबार', 'बुधबार', 'बिहिबार', 'शुक्रबार', 'शनिबार',
-]
-
 const NEPALI_DAYS_SHORT: string[] = [
   'आइत', 'सोम', 'मंगल', 'बुध', 'बिहि', 'शुक्र', 'शनि',
 ]
@@ -98,32 +93,6 @@ function getBsMonthDays(bsYear: number, bsMonth: number): number {
   const months = BS_MONTH_DAYS[bsYear]
   if (!months || bsMonth < 1 || bsMonth > 12) return 30 // fallback
   return months[bsMonth - 1]
-}
-
-// ─── Helper: Total days from reference (BS 2070/01/01) ────────────────
-
-function bsToTotalDays(bsYear: number, bsMonth: number, bsDay: number): number {
-  let totalDays = 0
-
-  // Count days for complete years
-  for (let y = REFERENCE_BS_YEAR; y < bsYear; y++) {
-    const months = BS_MONTH_DAYS[y]
-    if (months) {
-      totalDays += months.reduce((sum, d) => sum + d, 0)
-    } else {
-      totalDays += 365 // fallback
-    }
-  }
-
-  // Count days for complete months in the target year
-  for (let m = 1; m < bsMonth; m++) {
-    totalDays += getBsMonthDays(bsYear, m)
-  }
-
-  // Add remaining days
-  totalDays += bsDay - 1 // -1 because reference day is day 1
-
-  return totalDays
 }
 
 // ─── Core: AD to BS Conversion ──────────────────────────────────────────
@@ -180,15 +149,6 @@ export function adToBS(adDate: Date): { year: number; month: number; day: number
   return { year: bsYear, month: bsMonth, day: bsDay }
 }
 
-// ─── Core: BS to AD Conversion ─────────────────────────────────────────
-
-export function bsToAD(bsYear: number, bsMonth: number, bsDay: number): Date {
-  const totalDays = bsToTotalDays(bsYear, bsMonth, bsDay)
-  const result = new Date(REFERENCE_AD)
-  result.setDate(result.getDate() + totalDays)
-  return result
-}
-
 // ─── Format BS Date in Nepali ───────────────────────────────────────────
 
 export function formatBSDateNepali(bsDate: { year: number; month: number; day: number }): string {
@@ -214,25 +174,11 @@ export function getNepaliMonthName(month: number): string {
   return NEPALI_MONTHS_NEPALI[month - 1]
 }
 
-// ─── Get Nepali month name in English ──────────────────────────────────
-
-export function getNepaliMonthNameEnglish(month: number): string {
-  if (month < 1 || month > 12) return ''
-  return NEPALI_MONTHS_ENGLISH[month - 1]
-}
-
 // ─── Get Nepali month short name in English ─────────────────────────────
 
 export function getNepaliMonthShortEnglish(month: number): string {
   if (month < 1 || month > 12) return ''
   return NEPALI_MONTHS_SHORT_ENGLISH[month - 1]
-}
-
-// ─── Get Nepali day name ────────────────────────────────────────────────
-
-export function getNepaliDayName(date: Date): string {
-  const day = date.getDay()
-  return NEPALI_DAYS[day]
 }
 
 // ─── Get Nepali day name short ──────────────────────────────────────────
@@ -264,41 +210,4 @@ export function isNepaliHoliday(date: Date): { isHoliday: boolean; name?: string
 
 export function getNepaliHolidays(bsYear: number): Array<{ bsMonth: number; bsDay: number; name: string; nameEn: string }> {
   return NEPALI_HOLIDAYS.map((h) => ({ ...h }))
-}
-
-// ─── Check if a BS date is a holiday ───────────────────────────────────
-
-export function isBSHoliday(bsYear: number, bsMonth: number, bsDay: number): { isHoliday: boolean; name?: string; nameEn?: string } {
-  const holiday = NEPALI_HOLIDAYS.find((h) => h.bsMonth === bsMonth && h.bsDay === bsDay)
-  if (holiday) {
-    return { isHoliday: true, name: holiday.name, nameEn: holiday.nameEn }
-  }
-  return { isHoliday: false }
-}
-
-// ─── Get BS date for today ────────────────────────────────────────────
-
-export function getTodayBS(): { year: number; month: number; day: number } {
-  return adToBS(new Date())
-}
-
-// ─── Generate full dual date string ─────────────────────────────────────
-
-export function getDualDateString(date: Date): string {
-  const bs = adToBS(date)
-  const adStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-  const bsStr = `${bs.day} ${NEPALI_MONTHS_SHORT_ENGLISH[bs.month - 1]} ${bs.year}`
-  return `${adStr} | ${bsStr}`
-}
-
-// ─── Compact dual date (DD/MM/YYYY | DD/MM/BS) ─────────────────────────
-
-export function getCompactDualDate(date: Date): string {
-  const bs = adToBS(date)
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const yyyy = date.getFullYear()
-  const adStr = `${dd}/${mm}/${yyyy}`
-  const bsStr = `${toNepaliDigits(bs.day)}/${toNepaliDigits(bs.month)}/${toNepaliDigits(bs.year)}`
-  return `${adStr} | ${bsStr}`
 }

@@ -1,5 +1,4 @@
 import { usePreferencesStore } from '@/lib/store'
-import { adToBS, formatBSDateShort, isNepaliHoliday, getNepaliDayNameShort } from '@/lib/nepali-calendar'
 
 function getCurrency() {
   try {
@@ -19,29 +18,12 @@ function getLocale(): Intl.LocalesArgument {
   }
 }
 
-function isNepaliEnabled(): boolean {
-  try {
-    return usePreferencesStore.getState().preferences.nepaliStandards?.dualCalendar !== false
-  } catch {
-    return true
-  }
-}
-
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('ne-NP', {
     style: 'currency',
     currency: getCurrency(),
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
-}
-
-export function formatCurrencyDecimal(amount: number): string {
-  return new Intl.NumberFormat('ne-NP', {
-    style: 'currency',
-    currency: getCurrency(),
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
   }).format(amount)
 }
 
@@ -68,19 +50,6 @@ export function formatDateShort(date: string | Date): string {
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
-    year: 'numeric',
-  }).format(d)
-}
-
-/**
- * Format date as "DD MMM YYYY" with month name (e.g., 15 July 2025).
- */
-export function formatDateLong(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'long',
     year: 'numeric',
   }).format(d)
 }
@@ -138,55 +107,6 @@ export function nightsBetween(checkIn: string | Date, checkOut: string | Date): 
   const start = typeof checkIn === 'string' ? fromDateOnly(checkIn) : new Date(checkIn)
   const end = typeof checkOut === 'string' ? fromDateOnly(checkOut) : new Date(checkOut)
   return Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
-}
-
-// ─── Nepali-Aware Formatting Helpers ─────────────────────────────────────
-
-/**
- * Format date with BS companion: "15/07/2025 | १/०४/२०८२"
- * Only shows BS if dual calendar is enabled in preferences.
- */
-export function formatDateWithBS(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  const ad = formatDate(d)
-  if (!isNepaliEnabled()) return ad
-  const bs = adToBS(d)
-  const bsMonth = String(bs.month).padStart(2, '0')
-  const bsDay = String(bs.day).padStart(2, '0')
-  const bsYear = bs.year
-  return `${ad} | ${bsDay}/${bsMonth}/${bsYear} BS`
-}
-
-/**
- * Format date with BS short companion: "15 Jul 2025 | 1 Shr 2082"
- */
-export function formatDateShortWithBS(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  const ad = formatDateShort(d)
-  if (!isNepaliEnabled()) return ad
-  const bs = adToBS(d)
-  return `${ad} | ${formatBSDateShort(bs)}`
-}
-
-/**
- * Check if a date is a Nepali holiday (returns null if not, or the holiday name)
- */
-export function getHolidayInfo(date: string | Date): { isHoliday: boolean; name?: string; nameEn?: string } | null {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return null
-  const holiday = isNepaliHoliday(d)
-  return holiday.isHoliday ? holiday : null
-}
-
-/**
- * Get Nepali day name for a date (e.g., "सोम" for Monday)
- */
-export function getNepaliDayForDate(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return ''
-  return getNepaliDayNameShort(d)
 }
 
 // ─── Room Type & Bed Shortcut Helpers ─────────────────────────────────

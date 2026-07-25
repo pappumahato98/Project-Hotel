@@ -183,37 +183,4 @@ export function DualCalendarDisplay({
   )
 }
 
-// ─── Holiday Badge (standalone) ─────────────────────────────────────────
 
-export function HolidayBadge({ date, className }: { date: Date | string; className?: string }) {
-  const dateObj = React.useMemo(() => {
-    const d = typeof date === 'string' ? new Date(date) : new Date(date)
-    d.setHours(0, 0, 0, 0)
-    return d
-  }, [date])
-
-  const holiday = React.useMemo(() => isNepaliHoliday(dateObj), [dateObj])
-
-  if (!holiday.isHoliday) return null
-
-  return (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className={cn(
-            'flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium',
-            'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800',
-            className,
-          )}>
-            <span className="inline-block size-1.5 rounded-full bg-orange-500" />
-            <span>{holiday.nameEn}</span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">
-          <p>{holiday.name}</p>
-          <p className="text-muted-foreground">{holiday.nameEn}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
