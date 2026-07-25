@@ -815,3 +815,150 @@ Stage Summary:
 - Regardless of how many tabs are hidden, the button stays anchored in the same row
 - File: src/components/modules/front-desk/FrontDeskModule.tsx
 - Screenshots: customize-btn-in-tablist.png, customize-btn-tabs-hidden.png
+
+---
+Task ID: 37
+Agent: sub
+Task: Fix RoomDetailDrawer "Create work order" button — replace toast stub with real dialog + API call
+
+Work Log:
+- Read RoomDetailDrawer.tsx to understand full context (sheet drawer with room info, status timeline, quick actions)
+- Explored WorkOrder Prisma model: fields id, roomId, title, description, priority, status, category, assignedTo, reportedBy
+- Explored POST /api/work-orders API route: accepts title, description, priority, status, category, roomId, assignedTo, reportedBy
+- Confirmed existing patterns: apiFetch for auth-backed fetch, useMutation + useQueryClient from @tanstack/react-query, Dialog from shadcn/ui
+- Added imports: apiFetch from @/lib/api, useMutation + useQueryClient from @tanstack/react-query
+- Added state: woOpen (boolean) for dialog, woForm object with title/description/category/priority
+- Added useMutation hook: createWorkOrder — POSTs to /api/work-orders with form data + roomId, invalidates ['work-orders'] query on success, shows toast
+- Replaced toast.info stub at line 217 with setWoOpen(true)
+- Added Dialog component with form: Title (Input h-9 text-xs), Description (Textarea rows=3), Category Select (6 options), Priority Select (4 options)
+- Submit button disabled when title empty or mutation pending, shows "Creating…" while loading
+- Dialog resets form on close
+- Ran ESLint — 0 errors
+- Consistent styling with rest of app: text-xs, h-9 inputs, same Label/Select/Dialog patterns
+
+Stage Summary:
+- RoomDetailDrawer "Work Order" button now opens a real creation dialog instead of showing a stub toast
+- Dialog pre-fills roomId from the room prop, has all required fields (title, description, category, priority)
+- Posts to /api/work-orders via apiFetch with auth headers
+- Invalidates work-orders query cache and shows success/error toast
+- File: src/components/modules/rooms/RoomDetailDrawer.tsx
+- ESLint: 0 errors
+
+---
+Task ID: 38
+Agent: sub
+Task: Fix POS mock views to real API (TableReservationsView + RoomServiceView)
+
+Work Log:
+- Read TableReservationsView.tsx: used MOCK_RESERVATIONS static array as initial state
+- Read RoomServiceView.tsx: used MOCK_ORDERS, MOCK_GUESTS, MOCK_MENU_ITEMS static data
+- Read /api/reservations route: returns reservations with guest (firstName, lastName, phone), room (number, floor, type), status, checkIn, checkOut, adults, children, specialRequests
+- Read /api/guests route: returns guests with reservations (room.number, status), phone
+- TableReservationsView: removed MOCK_RESERVATIONS, added useQuery('/api/reservations') + apiFetch
+- Added ApiReservation interface and mapApiToReservation() to transform API data → component Reservation type
+- Status mapping: confirmed→confirmed, checked_in→seated, checked_out→completed, no_show→no_show; cancelled filtered out
+- Used localOverrides Record + newReservations array + useMemo merge pattern to avoid setState-in-effect lint error
+- Added Skeleton loading state while API data loads
+- RoomServiceView: removed MOCK_ORDERS (replaced with empty []), removed MOCK_GUESTS (replaced with useQuery('/api/guests'))
+- Kept MOCK_MENU_ITEMS → renamed to MENU_ITEMS (local restaurant menu config, not DB data)
+- Added InHouseGuest interface and derived inHouseGuests via useMemo: filters guests with checked_in reservations, extracts room/floor/phone
+- NewOrderDialog now accepts `guests: InHouseGuest[]` prop instead of referencing MOCK_GUESTS
+- Guest phone now uses real API data instead of random number generation
+- Ran ESLint on both files: 0 errors, 0 warnings
+
+Stage Summary:
+- TableReservationsView.tsx: fetches from /api/reservations via useQuery + apiFetch, maps to component types, keeps local override pattern for status changes and new reservations
+- RoomServiceView.tsx: fetches in-house guests from /api/guests via useQuery + apiFetch, orders start empty (client-side only), menu items kept as local config
+- Both files: ESLint clean, consistent styling preserved, all dialogs/filters intact
+- Files: src/components/modules/pos/TableReservationsView.tsx, src/components/modules/pos/RoomServiceView.tsx
+
+---
+Task ID: 39
+Agent: sub
+Task: Fix HR SchedulesView mock data + RoomDetailDrawer workflow sync
+
+Work Log:
+- **Task A — SchedulesView mock data replacement:**
+  - Read SchedulesView.tsx: had PLACEHOLDER_SCHEDULE with 13 hardcoded ShiftEntry objects
+  - Read /api/employees route: returns { employees, total, departmentBreakdown } with active employee records (id, firstName, lastName, department, position, role, status)
+  - Read /api/attendance route: returns daily attendance records — not suitable for schedule data (no shift patterns)
+  - No Schedule model exists in Prisma schema, so shifts must be generated from employee data
+  - Added EmployeeRecord interface, hashShift() deterministic hash function for consistent shift generation per employee per day
+  - Added generateShiftEntries(): transforms active employees into ShiftEntry objects, applies security dept convention (night shifts preferred)
+  - Added fetchEmployees() helper using apiFetch('/api/employees?...')
+  - Added LoadingSkeleton component with Skeleton UI elements
+  - Replaced PLACEHOLDER_SCHEDULE with useQuery + useMemo pipeline:
+    - Fetches employees via apiFetch
+    - allShiftEntries: useMemo generates shift entries from employees
+    - filteredSchedule: useMemo filters by department
+    - departments: useMemo builds dept list from API breakdown, falls back to DEPARTMENTS constant
+  - Added isLoading → LoadingSkeleton, isError → error state with AlertCircle
+  - Department filter select now uses dynamic departments list from API
+  - Cleaned up unused imports (Badge, CardHeader, CardTitle, empIdx)
+  - Fixed React Compiler memoization: dependency arrays use `[data]` instead of `[data?.employees]`/`[data?.departmentBreakdown]`
+
+- **Task B — RoomDetailDrawer workflow tasks:**
+  - Read /api/housekeeping/workflow route: GET accepts status, priority, category, area, search filters — but NOT roomId
+  - Added roomId query parameter support to workflow API GET handler (line 16, line 23)
+  - Added WorkflowTask interface and WF_STATUS_CONFIG (open/in_progress/completed with color badges)
+  - Added useQuery hook to RoomDetailDrawer: fetches `/api/housekeeping/workflow?roomId=${room.id}`, enabled only when drawer is open
+  - Added "Housekeeping Tasks" section below Quick Actions:
+    - Shows only when workflowTasks.length > 0
+    - Each task displays title, status badge, assigned person, and high-priority warning icon
+    - Consistent styling: text-xs, rounded-md border bg-muted/30, Badge with WF_STATUS_CONFIG colors
+  - Added ClipboardList icon import from lucide-react
+  - Added useQuery import from @tanstack/react-query
+
+- Ran ESLint on both files: 0 errors
+
+Stage Summary:
+- SchedulesView.tsx: replaced 13-entry PLACEHOLDER_SCHEDULE with real API data from /api/employees, deterministic shift generation, loading/error states, dynamic department filter
+- RoomDetailDrawer.tsx: added housekeeping workflow tasks section showing HkWorkFlow tasks for current room with status badges
+- /api/housekeeping/workflow/route.ts: added roomId query parameter filter
+- Files: src/components/modules/hr/SchedulesView.tsx, src/components/modules/rooms/RoomDetailDrawer.tsx, src/app/api/housekeeping/workflow/route.ts
+- ESLint: 0 errors on all 3 files
+
+## [Inventory Dashboard] Fix hardcoded stats — Real data from APIs
+
+**Date:** 2026-07-25 04:56 UTC
+**File:** src/components/modules/inventory/InventoryDashboardView.tsx
+
+### Changes
+- Removed hardcoded placeholder values for `pendingRequisitions`, `openPOs`, and `pendingDeliveries`
+- Added `fetchRequisitions()` API helper and a new `useQuery` call to `/api/requisitions`
+- `pendingRequisitions` now counts requisitions with `status === "pending"`
+- `openPOs` now counts requisitions with `status === "ordered"`
+- `pendingDeliveries` now counts requisitions with `status === "approved"`
+- Removed `RECENT_ACTIVITY` mock data array and replaced section with empty state (PackageCheck icon + descriptive text)
+- Removed `EXPIRING_ITEMS` mock data array and replaced section with empty state (Clock icon + descriptive text)
+- Removed unused imports: `Badge`, `Separator`, `ArrowDown`, `ArrowRight`
+- Added `reqsLoading` to loading guard and `requisitions` to KPI useMemo dependency array
+- Added `RequisitionsResponse` interface and `PackageCheck` import
+- ESLint passes with zero errors
+## PurchaseOrdersView Mock → Real API Migration
+
+**Date:** 2025-07-22
+**Module:** Inventory - Purchase Orders
+**Files changed:**
+- `prisma/schema.prisma` — Added `PurchaseOrder` model
+- `src/app/api/inventory/purchase-orders/route.ts` — New API route (GET/POST/PATCH/DELETE)
+- `src/components/modules/inventory/PurchaseOrdersView.tsx` — Replaced mock data with real API
+
+**Summary:**
+1. Added `PurchaseOrder` Prisma model with fields: id, poNumber (unique, auto-generated), vendor, vendorId, date, expectedDelivery, items (JSON string), totalAmount, priority, status, notes, terms, approvedBy, approvedAt, createdAt, updatedAt. Includes indexes on status, vendorId, poNumber.
+2. Created API route at `/api/inventory/purchase-orders` with:
+   - GET: list orders (optional status/vendorId filters), parses JSON items
+   - POST: create order, auto-generates sequential PO number (PO-YYYY-NNN)
+   - PATCH: update status/priority/notes/terms/items/approvedBy
+   - DELETE: remove order by id
+   - All endpoints use `requireAuth` for authentication
+3. Updated `PurchaseOrdersView.tsx`:
+   - Removed `MOCK_PURCHASE_ORDERS` static array (~115 lines)
+   - Replaced `useState<PurchaseOrder[]>` with `useQuery(['purchase-orders'])`
+   - Added `useMutation` for create (POST) and status updates (PATCH)
+   - Added loading skeleton UI while data fetches
+   - Removed mock vendor name fallbacks
+   - Added `isPending` states on dialog action buttons
+   - All existing UI structure, styling, and dialogs preserved
+4. Ran `prisma generate` and `prisma db push` to sync database
+5. ESLint passes with zero errors on both files
