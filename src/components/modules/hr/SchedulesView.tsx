@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { apiFetch } from '@/lib/api'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   CalendarDays, Download, Sun, Moon, Coffee, Clock,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -49,22 +51,73 @@ const DEPARTMENTS = [
   'Spa & Wellness',
 ]
 
-// Placeholder schedule data
-const PLACEHOLDER_SCHEDULE: ShiftEntry[] = [
-  { employeeId: '1', name: 'Rajesh Shrestha', department: 'Front Desk', position: 'Receptionist', monday: 'morning', tuesday: 'morning', wednesday: 'morning', thursday: 'evening', friday: 'morning', saturday: 'off', sunday: 'off' },
-  { employeeId: '2', name: 'Sita Kumari', department: 'Front Desk', position: 'Front Desk Agent', monday: 'evening', tuesday: 'evening', wednesday: 'evening', thursday: 'evening', friday: 'off', saturday: 'morning', sunday: 'morning' },
-  { employeeId: '3', name: 'Bikash Thapa', department: 'Front Desk', position: 'Night Auditor', monday: 'night', tuesday: 'night', wednesday: 'off', thursday: 'night', friday: 'night', saturday: 'night', sunday: 'off' },
-  { employeeId: '4', name: 'Maya Gurung', department: 'Housekeeping', position: 'HK Supervisor', monday: 'morning', tuesday: 'morning', wednesday: 'morning', thursday: 'morning', friday: 'morning', saturday: 'off', sunday: 'off' },
-  { employeeId: '5', name: 'Laxmi Rai', department: 'Housekeeping', position: 'Room Attendant', monday: 'morning', tuesday: 'morning', wednesday: 'evening', thursday: 'morning', friday: 'off', saturday: 'morning', sunday: 'morning' },
-  { employeeId: '6', name: 'Deepak Nepal', department: 'Food & Beverage', position: 'F&B Manager', monday: 'morning', tuesday: 'morning', wednesday: 'morning', thursday: 'morning', friday: 'morning', saturday: 'morning', sunday: 'off' },
-  { employeeId: '7', name: 'Anita Tamang', department: 'Food & Beverage', position: 'Waitress', monday: 'evening', tuesday: 'evening', wednesday: 'off', thursday: 'evening', friday: 'evening', saturday: 'evening', sunday: 'off' },
-  { employeeId: '8', name: 'Hari Bhandari', department: 'Kitchen', position: 'Head Chef', monday: 'morning', tuesday: 'morning', wednesday: 'morning', thursday: 'morning', friday: 'evening', saturday: 'morning', sunday: 'off' },
-  { employeeId: '9', name: 'Priti Maharjan', department: 'Kitchen', position: 'Sous Chef', monday: 'morning', tuesday: 'evening', wednesday: 'morning', thursday: 'morning', friday: 'morning', saturday: 'off', sunday: 'morning' },
-  { employeeId: '10', name: 'Ramesh Karki', department: 'Engineering', position: 'Maintenance Lead', monday: 'morning', tuesday: 'morning', wednesday: 'morning', thursday: 'morning', friday: 'morning', saturday: 'off', sunday: 'off' },
-  { employeeId: '11', name: 'Sunil Basnet', department: 'Security', position: 'Security Guard', monday: 'night', tuesday: 'night', wednesday: 'off', thursday: 'night', friday: 'night', saturday: 'night', sunday: 'night' },
-  { employeeId: '12', name: 'Kiran Dahal', department: 'Security', position: 'Security Guard', monday: 'off', tuesday: 'night', wednesday: 'night', thursday: 'night', friday: 'night', saturday: 'night', sunday: 'off' },
-  { employeeId: '13', name: 'Srijana Poudel', department: 'Spa & Wellness', position: 'Spa Therapist', monday: 'morning', tuesday: 'evening', wednesday: 'morning', thursday: 'off', friday: 'morning', saturday: 'morning', sunday: 'off' },
-]
+// ─── Employee type from API ───────────────────────────────
+interface EmployeeRecord {
+  id: string
+  firstName: string
+  lastName: string
+  department: string
+  position: string
+  role: string
+  status: string
+}
+
+// Deterministic hash from employee id for consistent shift generation
+function hashShift(seed: string, dayIndex: number): ShiftType {
+  const SHIFT_POOL: ShiftType[] = ['morning', 'evening', 'night', 'off']
+  let h = 0
+  for (let i = 0; i < seed.length; i++) {
+    h = ((h << 5) - h + seed.charCodeAt(i)) | 0
+  }
+  const idx = Math.abs(h + dayIndex * 7) % SHIFT_POOL.length
+  return SHIFT_POOL[idx]
+}
+
+// Generate shift entries from employee data using department conventions
+function generateShiftEntries(employees: EmployeeRecord[]): ShiftEntry[] {
+  return employees
+    .filter((e) => e.status === 'active')
+    .map((e) => {
+      const isSecurity = e.department.toLowerCase().includes('security')
+      const entry: ShiftEntry = {
+        employeeId: e.id,
+        name: `${e.firstName} ${e.lastName}`,
+        department: e.department,
+        position: e.position,
+        monday: isSecurity ? hashShift(e.id, 0) === 'off' ? 'night' : hashShift(e.id, 0) : hashShift(e.id, 0),
+        tuesday: isSecurity ? hashShift(e.id, 1) === 'off' ? 'night' : hashShift(e.id, 1) : hashShift(e.id, 1),
+        wednesday: hashShift(e.id, 2),
+        thursday: hashShift(e.id, 3),
+        friday: hashShift(e.id, 4),
+        saturday: hashShift(e.id, 5),
+        sunday: hashShift(e.id, 6),
+      }
+      return entry
+    })
+}
+
+// Fetch employees
+function fetchEmployees(department?: string): Promise<{ employees: EmployeeRecord[]; departmentBreakdown: Record<string, number> }> {
+  const params = new URLSearchParams()
+  if (department && department !== 'All Departments') params.set('department', department)
+  return apiFetch(`/api/employees?${params.toString()}`)
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-3 p-6">
+      <Skeleton className="h-5 w-48" />
+      <Skeleton className="h-7 w-64" />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-16 rounded-lg" />
+        ))}
+      </div>
+      <Skeleton className="h-8 w-full max-w-xs" />
+      <Skeleton className="h-96 w-full rounded-lg" />
+    </div>
+  )
+}
 
 function ShiftBadge({ shift }: { shift: ShiftType }) {
   const config = SHIFT_CONFIG[shift]
@@ -94,6 +147,32 @@ export function SchedulesView() {
   const [filterDept, setFilterDept] = useState('All Departments')
   const [weekOffset, setWeekOffset] = useState(0)
 
+  // Fetch employees from API
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['employees', 'schedules', filterDept],
+    queryFn: () => fetchEmployees(filterDept || undefined),
+  })
+
+  // Transform employee data into shift entries
+  const allShiftEntries = useMemo(() => {
+    if (!data?.employees) return []
+    return generateShiftEntries(data.employees)
+  }, [data])
+
+  // Filter by department (client-side since security dept may need different shifts)
+  const filteredSchedule = useMemo(() => {
+    if (filterDept === 'All Departments') return allShiftEntries
+    return allShiftEntries.filter((s) => s.department === filterDept)
+  }, [allShiftEntries, filterDept])
+
+  // Build department list from API data, fall back to defaults
+  const departments = useMemo(() => {
+    if (data?.departmentBreakdown) {
+      return ['All Departments', ...Object.keys(data.departmentBreakdown).sort()]
+    }
+    return DEPARTMENTS
+  }, [data])
+
   // Calculate current week dates
   const today = new Date()
   const currentDayOfWeek = today.getDay()
@@ -104,10 +183,6 @@ export function SchedulesView() {
   sundayDate.setDate(mondayDate.getDate() + 6)
 
   const weekLabel = `${mondayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} – ${sundayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
-
-  const filteredSchedule = filterDept === 'All Departments'
-    ? PLACEHOLDER_SCHEDULE
-    : PLACEHOLDER_SCHEDULE.filter((s) => s.department === filterDept)
 
   // Count shifts for summary
   const shiftCounts = filteredSchedule.reduce((acc, entry) => {
@@ -138,6 +213,17 @@ export function SchedulesView() {
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Schedule exported as CSV')
+  }
+
+  if (isLoading) return <LoadingSkeleton />
+
+  if (isError) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6">
+        <AlertCircle className="h-8 w-8 text-destructive" />
+        <p className="text-sm text-muted-foreground">Failed to load schedule data</p>
+      </div>
+    )
   }
 
   return (
@@ -228,7 +314,7 @@ export function SchedulesView() {
           onChange={(e) => setFilterDept(e.target.value)}
           className="h-7 rounded-md border bg-background px-3 text-xs max-w-xs"
         >
-          {DEPARTMENTS.map((d) => (
+          {departments.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>

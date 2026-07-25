@@ -13,12 +13,14 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const area = searchParams.get('area')
     const search = searchParams.get('search')
+    const roomId = searchParams.get('roomId')
 
     const where: Record<string, unknown> = {}
     if (status) where.status = status
     if (priority) where.priority = priority
     if (category) where.category = category
     if (area) where.area = area
+    if (roomId) where.roomId = roomId
     if (search) {
       where.OR = [
         { title: { contains: search } },

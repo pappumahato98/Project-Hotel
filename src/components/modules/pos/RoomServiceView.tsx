@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { toast } from 'sonner'
 
 import {
@@ -21,7 +23,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { formatNPR, timeAgo, usePosData } from './pos-types'
+import { formatNPR, timeAgo } from './pos-types'
 
 // ─── Types ────────────────────────────────────────────────────────────
 interface RoomServiceItem {
@@ -43,72 +45,8 @@ interface RoomServiceOrder {
   phone: string
 }
 
-// ─── Mock Data ─────────────────────────────────────────────────────────
-const MOCK_ORDERS: RoomServiceOrder[] = [
-  {
-    id: 'RS-001', roomNumber: '301', floor: 3, guestName: 'Rajesh Sharma',
-    items: [{ name: 'Chicken Momo (8pc)', quantity: 1, price: 450 }, { name: 'Thali Set', quantity: 2, price: 650 }, { name: 'Masala Tea', quantity: 2, price: 80 }],
-    status: 'preparing', total: 1910, specialInstructions: 'Extra spicy please, no onion in salad', createdAt: new Date(Date.now() - 12 * 60000).toISOString(), phone: '+977-9841234567',
-  },
-  {
-    id: 'RS-002', roomNumber: '205', floor: 2, guestName: 'Sarah Mitchell',
-    items: [{ name: 'Continental Breakfast', quantity: 1, price: 800 }, { name: 'Fresh Orange Juice', quantity: 1, price: 250 }],
-    status: 'delivered', total: 1050, specialInstructions: '', createdAt: new Date(Date.now() - 45 * 60000).toISOString(), phone: '+1-555-0123',
-  },
-  {
-    id: 'RS-003', roomNumber: '412', floor: 4, guestName: 'Anita Gurung',
-    items: [{ name: 'Paneer Tikka', quantity: 1, price: 350 }, { name: 'Garlic Naan', quantity: 3, price: 120 }, { name: 'Dal Makhani', quantity: 1, price: 280 }, { name: 'Lassi', quantity: 2, price: 150 }],
-    status: 'received', total: 1240, specialInstructions: 'Gluten-free naan if available', createdAt: new Date(Date.now() - 5 * 60000).toISOString(), phone: '+977-9856789012',
-  },
-  {
-    id: 'RS-004', roomNumber: '108', floor: 1, guestName: 'David Chen',
-    items: [{ name: 'Club Sandwich', quantity: 1, price: 520 }, { name: 'Iced Coffee', quantity: 1, price: 220 }],
-    status: 'preparing', total: 740, specialInstructions: 'No mayo, add mustard', createdAt: new Date(Date.now() - 18 * 60000).toISOString(), phone: '+86-139-5555-1234',
-  },
-  {
-    id: 'RS-005', roomNumber: '506', floor: 5, guestName: 'Priya Patel',
-    items: [{ name: 'Biryani (Chicken)', quantity: 1, price: 550 }, { name: 'Raita', quantity: 1, price: 100 }, { name: 'Gulab Jamun', quantity: 2, price: 180 }],
-    status: 'delivered', total: 1010, specialInstructions: 'Less salt please', createdAt: new Date(Date.now() - 90 * 60000).toISOString(), phone: '+91-9876543210',
-  },
-  {
-    id: 'RS-006', roomNumber: '318', floor: 3, guestName: 'Michael Johnson',
-    items: [{ name: 'Caesar Salad', quantity: 1, price: 420 }, { name: 'Grilled Salmon', quantity: 1, price: 1200 }, { name: 'Red Wine (Glass)', quantity: 2, price: 600 }],
-    status: 'received', total: 2820, specialInstructions: 'Well-done salmon, dressing on the side', createdAt: new Date(Date.now() - 3 * 60000).toISOString(), phone: '+1-555-9876',
-  },
-  {
-    id: 'RS-007', roomNumber: '215', floor: 2, guestName: 'Yuki Tanaka',
-    items: [{ name: 'Vegetable Tempura', quantity: 1, price: 480 }, { name: 'Miso Soup', quantity: 1, price: 200 }, { name: 'Green Tea', quantity: 2, price: 120 }],
-    status: 'cancelled', total: 920, specialInstructions: '', createdAt: new Date(Date.now() - 60 * 60000).toISOString(), phone: '+81-90-1234-5678',
-  },
-  {
-    id: 'RS-008', roomNumber: '401', floor: 4, guestName: 'Arjun Thapa',
-    items: [{ name: 'Sel Roti', quantity: 2, price: 150 }, { name: 'Achar Set', quantity: 1, price: 100 }, { name: 'Chiya (Tea)', quantity: 2, price: 80 }],
-    status: 'preparing', total: 560, specialInstructions: 'Use traditional recipe', createdAt: new Date(Date.now() - 22 * 60000).toISOString(), phone: '+977-9840000000',
-  },
-  {
-    id: 'RS-009', roomNumber: '102', floor: 1, guestName: 'Emma Wilson',
-    items: [{ name: 'Pancake Stack', quantity: 1, price: 380 }, { name: 'Maple Syrup', quantity: 1, price: 80 }, { name: 'Cappuccino', quantity: 1, price: 280 }],
-    status: 'delivered', total: 740, specialInstructions: 'Nut-free, dairy-free milk for cappuccino', createdAt: new Date(Date.now() - 120 * 60000).toISOString(), phone: '+44-7911-123456',
-  },
-  {
-    id: 'RS-010', roomNumber: '503', floor: 5, guestName: 'Binod Karki',
-    items: [{ name: 'Buff Chow Mein', quantity: 1, price: 320 }, { name: 'Chicken Kebab', quantity: 1, price: 400 }, { name: 'Coca Cola', quantity: 2, price: 120 }],
-    status: 'preparing', total: 960, specialInstructions: 'Extra chili sauce on the side', createdAt: new Date(Date.now() - 15 * 60000).toISOString(), phone: '+977-9841234560',
-  },
-]
-
-const MOCK_GUESTS = [
-  { id: 'g1', name: 'Rajesh Sharma', room: '301', floor: 3 },
-  { id: 'g2', name: 'Sarah Mitchell', room: '205', floor: 2 },
-  { id: 'g3', name: 'Anita Gurung', room: '412', floor: 4 },
-  { id: 'g4', name: 'David Chen', room: '108', floor: 1 },
-  { id: 'g5', name: 'Priya Patel', room: '506', floor: 5 },
-  { id: 'g6', name: 'Michael Johnson', room: '318', floor: 3 },
-  { id: 'g7', name: 'Emma Wilson', room: '102', floor: 1 },
-  { id: 'g8', name: 'Arjun Thapa', room: '401', floor: 4 },
-]
-
-const MOCK_MENU_ITEMS = [
+// ─── Menu Config (local, not from DB) ─────────────────────────────────
+const MENU_ITEMS = [
   { id: 'm1', name: 'Chicken Momo (8pc)', price: 450, category: 'Appetizer' },
   { id: 'm2', name: 'Thali Set', price: 650, category: 'Main Course' },
   { id: 'm3', name: 'Masala Tea', price: 80, category: 'Beverage' },
@@ -265,27 +203,38 @@ function OrderCard({
   )
 }
 
+// ─── In-House Guest Type (derived from API) ──────────────────────────
+interface InHouseGuest {
+  id: string
+  name: string
+  room: string
+  floor: number
+  phone: string
+}
+
 // ─── New Order Dialog ─────────────────────────────────────────────────
 function NewOrderDialog({
   open,
   onClose,
   onSubmit,
+  guests,
 }: {
   open: boolean
   onClose: () => void
   onSubmit: (order: Omit<RoomServiceOrder, 'id' | 'createdAt' | 'status' | 'total'> & { total: number }) => void
+  guests: InHouseGuest[]
 }) {
   const [selectedGuest, setSelectedGuest] = useState('')
   const [orderItems, setOrderItems] = useState<{ name: string; quantity: number; price: number }[]>([])
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [selectedMenuCategory, setSelectedMenuCategory] = useState('all')
 
-  const selectedGuestData = MOCK_GUESTS.find((g) => g.id === selectedGuest)
+  const selectedGuestData = guests.find((g) => g.id === selectedGuest)
 
   const menuCategories = ['all', 'Appetizer', 'Main Course', 'Beverage', 'Breakfast', 'Bread', 'Salad', 'Dessert']
-  const filteredMenu = MOCK_MENU_ITEMS.filter((m) => selectedMenuCategory === 'all' || m.category === selectedMenuCategory)
+  const filteredMenu = MENU_ITEMS.filter((m) => selectedMenuCategory === 'all' || m.category === selectedMenuCategory)
 
-  const handleAddItem = (menuItem: typeof MOCK_MENU_ITEMS[0]) => {
+  const handleAddItem = (menuItem: typeof MENU_ITEMS[0]) => {
     const existing = orderItems.find((i) => i.name === menuItem.name)
     if (existing) {
       setOrderItems(orderItems.map((i) => i.name === menuItem.name ? { ...i, quantity: i.quantity + 1 } : i))
@@ -317,7 +266,7 @@ function NewOrderDialog({
       roomNumber: selectedGuestData!.room,
       floor: selectedGuestData!.floor,
       guestName: selectedGuestData!.name,
-      phone: '+977-98' + Math.floor(10000000 + Math.random() * 90000000).toString(),
+      phone: selectedGuestData?.phone || '',
       items: orderItems,
       specialInstructions,
       total,
@@ -346,7 +295,7 @@ function NewOrderDialog({
                 <SelectValue placeholder="Choose in-house guest..." />
               </SelectTrigger>
               <SelectContent>
-                {MOCK_GUESTS.map((g) => (
+                {guests.map((g) => (
                   <SelectItem key={g.id} value={g.id}>
                     {g.name} — Room {g.room} (Floor {g.floor})
                   </SelectItem>
@@ -450,8 +399,31 @@ function NewOrderDialog({
 
 // ─── Main RoomServiceView ────────────────────────────────────────────
 export default function RoomServiceView() {
-  const { data, isLoading } = usePosData('room-service')
-  const [orders, setOrders] = useState<RoomServiceOrder[]>(MOCK_ORDERS)
+  const { data: guestsData, isLoading } = useQuery({
+    queryKey: ['pos-guests'],
+    queryFn: () => apiFetch<{ guests: Array<{ id: string; firstName: string; lastName: string; phone: string | null; reservations: Array<{ room: { number: string } | null; status: string }> }> }>('/api/guests'),
+    refetchInterval: 30000,
+  })
+
+  const inHouseGuests: InHouseGuest[] = useMemo(() => {
+    const allGuests = guestsData?.guests || []
+    return allGuests
+      .filter((g) => g.reservations?.some((r) => r.status === 'checked_in'))
+      .map((g) => {
+        const activeRes = g.reservations.find((r) => r.status === 'checked_in')
+        const roomNumber = activeRes?.room?.number || ''
+        const floor = roomNumber ? Math.floor(parseInt(roomNumber, 10) / 100) : 0
+        return {
+          id: g.id,
+          name: `${g.firstName} ${g.lastName}`,
+          room: roomNumber,
+          floor,
+          phone: g.phone || '',
+        }
+      })
+  }, [guestsData])
+
+  const [orders, setOrders] = useState<RoomServiceOrder[]>([])
   const [statusFilter, setStatusFilter] = useState('all')
   const [floorFilter, setFloorFilter] = useState('all')
   const [newOrderOpen, setNewOrderOpen] = useState(false)
@@ -490,7 +462,7 @@ export default function RoomServiceView() {
     toast.success(`Room service order placed for Room ${order.roomNumber}`)
   }
 
-  if (isLoading && !data) {
+  if (isLoading && !guestsData) {
     return (
       <div className="space-y-2">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
@@ -594,6 +566,7 @@ export default function RoomServiceView() {
         open={newOrderOpen}
         onClose={() => setNewOrderOpen(false)}
         onSubmit={handleNewOrder}
+        guests={inHouseGuests}
       />
     </div>
   )

@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 import { toast } from 'sonner'
 
 import {
@@ -21,6 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import { formatNPR } from './pos-types'
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -38,21 +41,50 @@ interface Reservation {
   date: string
 }
 
-// ─── Mock Data ─────────────────────────────────────────────────────────
-const MOCK_RESERVATIONS: Reservation[] = [
-  { id: 'R-001', guestName: 'Rajesh Sharma', phone: '+977-9841234567', tableNumber: 5, seats: 4, timeSlot: '12:00 PM', endTimeSlot: '1:00 PM', partySize: 3, status: 'seated', specialRequests: 'Birthday celebration — bring cake', date: '2025-01-15' },
-  { id: 'R-002', guestName: 'Sarah Mitchell', phone: '+1-555-0123', tableNumber: 12, seats: 2, timeSlot: '12:30 PM', endTimeSlot: '1:30 PM', partySize: 2, status: 'confirmed', specialRequests: 'Vegetarian menu please', date: '2025-01-15' },
-  { id: 'R-003', guestName: 'David Chen', phone: '+86-139-5555-1234', tableNumber: 8, seats: 6, timeSlot: '1:00 PM', endTimeSlot: '2:00 PM', partySize: 5, status: 'confirmed', specialRequests: 'Highchair needed for toddler', date: '2025-01-15' },
-  { id: 'R-004', guestName: 'Priya Patel', phone: '+91-9876543210', tableNumber: 3, seats: 4, timeSlot: '6:00 PM', endTimeSlot: '7:00 PM', partySize: 4, status: 'confirmed', specialRequests: 'Window seat preferred', date: '2025-01-15' },
-  { id: 'R-005', guestName: 'Michael Johnson', phone: '+1-555-9876', tableNumber: 7, seats: 2, timeSlot: '7:00 PM', endTimeSlot: '8:30 PM', partySize: 2, status: 'confirmed', specialRequests: 'Anniversary dinner — champagne on arrival', date: '2025-01-15' },
-  { id: 'R-006', guestName: 'Anita Gurung', phone: '+977-9856789012', tableNumber: 14, seats: 8, timeSlot: '7:30 PM', endTimeSlot: '9:00 PM', partySize: 7, status: 'confirmed', specialRequests: '', date: '2025-01-15' },
-  { id: 'R-007', guestName: 'Yuki Tanaka', phone: '+81-90-1234-5678', tableNumber: 2, seats: 2, timeSlot: '8:00 PM', endTimeSlot: '9:00 PM', partySize: 1, status: 'no_show', specialRequests: '', date: '2025-01-15' },
-  { id: 'R-008', guestName: 'Emma Wilson', phone: '+44-7911-123456', tableNumber: 10, seats: 4, timeSlot: '12:00 PM', endTimeSlot: '1:00 PM', partySize: 3, status: 'completed', specialRequests: 'Nut allergy', date: '2025-01-15' },
-  { id: 'R-009', guestName: 'Arjun Thapa', phone: '+977-9840000000', tableNumber: 6, seats: 4, timeSlot: '1:00 PM', endTimeSlot: '2:00 PM', partySize: 4, status: 'completed', specialRequests: '', date: '2025-01-15' },
-  { id: 'R-010', guestName: 'Lisa Park', phone: '+82-10-1234-5678', tableNumber: 9, seats: 6, timeSlot: '6:30 PM', endTimeSlot: '8:00 PM', partySize: 6, status: 'confirmed', specialRequests: 'Separate bills per couple', date: '2025-01-15' },
-  { id: 'R-011', guestName: 'Tom Baker', phone: '+61-4-1234-5678', tableNumber: 15, seats: 2, timeSlot: '9:00 PM', endTimeSlot: '10:00 PM', partySize: 2, status: 'confirmed', specialRequests: 'Quiet corner table', date: '2025-01-15' },
-  { id: 'R-012', guestName: 'Sunita Rai', phone: '+977-9845678901', tableNumber: 11, seats: 4, timeSlot: '7:00 PM', endTimeSlot: '8:00 PM', partySize: 3, status: 'no_show', specialRequests: 'Allergic to shellfish', date: '2025-01-15' },
-]
+// ─── API Data Mapping ────────────────────────────────────────────────
+interface ApiReservation {
+  id: string
+  reservationNumber: string
+  guest: { firstName: string; lastName: string; phone: string | null } | null
+  room: { number: string; floor: number } | null
+  status: string
+  checkIn: string
+  checkOut: string
+  adults: number
+  children: number
+  specialRequests: string | null
+}
+
+function formatTimeSlot(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+}
+
+const STATUS_MAP: Record<string, Reservation['status']> = {
+  confirmed: 'confirmed',
+  checked_in: 'seated',
+  checked_out: 'completed',
+  no_show: 'no_show',
+}
+
+function mapApiToReservation(r: ApiReservation): Reservation {
+  const guestName = r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : 'Unknown Guest'
+  const partySize = (r.adults || 0) + (r.children || 0)
+  return {
+    id: r.reservationNumber || r.id,
+    guestName,
+    phone: r.guest?.phone || '',
+    tableNumber: r.room ? parseInt(r.room.number, 10) : 0,
+    seats: partySize + 1,
+    timeSlot: formatTimeSlot(r.checkIn),
+    endTimeSlot: formatTimeSlot(r.checkOut),
+    partySize: Math.max(partySize, 1),
+    status: STATUS_MAP[r.status] || 'confirmed',
+    specialRequests: r.specialRequests || '',
+    date: new Date(r.checkIn).toISOString().split('T')[0],
+  }
+}
+
 
 const HOURS = [
   '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM',
@@ -406,11 +438,62 @@ function TimelineView({
 
 // ─── Main TableReservationsView ──────────────────────────────────────
 export default function TableReservationsView() {
-  const [reservations, setReservations] = useState<Reservation[]>(MOCK_RESERVATIONS)
+  const { data: reservationsData, isLoading } = useQuery({
+    queryKey: ['pos-reservations'],
+    queryFn: () => apiFetch<{ reservations: ApiReservation[] }>('/api/reservations'),
+    refetchInterval: 30000,
+  })
+
+  const apiReservations = useMemo(() => {
+    const res = reservationsData?.reservations || []
+    return res.filter((r) => r.status !== 'cancelled').map(mapApiToReservation)
+  }, [reservationsData])
+
+  const [localOverrides, setLocalOverrides] = useState<Record<string, Partial<Reservation>>>({})
+  const [newReservations, setNewReservations] = useState<Reservation[]>([])
   const [newResOpen, setNewResOpen] = useState(false)
 
+  // Merge API data with local overrides and new reservations
+  const reservations = useMemo(() => {
+    const base = apiReservations.map((r) => {
+      const override = localOverrides[r.id]
+      return override ? { ...r, ...override } : r
+    })
+    return [...newReservations, ...base]
+  }, [apiReservations, localOverrides, newReservations])
+
+  if (isLoading && apiReservations.length === 0) {
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-lg" />
+          ))}
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1.5">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-64" />
+          </div>
+          <Skeleton className="h-7 w-36" />
+        </div>
+        <div className="flex gap-1">
+          <Skeleton className="h-8 w-12" />
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={i} className="h-8 w-14" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <Skeleton key={i} className="h-48 rounded-lg" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   const handleStatusChange = (id: string, newStatus: Reservation['status']) => {
-    setReservations((prev) => prev.map((r) => r.id === id ? { ...r, status: newStatus } : r))
+    setLocalOverrides((prev) => ({ ...prev, [id]: { status: newStatus } }))
     const labels: Record<string, string> = {
       seated: 'Guest has been seated',
       completed: 'Dining completed',
@@ -422,9 +505,9 @@ export default function TableReservationsView() {
   const handleNewReservation = (reservation: Omit<Reservation, 'id'>) => {
     const newRes: Reservation = {
       ...reservation,
-      id: `R-${String(reservations.length + 1).padStart(3, '0')}`,
+      id: `R-${String(Date.now()).slice(-6)}`,
     }
-    setReservations((prev) => [...prev, newRes])
+    setNewReservations((prev) => [...prev, newRes])
     toast.success(`Reservation added for ${reservation.guestName} at ${reservation.timeSlot}`)
   }
 

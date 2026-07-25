@@ -617,6 +617,30 @@ model Vendor {
   updatedAt     DateTime @updatedAt
 }
 
+// ─── PURCHASE ORDERS ────────────────────────────────────────
+model PurchaseOrder {
+  id              String    @id @default(cuid())
+  poNumber        String    @unique
+  vendor          String
+  vendorId        String
+  date            DateTime  @default(now())
+  expectedDelivery String?
+  items           String    // JSON array of { name, quantity, unitPrice, unit }
+  totalAmount     Float     @default(0)
+  priority        String    @default("normal") // high, normal, low
+  status          String    @default("draft")   // draft, pending, approved, ordered, partial, delivered, cancelled
+  notes           String?
+  terms           String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([vendorId])
+  @@index([poNumber])
+}
+
 // ─── REQUISITIONS ─────────────────────────────────────────────
 model Requisition {
   id            String   @id @default(cuid())

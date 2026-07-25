@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { apiFetch } from '@/lib/api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/shared/status-badge'
 import {
   Sheet,
@@ -51,6 +53,7 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
+  ClipboardList,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useNavigationStore } from '@/lib/store'
@@ -99,6 +102,26 @@ interface RoomData {
   type: RoomType
   guest: RoomGuest | null
   reservation: RoomReservation | null
+}
+
+// ─── Workflow Task type ─────────────────────────────────────
+interface WorkflowTask {
+  id: string
+  title: string
+  description: string | null
+  priority: string
+  category: string
+  status: string
+  assignedByName: string | null
+  requestedDate: string
+  dueDate: string | null
+  completedAt: string | null
+}
+
+const WF_STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  open: { label: 'Open', color: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' },
+  in_progress: { label: 'In Progress', color: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
+  completed: { label: 'Completed', color: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300' },
 }
 
 // ─── Status Config ─────────────────────────────────────────────
@@ -185,11 +208,45 @@ interface RoomDetailDrawerProps {
 export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerProps) {
   const [oooOpen, setOooOpen] = useState(false)
   const [oooReason, setOooReason] = useState('')
+  const [woOpen, setWoOpen] = useState(false)
+  const [woForm, setWoForm] = useState({
+    title: '',
+    description: '',
+    category: 'general' as string,
+    priority: 'normal' as string,
+  })
   const { navigateTo } = useNavigationStore()
+  const queryClient = useQueryClient()
+
+  const createWorkOrder = useMutation({
+    mutationFn: (data: typeof woForm) =>
+      apiFetch('/api/work-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, roomId: room.id }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['work-orders'] })
+      toast.success(`Work order created for Room ${room.number}`)
+      setWoOpen(false)
+      setWoForm({ title: '', description: '', category: 'general', priority: 'normal' })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to create work order')
+    },
+  })
 
   const statusConfig = STATUS_CONFIG[room.status] || STATUS_CONFIG.vacant_clean
   const transitions = STATUS_TRANSITIONS[room.status] || []
   const amenities: string[] = room.type.amenities ? JSON.parse(room.type.amenities) : []
+
+  // Fetch housekeeping workflow tasks for this room
+  const { data: workflowData } = useQuery({
+    queryKey: ['room-workflow', room.id],
+    queryFn: () => apiFetch<{ items: WorkflowTask[]; summary: Record<string, number> }>(`/api/housekeeping/workflow?roomId=${room.id}`),
+    enabled: open,
+  })
+  const workflowTasks = workflowData?.items ?? []
 
   const handleStatusChange = (newStatus: string, label: string) => {
     toast.success(`Room ${room.number} status changed to ${label}`)
@@ -214,7 +271,7 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
         navigateTo('front-desk', 'reservations')
         break
       case 'work-order':
-        toast.info(`Create work order for Room ${room.number} — Feature coming soon`)
+        setWoOpen(true)
         break
       case 'folio':
         onOpenChange(false)
@@ -485,6 +542,84 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
                       View Guest Folio
                     </Button>
                   )}
+                  {/* Work Order Dialog */}
+                  <Dialog open={woOpen} onOpenChange={(open) => {
+                    setWoOpen(open)
+                    if (!open) setWoForm({ title: '', description: '', category: 'general', priority: 'normal' })
+                  }}>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Create Work Order — Room {room.number}</DialogTitle>
+                        <DialogDescription>
+                          Submit a maintenance or repair request for this room.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-3 py-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="wo-title">Title</Label>
+                          <Input
+                            id="wo-title"
+                            className="h-9 text-xs"
+                            placeholder="e.g., Fix leaking faucet"
+                            value={woForm.title}
+                            onChange={(e) => setWoForm(f => ({ ...f, title: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="wo-desc">Description</Label>
+                          <Textarea
+                            id="wo-desc"
+                            placeholder="Describe the issue in detail…"
+                            value={woForm.description}
+                            onChange={(e) => setWoForm(f => ({ ...f, description: e.target.value }))}
+                            rows={3}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label>Category</Label>
+                            <Select value={woForm.category} onValueChange={(v) => setWoForm(f => ({ ...f, category: v }))}>
+                              <SelectTrigger className="h-9 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="electrical">Electrical</SelectItem>
+                                <SelectItem value="plumbing">Plumbing</SelectItem>
+                                <SelectItem value="hvac">HVAC</SelectItem>
+                                <SelectItem value="furniture">Furniture</SelectItem>
+                                <SelectItem value="painting">Painting</SelectItem>
+                                <SelectItem value="general">General</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Priority</Label>
+                            <Select value={woForm.priority} onValueChange={(v) => setWoForm(f => ({ ...f, priority: v }))}>
+                              <SelectTrigger className="h-9 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="normal">Normal</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="emergency">Emergency</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setWoOpen(false)}>Cancel</Button>
+                        <Button
+                          disabled={!woForm.title.trim() || createWorkOrder.isPending}
+                          onClick={() => createWorkOrder.mutate(woForm)}
+                        >
+                          {createWorkOrder.isPending ? 'Creating…' : 'Create Work Order'}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
                   <Dialog open={oooOpen} onOpenChange={setOooOpen}>
                     <DialogTrigger asChild>
                       <Button
@@ -525,6 +660,46 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
                   </Dialog>
                 </div>
               </section>
+
+              {/* ── Housekeeping Workflow Tasks ────────── */}
+              {workflowTasks.length > 0 && (
+                <>
+                  <Separator />
+                  <section>
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                      <div className="flex items-center gap-1.5">
+                        <ClipboardList className="size-3" />
+                        Housekeeping Tasks
+                      </div>
+                    </h3>
+                    <div className="space-y-1.5">
+                      {workflowTasks.map((task) => {
+                        const wfStatus = WF_STATUS_CONFIG[task.status] || WF_STATUS_CONFIG.open
+                        return (
+                          <div key={task.id} className="flex items-start gap-2 rounded-md border bg-muted/30 p-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{task.title}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0 h-4', wfStatus.color)}>
+                                  {wfStatus.label}
+                                </Badge>
+                                {task.assignedByName && (
+                                  <span className="text-[10px] text-muted-foreground truncate">
+                                    {task.assignedByName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {task.priority === 'high' && (
+                              <AlertTriangle className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </section>
+                </>
+              )}
 
               {/* Bottom spacing */}
               <div className="h-4" />

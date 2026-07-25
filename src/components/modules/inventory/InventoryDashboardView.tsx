@@ -4,20 +4,17 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Package, DollarSign, AlertTriangle, ClipboardList, FileText, Truck,
-  Star, Plus, ArrowUpDown, PackageCheck, TrendingUp, Clock, CalendarClock,
-  UtensilsCrossed, BedDouble, Sparkles, Wrench, ShoppingCart, CheckCircle2,
-  ArrowDown, ArrowRight, CircleDot,
+  Star, Plus, ArrowUpDown, TrendingUp, Clock, CalendarClock,
+  UtensilsCrossed, BedDouble, Sparkles, Wrench, ShoppingCart, CircleDot, PackageCheck,
 } from 'lucide-react'
 import { cn, formatNPR } from '@/lib/utils'
 
@@ -45,6 +42,12 @@ interface Vendor {
   status: string
 }
 
+interface RequisitionsResponse {
+  requisitions: { id: string; status: string }[]
+  total: number
+  summary: { pending: number; approved: number; received: number }
+}
+
 // ── Category icons & colors ───────────────────────────────────
 const CATEGORY_META: Record<string, { icon: typeof Package; color: string; bg: string }> = {
   'F&B': { icon: UtensilsCrossed, color: 'text-orange-600', bg: 'bg-orange-100 dark:bg-orange-950' },
@@ -58,34 +61,17 @@ const CATEGORY_META: Record<string, { icon: typeof Package; color: string; bg: s
 
 const DEFAULT_CATEGORY_META = { icon: Package, color: 'text-gray-600', bg: 'bg-gray-100 dark:bg-gray-900' }
 
-// ── Mock data: Recent Activity ────────────────────────────────
-const RECENT_ACTIVITY = [
-  { id: 'act-1', type: 'received', item: 'Bath Towels', qty: '+50 pcs', user: 'Admin', time: '2 hours ago', icon: ArrowDown, color: 'text-green-600 bg-green-100 dark:bg-green-950' },
-  { id: 'act-2', type: 'write-off', item: 'Coffee Beans', qty: '-5 kg', user: 'Chef Raj', time: '5 hours ago', icon: AlertTriangle, color: 'text-red-600 bg-red-100 dark:bg-red-950' },
-  { id: 'act-3', type: 'transfer', item: 'Bed Sheets', qty: '20 pcs', user: 'HK Manager', time: 'Yesterday', icon: ArrowRight, color: 'text-blue-600 bg-blue-100 dark:bg-blue-950' },
-  { id: 'act-4', type: 'received', item: 'Shampoo Bottles', qty: '+300 pcs', user: 'Admin', time: 'Yesterday', icon: ArrowDown, color: 'text-green-600 bg-green-100 dark:bg-green-950' },
-  { id: 'act-5', type: 'correction', item: 'Pillow Covers', qty: '+12 pcs', user: 'Storekeeper', time: '2 days ago', icon: ArrowUpDown, color: 'text-amber-600 bg-amber-100 dark:bg-amber-950' },
-  { id: 'act-6', type: 'received', item: 'Fresh Vegetables', qty: '+50 kg', user: 'Chef Raj', time: '2 days ago', icon: ArrowDown, color: 'text-green-600 bg-green-100 dark:bg-green-950' },
-  { id: 'act-7', type: 'write-off', item: 'Broken Glassware', qty: '-8 pcs', user: 'F&B Manager', time: '3 days ago', icon: AlertTriangle, color: 'text-red-600 bg-red-100 dark:bg-red-950' },
-]
-
-// ── Mock data: Expiring Soon ─────────────────────────────────
-const EXPIRING_ITEMS = [
-  { name: 'Milk (Fresh)', category: 'F&B', expiryDate: '2024-12-20', daysLeft: 2 },
-  { name: 'Yogurt Cups', category: 'F&B', expiryDate: '2024-12-21', daysLeft: 3 },
-  { name: 'Chicken Breast', category: 'F&B', expiryDate: '2024-12-22', daysLeft: 4 },
-  { name: 'Cream Cheese', category: 'F&B', expiryDate: '2024-12-23', daysLeft: 5 },
-  { name: 'Bread Loaves', category: 'F&B', expiryDate: '2024-12-24', daysLeft: 6 },
-  { name: 'Salad Dressing', category: 'F&B', expiryDate: '2024-12-25', daysLeft: 7 },
-]
-
 // ── API helpers ──────────────────────────────────────────────
 function fetchInventory() {
-  return apiFetch('/api/inventory')
+  return apiFetch<{ items: InventoryItem[] }>('/api/inventory')
 }
 
 function fetchVendors() {
-  return apiFetch('/api/vendors')
+  return apiFetch<{ vendors: Vendor[] }>('/api/vendors')
+}
+
+function fetchRequisitions() {
+  return apiFetch<RequisitionsResponse>('/api/requisitions')
 }
 
 // ── Component ────────────────────────────────────────────────
@@ -103,19 +89,28 @@ export function InventoryDashboardView() {
     queryFn: fetchVendors,
   })
 
+  const { data: requisitionsData, isLoading: reqsLoading } = useQuery({
+    queryKey: ['requisitions'],
+    queryFn: fetchRequisitions,
+  })
+
   const items: InventoryItem[] = inventoryData?.items || []
   const vendors: Vendor[] = vendorsData?.vendors || []
+  const requisitions = requisitionsData?.requisitions || []
 
   // ── Derived KPIs ────────────────────────────────────────────
   const kpis = useMemo(() => {
     const totalItems = items.length
     const totalValue = items.reduce((sum, item) => sum + item.currentStock * item.unitCost, 0)
     const lowStockItems = items.filter((i) => i.currentStock <= i.reorderPoint)
-    const pendingRequisitions = 4 // Static placeholder
-    const openPOs = 5 // Static placeholder
-    const pendingDeliveries = 2 // Static placeholder
+
+    // Real counts derived from requisitions data
+    const pendingRequisitions = requisitions.filter((r) => r.status === 'pending').length
+    const openPOs = requisitions.filter((r) => r.status === 'ordered').length
+    const pendingDeliveries = requisitions.filter((r) => r.status === 'approved').length
+
     return { totalItems, totalValue, lowStockAlerts: lowStockItems.length, pendingRequisitions, openPOs, pendingDeliveries }
-  }, [items])
+  }, [items, requisitions])
 
   // ── Category distribution ──────────────────────────────────
   const categoryDistribution = useMemo(() => {
@@ -148,7 +143,7 @@ export function InventoryDashboardView() {
   }, [vendors])
 
   // ── Loading state ──────────────────────────────────────────
-  if (invLoading || vendorsLoading) {
+  if (invLoading || vendorsLoading || reqsLoading) {
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -358,26 +353,10 @@ export function InventoryDashboardView() {
           </CardHeader>
           <CardContent className="p-2 pt-0">
             <ScrollArea className="max-h-[300px]">
-              <div className="space-y-2">
-                {RECENT_ACTIVITY.map((activity) => {
-                  const Icon = activity.icon
-                  return (
-                    <div key={activity.id} className="flex items-start gap-2">
-                      <div className={cn('flex h-8 w-8 items-center justify-center rounded-full shrink-0', activity.color)}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">
-                          <span className="font-medium">{activity.item}</span>{' '}
-                          <span className="text-muted-foreground">{activity.qty}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          by {activity.user} &middot; {activity.time}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <PackageCheck className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground">No recent inventory activity to display.</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">Activity will appear here as stock is received, adjusted, or transferred.</p>
               </div>
             </ScrollArea>
           </CardContent>
@@ -441,42 +420,10 @@ export function InventoryDashboardView() {
           </CardHeader>
           <CardContent className="p-2 pt-0">
             <ScrollArea className="max-h-[300px]">
-              <div className="space-y-2">
-                {EXPIRING_ITEMS.map((expItem) => {
-                  const isUrgent = expItem.daysLeft <= 3
-                  return (
-                    <div key={expItem.name} className={cn(
-                      'flex items-center gap-2 p-2 rounded-lg border',
-                      isUrgent
-                        ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30'
-                        : 'border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/30'
-                    )}>
-                      <div className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-full shrink-0',
-                        isUrgent ? 'bg-red-100 dark:bg-red-950' : 'bg-amber-100 dark:bg-amber-950'
-                      )}>
-                        <Clock className={cn('h-3.5 w-3.5', isUrgent ? 'text-red-600' : 'text-amber-600')} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{expItem.name}</p>
-                        <p className="text-xs text-muted-foreground">{expItem.category}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <Badge variant="outline" className={cn(
-                          'text-xs',
-                          isUrgent
-                            ? 'border-red-300 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300'
-                            : 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                        )}>
-                          {expItem.daysLeft}d left
-                        </Badge>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {new Date(expItem.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Clock className="h-8 w-8 text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground">No expiring items to display.</p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">Items nearing their expiry date will appear here.</p>
               </div>
             </ScrollArea>
           </CardContent>
