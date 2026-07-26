@@ -37,6 +37,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Database runtime files (SQLite) — local-only, must not be committed
+db/*.db
+db/*.db-journal
+db/*.sqlite
+db/*.sqlite3
+*.db-journal
+
 
 # typescript
 *.tsbuildinfo
