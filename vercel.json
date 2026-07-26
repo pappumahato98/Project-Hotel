@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "buildCommand": "bunx prisma generate && bunx prisma db push --accept-data-loss 2>&1 && bunx tsx scripts/vercel-seed.ts && next build",
+  "buildCommand": "node -e \"const u=process.env.DATABASE_URL||''; if(!u){console.error('❌ DATABASE_URL not set on Vercel. Set it to a Turso libsql:// URL. Run ./setup-turso.sh locally.');process.exit(1)} if(u.startsWith('file:')){console.error('❌ DATABASE_URL is file:... — does not work on Vercel serverless. Use a Turso libsql:// URL.');process.exit(1)}\" && bunx prisma generate && bunx prisma db push --accept-data-loss 2>&1 && bunx tsx scripts/vercel-seed.ts && next build",
   "installCommand": "bun install",
   "outputDirectory": ".next",
   "regions": ["sin1"],

@@ -15,13 +15,35 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 function createDb() {
-  const url = process.env.DATABASE_URL!
+  const url = process.env.DATABASE_URL
+  if (!url) {
+    console.error('')
+    console.error('❌ FATAL: DATABASE_URL environment variable is not set.')
+    console.error('   On Vercel, you must set DATABASE_URL to a Turso libsql:// URL.')
+    console.error('   See: https://vercel.com/pappumahato98-7206s-projects/project-neo/settings/environment-variables')
+    console.error('   Run ./setup-turso.sh locally to create a Turso database and obtain the URL.')
+    console.error('')
+    process.exit(1)
+  }
+  if (url.startsWith('file:')) {
+    console.error('')
+    console.error('❌ FATAL: DATABASE_URL is set to a local file path (file:...).')
+    console.error('   This does not work on Vercel — serverless functions have a read-only filesystem.')
+    console.error('   Set DATABASE_URL to a Turso libsql:// URL instead.')
+    console.error('   Run ./setup-turso.sh locally to create a Turso database.')
+    console.error('')
+    process.exit(1)
+  }
   if (url.startsWith('libsql://') || url.startsWith('https://')) {
     const libsql = createClient({ url })
     const adapter = new PrismaLibSQL(libsql)
     return new PrismaClient({ adapter })
   }
-  return new PrismaClient()
+  console.error('')
+  console.error(`❌ FATAL: DATABASE_URL has unsupported scheme: ${url.split(':')[0]}`)
+  console.error('   Expected a Turso libsql:// URL.')
+  console.error('')
+  process.exit(1)
 }
 
 async function main() {
@@ -116,7 +138,13 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('❌ vercel-seed failed:', err)
-  // Non-fatal: don't block the build
-  process.exit(0)
+  console.error('')
+  console.error('❌ vercel-seed failed:', err?.message || err)
+  console.error('')
+  console.error('   This usually means DATABASE_URL is not set correctly on Vercel.')
+  console.error('   Fix: set DATABASE_URL to a Turso libsql:// URL in your Vercel project settings.')
+  console.error('   Run ./setup-turso.sh locally to create a Turso database.')
+  console.error('')
+  // Fail the build so the problem is visible, instead of silently shipping a broken app
+  process.exit(1)
 })
