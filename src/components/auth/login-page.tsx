@@ -9,6 +9,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
+// Detect missing Supabase config (empty env vars) to show a setup banner.
+const SUPABASE_CONFIGURED =
+  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
 export function LoginPage() {
   const { isAuthenticated } = useAuthStore()
   const { settings } = useSettingsStore()
@@ -20,6 +25,10 @@ export function LoginPage() {
 
   // Demo login — uses Supabase signInWithPassword
   const handleDemoLogin = async (demoEmail: string) => {
+    if (!SUPABASE_CONFIGURED) {
+      setError('Supabase is not configured. Add credentials to .env and restart.')
+      return
+    }
     setLoading(true)
     setEmail(demoEmail)
     setPassword('password123')
@@ -42,6 +51,10 @@ export function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!SUPABASE_CONFIGURED) {
+      setError('Supabase is not configured. Add credentials to .env and restart.')
+      return
+    }
     setError('')
     setLoading(true)
 
@@ -103,6 +116,23 @@ export function LoginPage() {
         </CardHeader>
 
         <CardContent className="px-8 pb-8 pt-4">
+          {/* Supabase not configured banner */}
+          {!SUPABASE_CONFIGURED && (
+            <div className="mb-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-700 dark:bg-amber-950/60">
+              <p className="font-semibold text-amber-800 dark:text-amber-300">
+                Supabase not configured
+              </p>
+              <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                Authentication is disabled. Add your Supabase project credentials
+                to <code className="rounded bg-amber-100 dark:bg-amber-900 px-1 py-0.5 font-mono">.env</code> and restart the dev server.
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded bg-amber-100 dark:bg-amber-900/60 px-2 py-1 text-[10px] leading-relaxed text-amber-800 dark:text-amber-200 font-mono">{`DATABASE_URL=postgresql://...
+NEXT_PUBLIC_SUPABASE_URL=https://...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...`}</pre>
+            </div>
+          )}
+
           {/* Quick Demo Login Buttons */}
           <div className="mb-5 space-y-2">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">

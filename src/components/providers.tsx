@@ -22,6 +22,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Single mount effect: set up Supabase auth listener + register fetch
   useEffect(() => {
+    // Skip Supabase setup if env vars aren't configured yet (fresh clone).
+    // The login page shows a "Supabase not configured" banner in this state.
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      useAuthStore.setState({ _hasHydrated: true })
+      return
+    }
+
     const supabase = createClient()
 
     // Register auth token getter — reads from the in-memory cache kept
