@@ -24,14 +24,10 @@ export const qk = {
   roomsAll:     ()           => ['rooms', 'all'] as const,
   roomsCalendar:()           => ['rooms-calendar'] as const,
   roomsForRes:  ()           => ['rooms-for-reservation'] as const,
-  roomsAvail:   ()           => ['rooms-available'] as const,
   vacantRooms:  ()           => ['vacant-rooms'] as const,
 
   // Reservations
   reservations:         ()               => ['reservations'] as const,
-  reservationsCal:      (d: string)      => ['reservations-calendar', d] as const,
-  reservationsList:     (...a: unknown[])=> ['reservations', ...a] as const,
-  reservation:          (id: string)     => ['reservation', id] as const,
   arrivals:             ()               => ['arrivals'] as const,
   departures:           ()               => ['departures'] as const,
   inHouse:              ()               => ['in-house'] as const,
@@ -39,16 +35,11 @@ export const qk = {
 
   // Folios
   folios:          ()               => ['folios'] as const,
-  folioDetail:     (id: string)     => ['folio-detail', id] as const,
-  folioSearch:     (q: string)      => ['folio-search', q] as const,
   guestFolios:     (id: string)     => ['guest-folios', id] as const,
   guestLedger:     (id: string, ...a: unknown[]) => ['guest-ledger', id, ...a] as const,
-  roomRatePostings:(id: string)     => ['room-rate-postings', id] as const,
 
   // Guests
   guests:          ()               => ['guests'] as const,
-  guestSearch:     (q: string)      => ['guest-search', q] as const,
-  guestStays:      (id: string)     => ['guest-stays', id] as const,
 
   // Dashboards
   dashboard:           () => ['dashboard'] as const,
@@ -56,9 +47,6 @@ export const qk = {
 
   // Operations
   operations:      ()               => ['operations'] as const,
-
-  // Calendar
-  calendar:        ()               => ['calendar'] as const,
 
   // Waitlist
   waitlist:        ()               => ['waitlist'] as const,
@@ -68,12 +56,6 @@ export const qk = {
 
   // Housekeeping
   housekeeping:    ()               => ['housekeeping'] as const,
-
-  // POS
-  pos:             ()               => ['pos'] as const,
-
-  // Channel Bookings
-  channelBookings: ()               => ['channel-bookings'] as const,
 } as const
 
 // ─── Cross-module invalidation helpers ─────────────────────────────────

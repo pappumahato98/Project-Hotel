@@ -118,12 +118,6 @@ const TYPE_SHORTCUTS: Record<string, string> = {
   penthouse: 'PNT', studio: 'STU', villa: 'VLA',
 }
 
-const BED_SHORTCUTS: Record<string, string> = {
-  single: 'SGL', double: 'DBL', twin: 'Twin', king: 'Kng',
-  queen: 'Qun', master: 'Mas', sofa: 'Sfa', bunk: 'Bnk',
-  full: 'Full', twin_single: 'TS',
-}
-
 const BED_TYPE_NAMES: Record<string, string> = {
   single: 'Single', double: 'Double', twin: 'Twin', king: 'King',
   queen: 'Queen', master: 'Master', sofa: 'Sofa', bunk: 'Bunk',
@@ -163,30 +157,4 @@ export function getTypeShortcut(typeName: string | null | undefined, typeCode?: 
   return ''
 }
 
-export function getBedShortcut(bedConfig: string | null | undefined): string {
-  if (!bedConfig) return ''
-  const lower = bedConfig.toLowerCase()
-  if (lower.includes('+')) {
-    const parts = lower.split('+').map(p => p.trim())
-    const shortcuts: string[] = []
-    for (const part of parts) {
-      for (const [key, shortcut] of Object.entries(BED_SHORTCUTS)) {
-        if (part.includes(key)) { shortcuts.push(shortcut); break }
-      }
-    }
-    return shortcuts.join('+') || ''
-  }
-  for (const [key, shortcut] of Object.entries(BED_SHORTCUTS)) {
-    if (lower.includes(key)) return shortcut
-  }
-  return ''
-}
 
-export function getRoomTypeBedShort(typeName: string | null | undefined, bedConfig: string | null | undefined, typeCode?: string | null): string {
-  const t = getTypeShortcut(typeName, typeCode)
-  const b = getBedShortcut(bedConfig)
-  if (t && b) return `${t} ${b}`
-  if (t) return t
-  if (b) return b
-  return ''
-}

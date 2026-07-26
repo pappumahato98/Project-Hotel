@@ -38,8 +38,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 
 // ─── Helpers ────────────────────────────────────────────────────
-// Use shared formatDateLong and formatDateTime from @/lib/format (en-GB/DD-MM-YYYY)
-// Re-export for convenience since component references them as formatDate/formatDateTime
+// Local date formatters (en-GB / DD-MM-YYYY)
 const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '—'
   try {

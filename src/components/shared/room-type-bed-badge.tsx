@@ -1,6 +1,6 @@
 'use client'
 
-import { getRoomTypeBedShort, getBedTypeName, getTypeShortcut } from '@/lib/format'
+import { getBedTypeName, getTypeShortcut } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 interface RoomTypeBedBadgeProps {

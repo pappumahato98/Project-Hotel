@@ -23,7 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   usePosData, formatNPR, timeAgo,
-  type TableItem, type MenuItem, type Order, type OrderItem, type GuestReservation,
+  type TableItem, type MenuItem, type Order, type GuestReservation,
 } from './pos-types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSettingsStore } from '@/lib/store'

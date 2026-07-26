@@ -34,7 +34,7 @@ import { StepIndicator, StepContent, StepNav, type StepConfig } from '@/componen
 import { formatDate, formatCurrency, nightsBetween, getTodayString, formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
 import { invalidate } from '@/lib/queryKeys'
 import { cn } from '@/lib/utils'
-import { useAuthStore, useSettingsStore, useFrontDeskContextStore, type CheckInSession } from '@/lib/store'
+import { useAuthStore, useSettingsStore, useFrontDeskContextStore } from '@/lib/store'
 import { RoomRatePostingDialog } from './RoomRatePostingDialog'
 
 // ─── Constants ──────────────────────────────────────────────────────────

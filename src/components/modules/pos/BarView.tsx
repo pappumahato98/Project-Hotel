@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import {
   usePosData, formatNPR, timeAgo,
-  type BarStool, type BarTab, type MenuItem, type OrderItem,
+  type BarStool, type BarTab, type MenuItem,
 } from './pos-types'
 
 // ─── Stool Grid ────────────────────────────────────────────────────
