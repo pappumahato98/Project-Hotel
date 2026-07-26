@@ -13,9 +13,9 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "vercel-build": "prisma generate && prisma db push --accept-data-loss 2>&1 && npx tsx scripts/vercel-seed.ts && next build",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss 2>&1 && bunx tsx scripts/vercel-seed.ts && next build",
     "setup": "bash scripts/setup.sh",
-    "seed:vercel": "npx tsx scripts/vercel-seed.ts"
+    "seed:vercel": "bunx tsx scripts/vercel-seed.ts"
   },
   "dependencies": {
     "@libsql/client": "0.14.0",
