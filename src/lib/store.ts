@@ -2,58 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { apiFetch } from '@/lib/api'
 
-// ─── Auth helpers (manual localStorage, not Zustand persist) ──────
-// Zustand persist + Next.js HMR causes double-rehydration that resets auth state.
-// Using manual localStorage avoids this issue entirely.
-const AUTH_TOKEN_KEY = 'meridian-auth-token'
-const AUTH_USER_KEY = 'meridian-auth-user'
-
-function loadStoredAuth(): { user: unknown; token: string | null } {
-  if (typeof window === 'undefined') return { user: null, token: null }
-  try {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY)
-    const userStr = localStorage.getItem(AUTH_USER_KEY)
-    const user = userStr ? JSON.parse(userStr) : null
-    return { user, token }
-  } catch {
-    return { user: null, token: null }
-  }
-}
-
-function saveAuthToStorage(user: unknown, token: string) {
-  if (typeof window === 'undefined') return
-  localStorage.setItem(AUTH_TOKEN_KEY, token)
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user))
-}
-
-function clearAuthStorage() {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem(AUTH_TOKEN_KEY)
-  localStorage.removeItem(AUTH_USER_KEY)
-  // Clear old format key
-  localStorage.removeItem('meridian-auth')
-}
-
-/**
- * Hydrate auth state from localStorage into the Zustand store.
- * Must be called only on the client after mount (never during SSR).
- * Returns true if auth was restored from localStorage.
- */
-export function hydrateAuthFromStorage(): boolean {
-  if (typeof window === 'undefined') return false
-  const stored = loadStoredAuth()
-  if (stored.token) {
-    useAuthStore.setState({
-      user: stored.user as AuthUser,
-      isAuthenticated: true,
-      token: stored.token,
-      _hasHydrated: true,
-    })
-    return true
-  }
-  useAuthStore.setState({ _hasHydrated: true })
-  return false
-}
+// NOTE: Auth hydration is now handled by Supabase's onAuthStateChange
+// listener in Providers.tsx. The store is just a cache of the profile
+// data + a flag for SSR safety. Supabase manages the session (token)
+// in its own localStorage keys.
 
 // ─── Auth State ────────────────────────────────────────────────
 interface AuthUser {
@@ -91,21 +43,14 @@ interface AuthState {
 }
 
 // Auth store always starts unauthenticated (safe for SSR).
-// Client-side hydration from localStorage happens via hydrateAuthFromStorage()
-// called in Providers.tsx useEffect after mount.
+// Client-side hydration happens via Supabase onAuthStateChange in Providers.tsx.
 export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   isAuthenticated: false,
   token: null,
   _hasHydrated: false,
-  login: (user, token) => {
-    saveAuthToStorage(user, token)
-    set({ user, isAuthenticated: true, token })
-  },
-  logout: () => {
-    clearAuthStorage()
-    set({ user: null, isAuthenticated: false, token: null })
-  },
+  login: (user, token) => set({ user, isAuthenticated: true, token }),
+  logout: () => set({ user: null, isAuthenticated: false, token: null }),
   updateUser: (updates) =>
     set((state) => ({
       user: state.user ? { ...state.user, ...updates } : null,

@@ -1,8 +1,9 @@
-export { createSession, validateSession, destroySession, destroyAllUserSessions } from './session-store'
-export type { SessionData } from './session-store'
+// Auth helpers — Supabase JWT validation
+export { getAuthSession, requireAuth, requireRole, getClientIp, getClientUA } from './auth-helpers'
+export type { AuthUser } from './auth-helpers'
 
-export { hashPassword, verifyPassword, isLegacyHash } from './password'
-
+// Rate limiting (still used by login/password endpoints)
 export { loginLimiter, passwordChangeLimiter } from './rate-limiter'
 
+// Audit logging
 export { logSecurityEvent } from './audit'

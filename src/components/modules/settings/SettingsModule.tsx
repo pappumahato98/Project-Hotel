@@ -1605,8 +1605,15 @@ function SecurityTab() {
       setNewPassword('')
       setConfirmPassword('')
       toast.success('Password changed. Please sign in again.')
-      // Server invalidates all sessions — log out locally
-      setTimeout(() => { useAuthStore.getState().logout() }, 1500)
+      // Sign out from Supabase — onAuthStateChange clears local state
+      setTimeout(async () => {
+        try {
+          const { createClient } = await import('@/lib/supabase/client')
+          await createClient().auth.signOut()
+        } catch {
+          useAuthStore.getState().logout()
+        }
+      }, 1500)
     } catch {
       toast.error('Failed to change password. Please try again.')
     }

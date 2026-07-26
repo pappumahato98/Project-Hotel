@@ -1,7 +1,8 @@
-import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyPassword, hashPassword, isLegacyHash, destroyAllUserSessions, passwordChangeLimiter, logSecurityEvent } from '@/lib/security'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAuth, getClientIp, getClientUA } from '@/lib/security/auth-helpers'
+import { createAdminClient } from '@/lib/supabase/server'
+import { passwordChangeLimiter, logSecurityEvent } from '@/lib/security'
 
 export async function PUT(req: NextRequest) {
   // Require authenticated session
@@ -28,9 +29,6 @@ export async function PUT(req: NextRequest) {
     const body = await req.json()
     const { currentPassword, newPassword } = body
 
-    // Use session-derived identity — ignore email in body
-    const email = auth.user.email
-
     if (!currentPassword || !newPassword) {
       return NextResponse.json(
         { error: 'Current password and new password are required' },
@@ -45,26 +43,22 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    const user = await db.authUser.findUnique({
-      where: { id: auth.user.userId },
+    // Verify current password by attempting a Supabase sign-in.
+    // (Supabase doesn't expose a "verify password" API; sign-in is the way.)
+    const supabaseAnon = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    const { error: signInError } = await supabaseAnon.auth.signInWithPassword({
+      email: auth.user.email,
+      password: currentPassword,
     })
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    if (!user.active) {
-      return NextResponse.json(
-        { error: 'Account is deactivated. Contact administrator.' },
-        { status: 403 }
-      )
-    }
-
-    const valid = await verifyPassword(currentPassword, user.password)
-    if (!valid) {
+    if (signInError) {
       await logSecurityEvent({
         type: 'password_change_failure', level: 'warning',
-        userId: user.id, email: user.email,
+        userId: auth.user.userId, email: auth.user.email,
         ipAddress: ip, path: '/api/auth/password', method: 'PUT',
         details: 'Password change attempt with incorrect current password',
       })
@@ -74,23 +68,27 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    // Hash new password with bcrypt
-    const newHashedPassword = await hashPassword(newPassword)
+    // Update password via Supabase Admin API (service role, bypasses RLS)
+    const supabaseAdmin = createAdminClient()
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      auth.user.userId,
+      { password: newPassword }
+    )
 
-    await db.authUser.update({
-      where: { id: user.id },
-      data: { password: newHashedPassword },
-    })
-
-    // Destroy ALL sessions for this user (force re-login on all devices)
-    await destroyAllUserSessions(user.id)
+    if (updateError) {
+      console.error('Supabase password update error:', updateError)
+      return NextResponse.json(
+        { error: 'Failed to update password. Please try again.' },
+        { status: 500 }
+      )
+    }
 
     await logSecurityEvent({
       type: 'password_change', level: 'info',
-      userId: user.id, email: user.email,
+      userId: auth.user.userId, email: auth.user.email,
       ipAddress: ip, userAgent: getClientUA(req),
       path: '/api/auth/password', method: 'PUT',
-      details: 'Password changed successfully — all sessions invalidated',
+      details: 'Password changed successfully — Supabase session invalidated',
     })
 
     return NextResponse.json({

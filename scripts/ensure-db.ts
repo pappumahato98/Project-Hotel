@@ -63,18 +63,8 @@ async function main() {
     // Non-fatal
   }
 
-  // Also seed the auth user
-  try {
-    execSync('npx tsx prisma/seed-auth.ts 2>&1', {
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      timeout: 30000,
-    })
-  } catch {
-    // Non-fatal
-  }
-
   console.log('🚀 ensure-db: database initialization complete\n')
+  console.log('   NOTE: Auth users are managed by Supabase. Run scripts/vercel-seed.ts to seed demo accounts.')
 }
 
 main().catch((err) => {

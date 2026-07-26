@@ -1,16 +1,16 @@
 'use client'
 
 import * as React from 'react'
-import { apiFetch } from '@/lib/api'
 import { Building2, Star, Loader2, Eye, EyeOff, Zap } from 'lucide-react'
 import { useAuthStore, useSettingsStore } from '@/lib/store'
+import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
 export function LoginPage() {
-  const { login } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
   const { settings } = useSettingsStore()
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
@@ -18,23 +18,24 @@ export function LoginPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
-  // Demo login — always uses server (no offline fallback with fake tokens)
+  // Demo login — uses Supabase signInWithPassword
   const handleDemoLogin = async (demoEmail: string) => {
     setLoading(true)
     setEmail(demoEmail)
     setPassword('password123')
+    setError('')
 
     try {
-      const data = await apiFetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: demoEmail, password: 'password123' }),
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: 'password123',
       })
-      login(data.user, data.token)
+      if (signInError) throw signInError
+      // onAuthStateChange listener in Providers handles profile fetch + store update
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed'
       setError(msg)
-    } finally {
       setLoading(false)
     }
   }
@@ -47,20 +48,24 @@ export function LoginPage() {
     const trimmedEmail = email.trim().toLowerCase()
 
     try {
-      const data = await apiFetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmedEmail, password }),
+      const supabase = createClient()
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail,
+        password,
       })
-
-      login(data.user, data.token)
-      setLoading(false)
+      if (signInError) throw signInError
+      // onAuthStateChange listener handles the rest
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed'
       setError(msg)
       setLoading(false)
     }
   }
+
+  // Once authenticated (set by the onAuthStateChange listener), stop loading
+  React.useEffect(() => {
+    if (isAuthenticated) setLoading(false)
+  }, [isAuthenticated])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">

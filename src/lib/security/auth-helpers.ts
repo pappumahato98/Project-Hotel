@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validateSession } from './session-store'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { db } from '@/lib/db'
 import { logSecurityEvent } from './audit'
-import type { SessionData } from './session-store'
 
-export type AuthUser = Pick<SessionData, 'userId' | 'email' | 'role' | 'firstName' | 'lastName'>
+/**
+ * AuthUser — the shape every API route expects.
+ *
+ * Kept identical to the previous custom-auth version so all 67 API routes
+ * work without changes. `userId` is the Supabase Auth user UUID (which is
+ * also the AuthUser.id in our profiles table).
+ */
+export type AuthUser = {
+  userId: string
+  email: string
+  role: string
+  firstName: string
+  lastName: string
+}
 
 const ROLE_HIERARCHY: Record<string, number> = {
   admin: 5,
@@ -13,6 +26,16 @@ const ROLE_HIERARCHY: Record<string, number> = {
   staff: 1,
 }
 
+/**
+ * Validate a Supabase access token (JWT) from the Authorization header
+ * and return the matching profile row from our AuthUser table.
+ *
+ * Flow:
+ *   1. Extract `Bearer <jwt>` from Authorization header
+ *   2. supabase.auth.getUser(jwt) → validates JWT, returns Supabase user
+ *   3. db.authUser.findUnique({ id: supabaseUser.id }) → app profile (role, name, etc.)
+ *   4. Return merged AuthUser
+ */
 export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextResponse> {
   const authHeader = req.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -24,23 +47,53 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
 
-  const session = await validateSession(token)
-  if (!session) {
-    const ip = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip') ?? 'unknown'
+  // Create a Supabase client configured to validate the passed access token.
+  // We use the anon key + the user's JWT — supabase.auth.getUser(token)
+  // verifies the JWT signature and returns the user if valid.
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+
+  const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token)
+
+  if (error || !supabaseUser) {
+    const ip = getClientIp(req)
     await logSecurityEvent({
       type: 'invalid_token', level: 'warning',
       ipAddress: ip, path: req.nextUrl.pathname, method: req.method,
-      details: 'Invalid or expired session token',
+      details: 'Invalid or expired Supabase access token',
     })
     return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401 })
   }
 
+  // Fetch the app-specific profile (role, name, department, etc.)
+  const profile = await db.authUser.findUnique({
+    where: { id: supabaseUser.id },
+    select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
+  })
+
+  if (!profile) {
+    return NextResponse.json(
+      { error: 'Profile not found. Contact an administrator.' },
+      { status: 403 }
+    )
+  }
+
+  if (!profile.active) {
+    return NextResponse.json(
+      { error: 'Account is deactivated. Contact administrator.' },
+      { status: 403 }
+    )
+  }
+
   return {
-    userId: session.userId,
-    email: session.email,
-    role: session.role,
-    firstName: session.firstName,
-    lastName: session.lastName,
+    userId: profile.id,
+    email: profile.email,
+    role: profile.role,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
   }
 }
 
@@ -53,7 +106,7 @@ export function requireRole(...roles: string[]) {
       await logSecurityEvent({
         type: 'privilege_escalation_attempt', level: 'warning',
         userId: user.userId, email: user.email,
-        ipAddress: req.headers.get('x-forwarded-for') ?? 'unknown',
+        ipAddress: getClientIp(req),
         path: req.nextUrl.pathname, method: req.method,
         details: `User role '${user.role}' attempted to access ${roles.join('/')} endpoint`,
       })

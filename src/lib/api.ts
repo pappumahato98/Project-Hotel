@@ -22,11 +22,8 @@ export async function apiFetch<T = unknown>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Skip auth for login endpoint
-  const isLoginRequest = url === '/api/auth/login'
-
   // Attach Bearer token and x-user-id header if available
-  if (!isLoginRequest && _getToken) {
+  if (_getToken) {
     const token = _getToken()
     if (token) {
       options.headers = {
@@ -44,21 +41,22 @@ export async function apiFetch<T = unknown>(
     throw new Error('Server unavailable. Please try again.')
   }
 
-  // Handle 401 — session expired, redirect to login
-  if (res.status === 401 && !isLoginRequest && typeof window !== 'undefined') {
-    // Clear stale auth state
+  // Handle 401 — session expired or invalid, sign out from Supabase
+  if (res.status === 401 && typeof window !== 'undefined') {
     try {
       const { useAuthStore } = await import('@/lib/store')
       const store = useAuthStore.getState()
       if (store.isAuthenticated) {
         store.logout()
-        // Only redirect if not already on login page
+        // Sign out from Supabase to clear the session
+        const { createClient } = await import('@/lib/supabase/client')
+        await createClient().auth.signOut()
         if (!window.location.pathname.includes('/login')) {
           window.location.reload()
         }
       }
     } catch {
-      // Store import failed, continue with error
+      // Import failed — continue with error
     }
   }
 

@@ -1,53 +1,44 @@
 /**
- * vercel-seed.ts — Auto-seeds Turso database on Vercel build.
+ * vercel-seed.ts — Auto-seeds Supabase Auth users + Postgres data on Vercel build.
  *
  * Runs as part of the build pipeline ONLY when the DB is empty.
- * Uses the adapter-aware db client (Turso on Vercel, local SQLite for dev).
- * Importing db from @/lib/db so it handles Turso vs SQLite automatically.
+ * Creates:
+ *   1. Supabase Auth users (email + password) via Admin API
+ *   2. Prisma AuthUser (profile) rows linked by Supabase user ID
+ *   3. Property, room types, rooms, and system settings
  */
 import { PrismaClient } from '@prisma/client'
-import { PrismaLibSQL } from '@prisma/adapter-libsql'
-import { createClient } from '@libsql/client'
-import bcrypt from 'bcryptjs'
+import { createClient } from '@supabase/supabase-js'
 
-async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 10)
-}
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const DATABASE_URL = process.env.DATABASE_URL!
 
-function createDb() {
-  const url = process.env.DATABASE_URL
-  if (!url) {
+function validateEnv() {
+  if (!DATABASE_URL) {
     console.error('')
-    console.error('❌ FATAL: DATABASE_URL environment variable is not set.')
-    console.error('   On Vercel, you must set DATABASE_URL to a Turso libsql:// URL.')
-    console.error('   See: https://vercel.com/pappumahato98-7206s-projects/project-neo/settings/environment-variables')
-    console.error('   Run ./setup-turso.sh locally to create a Turso database and obtain the URL.')
+    console.error('❌ FATAL: DATABASE_URL is not set.')
+    console.error('   Set it to your Supabase Postgres connection string.')
     console.error('')
     process.exit(1)
   }
-  if (url.startsWith('file:')) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
     console.error('')
-    console.error('❌ FATAL: DATABASE_URL is set to a local file path (file:...).')
-    console.error('   This does not work on Vercel — serverless functions have a read-only filesystem.')
-    console.error('   Set DATABASE_URL to a Turso libsql:// URL instead.')
-    console.error('   Run ./setup-turso.sh locally to create a Turso database.')
+    console.error('❌ FATAL: NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set.')
+    console.error('   These are required to create Supabase Auth users during seeding.')
     console.error('')
     process.exit(1)
   }
-  if (url.startsWith('libsql://') || url.startsWith('https://')) {
-    const libsql = createClient({ url })
-    const adapter = new PrismaLibSQL(libsql)
-    return new PrismaClient({ adapter })
-  }
-  console.error('')
-  console.error(`❌ FATAL: DATABASE_URL has unsupported scheme: ${url.split(':')[0]}`)
-  console.error('   Expected a Turso libsql:// URL.')
-  console.error('')
-  process.exit(1)
 }
 
 async function main() {
-  const db = createDb()
+  validateEnv()
+
+  const db = new PrismaClient({ log: ['error'] })
+  const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
   try {
     // Check if DB already has data
     const propCount = await db.property.count()
@@ -79,32 +70,32 @@ async function main() {
     console.log('  ✅ 4 Room Types')
 
     // ─── ROOMS (48 rooms) ────────────────────────────────
-    const rooms: { number: string; typeId: string; floor: number; status: string }[] = []
+    const property = await db.property.findFirst()
+    const rooms: { number: string; typeId: string; propertyId: string; floor: number; status: string }[] = []
     const floors = [
-      { range: [100, 112], typeId: roomTypes[0].id },  // STD: 100-112
-      { range: [200, 212], typeId: roomTypes[0].id },  // STD: 200-212
-      { range: [300, 312], typeId: roomTypes[0].id },  // STD: 300-312
-      { range: [120, 129], typeId: roomTypes[1].id },  // DLX: 120-129
-      { range: [220, 229], typeId: roomTypes[1].id },  // DLX: 220-229
-      { range: [320, 329], typeId: roomTypes[1].id },  // DLX: 320-329
-      { range: [130, 133], typeId: roomTypes[2].id },  // PRS: 130-133
-      { range: [230, 233], typeId: roomTypes[2].id },  // PRS: 230-233
-      { range: [901, 904], typeId: roomTypes[3].id },  // HMS: 901-904
+      { range: [100, 112], typeId: roomTypes[0].id },
+      { range: [200, 212], typeId: roomTypes[0].id },
+      { range: [300, 312], typeId: roomTypes[0].id },
+      { range: [120, 129], typeId: roomTypes[1].id },
+      { range: [220, 229], typeId: roomTypes[1].id },
+      { range: [320, 329], typeId: roomTypes[1].id },
+      { range: [130, 133], typeId: roomTypes[2].id },
+      { range: [230, 233], typeId: roomTypes[2].id },
+      { range: [901, 904], typeId: roomTypes[3].id },
     ]
 
     for (const f of floors) {
       for (let r = f.range[0]; r <= f.range[1]; r++) {
         const floorNum = Math.floor(r / 100)
-        rooms.push({ number: String(r), typeId: f.typeId, floor: floorNum, status: 'available' })
+        rooms.push({ number: String(r), typeId: f.typeId, propertyId: property!.id, floor: floorNum, status: 'available' })
       }
     }
 
     await db.room.createMany({ data: rooms })
     console.log(`  ✅ ${rooms.length} Rooms`)
 
-    // ─── AUTH USERS ──────────────────────────────────────
+    // ─── AUTH USERS (Supabase Auth + Prisma Profile) ─────
     const password = 'password123'
-    const hashed = await hashPassword(password)
     const users = [
       { email: 'admin@meridian.com', firstName: 'Admin', lastName: 'User', role: 'admin', department: 'Management', position: 'Administrator' },
       { email: 'gm@meridian.com', firstName: 'Raj', lastName: 'Sharma', role: 'gm', department: 'Management', position: 'General Manager' },
@@ -114,10 +105,47 @@ async function main() {
       { email: 'kamal@meridian.com', firstName: 'Kamal', lastName: 'Poudel', role: 'manager', department: 'Finance', position: 'Accountant' },
     ]
 
+    let created = 0
     for (const u of users) {
-      await db.authUser.create({ data: { ...u, password: hashed } })
+      // Create Supabase Auth user
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: u.email,
+        password,
+        email_confirm: true, // Skip email verification for demo accounts
+      })
+
+      if (authError) {
+        // If user already exists, fetch them by email
+        if (authError.message.includes('already') || authError.message.includes('exists')) {
+          const { data: existing } = await supabaseAdmin.auth.admin.listUsers()
+          const found = existing?.users?.find((x: { email?: string }) => x.email === u.email)
+          if (found) {
+            await db.authUser.create({
+              data: { id: found.id, email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role, department: u.department, position: u.position },
+            }).catch(() => {}) // Profile may already exist too
+            created++
+            continue
+          }
+        }
+        console.error(`  ⚠️  Failed to create Supabase auth user ${u.email}:`, authError.message)
+        continue
+      }
+
+      // Create Prisma profile row linked to Supabase user ID
+      await db.authUser.create({
+        data: {
+          id: authData.user.id,
+          email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
+          role: u.role,
+          department: u.department,
+          position: u.position,
+        },
+      })
+      created++
     }
-    console.log(`  ✅ ${users.length} Auth Users (password: ${password})`)
+    console.log(`  ✅ ${created} Auth Users (password: ${password})`)
 
     // ─── SETTINGS (minimal defaults) ─────────────────────
     await db.systemSetting.createMany({
@@ -141,10 +169,8 @@ main().catch((err) => {
   console.error('')
   console.error('❌ vercel-seed failed:', err?.message || err)
   console.error('')
-  console.error('   This usually means DATABASE_URL is not set correctly on Vercel.')
-  console.error('   Fix: set DATABASE_URL to a Turso libsql:// URL in your Vercel project settings.')
-  console.error('   Run ./setup-turso.sh locally to create a Turso database.')
+  console.error('   Check that DATABASE_URL, NEXT_PUBLIC_SUPABASE_URL, and')
+  console.error('   SUPABASE_SERVICE_ROLE_KEY are set correctly.')
   console.error('')
-  // Fail the build so the problem is visible, instead of silently shipping a broken app
   process.exit(1)
 })

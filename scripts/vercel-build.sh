@@ -1,50 +1,44 @@
 #!/usr/bin/env bash
 #
-# vercel-build.sh — Vercel build pipeline for Meridian PMS
+# vercel-build.sh — Vercel build pipeline for Meridian PMS (Supabase + Postgres)
 #
 # Steps:
-#   1. Validate DATABASE_URL (must be a Turso libsql:// URL)
+#   1. Validate required env vars (DATABASE_URL + Supabase keys)
 #   2. Generate Prisma client
-#   3. Push Prisma schema to the database (create tables)
-#   4. Seed demo data (hotel, rooms, users) — only if DB is empty
+#   3. Push Prisma schema to Postgres (create tables)
+#   4. Seed demo data (Supabase auth users + hotel data) — only if DB is empty
 #   5. Build the Next.js app
 #
 set -euo pipefail
 
-echo "▶ Meridian PMS — Vercel build pipeline"
+echo "▶ Meridian PMS — Vercel build pipeline (Supabase)"
 echo ""
 
-# ── Step 1: Validate DATABASE_URL ─────────────────────────────
+# ── Step 1: Validate env vars ─────────────────────────────────
 node -e '
-  const u = process.env.DATABASE_URL || "";
-  if (!u) {
+  const required = {
+    DATABASE_URL: process.env.DATABASE_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  };
+  const missing = Object.entries(required).filter(([, v]) => !v);
+  if (missing.length) {
     console.error("");
-    console.error("❌ FATAL: DATABASE_URL is not set.");
-    console.error("   On Vercel, set DATABASE_URL to a Turso libsql:// URL.");
-    console.error("   Steps:");
-    console.error("     1. Create a free Turso DB at https://turso.tech/app/signup");
-    console.error("     2. Add DATABASE_URL env var in Vercel project settings:");
-    console.error("        https://vercel.com/pappumahato98-7206s-projects/project-neo/settings/environment-variables");
-    console.error("     3. Redeploy.");
+    console.error("❌ FATAL: Missing required environment variables:");
+    missing.forEach(([k]) => console.error("   - " + k));
     console.error("");
-    process.exit(1);
-  }
-  if (u.startsWith("file:")) {
+    console.error("   Set these in your Vercel project settings:");
+    console.error("   https://vercel.com/pappumahato98-7206s-projects/project-neo/settings/environment-variables");
     console.error("");
-    console.error("❌ FATAL: DATABASE_URL is a local file: path.");
-    console.error("   This does not work on Vercel — serverless functions have a read-only filesystem.");
-    console.error("   Set DATABASE_URL to a Turso libsql:// URL in your Vercel project settings.");
-    console.error("");
-    process.exit(1);
-  }
-  if (!u.startsWith("libsql://") && !u.startsWith("https://")) {
-    console.error("");
-    console.error("❌ FATAL: DATABASE_URL has unsupported scheme: " + u.split(":")[0]);
-    console.error("   Expected a Turso libsql:// URL.");
+    console.error("   Values come from your Supabase project:");
+    console.error("   https://supabase.com/dashboard → Your Project → Settings → API");
     console.error("");
     process.exit(1);
   }
-  console.log("✓ DATABASE_URL is set (" + u.split(":")[0] + " scheme)");
+  console.log("✓ All required env vars are set");
+  console.log("  DATABASE_URL: " + (process.env.DATABASE_URL.startsWith("postgresql://") ? "postgresql:// ✓" : "⚠️  not postgresql://"));
+  console.log("  NEXT_PUBLIC_SUPABASE_URL: " + process.env.NEXT_PUBLIC_SUPABASE_URL.split("://")[0] + ":// ✓");
 '
 echo ""
 
@@ -55,7 +49,7 @@ echo "✓ Prisma client generated"
 echo ""
 
 # ── Step 3: Push schema to database ───────────────────────────
-echo "▶ Pushing Prisma schema to database (creating tables)..."
+echo "▶ Pushing Prisma schema to Postgres (creating tables)..."
 bunx prisma db push --accept-data-loss
 echo "✓ Schema pushed"
 echo ""
