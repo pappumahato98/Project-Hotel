@@ -95,3 +95,5 @@ run_tests.sh
 full_test.sh
 test_all.sh
 debug_test.sh
+# Local dev start script (may contain local credentials)
+scripts/start-dev.sh
