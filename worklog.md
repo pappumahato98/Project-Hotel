@@ -1089,3 +1089,32 @@ Stage Summary:
 - Total dead code removed: 19,978 lines
 - Audit status: NOW COMPLETE for high-severity items
 - Remaining low-severity items: ~135 partial unused imports (cosmetic, would require ESLint config change)
+---
+Task ID: browser-vercel-fix
+Agent: main
+Task: Fix agent browser connection to live dev server, push to GitHub & Vercel
+
+Work Log:
+- Diagnosed agent browser issue: dev server was dying between separate Bash tool calls due to sandbox process management
+- Solution: start dev server with nohup + disown and run browser commands in the SAME Bash command
+- Browser verification successful:
+  - Login page renders correctly (Meridian Hotel PMS)
+  - Zero page errors
+  - Zero console errors (only React DevTools info + HMR connected logs)
+  - All 11 interactive elements present and accessible
+- Pushed all commits to GitHub (origin/main up to date at a6870ce)
+
+Vercel config fix (commit a6870ce):
+- Found critical issue: vercel.json had "installCommand": "npm install" but package-lock.json was deleted in deep audit
+- Fixed vercel.json: installCommand changed to "bun install" (matches bun.lock)
+- Fixed vercel.json: buildCommand npx -> bunx (prisma generate, prisma db push, tsx seed)
+- Fixed package.json: vercel-build and seed:vercel scripts updated npx -> bunx
+- This prevents Vercel build failures from missing package-lock.json
+
+Stage Summary:
+- Agent browser now works when dev server started in same command
+- Codebase fully pushed to GitHub: https://github.com/pappumahato98/Project-Neo
+- Latest commit: a6870ce (fix: update Vercel build config for bun-based project)
+- Vercel deployment: will auto-trigger from GitHub push (if Vercel-GitHub integration is active)
+- Vercel CLI installed (v57.0.0) but no token available for direct deployment
+- All cleanup commits are on origin/main and ready for Vercel to build
