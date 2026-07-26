@@ -96,7 +96,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
         // SIGNED_IN — user just logged in (or session was restored)
         if (event === 'SIGNED_IN') {
-          // If we haven't done the initial session check yet, let it handle this
           if (!initialSessionChecked) return
 
           await fetchProfile(session.access_token)
@@ -105,7 +104,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
         // TOKEN_REFRESHED — token was silently refreshed, just cache it
         if (event === 'TOKEN_REFRESHED') {
-          // No need to re-fetch profile — just update the token in the store
           const store = useAuthStore.getState()
           if (store.isAuthenticated && session.access_token) {
             useAuthStore.setState({ token: session.access_token })
