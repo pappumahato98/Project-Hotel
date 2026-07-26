@@ -57,15 +57,32 @@ export function Providers({ children }: { children: React.ReactNode }) {
         // SIGNED_IN or TOKEN_REFRESHED — fetch the app profile
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           try {
-            const data = await fetch('/api/auth/profile', {
+            const res = await fetch('/api/auth/profile', {
               headers: { Authorization: `Bearer ${session.access_token}` },
-            }).then((r) => (r.ok ? r.json() : null))
+            })
+            const data = res.ok ? await res.json() : null
 
             if (data?.user) {
               useAuthStore.getState().login(data.user, session.access_token)
+            } else if (!res.ok) {
+              // Profile fetch failed — show the error so the user can debug
+              console.error('Profile fetch failed:', res.status, data)
+              // Sign out to clear the invalid session
+              await supabase.auth.signOut()
+              if (data?.error) {
+                const detail = data.detail ? `: ${data.detail}` : ''
+                // Show error briefly via alert so the user sees what's wrong
+                if (typeof window !== 'undefined') {
+                  alert(`Login failed — ${data.error}${detail}`)
+                }
+              }
             }
           } catch (err) {
             console.error('Failed to fetch profile after auth change:', err)
+            await supabase.auth.signOut()
+            if (typeof window !== 'undefined') {
+              alert(`Login failed — ${err instanceof Error ? err.message : 'Network error'}`)
+            }
           } finally {
             useAuthStore.setState({ _hasHydrated: true })
           }

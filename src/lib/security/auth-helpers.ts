@@ -69,10 +69,19 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
   }
 
   // Fetch the app-specific profile (role, name, department, etc.)
-  const profile = await db.authUser.findUnique({
-    where: { id: supabaseUser.id },
-    select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
-  })
+  let profile
+  try {
+    profile = await db.authUser.findUnique({
+      where: { id: supabaseUser.id },
+      select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
+    })
+  } catch (dbErr) {
+    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
+    return NextResponse.json(
+      { error: 'Database connection failed', detail: msg.substring(0, 300) },
+      { status: 500 }
+    )
+  }
 
   if (!profile) {
     return NextResponse.json(

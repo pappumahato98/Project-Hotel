@@ -76,6 +76,10 @@ export async function apiFetch<T = unknown>(
       if (errData.retryAfter && typeof errData.retryAfter === 'number') {
         throw new Error(`${errData.error} Try again in ${errData.retryAfter}s.`)
       }
+      // Include detail if present (helps debug DB/connection errors)
+      if (errData.detail && typeof errData.detail === 'string') {
+        throw new Error(`${errData.error}: ${errData.detail}`)
+      }
       throw new Error(errData.error)
     }
     throw new Error(`Request failed (HTTP ${res.status})`)

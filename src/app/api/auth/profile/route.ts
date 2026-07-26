@@ -52,7 +52,11 @@ export async function GET(req: NextRequest) {
     })
   } catch (error) {
     console.error('Fetch profile error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const msg = error instanceof Error ? error.message : String(error)
+    return NextResponse.json(
+      { error: 'Internal server error', detail: msg.substring(0, 300) },
+      { status: 500 }
+    )
   }
 }
 
