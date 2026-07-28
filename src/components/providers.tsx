@@ -20,10 +20,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   )
 
-  // Single mount effect: set up Supabase auth listener + register fetch
+  // Single mount effect: set up Supabase auth listener + register fetch.
+  // This version eliminates the race condition that existed between
+  // onAuthStateChange and getSession() both trying to fetch the profile.
   useEffect(() => {
     // Skip Supabase setup if env vars aren't configured yet (fresh clone).
-    // The login page shows a "Supabase not configured" banner in this state.
     if (
       !process.env.NEXT_PUBLIC_SUPABASE_URL ||
       !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -35,12 +36,51 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
 
     // Register auth token getter — reads from the in-memory cache kept
-    // in sync by onAuthStateChange below. This lets apiFetch attach a
-    // fresh Bearer token to every request synchronously.
+    // in sync by onAuthStateChange below.
     initAuthFetch(
       () => getAccessToken(),
       () => useAuthStore.getState().user?.id ?? null
     )
+
+    // Flag to prevent duplicate profile fetches:
+    // onAuthStateChange fires once for INITIAL_SESSION (triggered by getSession below),
+    // then again for SIGNED_IN (triggered by signInWithPassword).
+    // We only want to fetch the profile once during initialization.
+    let initialSessionChecked = false
+    // Guard against concurrent profile fetches
+    let profileFetchInProgress = false
+
+    const fetchProfile = async (accessToken: string): Promise<boolean> => {
+      if (profileFetchInProgress) return false
+      profileFetchInProgress = true
+      try {
+        const res = await fetch('/api/auth/profile', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.user) {
+            useAuthStore.getState().login(data.user, accessToken)
+            return true
+          }
+        } else {
+          const data = await res.json().catch(() => ({}))
+          console.error('Profile fetch failed:', res.status, data)
+          if (res.status === 403) {
+            // Profile not found in DB — seed data missing?
+            // Don't sign out, let the user see the app but show error
+            if (typeof window !== 'undefined') {
+              console.error('Profile not found in database. Your account may not be registered.')
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err)
+      } finally {
+        profileFetchInProgress = false
+      }
+      return false
+    }
 
     // Listen for auth state changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -54,63 +94,42 @@ export function Providers({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // SIGNED_IN or TOKEN_REFRESHED — fetch the app profile
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          try {
-            const res = await fetch('/api/auth/profile', {
-              headers: { Authorization: `Bearer ${session.access_token}` },
-            })
-            const data = res.ok ? await res.json() : null
+        // SIGNED_IN — user just logged in (or session was restored)
+        if (event === 'SIGNED_IN') {
+          // If we haven't done the initial session check yet, let it handle this
+          if (!initialSessionChecked) return
 
-            if (data?.user) {
-              useAuthStore.getState().login(data.user, session.access_token)
-            } else if (!res.ok) {
-              // Profile fetch failed — show the error so the user can debug
-              console.error('Profile fetch failed:', res.status, data)
-              // Sign out to clear the invalid session
-              await supabase.auth.signOut()
-              if (data?.error) {
-                const detail = data.detail ? `: ${data.detail}` : ''
-                // Show error briefly via alert so the user sees what's wrong
-                if (typeof window !== 'undefined') {
-                  alert(`Login failed — ${data.error}${detail}`)
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Failed to fetch profile after auth change:', err)
-            await supabase.auth.signOut()
-            if (typeof window !== 'undefined') {
-              alert(`Login failed — ${err instanceof Error ? err.message : 'Network error'}`)
-            }
-          } finally {
-            useAuthStore.setState({ _hasHydrated: true })
+          await fetchProfile(session.access_token)
+          useAuthStore.setState({ _hasHydrated: true })
+        }
+
+        // TOKEN_REFRESHED — token was silently refreshed, just cache it
+        if (event === 'TOKEN_REFRESHED') {
+          // No need to re-fetch profile — just update the token in the store
+          const store = useAuthStore.getState()
+          if (store.isAuthenticated && session.access_token) {
+            useAuthStore.setState({ token: session.access_token })
           }
         }
       }
     )
 
-    // Trigger initial session check (fires onAuthStateChange if a session exists)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setAccessToken(session?.access_token ?? null)
+    // Initial session check — runs once on mount.
+    // This fires onAuthStateChange with INITIAL_SESSION, which we skip
+    // via the initialSessionChecked flag.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      initialSessionChecked = true
+
       if (session) {
-        // Fetch profile for the restored session
-        fetch('/api/auth/profile', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((data) => {
-            if (data?.user) {
-              useAuthStore.getState().login(data.user, session.access_token!)
-            }
-          })
-          .catch((err) => console.error('Profile fetch error:', err))
-          .finally(() => {
-            useAuthStore.setState({ _hasHydrated: true })
-          })
+        setAccessToken(session.access_token ?? null)
+        await fetchProfile(session.access_token!)
+        useAuthStore.setState({ _hasHydrated: true })
       } else {
         useAuthStore.setState({ _hasHydrated: true })
       }
+    }).catch(() => {
+      initialSessionChecked = true
+      useAuthStore.setState({ _hasHydrated: true })
     })
 
     return () => {

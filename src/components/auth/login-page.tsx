@@ -14,6 +14,9 @@ const SUPABASE_CONFIGURED =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+/** Login timeout — if no response in 15s, show an error */
+const LOGIN_TIMEOUT_MS = 15_000
+
 export function LoginPage() {
   const { isAuthenticated } = useAuthStore()
   const { settings } = useSettingsStore()
@@ -23,62 +26,72 @@ export function LoginPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
-  // Demo login — uses Supabase signInWithPassword
-  const handleDemoLogin = async (demoEmail: string) => {
-    if (!SUPABASE_CONFIGURED) {
-      setError('Supabase is not configured. Add credentials to .env and restart.')
-      return
-    }
-    setLoading(true)
-    setEmail(demoEmail)
-    setPassword('password123')
-    setError('')
+  // Cleanup loading state if component unmounts while loading
+  React.useEffect(() => {
+    return () => setLoading(false)
+  }, [])
 
-    try {
-      const supabase = createClient()
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: demoEmail,
-        password: 'password123',
-      })
-      if (signInError) throw signInError
-      // onAuthStateChange listener in Providers handles profile fetch + store update
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Login failed'
-      setError(msg)
+  // Once authenticated (set by the onAuthStateChange listener), stop loading
+  React.useEffect(() => {
+    if (isAuthenticated) {
       setLoading(false)
+      setError('')
     }
-  }
+  }, [isAuthenticated])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const doLogin = async (loginEmail: string, loginPassword: string) => {
     if (!SUPABASE_CONFIGURED) {
       setError('Supabase is not configured. Add credentials to .env and restart.')
       return
     }
-    setError('')
     setLoading(true)
+    setError('')
 
-    const trimmedEmail = email.trim().toLowerCase()
+    const trimmedEmail = loginEmail.trim().toLowerCase()
+
+    // Set a timeout to catch stuck logins (Vercel network issues, etc.)
+    const timeoutId = setTimeout(() => {
+      setLoading(false)
+      setError('Login timed out. Please check your connection and try again.')
+    }, LOGIN_TIMEOUT_MS)
 
     try {
       const supabase = createClient()
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
-        password,
+        password: loginPassword,
       })
-      if (signInError) throw signInError
-      // onAuthStateChange listener handles the rest
+      clearTimeout(timeoutId)
+
+      if (signInError) {
+        setLoading(false)
+        setError(signInError.message)
+        return
+      }
+      // Success — onAuthStateChange listener in Providers handles:
+      // 1. Profile fetch from /api/auth/profile
+      // 2. Auth store update (user data + isAuthenticated)
+      // 3. Dashboard navigation
+      // Loading state is cleared when isAuthenticated becomes true
     } catch (err) {
+      clearTimeout(timeoutId)
       const msg = err instanceof Error ? err.message : 'Login failed'
       setError(msg)
       setLoading(false)
     }
   }
 
-  // Once authenticated (set by the onAuthStateChange listener), stop loading
-  React.useEffect(() => {
-    if (isAuthenticated) setLoading(false)
-  }, [isAuthenticated])
+  // Demo login — uses Supabase signInWithPassword
+  const handleDemoLogin = (demoEmail: string) => {
+    setEmail(demoEmail)
+    setPassword('password123')
+    doLogin(demoEmail, 'password123')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await doLogin(email, password)
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
