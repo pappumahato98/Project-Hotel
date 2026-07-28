@@ -73,6 +73,7 @@ agent-ctx/
 auth-state.json
 .auth-state.json
 worklog*.md
+worklog.md
 *.md.bak
 vercel-support-appeal.md
 
