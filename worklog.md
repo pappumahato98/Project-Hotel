@@ -1186,3 +1186,43 @@ Stage Summary:
 - 3 commits pushed to GitHub (b9ed487, 7a74eff)
 - ERP is fully operational on Supabase Postgres + Supabase Auth
 - Demo login: admin@meridian.com / password123
+
+---
+Task ID: auth-restore
+Agent: main
+Task: Fix live dev server through Agent Browser — restore Supabase env vars that were wiped from .env
+
+Work Log:
+- Started dev server, opened app in Agent Browser
+- Login page showed "Supabase not configured" banner — env vars missing in browser bundle
+- Diagnosed: .env had been silently reverted to old SQLite config (DATABASE_URL=file:/home/z/my-project/db/custom.db)
+- Also found: shell had stale DATABASE_URL=file:... overriding .env file
+- Restored 3 of 5 env vars from conversation history:
+  - DATABASE_URL (port 6543 + ?pgbouncer=true&prepare=false)
+  - DIRECT_URL (port 5432)
+  - NEXT_PUBLIC_SUPABASE_URL
+- User provided 2 missing JWT keys (NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
+- Wrote all 5 env vars to .env
+- Killed dev server, ran `unset DATABASE_URL` to clear stale shell env, cleared .next cache, restarted
+- Verified /api/debug endpoint: ALL 8 CHECKS GREEN
+  - DATABASE_URL: port=6543, pgbouncer=true, prepare=false=true
+  - DIRECT_URL: port=5432
+  - NEXT_PUBLIC_SUPABASE_URL: set
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY: set
+  - SUPABASE_SERVICE_ROLE_KEY: set
+  - db.connect: 6 users in DB
+  - supabase.auth: Login OK
+  - user.profile: admin@meridian.com (admin)
+- Agent Browser end-to-end verification:
+  - Opened http://localhost:3000/ → login page (no "not configured" banner)
+  - Filled admin@meridian.com / password123 → clicked Sign In
+  - Dashboard rendered with full sidebar + all widgets (occupancy, ADR, RevPAR, 81 rooms)
+  - Navigated to Room Management → Room Board → loaded with stats
+  - All API calls returned 200: /api/auth/profile, /api/settings, /api/dashboard, /api/rooms
+- Screenshot saved to dashboard-verified.png
+
+Stage Summary:
+- Live dev server is fully operational with Supabase Postgres + Auth
+- All 5 env vars restored to .env (file is gitignored, contains real secrets)
+- Login → dashboard → room management all verified working via Agent Browser
+- Stale shell DATABASE_URL was the silent killer — must `unset DATABASE_URL` before starting dev

@@ -97,3 +97,4 @@ test_all.sh
 debug_test.sh
 # Local dev start script (may contain local credentials)
 scripts/start-dev.sh
+.zscripts/
