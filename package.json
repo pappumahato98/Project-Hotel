@@ -2,6 +2,7 @@
   "name": "nextjs_tailwind_shadcn_ts",
   "version": "0.2.0",
   "private": true,
+  "packageManager": "bun@1.2.0",
   "scripts": {
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' next dev -p 3000 -H 0.0.0.0 2>&1 | tee dev.log",
     "build": "prisma generate && next build",
@@ -13,9 +14,9 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "vercel-build": "prisma generate && prisma db push --accept-data-loss 2>&1 && bunx tsx scripts/vercel-seed.ts && next build",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss 2>&1 && npx tsx scripts/vercel-seed.ts && next build",
     "setup": "bash scripts/setup.sh",
-    "seed:vercel": "bunx tsx scripts/vercel-seed.ts"
+    "seed:vercel": "npx tsx scripts/vercel-seed.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.2",
