@@ -1394,3 +1394,25 @@ Stage Summary:
 - Revenue: demand calendar now shows actual occupancy from reservations
 - Banquet: orders built from real Event records
 - Net: +967 lines added, -410 lines removed (mostly fake data deleted)
+
+---
+Task ID: 2
+Agent: main
+Task: Configure Supabase env vars and verify Vercel deployment
+
+Work Log:
+- Updated local .env with all 5 Supabase env vars from user
+- Derived DIRECT_URL from DATABASE_URL (port 6543 → 5432)
+- Regenerated Prisma client successfully
+- Verified Vercel deployment is accessible (SSO Protection disabled by user)
+- Used agent-browser to test login flow
+- Found: Supabase auth succeeds (client-side vars work), but /api/auth/profile returns 500
+- Root cause: Server-side env vars (DATABASE_URL, DIRECT_URL, SUPABASE_SERVICE_ROLE_KEY) not set in Vercel Dashboard
+- User needs to add env vars manually in Vercel Dashboard → Settings → Environment Variables
+
+Stage Summary:
+- Local env: ✅ fully configured
+- Vercel SSO Protection: ✅ disabled (page loads)
+- Vercel client-side vars: ✅ working (Supabase auth succeeds)
+- Vercel server-side vars: ❌ NOT set (API routes return 500)
+- Action needed: User must add 5 env vars in Vercel Dashboard
