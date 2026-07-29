@@ -1341,3 +1341,32 @@ Stage Summary:
 - FIXED: not-found.tsx, error.tsx, unused imports
 - CLEANUP: deleted ensure-db.ts (SQLite leftover) and rls-policies.sql (duplicate)
 - Remaining non-critical items: ~2,400 lines dead code in unused HR components, inconsistent query key usage, hardcoded mock data in operations module, no pagination on list endpoints
+
+---
+Task ID: realtime-audit
+Agent: main
+Task: Audit and fix Supabase Realtime experience
+
+Work Log:
+- Discovered the full Supabase Realtime system was ALREADY BUILT in previous sessions
+- Audited all 4 realtime files: realtime.ts, use-realtime.ts, realtime-notifications.ts, realtime-provider.tsx
+- Audited the realtime migration (20260729000003_realtime_enable.sql) — 549 lines
+- Found and FIXED: double subscription bug in use-realtime.ts (line 336-343 created a second channel with same topic)
+- Verified RealtimeProvider is wired into Providers.tsx
+- Verified NotificationBell exists in header.tsx
+- Pushed commit 6fe1806
+
+Stage Summary:
+- Supabase Realtime is comprehensive and complete:
+  * 20 tables enabled in supabase_realtime publication
+  * fn_realtime_broadcast() pg_notify helper function
+  * 10 database triggers: Room, Reservation, Payment, HK, WorkOrder, Security, POS, Activity, Folio, Inventory
+  * Client-side: subscribeToTable, subscribeToBroadcast, trackPresence, sendBroadcast
+  * useRealtimeProvider hook with 9 table subscriptions mapped to notifications
+  * useRealtimeSubscription per-module hook
+  * usePresence with 30s heartbeat
+  * RealtimeProvider component wired into Providers.tsx
+  * useNotificationStore (Zustand) with unread count, categories, severity
+  * NotificationBell component in header
+  * UserPresence table with stale cleanup function
+- FIXED: Double channel subscription bug (created second channel for same topic)
