@@ -248,9 +248,31 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
   })
   const workflowTasks = workflowData?.items ?? []
 
+  const updateRoomMutation = useMutation({
+    mutationFn: ({ id, status, notes, previousStatus }: { id: string; status: string; notes?: string; previousStatus?: string }) =>
+      apiFetch(`/api/rooms/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, notes, previousStatus }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+    },
+    onError: (err: Error) => {
+      toast.error(err.message || 'Failed to update room status')
+    },
+  })
+
   const handleStatusChange = (newStatus: string, label: string) => {
-    toast.success(`Room ${room.number} status changed to ${label}`)
-    onOpenChange(false)
+    updateRoomMutation.mutate(
+      { id: room.id, status: newStatus },
+      {
+        onSuccess: () => {
+          toast.success(`Room ${room.number} status changed to ${label}`)
+          onOpenChange(false)
+        },
+      }
+    )
   }
 
   const handleOOO = () => {
@@ -258,10 +280,17 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
       toast.error('Please provide a reason for marking room out of order')
       return
     }
-    toast.success(`Room ${room.number} marked as Out of Order: ${oooReason}`)
-    setOooOpen(false)
-    setOooReason('')
-    onOpenChange(false)
+    updateRoomMutation.mutate(
+      { id: room.id, status: 'out_of_order', notes: oooReason },
+      {
+        onSuccess: () => {
+          toast.success(`Room ${room.number} marked as Out of Order: ${oooReason}`)
+          setOooOpen(false)
+          setOooReason('')
+          onOpenChange(false)
+        },
+      }
+    )
   }
 
   const handleQuickAction = (action: string) => {
