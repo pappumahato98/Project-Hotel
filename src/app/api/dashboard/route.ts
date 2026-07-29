@@ -1,276 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { fetchKpis, fetchAlerts, fetchActivity } from './_data'
 
-// Allow up to 60s on Vercel (Hobby plan default is 10s — this prevents timeouts)
+/**
+ * Orchestrator — backward-compatible /api/dashboard endpoint.
+ *
+ * Calls the three data-fetching functions directly (no HTTP hops).
+ * Each function uses getOrSet() with a 5-min TTL, so within a single
+ * function invocation only uncached keys hit the database.
+ *
+ * Individual sub-endpoints (/kpis, /alerts, /activity) call the same
+ * cached functions, so there's zero duplication.
+ */
+
 export const maxDuration = 60
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
-  try {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const sevenDaysAgo = new Date(today)
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-    // ─── Batch ALL independent queries in parallel ───────────
-    // Previously these ran sequentially (20+ round-trips × ~600ms = 12s).
-    // With Promise.all they run concurrently → ~1-2s total.
-    const [
-      allSettings,
-      totalRooms,
-      occupiedRooms,
-      vacantClean,
-      yesterdayAudit,
-      lastAudit,
-      arrivals,
-      departures,
-      roomStatusBreakdown,
-      vipArrivals,
-      overdueCheckouts,
-      emergencyWorkOrders,
-      outOfOrderRoomsList,
-      unassignedArrivals,
-      creditLimitBreaches,
-      pendingHkTasks,
-      openWorkflowTasks,
-      highPriorityWorkflowTasks,
-      openPosOrders,
-      revenueHistory,
-      recentReservations,
-      recentTransactions,
-      recentPosOrders,
-      recentWorkOrders,
-    ] = await Promise.all([
-      db.systemSetting.findMany(),
-      db.room.count(),
-      db.room.count({ where: { status: 'occupied' } }),
-      db.room.count({ where: { status: 'vacant_clean' } }),
-      db.nightAudit.findFirst({
-        where: { status: 'completed', businessDate: yesterday },
-        orderBy: { businessDate: 'desc' },
-      }),
-      db.nightAudit.findFirst({
-        where: { status: 'completed' },
-        orderBy: { businessDate: 'desc' },
-      }),
-      db.reservation.count({
-        where: { checkIn: { gte: today, lt: tomorrow }, status: 'confirmed' },
-      }),
-      db.reservation.count({
-        where: { checkOut: { gte: today, lt: tomorrow }, status: 'checked_in' },
-      }),
-      db.room.groupBy({ by: ['status'], _count: { status: true } }),
-      db.reservation.findMany({
-        where: {
-          checkIn: { gte: today, lt: tomorrow },
-          status: { in: ['confirmed', 'checked_in'] },
-          guest: { vipLevel: { in: ['gold', 'platinum'] } },
-        },
-        include: { guest: true, room: true },
-        take: 5,
-      }),
-      db.reservation.count({
-        where: { checkOut: { lt: today }, status: 'checked_in' },
-      }),
-      db.workOrder.findMany({
-        where: { priority: 'emergency', status: { in: ['open', 'in_progress'] } },
-        take: 5,
-      }),
-      db.room.findMany({
-        where: { status: 'out_of_order' },
-        select: { id: true, number: true, floor: true },
-        take: 10,
-      }),
-      db.reservation.count({
-        where: { checkIn: { gte: today, lt: tomorrow }, status: 'confirmed', roomId: null },
-      }),
-      db.folio.findMany({
-        where: {
-          status: 'open',
-          balance: { gt: 15000 },
-          reservation: { status: 'checked_in' },
-        },
-        include: { reservation: { include: { guest: true, room: true } } },
-        take: 5,
-      }),
-      db.hkTask.count({
-        where: { status: { in: ['pending', 'assigned', 'in_progress'] } },
-      }),
-      db.hkWorkFlow.count({
-        where: { status: { in: ['open', 'in_progress'] } },
-      }),
-      db.hkWorkFlow.findMany({
-        where: {
-          status: { in: ['open', 'in_progress'] },
-          priority: { in: ['high', 'medium'] },
-        },
-        include: { room: { select: { id: true, number: true, floor: true, wing: true } } },
-        orderBy: { requestedDate: 'asc' },
-        take: 5,
-      }),
-      db.posOrder.count({
-        where: { status: { in: ['open', 'in_progress', 'ready'] } },
-      }),
-      db.nightAudit.findMany({
-        where: { status: 'completed', businessDate: { gte: sevenDaysAgo, lt: today } },
-        orderBy: { businessDate: 'asc' },
-        select: { businessDate: true, roomRevenue: true, fAndBRevenue: true, totalRevenue: true },
-      }),
-      db.reservation.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-        include: { guest: true, room: true },
-      }),
-      db.folioTransaction.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 2,
-        include: { folio: { include: { reservation: { include: { guest: true } } } } },
-      }),
-      db.posOrder.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 2,
-        include: { outlet: true },
-      }),
-      db.workOrder.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 2,
-      }),
+  try {
+    // All three run in parallel, each independently cached (5-min TTL).
+    // First request: ~4-6s total DB time (Mumbai). Cached requests: < 5ms.
+    const [kpisData, alertsData, activityData] = await Promise.allSettled([
+      fetchKpis(),
+      fetchAlerts(),
+      fetchActivity(),
     ])
 
-    // ─── Process results (CPU-only, no DB round-trips) ───────
-    const settingsMap: Record<string, string> = {}
-    for (const s of allSettings) settingsMap[s.key] = s.value
-    const defaultCreditLimit = settingsMap['defaultCreditLimit']
-      ? parseFloat(settingsMap['defaultCreditLimit']) : 15000
+    const errors: string[] = []
+    const kpis = kpisData.status === 'fulfilled' ? kpisData.value : null
+    const alerts = alertsData.status === 'fulfilled' ? alertsData.value : null
+    const activity = activityData.status === 'fulfilled' ? activityData.value : null
 
-    const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
-    const occupancyTrend = yesterdayAudit?.occupancy
-      ? occupancy - Math.round(yesterdayAudit.occupancy) : 0
+    if (!kpis) errors.push('kpis')
+    if (!alerts) errors.push('alerts')
+    if (!activity) errors.push('activity')
 
-    const roomRevenue = lastAudit?.roomRevenue ?? 0
-    const fAndBRevenue = lastAudit?.fAndBRevenue ?? 0
-    const otherRevenue = lastAudit?.otherRevenue ?? 0
-    const totalRevenue = lastAudit?.totalRevenue ?? 0
-    const adr = lastAudit?.adr ?? 0
-    const revpar = lastAudit?.revpar ?? 0
+    // If ALL failed, return 500
+    if (errors.length === 3) {
+      const reasons = [
+        kpisData.status === 'rejected' ? String(kpisData.reason) : 'unknown',
+        alertsData.status === 'rejected' ? String(alertsData.reason) : 'unknown',
+        activityData.status === 'rejected' ? String(activityData.reason) : 'unknown',
+      ]
+      console.error('[dashboard/orchestrator] All sub-endpoints failed:', reasons)
+      return NextResponse.json(
+        { error: 'All dashboard sub-endpoints failed', details: reasons },
+        { status: 500 },
+      )
+    }
 
-    const yesterdayTotalRevenue = yesterdayAudit?.totalRevenue ?? 0
-    const yesterdayAdr = yesterdayAudit?.adr ?? 0
-    const yesterdayRevpar = yesterdayAudit?.revpar ?? 0
+    // Partial failure — return what we have + flag missing sections
+    if (errors.length > 0) {
+      console.warn(`[dashboard/orchestrator] Partial failure — missing: ${errors.join(', ')}`)
+    }
 
-    const revenueTrend = yesterdayTotalRevenue > 0
-      ? Math.round(((totalRevenue - yesterdayTotalRevenue) / yesterdayTotalRevenue) * 100) : 0
-    const adrTrend = yesterdayAdr > 0
-      ? Math.round(((adr - yesterdayAdr) / yesterdayAdr) * 100) : 0
-    const revparTrend = yesterdayRevpar > 0
-      ? Math.round(((revpar - yesterdayRevpar) / yesterdayRevpar) * 100) : 0
+    // Merge into the original response shape for backward compatibility
+    const response: Record<string, unknown> = {}
+    if (kpis) {
+      response.kpis = kpis.kpis
+      response.roomStatusBreakdown = kpis.roomStatusBreakdown
+      response.revenueChart = kpis.revenueChart
+    }
+    if (alerts) {
+      response.alerts = alerts.alerts
+    }
+    if (activity) {
+      response.recentActivity = activity.recentActivity
+    }
+    if (errors.length > 0) {
+      response._partial = true
+      response._missing = errors
+    }
 
-    const roomStatusMap: Record<string, number> = {}
-    for (const item of roomStatusBreakdown) roomStatusMap[item.status] = item._count.status
-
-    const revenueChartData = revenueHistory.map((d) => ({
-      date: d.businessDate.toISOString().split('T')[0],
-      roomRevenue: d.roomRevenue,
-      fAndBRevenue: d.fAndBRevenue,
-      totalRevenue: d.totalRevenue,
-    }))
-
-    const recentActivity = [
-      ...recentReservations.map((r) => ({
-        id: r.id,
-        type: 'reservation' as const,
-        title: `New reservation ${r.confirmationNo}`,
-        detail: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : 'Walk-in',
-        status: r.status,
-        timestamp: r.createdAt.toISOString(),
-      })),
-      ...recentTransactions.map((t) => ({
-        id: t.id,
-        type: 'folio' as const,
-        title: `${t.transactionType} charge posted`,
-        detail: t.description,
-        status: 'posted',
-        amount: t.totalAmount,
-        timestamp: t.createdAt.toISOString(),
-      })),
-      ...recentPosOrders.map((o) => ({
-        id: o.id,
-        type: 'pos' as const,
-        title: `POS Order #${o.id.slice(-6)}`,
-        detail: o.outlet.name,
-        status: o.status,
-        amount: o.totalAmount,
-        timestamp: o.createdAt.toISOString(),
-      })),
-      ...recentWorkOrders.map((w) => ({
-        id: w.id,
-        type: 'work_order' as const,
-        title: w.title,
-        detail: w.category,
-        status: w.status,
-        timestamp: w.createdAt.toISOString(),
-      })),
-    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 10)
-
-    return NextResponse.json({
-      kpis: {
-        totalRooms, occupiedRooms, occupancy, occupancyTrend,
-        arrivals, departures, vacantClean,
-        totalRevenue, roomRevenue, fAndBRevenue, otherRevenue,
-        adr, revpar, revenueTrend, adrTrend, revparTrend,
-      },
-      roomStatusBreakdown: roomStatusMap,
-      alerts: {
-        vipArrivals: vipArrivals.map((r) => ({
-          id: r.id,
-          confirmationNo: r.confirmationNo,
-          guestName: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : 'Unknown',
-          vipLevel: r.guest?.vipLevel,
-          roomNumber: r.room?.number,
-          checkIn: r.checkIn,
-        })),
-        overdueCheckouts,
-        emergencyWorkOrders: emergencyWorkOrders.map((w) => ({
-          id: w.id, title: w.title, category: w.category,
-          priority: w.priority, status: w.status, createdAt: w.createdAt,
-        })),
-        outOfOrderRooms: outOfOrderRoomsList.map((r) => ({
-          id: r.id, number: r.number, floor: r.floor,
-        })),
-        outOfOrderCount: outOfOrderRoomsList.length,
-        unassignedArrivals,
-        creditLimitBreaches: creditLimitBreaches.map((f) => ({
-          id: f.id,
-          guestName: f.reservation.guest
-            ? `${f.reservation.guest.firstName} ${f.reservation.guest.lastName}` : 'Unknown',
-          roomNumber: f.reservation.room?.number,
-          balance: f.balance,
-          creditLimit: defaultCreditLimit,
-        })),
-        pendingHkTasks,
-        openWorkflowTasks,
-        highPriorityWorkflowTasks: highPriorityWorkflowTasks.map((w) => ({
-          id: w.id, title: w.title, priority: w.priority, status: w.status,
-          category: w.category, area: w.area,
-          room: w.room ? { number: w.room.number, floor: w.room.floor } : null,
-          assignedByName: w.assignedByName,
-          dueDate: w.dueDate, requestedDate: w.requestedDate,
-        })),
-        openPosOrders,
-      },
-      revenueChart: revenueChartData,
-      recentActivity,
-    })
+    return NextResponse.json(response)
   } catch (error) {
-    console.error('Dashboard API error:', error)
+    console.error('[dashboard/orchestrator] error:', error)
     const msg = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ error: 'Failed to fetch dashboard data', detail: msg.substring(0, 500) }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Failed to fetch dashboard data', detail: msg.substring(0, 500) },
+      { status: 500 },
+    )
   }
 }

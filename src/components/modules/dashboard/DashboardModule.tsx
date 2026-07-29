@@ -27,8 +27,8 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 
-// ─── Types ─────────────────────────────────────────────────────────────
-interface DashboardData {
+// ─── Types (split endpoint responses) ────────────────────────────────────
+interface KpisData {
   kpis: {
     totalRooms: number
     occupiedRooms: number
@@ -48,6 +48,16 @@ interface DashboardData {
     revparTrend: number
   }
   roomStatusBreakdown: Record<string, number>
+  revenueChart: Array<{
+    date: string
+    roomRevenue: number
+    fAndBRevenue: number
+    totalRevenue: number
+  }>
+  defaultCreditLimit: number
+}
+
+interface AlertsData {
   alerts: {
     vipArrivals: Array<{
       id: string
@@ -91,12 +101,9 @@ interface DashboardData {
     }>
     openPosOrders: number
   }
-  revenueChart: Array<{
-    date: string
-    roomRevenue: number
-    fAndBRevenue: number
-    totalRevenue: number
-  }>
+}
+
+interface ActivityData {
   recentActivity: Array<{
     id: string
     type: string
@@ -106,6 +113,15 @@ interface DashboardData {
     amount?: number
     timestamp: string
   }>
+}
+
+// Composed type for backward compat with child components
+interface DashboardData {
+  kpis: KpisData['kpis']
+  roomStatusBreakdown: Record<string, number>
+  alerts: AlertsData['alerts']
+  revenueChart: KpisData['revenueChart']
+  recentActivity: ActivityData['recentActivity']
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
@@ -966,35 +982,65 @@ function RealtimeStatusCard() {
 
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
-  const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: () => apiFetch('/api/dashboard'),
-    refetchInterval: 10000, // refresh every 10s
+  // Fetch 3 endpoints in parallel — each is independently cached server-side (5-min TTL).
+  // This replaces the single /api/dashboard monolith that ran 24 parallel DB queries
+  // and caused PgBouncer 500 errors on Vercel.
+  const kpisQuery = useQuery<KpisData>({
+    queryKey: ['dashboard', 'kpis'],
+    queryFn: () => apiFetch('/api/dashboard/kpis'),
+    refetchInterval: 10000,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    staleTime: 30_000, // consider data fresh for 30s on client
   })
 
-  // Defensive defaults — guard against partial API responses
+  const alertsQuery = useQuery<AlertsData>({
+    queryKey: ['dashboard', 'alerts'],
+    queryFn: () => apiFetch('/api/dashboard/alerts'),
+    refetchInterval: 10000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    staleTime: 30_000,
+  })
+
+  const activityQuery = useQuery<ActivityData>({
+    queryKey: ['dashboard', 'activity'],
+    queryFn: () => apiFetch('/api/dashboard/activity'),
+    refetchInterval: 10000,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    staleTime: 30_000,
+  })
+
+  const isLoading = kpisQuery.isLoading || alertsQuery.isLoading || activityQuery.isLoading
+  const isError = kpisQuery.isError && alertsQuery.isError && activityQuery.isError
+
+  // Refetch all on demand
+  const refetch = () => { kpisQuery.refetch(); alertsQuery.refetch(); activityQuery.refetch() }
+
+  // Compose into the original DashboardData shape — backward compatible with all child components
   const safeData: DashboardData = {
-    kpis: data?.kpis ?? {
+    kpis: kpisQuery.data?.kpis ?? {
       totalRooms: 0, occupiedRooms: 0, occupancy: 0, occupancyTrend: 0,
       arrivals: 0, departures: 0, vacantClean: 0,
       totalRevenue: 0, roomRevenue: 0, fAndBRevenue: 0, otherRevenue: 0,
       adr: 0, revpar: 0, revenueTrend: 0, adrTrend: 0, revparTrend: 0,
     },
-    roomStatusBreakdown: data?.roomStatusBreakdown ?? {},
-    alerts: data?.alerts ?? {
+    roomStatusBreakdown: kpisQuery.data?.roomStatusBreakdown ?? {},
+    alerts: alertsQuery.data?.alerts ?? {
       vipArrivals: [], overdueCheckouts: 0,
       emergencyWorkOrders: [], outOfOrderRooms: [], outOfOrderCount: 0,
       unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0, openWorkflowTasks: 0, highPriorityWorkflowTasks: [], openPosOrders: 0,
     },
-    revenueChart: data?.revenueChart ?? [],
-    recentActivity: data?.recentActivity ?? [],
-    settings: data?.settings,
+    revenueChart: kpisQuery.data?.revenueChart ?? [],
+    recentActivity: activityQuery.data?.recentActivity ?? [],
   }
 
   if (isLoading) return <DashboardLoading />
-  if (isError || !data) return <DashboardError error={error ?? new Error('Unknown error')} refetch={refetch} />
+  if (isError) {
+    const firstError = kpisQuery.error ?? alertsQuery.error ?? activityQuery.error
+    return <DashboardError error={firstError ?? new Error('Unknown error')} refetch={refetch} />
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">
