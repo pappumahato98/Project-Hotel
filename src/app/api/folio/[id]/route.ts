@@ -262,9 +262,16 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
+    // Whitelist allowed fields to prevent unauthorized column manipulation
+    const ALLOWED_FIELDS = ['status', 'notes', 'isComplimentary', 'isLocked']
+    const updateData: Record<string, unknown> = {}
+    for (const key of ALLOWED_FIELDS) {
+      if (body[key] !== undefined) updateData[key] = body[key]
+    }
+
     const folio = await db.folio.update({
       where: { id },
-      data: body,
+      data: updateData,
       include: {
         reservation: true,
         guest: true,

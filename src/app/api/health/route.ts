@@ -9,7 +9,7 @@ export async function GET() {
   if (!dbUrl) {
     checks.push({ name: 'DATABASE_URL', ok: false, detail: 'not set' })
   } else if (dbUrl.startsWith('file:')) {
-    checks.push({ name: 'DATABASE_URL', ok: false, detail: 'file: URL does not work on Vercel serverless — use a Turso libsql:// URL' })
+    checks.push({ name: 'DATABASE_URL', ok: false, detail: 'file: URL does not work on Vercel serverless — use Supabase Postgres URL' })
   } else {
     checks.push({ name: 'DATABASE_URL', ok: true, detail: dbUrl.split(':')[0] + '://' })
   }

@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
       closingFloat: s.closingFloat,
       totalPayments: s.totalPayments,
       totalRefunds: s.totalRefunds,
-      variance: s.variance ?? (s.closingFloat ? (s.closingFloat - s.openingFloat + s.totalPayments - s.totalRefunds - s.totalPayments) : 0),
+      variance: s.variance ?? (s.closingFloat ? (s.closingFloat - s.openingFloat + s.totalPayments - s.totalRefunds) : 0),
       status: s.status,
     }))
 

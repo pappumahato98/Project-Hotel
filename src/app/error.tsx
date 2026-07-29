@@ -44,7 +44,15 @@ export default function Error({
               onClick={() => {
                 // Clear auth state and reload
                 try {
-                  localStorage.removeItem('auth-storage')
+                  localStorage.removeItem('meridian-settings')
+                  localStorage.removeItem('meridian-property')
+                  // Force Supabase session cleanup
+                  if (typeof window !== 'undefined' && window.location) {
+                    document.cookie.split(';').forEach(c => {
+                      const name = c.trim().split('=')[0]
+                      if (name.includes('sb-')) document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`
+                    })
+                  }
                 } catch {}
                 window.location.href = '/'
               }}

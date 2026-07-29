@@ -367,7 +367,6 @@ BEGIN
         'orderId', NEW.id,
         'outletId', NEW."outletId",
         'outletName', v_outlet_name,
-        'orderType', NEW."orderType",
         'status', NEW.status,
         'totalAmount', NEW."totalAmount"
       )

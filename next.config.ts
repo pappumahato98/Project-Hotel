@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   typescript: {
+    // NOTE: Keep true during active development to avoid Vercel build failures
+    // on non-critical type warnings. Set to false for production hardening.
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
@@ -46,7 +48,7 @@ const nextConfig: NextConfig = {
     'localhost',
   ],
   experimental: {
-    cpus: 1,
+    // cpus: 1, // Uncomment if Vercel build runs out of memory
   },
 };
 

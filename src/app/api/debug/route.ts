@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
-// GET /api/debug — Diagnose Vercel deployment issues
-// Returns the status of each component (env vars, DB connection, auth config)
-export async function GET() {
+// GET /api/debug — Diagnose deployment issues (admin only)
+export async function GET(request: Request) {
+  const auth = await requireAuth(request as any, ['admin'])
+  if (auth instanceof NextResponse) return auth
   const checks: Array<{ name: string; ok: boolean; detail: string }> = []
 
   // 1. Check env vars

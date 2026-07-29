@@ -32,7 +32,7 @@ export async function POST(
             number: true,
             floor: true,
             wing: true,
-            roomType: { select: { name: true, code: true } },
+            type: { select: { name: true, code: true } },
           },
         },
         folios: {
@@ -75,7 +75,7 @@ export async function POST(
 
     const guestName = `${reservation.guest.firstName} ${reservation.guest.lastName}`
     const roomNumber = reservation.room?.number || '—'
-    const roomType = reservation.room?.roomType?.name || ''
+    const roomType = reservation.room?.type?.name || ''
     const checkIn = reservation.checkIn.toLocaleDateString()
     const checkOut = reservation.checkOut.toLocaleDateString()
 
