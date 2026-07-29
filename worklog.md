@@ -1370,3 +1370,27 @@ Stage Summary:
   * NotificationBell component in header
   * UserPresence table with stale cleanup function
 - FIXED: Double channel subscription bug (created second channel for same topic)
+
+---
+Task ID: remove-mock-data
+Agent: main + full-stack-developer subagents
+Task: Replace ALL hardcoded/mock data in API routes with real Supabase DB queries
+
+Work Log:
+- Audited all ~60 API route files for hardcoded/mock data
+- Found 5 routes with hardcoded data (operations, pos, pos/daily-sales, revenue, banquet-orders)
+- Subagent 1: Rewrote operations/route.ts — replaced ALL sections (night audit revenue/occupancy, day close KPIs, cashier summary, shift handover) with real DB queries using Promise.all parallelism
+- Subagent 2: Rewrote pos/route.ts — replaced 11 hardcoded arrays (tables, bar stools/tabs, spa services, therapists, appointments, biz services, meeting rooms, rentals, kitchen tickets, guest reservations) with real DB queries
+- Fixed pos/daily-sales/route.ts — removed fabricated 50/30/20% payment distribution
+- Fixed revenue/route.ts — replaced random demand calendar with real reservation-based occupancy, replaced hardcoded pricing rules with RoomRatePosting queries
+- Fixed banquet-orders/route.ts — removed 5 hardcoded default orders (~70 lines of fake data), now builds from DB events with notes JSON parsing
+- All changes pass lint with 0 errors
+- Pushed commit 93a736c
+
+Stage Summary:
+- 100% of API routes now use real Supabase DB queries (no more mock data anywhere)
+- Operations module: 8 sections rewritten with real data
+- POS module: 11 hardcoded arrays replaced with DB queries
+- Revenue: demand calendar now shows actual occupancy from reservations
+- Banquet: orders built from real Event records
+- Net: +967 lines added, -410 lines removed (mostly fake data deleted)
