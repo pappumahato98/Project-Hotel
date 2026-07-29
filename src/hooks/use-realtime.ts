@@ -332,15 +332,12 @@ export function useRealtimeProvider(): {
             : undefined,
         })
 
-        // Listen for subscription status
-        const supabase = createClient()
-        supabase
-          .channel(channel.topic)
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              setConnected(true)
-            }
-          })
+        // Listen for subscription status on the returned channel
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setConnected(true)
+          }
+        })
 
         channels.push(channel)
       } catch (err) {
