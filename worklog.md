@@ -1416,3 +1416,35 @@ Stage Summary:
 - Vercel client-side vars: ✅ working (Supabase auth succeeds)
 - Vercel server-side vars: ❌ NOT set (API routes return 500)
 - Action needed: User must add 5 env vars in Vercel Dashboard
+
+---
+Task ID: 3
+Agent: main
+Task: Split dashboard API into 3 cached endpoints + harden PgBouncer
+
+Work Log:
+- Created src/lib/cache.ts — server-side in-memory cache with 5-min TTL
+- Created src/app/api/dashboard/_data.ts — shared query layer with 3 functions:
+  fetchKpis(), fetchAlerts(), fetchActivity() — each wrapped in getOrSet()
+- Created 3 sub-endpoints:
+  /api/dashboard/kpis/route.ts (maxDuration=30)
+  /api/dashboard/alerts/route.ts (maxDuration=30)
+  /api/dashboard/activity/route.ts (maxDuration=15)
+- Modified src/app/api/dashboard/route.ts — orchestrator using Promise.allSettled()
+  Returns 200 with partial data if 1-2 sub-endpoints fail, 500 only if all fail
+- Hardened src/lib/db.ts:
+  - connection_limit=3, statement_cache_size=0
+  - connect_timeout=10, pool_timeout=10
+  - withRetry() for transient PgBouncer errors (42P05, 26000, 08006, 57P01, 57P02)
+- Frontend (DashboardModule.tsx) already uses 3 parallel useQuery hooks
+- Fixed syntax error in _data.ts line 202 (missing closing brace in overdue checkouts query)
+- Removed temporary /api/dashboard-debug endpoint
+- All lint checks pass
+- Pushed to GitHub: commit e195e39
+
+Stage Summary:
+- 7 new files, 2 modified files, 1 deleted (debug endpoint)
+- Dashboard API split: 1 monolith → 3 independent sub-endpoints + orchestrator
+- Cache: 5-min server-side TTL eliminates redundant DB queries
+- PgBouncer: hardened with connection limits, statement cache disabled, retry logic
+- Awaiting Vercel build deployment (large project, build takes 5+ minutes)
