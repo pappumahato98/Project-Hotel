@@ -3,32 +3,70 @@ import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
-// Generate demand calendar for the next 30 days
-function generateDemandCalendar() {
-  const days = []
-  const today = new Date()
-  const pattern = [
-    'medium', 'high', 'high', 'high', 'medium', 'high', 'high',
-    'medium', 'medium', 'low', 'low', 'medium', 'medium', 'low',
-    'low', 'medium', 'high', 'high', 'medium', 'medium',
-    'high', 'high', 'high', 'medium', 'medium', 'low', 'low',
-    'medium', 'medium', 'high',
-  ]
+// Nepal timezone offset: UTC+5:45
+function getNepalToday(): Date {
+  const now = new Date()
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000
+  return new Date(utcMs + 5 * 3600000 + 45 * 60000)
+}
 
+// Generate demand calendar from real reservation data for the next 30 days
+async function generateDemandCalendar() {
+  const today = getNepalToday()
+  today.setHours(0, 0, 0, 0)
+
+  // Fetch rooms count
+  const totalRooms = await db.room.count()
+
+  // Fetch reservations that overlap the next 30 days
+  const startDate = today
+  const endDate = new Date(today)
+  endDate.setDate(endDate.getDate() + 30)
+
+  const reservations = await db.reservation.findMany({
+    where: {
+      status: { in: ['confirmed', 'checked_in'] },
+      OR: [
+        { checkIn: { lt: endDate } },
+        { checkOut: { gt: startDate } },
+      ],
+    },
+    select: {
+      checkIn: true,
+      checkOut: true,
+      status: true,
+    },
+  })
+
+  const days = []
   for (let i = 0; i < 30; i++) {
     const date = new Date(today)
     date.setDate(today.getDate() + i)
-    const dayOfWeek = date.getDay()
-    const level = pattern[i % pattern.length]
-    const adjustedLevel = (dayOfWeek === 0 || dayOfWeek === 6) && level === 'low' ? 'medium' : level
+    const nextDay = new Date(date)
+    nextDay.setDate(date.getDate() + 1)
+
+    // Count guests in-house on this day
+    const inHouseCount = reservations.filter((r) =>
+      r.checkIn < nextDay && r.checkOut > date && r.status === 'checked_in'
+    ).length
+
+    // Count expected check-ins (confirmed arriving today)
+    const arrivalsCount = reservations.filter((r) =>
+      r.checkIn >= date && r.checkIn < nextDay && r.status === 'confirmed'
+    ).length
+
+    const occupancy = totalRooms > 0 ? Math.round((inHouseCount / totalRooms) * 100) : 0
+    const demandLevel = occupancy > 80 ? 'high' : occupancy > 50 ? 'medium' : 'low'
 
     days.push({
       date: date.toISOString().split('T')[0],
       dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'short' }),
       day: date.getDate(),
       month: date.toLocaleDateString('en-US', { month: 'short' }),
-      demandLevel: adjustedLevel,
-      occupancy: adjustedLevel === 'high' ? Math.floor(Math.random() * 10) + 85 : adjustedLevel === 'medium' ? Math.floor(Math.random() * 15) + 60 : Math.floor(Math.random() * 20) + 30,
+      demandLevel,
+      occupancy,
+      availableRooms: Math.max(0, totalRooms - inHouseCount),
+      totalRooms,
     })
   }
 
@@ -54,19 +92,31 @@ export async function GET(req: NextRequest) {
       active: rp.active,
     }))
 
-    const demandCalendar = generateDemandCalendar()
+    // Fetch active rate rules from DB
+    const roomRatePostings = await db.roomRatePosting.findMany({
+      where: {
+        status: 'active',
+        endDate: { gte: new Date() },
+      },
+      include: { roomType: { select: { name: true } } },
+      orderBy: { startDate: 'asc' },
+    })
+
+    const pricingRules = roomRatePostings.map((rr) => ({
+      id: rr.id,
+      name: rr.description || `Rate: ${rr.rateType}`,
+      type: rr.rateType === 'increase' ? 'surcharge' : rr.rateType === 'decrease' ? 'discount' : 'override',
+      value: rr.amount || 0,
+      appliesTo: rr.roomType?.name || 'All Room Types',
+      dates: `${rr.startDate?.toISOString().split('T')[0] ?? ''} - ${rr.endDate?.toISOString().split('T')[0] ?? ''}`,
+      active: rr.status === 'active',
+    }))
+
+    // Demand calendar from real reservation data
+    const demandCalendar = await generateDemandCalendar()
     const highDays = demandCalendar.filter((d) => d.demandLevel === 'high').length
     const mediumDays = demandCalendar.filter((d) => d.demandLevel === 'medium').length
     const lowDays = demandCalendar.filter((d) => d.demandLevel === 'low').length
-
-    // Pricing rules (stored as static config since they don't need a separate table)
-    const pricingRules = [
-      { id: 'rule-001', name: 'High Season Surcharge', type: 'surcharge', value: 20, appliesTo: 'All Room Types', dates: 'Oct 1 - Dec 31', active: true },
-      { id: 'rule-002', name: 'Early Bird Discount', type: 'discount', value: 15, appliesTo: 'All Room Types', dates: 'Book 14+ days in advance', active: true },
-      { id: 'rule-003', name: 'Last Minute Premium', type: 'surcharge', value: 10, appliesTo: 'Standard & Deluxe', dates: 'Same day booking', active: true },
-      { id: 'rule-004', name: 'Festival Season Premium', type: 'surcharge', value: 30, appliesTo: 'All Room Types', dates: 'Dashain & Tihar period', active: false },
-      { id: 'rule-005', name: 'Extended Stay Discount', type: 'discount', value: 25, appliesTo: 'All Room Types', dates: 'Stay 14+ nights', active: true },
-    ]
 
     return NextResponse.json({
       demandCalendar,

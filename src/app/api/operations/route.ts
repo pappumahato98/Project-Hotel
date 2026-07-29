@@ -2,51 +2,262 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
+// ─── Nepal timezone helper (UTC+5:45) ───────────────────────────
+function getNepalNow(): Date {
+  const now = new Date()
+  // Nepal is UTC+5:45 = 20700000 ms
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000
+  return new Date(utc + 20700000)
+}
+
+function getNepalToday(): Date {
+  const nepal = getNepalNow()
+  return new Date(nepal.getFullYear(), nepal.getMonth(), nepal.getDate())
+}
+
+function getNepalTomorrow(): Date {
+  const nepal = getNepalNow()
+  return new Date(nepal.getFullYear(), nepal.getMonth(), nepal.getDate() + 1)
+}
+
+// ─── Friendly label for transaction types ───────────────────────
+const TRANSACTION_TYPE_LABELS: Record<string, string> = {
+  room: 'Room Revenue',
+  f_and_b: 'Food & Beverage',
+  laundry: 'Laundry',
+  spa: 'Spa & Wellness',
+  phone: 'Phone',
+  minibar: 'Minibar',
+  business_center: 'Business Center',
+  miscellaneous: 'Other Services',
+}
+
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
-  try {
-    const nightAudits = await db.nightAudit.findMany({
-      orderBy: { businessDate: 'desc' },
-      take: 30,
-    })
 
-    const cashierShifts = await db.cashierShift.findMany({
-      orderBy: { startDate: 'desc' },
-      take: 30,
-    })
+  try {
+    const nepalToday = getNepalToday()
+    const nepalTomorrow = getNepalTomorrow()
+    const todayStr = nepalToday.toISOString().split('T')[0]
+    const dayOfWeek = getNepalNow().toLocaleDateString('en-US', { weekday: 'long' })
+
+    // ── Parallel queries ───────────────────────────────────────────
+    const [
+      nightAudits,
+      cashierShifts,
+      allRooms,
+      inHouseReservations,
+      todayArrivals,
+      todayDepartures,
+      walkInReservations,
+      noShowReservations,
+      cancelledReservations,
+      todayTransactions,
+      todayPayments,
+      todayHkTasks,
+      openWorkOrders,
+      openPosOrders,
+      vipInHouseReservations,
+      openFolios,
+      property,
+    ] = await Promise.all([
+      // Night audits (last 30)
+      db.nightAudit.findMany({
+        orderBy: { businessDate: 'desc' },
+        take: 30,
+      }),
+
+      // Cashier shifts (last 30)
+      db.cashierShift.findMany({
+        orderBy: { startDate: 'desc' },
+        take: 30,
+      }),
+
+      // All rooms
+      db.room.findMany({
+        select: { id: true, number: true, status: true, floor: true },
+      }),
+
+      // In-house reservations (checked_in, where today falls within stay)
+      db.reservation.findMany({
+        where: {
+          status: 'checked_in',
+          checkIn: { lt: nepalTomorrow },
+          checkOut: { gt: nepalToday },
+        },
+        include: { guest: true, room: true },
+      }),
+
+      // Today's arrivals (confirmed/checked_in with checkIn today)
+      db.reservation.count({
+        where: {
+          checkIn: { gte: nepalToday, lt: nepalTomorrow },
+          status: { in: ['confirmed', 'checked_in'] },
+        },
+      }),
+
+      // Today's departures (checked_out with checkOut today, OR checked_in with checkOut today)
+      db.reservation.count({
+        where: {
+          checkOut: { gte: nepalToday, lt: nepalTomorrow },
+          status: { in: ['checked_in', 'checked_out'] },
+        },
+      }),
+
+      // Walk-in reservations today
+      db.reservation.count({
+        where: {
+          reservationType: 'walk_in',
+          checkIn: { gte: nepalToday, lt: nepalTomorrow },
+          status: { not: 'cancelled' },
+        },
+      }),
+
+      // No-show reservations today
+      db.reservation.count({
+        where: {
+          status: 'no_show',
+          checkIn: { gte: nepalToday, lt: nepalTomorrow },
+        },
+      }),
+
+      // Cancelled reservations today
+      db.reservation.count({
+        where: {
+          status: 'cancelled',
+          createdAt: { gte: nepalToday, lt: nepalTomorrow },
+        },
+      }),
+
+      // Today's folio transactions
+      db.folioTransaction.findMany({
+        where: {
+          createdAt: { gte: nepalToday, lt: nepalTomorrow },
+        },
+        select: { transactionType: true, amount: true, taxAmount: true, totalAmount: true },
+      }),
+
+      // Today's folio payments
+      db.folioPayment.findMany({
+        where: {
+          createdAt: { gte: nepalToday, lt: nepalTomorrow },
+          status: 'completed',
+        },
+        select: { paymentMethod: true, amount: true },
+      }),
+
+      // Today's HK tasks
+      db.hkTask.findMany({
+        where: {
+          scheduledTime: { gte: nepalToday, lt: nepalTomorrow },
+        },
+        select: { id: true, status: true },
+      }),
+
+      // Open work orders
+      db.workOrder.findMany({
+        where: {
+          status: { in: ['open', 'assigned', 'in_progress'] },
+        },
+        select: { id: true },
+      }),
+
+      // Open POS orders
+      db.posOrder.findMany({
+        where: {
+          status: { in: ['open', 'in_progress', 'ready', 'served'] },
+        },
+        select: { id: true, totalAmount: true },
+      }),
+
+      // VIP in-house guests
+      db.reservation.findMany({
+        where: {
+          status: 'checked_in',
+          checkIn: { lt: nepalTomorrow },
+          checkOut: { gt: nepalToday },
+          guest: {
+            vipLevel: { not: 'none' },
+          },
+        },
+        include: { guest: true, room: true },
+      }),
+
+      // Open folios with balance (for pending folio balance)
+      db.folio.findMany({
+        where: {
+          status: 'open',
+          balance: { gt: 0 },
+        },
+        select: { balance: true, isComplimentary: true },
+      }),
+
+      // Property config
+      db.property.findFirst({
+        select: { totalRooms: true },
+      }),
+    ])
+
+    // ─── Derive values ────────────────────────────────────────────
 
     const latestAudit = nightAudits[0] ?? null
 
     const openShifts = cashierShifts.filter((s) => s.status === 'open')
     const closedShifts = cashierShifts.filter((s) => s.status === 'closed')
 
+    // Room counts
+    const totalRooms = property?.totalRooms ?? allRooms.length
+    const occupiedRooms = allRooms.filter((r) => r.status === 'occupied').length
+    const outOfOrderRooms = allRooms.filter((r) => r.status === 'out_of_order').length
+    const availableRooms = totalRooms - occupiedRooms - outOfOrderRooms
+    const occupancyPercent = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
+
+    // ADR = total room revenue from in-house guests / occupied rooms
+    const totalRoomRevenueInHouse = inHouseReservations.reduce((sum, r) => sum + r.roomRate, 0)
+    const adr = occupiedRooms > 0 ? Math.round(totalRoomRevenueInHouse / occupiedRooms) : 0
+
+    // RevPAR = ADR × occupancy rate (as decimal)
+    const revpar = Math.round(adr * (occupancyPercent / 100))
+
     // ─── Night Audit Data ────────────────────────────────────────
+    // Use latest audit's revenue data if available, otherwise compute from in-house reservations
+    const nightAuditRevenue = latestAudit
+      ? {
+          roomRevenue: latestAudit.roomRevenue,
+          fAndBRevenue: latestAudit.fAndBRevenue,
+          otherRevenue: latestAudit.otherRevenue,
+          totalRevenue: latestAudit.totalRevenue,
+          totalTax: latestAudit.totalTax,
+          netRevenue: latestAudit.totalRevenue - latestAudit.totalTax,
+        }
+      : {
+          roomRevenue: totalRoomRevenueInHouse,
+          fAndBRevenue: 0,
+          otherRevenue: 0,
+          totalRevenue: totalRoomRevenueInHouse,
+          totalTax: 0,
+          netRevenue: totalRoomRevenueInHouse,
+        }
+
     const nightAuditData = {
       status: latestAudit?.status ?? 'pending',
       checklist: [
         { id: 'arrivals', label: 'All arrivals checked in or acknowledged', checked: false },
         { id: 'departures', label: 'All departures checked out or acknowledged', checked: false },
-        { id: 'pos_tables', label: 'No open POS tables', checked: false },
+        { id: 'pos_tables', label: 'No open POS tables', checked: openPosOrders.length === 0 },
         { id: 'unposted_charges', label: 'No unposted charges', checked: false },
         { id: 'cashier_recon', label: 'Cashier reconciliation complete', checked: false },
       ],
-      revenue: {
-        roomRevenue: 285750,
-        fAndBRevenue: 98420,
-        otherRevenue: 15300,
-        totalRevenue: 399470,
-        totalTax: 42993,
-        netRevenue: 356477,
-      },
+      revenue: nightAuditRevenue,
       occupancy: {
-        percent: 82,
-        adr: 7820,
-        revpar: 6412,
-        totalRooms: 128,
-        occupiedRooms: 105,
-        availableRooms: 12,
-        outOfOrderRooms: 11,
+        percent: latestAudit?.occupancy ?? occupancyPercent,
+        adr: latestAudit?.adr ?? adr,
+        revpar: latestAudit?.revpar ?? revpar,
+        totalRooms,
+        occupiedRooms,
+        availableRooms: Math.max(0, availableRooms),
+        outOfOrderRooms,
       },
       previousAudits: nightAudits.slice(0, 7).map((a) => ({
         id: a.id,
@@ -59,10 +270,40 @@ export async function GET(req: NextRequest) {
     }
 
     // ─── Day Close Data ───────────────────────────────────────────
-    const today = new Date()
+
+    // Average room rate from today's active reservations
+    const todayActiveReservations = inHouseReservations.length > 0 ? inHouseReservations : []
+    const averageRate = todayActiveReservations.length > 0
+      ? Math.round(todayActiveReservations.reduce((sum, r) => sum + r.roomRate, 0) / todayActiveReservations.length)
+      : 0
+
+    // Total revenue = sum of today's folio transactions
+    const totalRevenueToday = todayTransactions.reduce((sum, t) => sum + t.totalAmount, 0)
+
+    // Total payments today
+    const totalPaymentsToday = todayPayments.reduce((sum, p) => sum + p.amount, 0)
+
+    // Pending folio balance (non-complimentary open folios)
+    const pendingFolioBalance = openFolios
+      .filter((f) => !f.isComplimentary)
+      .reduce((sum, f) => sum + f.balance, 0)
+
+    // Revenue breakdown by transaction type
+    const breakdownMap = new Map<string, number>()
+    for (const t of todayTransactions) {
+      breakdownMap.set(t.transactionType, (breakdownMap.get(t.transactionType) ?? 0) + t.amount)
+    }
+    const revenueBreakdown = Array.from(breakdownMap.entries())
+      .map(([type, amount]) => ({
+        department: TRANSACTION_TYPE_LABELS[type] ?? type,
+        amount,
+        percentage: totalRevenueToday > 0 ? Math.round((amount / totalRevenueToday) * 1000) / 10 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount)
+
     const dayCloseData = {
-      businessDate: today.toISOString().split('T')[0],
-      dayOfWeek: today.toLocaleDateString('en-US', { weekday: 'long' }),
+      businessDate: todayStr,
+      dayOfWeek,
       checklist: [
         { id: 'dc_arrivals', label: 'All arrivals processed', checked: false },
         { id: 'dc_departures', label: 'All departures processed', checked: false },
@@ -72,38 +313,24 @@ export async function GET(req: NextRequest) {
         { id: 'dc_pos', label: 'All POS orders closed', checked: false },
       ],
       kpis: {
-        roomsSold: 105,
-        arrivals: 14,
-        departures: 11,
-        walkIns: 3,
-        noShows: 1,
-        cancellations: 2,
-        averageRate: 7820,
-        totalRevenue: 399470,
-        totalPayments: 385200,
-        pendingFolioBalance: 14270,
+        roomsSold: occupiedRooms,
+        arrivals: todayArrivals,
+        departures: todayDepartures,
+        walkIns: walkInReservations,
+        noShows: noShowReservations,
+        cancellations: cancelledReservations,
+        averageRate,
+        totalRevenue: totalRevenueToday,
+        totalPayments: totalPaymentsToday,
+        pendingFolioBalance,
       },
-      revenueBreakdown: [
-        { department: 'Room Revenue', amount: 285750, percentage: 71.5 },
-        { department: 'Food & Beverage', amount: 98420, percentage: 24.6 },
-        { department: 'Spa & Wellness', amount: 8900, percentage: 2.2 },
-        { department: 'Laundry', amount: 3400, percentage: 0.9 },
-        { department: 'Business Center', amount: 1800, percentage: 0.5 },
-        { department: 'Other Services', amount: 1200, percentage: 0.3 },
-      ],
+      revenueBreakdown,
     }
 
     // ─── Cashier Shift Data ──────────────────────────────────────
-    const activeShift = openShifts[0] ?? {
-      id: 'active-shift-1',
-      cashierName: 'Ramesh K.',
-      shiftType: 'morning',
-      startDate: new Date().toISOString(),
-      openingFloat: 50000,
-      totalPayments: 245800,
-      totalRefunds: 3200,
-      status: 'open',
-    }
+
+    // Active shift: real data or null (no fake fallback)
+    const activeShift = openShifts[0] ?? null
 
     const shiftHistory = cashierShifts.map((s) => ({
       id: s.id,
@@ -119,42 +346,121 @@ export async function GET(req: NextRequest) {
       status: s.status,
     }))
 
+    // Cashier summary aggregated by payment method
+    const paymentMap = new Map<string, { count: number; amount: number }>()
+    for (const p of todayPayments) {
+      const existing = paymentMap.get(p.paymentMethod) ?? { count: 0, amount: 0 }
+      existing.count += 1
+      existing.amount += p.amount
+      paymentMap.set(p.paymentMethod, existing)
+    }
+
     const cashierSummary = {
-      cash: { count: 42, amount: 125000 },
-      card: { count: 28, amount: 189500 },
-      bankTransfer: { count: 5, amount: 45000 },
-      other: { count: 3, amount: 8500 },
+      cash: paymentMap.get('cash') ?? { count: 0, amount: 0 },
+      card: paymentMap.get('card') ?? { count: 0, amount: 0 },
+      bankTransfer: paymentMap.get('bank_transfer') ?? { count: 0, amount: 0 },
+      other: (() => {
+        // Aggregate all other payment methods
+        const excluded = new Set(['cash', 'card', 'bank_transfer'])
+        let count = 0
+        let amount = 0
+        for (const [method, data] of paymentMap) {
+          if (!excluded.has(method)) {
+            count += data.count
+            amount += data.amount
+          }
+        }
+        return { count, amount }
+      })(),
     }
 
     // ─── Shift Handover Data ─────────────────────────────────────
+
+    // In-house guests
+    const inHouseCount = inHouseReservations.length
+
+    // Today's arrivals: already checked in vs still pending (confirmed)
+    const todayArrivalsCheckedIn = await db.reservation.count({
+      where: {
+        checkIn: { gte: nepalToday, lt: nepalTomorrow },
+        status: 'checked_in',
+      },
+    })
+    const todayArrivalsPending = todayArrivals - todayArrivalsCheckedIn
+
+    // Today's departures: already checked out vs still in-house
+    const todayDeparturesDone = await db.reservation.count({
+      where: {
+        checkOut: { gte: nepalToday, lt: nepalTomorrow },
+        status: 'checked_out',
+      },
+    })
+    const todayDeparturesPending = todayDepartures - todayDeparturesDone
+
+    // HK task completion rate
+    const hkCompleted = todayHkTasks.filter((t) => t.status === 'cleaned' || t.status === 'inspected').length
+    const hkTotal = todayHkTasks.length
+    const hkTaskCompletion = hkTotal > 0 ? Math.round((hkCompleted / hkTotal) * 100) : 0
+
+    // Cashier balance (from active shift)
+    const cashierBalance = activeShift
+      ? activeShift.openingFloat + activeShift.totalPayments - activeShift.totalRefunds
+      : 0
+
+    // Folios above credit limit
+    const foliosAboveCredit = await db.reservation.findMany({
+      where: {
+        status: 'checked_in',
+        checkIn: { lt: nepalTomorrow },
+        checkOut: { gt: nepalToday },
+        folios: {
+          some: {
+            status: 'open',
+            balance: { gt: 15000 },
+          },
+        },
+      },
+      select: {
+        id: true,
+        confirmationNo: true,
+        creditLimit: true,
+        guest: { select: { firstName: true, lastName: true } },
+        room: { select: { number: true } },
+      },
+    })
+
+    // VIP in-house guests
+    const vipGuests = vipInHouseReservations.map((r) => ({
+      name: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : 'Unknown',
+      room: r.room?.number ?? 'N/A',
+      reason: r.guest?.vipLevel
+        ? `${r.guest.vipLevel.charAt(0).toUpperCase() + r.guest.vipLevel.slice(1)} tier guest`
+        : 'VIP',
+    }))
+
+    // Determine shift label from active shift
+    const shiftLabel = activeShift?.shiftType
+      ? `${activeShift.shiftType.charAt(0).toUpperCase() + activeShift.shiftType.slice(1)} Shift`
+      : 'Day'
+
     const shiftHandoverData = {
       generatedAt: new Date().toISOString(),
-      shiftType: 'Morning → Evening',
-      outgoingSupervisor: 'Ramesh K.',
+      shiftType: shiftLabel,
+      outgoingSupervisor: activeShift?.cashierName ?? '—',
       incomingSupervisor: '—',
       acknowledged: false,
       acknowledgedAt: null,
       sections: {
-        inHouseGuests: 105,
-        arrivals: { checkedIn: 11, pending: 3 },
-        departures: { done: 9, pending: 2 },
-        hkTaskCompletion: 87,
-        openWorkOrders: 6,
-        openPosTables: 4,
-        cashierBalance: 242600,
-        pendingFoliosAboveCredit: 3,
-        vipInHouse: [
-          { name: 'Dr. Sarah Mitchell', room: '501', reason: 'Conference speaker' },
-          { name: 'Mr. Hiroshi Tanaka', room: '802', reason: 'Repeat guest, Platinum tier' },
-          { name: 'Mrs. Priya Sharma', room: '601', reason: 'Anniversary celebration' },
-        ],
-        specialNotes: [
-          'Room 307 reported AC noise — maintenance scheduled for tomorrow',
-          'Group check-in of 12 rooms for "TechSummit 2025" expected at 14:00',
-          'Complimentary fruit basket arranged for VIP Dr. Mitchell (501)',
-          'Pool area under maintenance until 16:00',
-          'Laundry pickup delayed due to machine maintenance — notify guests in 4th floor',
-        ],
+        inHouseGuests: inHouseCount,
+        arrivals: { checkedIn: todayArrivalsCheckedIn, pending: Math.max(0, todayArrivalsPending) },
+        departures: { done: todayDeparturesDone, pending: Math.max(0, todayDeparturesPending) },
+        hkTaskCompletion,
+        openWorkOrders: openWorkOrders.length,
+        openPosTables: openPosOrders.length,
+        cashierBalance,
+        pendingFoliosAboveCredit: foliosAboveCredit.length,
+        vipInHouse: vipGuests,
+        specialNotes: [] as string[],
       },
     }
 
@@ -177,26 +483,60 @@ export async function GET(req: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
+
   try {
     const body = await request.json()
     const { action, data } = body
 
     if (action === 'run-audit') {
-      // Create a new night audit record
+      // Calculate real revenue and occupancy from DB
+      const nepalToday = getNepalToday()
+      const nepalTomorrow = getNepalTomorrow()
+
+      const [inHouseReservations, todayTransactions, allRooms, property] = await Promise.all([
+        db.reservation.findMany({
+          where: {
+            status: 'checked_in',
+            checkIn: { lt: nepalTomorrow },
+            checkOut: { gt: nepalToday },
+          },
+          select: { roomRate: true, totalAmount: true },
+        }),
+        db.folioTransaction.findMany({
+          where: { createdAt: { gte: nepalToday, lt: nepalTomorrow } },
+          select: { transactionType: true, amount: true, taxAmount: true, totalAmount: true },
+        }),
+        db.room.findMany({ select: { status: true } }),
+        db.property.findFirst({ select: { totalRooms: true } }),
+      ])
+
+      const totalRooms = property?.totalRooms ?? allRooms.length
+      const occupiedRooms = allRooms.filter((r) => r.status === 'occupied').length
+      const occupancyPct = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
+
+      const roomRevenue = inHouseReservations.reduce((sum, r) => sum + r.roomRate, 0)
+      const fbRevenue = todayTransactions.filter((t) => t.transactionType === 'f_and_b').reduce((sum, t) => sum + t.amount, 0)
+      const otherRevenue = todayTransactions.filter((t) => t.transactionType !== 'room' && t.transactionType !== 'f_and_b').reduce((sum, t) => sum + t.amount, 0)
+      const totalRev = todayTransactions.reduce((sum, t) => sum + t.totalAmount, 0)
+      const totalTax = todayTransactions.reduce((sum, t) => sum + t.taxAmount, 0)
+      const calculatedAdr = occupiedRooms > 0 ? Math.round(roomRevenue / occupiedRooms) : 0
+      const calculatedRevpar = Math.round(calculatedAdr * (occupancyPct / 100))
+
+      // Use caller-provided values if present, otherwise use computed
       const audit = await db.nightAudit.create({
         data: {
           businessDate: new Date(),
           status: 'in_progress',
           startedBy: data?.startedBy ?? 'System',
           startedAt: new Date(),
-          roomRevenue: data?.roomRevenue ?? 285750,
-          fAndBRevenue: data?.fAndBRevenue ?? 98420,
-          otherRevenue: data?.otherRevenue ?? 15300,
-          totalRevenue: data?.totalRevenue ?? 399470,
-          totalTax: data?.totalTax ?? 42993,
-          occupancy: data?.occupancy ?? 82,
-          adr: data?.adr ?? 7820,
-          revpar: data?.revpar ?? 6412,
+          roomRevenue: data?.roomRevenue ?? roomRevenue,
+          fAndBRevenue: data?.fAndBRevenue ?? fbRevenue,
+          otherRevenue: data?.otherRevenue ?? otherRevenue,
+          totalRevenue: data?.totalRevenue ?? totalRev,
+          totalTax: data?.totalTax ?? totalTax,
+          occupancy: data?.occupancy ?? occupancyPct,
+          adr: data?.adr ?? calculatedAdr,
+          revpar: data?.revpar ?? calculatedRevpar,
         },
       })
       return NextResponse.json({ success: true, audit })

@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
-// ─── Types ───────────────────────────────────────────────────────────
+// ─── Types ──────────────────────────────────────────────────────
 export interface TableItem {
   id: number
   seats: number
@@ -136,121 +136,7 @@ export interface PosStats {
   completedOrders: number
 }
 
-// ─── Static mock data for non-DB sections (bar stools, tables, spa, biz center, kitchen) ────────────
-const TABLES: TableItem[] = [
-  { id: 1, seats: 2, status: 'available' },
-  { id: 2, seats: 4, status: 'occupied', guestCount: 3, orderId: 'ORD-001' },
-  { id: 3, seats: 4, status: 'reserved' },
-  { id: 4, seats: 6, status: 'available' },
-  { id: 5, seats: 2, status: 'needs_cleaning' },
-  { id: 6, seats: 8, status: 'occupied', guestCount: 6, orderId: 'ORD-002' },
-  { id: 7, seats: 4, status: 'available' },
-  { id: 8, seats: 2, status: 'occupied', guestCount: 2, orderId: 'ORD-003' },
-  { id: 9, seats: 6, status: 'reserved' },
-  { id: 10, seats: 4, status: 'available' },
-  { id: 11, seats: 2, status: 'needs_cleaning' },
-  { id: 12, seats: 4, status: 'occupied', guestCount: 4, orderId: 'ORD-004' },
-  { id: 13, seats: 8, status: 'available' },
-  { id: 14, seats: 6, status: 'available' },
-  { id: 15, seats: 4, status: 'reserved' },
-]
-
-const BAR_STOOLS: BarStool[] = [
-  { id: 1, status: 'occupied', tabId: 'TAB-001', guestName: 'Mr. Anderson' },
-  { id: 2, status: 'occupied', tabId: 'TAB-002', guestName: 'Ms. Sherpa' },
-  { id: 3, status: 'available' },
-  { id: 4, status: 'available' },
-  { id: 5, status: 'reserved' },
-  { id: 6, status: 'occupied', tabId: 'TAB-003', guestName: 'Dr. Patel' },
-  { id: 7, status: 'available' },
-  { id: 8, status: 'occupied', tabId: 'TAB-004', guestName: 'Col. Rai' },
-  { id: 9, status: 'available' },
-  { id: 10, status: 'available' },
-]
-
-const BAR_TABS: BarTab[] = [
-  { id: 'TAB-001', stoolId: 1, guestName: 'Mr. Anderson', items: [{ id: 'bi1', menuItemId: 'b4', name: 'Mojito', price: 650, quantity: 2 }, { id: 'bi2', menuItemId: 'b11', name: 'Mixed Nuts', price: 350, quantity: 1 }], total: 1650, openedAt: new Date(Date.now() - 45 * 60000).toISOString(), status: 'open' },
-  { id: 'TAB-002', stoolId: 2, guestName: 'Ms. Sherpa', items: [{ id: 'bi3', menuItemId: 'b8', name: 'Nepali Wine (Glass)', price: 550, quantity: 3 }, { id: 'bi4', menuItemId: 'b12', name: 'Olives & Cheese Board', price: 550, quantity: 1 }], total: 2200, openedAt: new Date(Date.now() - 60 * 60000).toISOString(), status: 'open' },
-  { id: 'TAB-003', stoolId: 6, guestName: 'Dr. Patel', items: [{ id: 'bi5', menuItemId: 'b6', name: 'Old Fashioned', price: 750, quantity: 1 }, { id: 'bi6', menuItemId: 'b2', name: 'Gorkha Beer', price: 500, quantity: 2 }], total: 1750, openedAt: new Date(Date.now() - 25 * 60000).toISOString(), status: 'open' },
-  { id: 'TAB-004', stoolId: 8, guestName: 'Col. Rai', items: [{ id: 'bi7', menuItemId: 'b1', name: 'Tuborg Lager', price: 450, quantity: 4 }, { id: 'bi8', menuItemId: 'b7', name: 'Gin & Tonic', price: 600, quantity: 2 }], total: 3000, openedAt: new Date(Date.now() - 15 * 60000).toISOString(), status: 'open' },
-]
-
-const SPA_SERVICES: SpaService[] = [
-  { id: 's1', name: 'Swedish Massage', duration: 60, price: 4500, category: 'massage' },
-  { id: 's2', name: 'Deep Tissue Massage', duration: 60, price: 5500, category: 'massage' },
-  { id: 's3', name: 'Hot Stone Therapy', duration: 90, price: 7000, category: 'massage' },
-  { id: 's4', name: 'Aromatherapy Massage', duration: 60, price: 5000, category: 'massage' },
-  { id: 's5', name: 'Herbal Facial', duration: 45, price: 3500, category: 'facial' },
-  { id: 's6', name: 'Gold Facial', duration: 60, price: 6000, category: 'facial' },
-  { id: 's7', name: 'Body Scrub', duration: 45, price: 3000, category: 'body_treatment' },
-  { id: 's8', name: 'Body Wrap', duration: 60, price: 4500, category: 'body_treatment' },
-  { id: 's9', name: 'Yoga Session', duration: 60, price: 2000, category: 'wellness' },
-  { id: 's10', name: 'Meditation Session', duration: 30, price: 1500, category: 'wellness' },
-]
-
-const THERAPISTS: Therapist[] = [
-  { id: 't1', name: 'Anita Gurung', specialties: ['massage', 'body_treatment'], status: 'available' },
-  { id: 't2', name: 'Priya Sharma', specialties: ['facial', 'wellness'], status: 'busy' },
-  { id: 't3', name: 'Dawa Tenzin', specialties: ['massage'], status: 'available' },
-  { id: 't4', name: 'Sunita Rai', specialties: ['facial', 'body_treatment'], status: 'break' },
-  { id: 't5', name: 'Bikash Thapa', specialties: ['massage', 'wellness'], status: 'busy' },
-]
-
-const SPA_APPOINTMENTS: SpaAppointment[] = [
-  { id: 'APT-001', serviceId: 's1', serviceName: 'Swedish Massage', therapistId: 't2', therapistName: 'Priya Sharma', guestName: 'Mrs. Johnson', startTime: '2025-07-10T09:00:00', endTime: '2025-07-10T10:00:00', status: 'in_progress', room: 'Spa Room 1' },
-  { id: 'APT-002', serviceId: 's2', serviceName: 'Deep Tissue Massage', therapistId: 't5', therapistName: 'Bikash Thapa', guestName: 'Mr. Williams', startTime: '2025-07-10T09:30:00', endTime: '2025-07-10T10:30:00', status: 'in_progress', room: 'Spa Room 2' },
-  { id: 'APT-003', serviceId: 's5', serviceName: 'Herbal Facial', therapistId: 't1', therapistName: 'Anita Gurung', guestName: 'Ms. Gurung', startTime: '2025-07-10T10:30:00', endTime: '2025-07-10T11:15:00', status: 'scheduled', room: 'Spa Room 3' },
-  { id: 'APT-004', serviceId: 's9', serviceName: 'Yoga Session', therapistId: 't3', therapistName: 'Dawa Tenzin', guestName: 'Mr. Baker', startTime: '2025-07-10T11:00:00', endTime: '2025-07-10T12:00:00', status: 'scheduled', room: 'Wellness Studio' },
-  { id: 'APT-005', serviceId: 's3', serviceName: 'Hot Stone Therapy', therapistId: 't1', therapistName: 'Anita Gurung', guestName: 'Mrs. Chen', startTime: '2025-07-10T14:00:00', endTime: '2025-07-10T15:30:00', status: 'scheduled', room: 'Spa Room 1' },
-  { id: 'APT-006', serviceId: 's6', serviceName: 'Gold Facial', therapistId: 't4', therapistName: 'Sunita Rai', guestName: 'Ms. Tamang', startTime: '2025-07-10T15:00:00', endTime: '2025-07-10T16:00:00', status: 'scheduled', room: 'Spa Room 3' },
-]
-
-const BIZ_SERVICES: BizService[] = [
-  { id: 'ws1', name: 'Workstation (Basic)', category: 'workstation', pricePerUnit: 200, unit: 'hour', description: 'Desktop with internet access' },
-  { id: 'ws2', name: 'Workstation (Premium)', category: 'workstation', pricePerUnit: 400, unit: 'hour', description: 'Laptop, printer, scanner access' },
-  { id: 'mr1', name: 'Meeting Room A', category: 'meeting_room', pricePerUnit: 3000, unit: 'hour', description: 'Seats 8, projector, whiteboard' },
-  { id: 'mr2', name: 'Meeting Room B', category: 'meeting_room', pricePerUnit: 5000, unit: 'hour', description: 'Seats 16, AV system, video conferencing' },
-  { id: 'mr3', name: 'Board Room', category: 'meeting_room', pricePerUnit: 8000, unit: 'hour', description: 'Seats 24, full AV suite, catering available' },
-  { id: 'p1', name: 'B&W Print', category: 'printing', pricePerUnit: 10, unit: 'page', description: 'A4 black & white' },
-  { id: 'p2', name: 'Color Print', category: 'printing', pricePerUnit: 50, unit: 'page', description: 'A4 color' },
-  { id: 'p3', name: 'A3 Print', category: 'printing', pricePerUnit: 80, unit: 'page', description: 'A3 color' },
-  { id: 'c1', name: 'Local Call', category: 'calls', pricePerUnit: 5, unit: 'minute', description: 'Local landline calls' },
-  { id: 'c2', name: 'International Call', category: 'calls', pricePerUnit: 30, unit: 'minute', description: 'ISD calls' },
-  { id: 'cu1', name: 'Same-Day Courier', category: 'courier', pricePerUnit: 500, unit: 'delivery', description: 'Within Kathmandu Valley' },
-  { id: 'cu2', name: 'Next-Day Courier', category: 'courier', pricePerUnit: 300, unit: 'delivery', description: 'Domestic delivery' },
-]
-
-const MEETING_ROOMS: MeetingRoom[] = [
-  { id: 'mr1', name: 'Meeting Room A', capacity: 8, hourlyRate: 3000, status: 'available' },
-  { id: 'mr2', name: 'Meeting Room B', capacity: 16, hourlyRate: 5000, status: 'occupied' },
-  { id: 'mr3', name: 'Board Room', capacity: 24, hourlyRate: 8000, status: 'available' },
-]
-
-const ACTIVE_RENTALS: ActiveRental[] = [
-  { id: 'RNT-001', serviceId: 'ws2', serviceName: 'Workstation (Premium)', guestName: 'Mr. Nakamura', roomNumber: '502', startedAt: new Date(Date.now() - 90 * 60000).toISOString(), estimatedEnd: new Date(Date.now() + 30 * 60000).toISOString(), charges: 600 },
-  { id: 'RNT-002', serviceId: 'mr2', serviceName: 'Meeting Room B', guestName: 'ABC Corp', roomNumber: '—', startedAt: new Date(Date.now() - 120 * 60000).toISOString(), estimatedEnd: new Date(Date.now() + 60 * 60000).toISOString(), charges: 15000 },
-  { id: 'RNT-003', serviceId: 'ws1', serviceName: 'Workstation (Basic)', guestName: 'Ms. Limbu', roomNumber: '312', startedAt: new Date(Date.now() - 30 * 60000).toISOString(), estimatedEnd: new Date(Date.now() + 60 * 60000).toISOString(), charges: 100 },
-]
-
-const KITCHEN_TICKETS: KitchenTicket[] = [
-  { id: 'KT-001', orderId: 'ORD-002', tableId: 6, items: [{ name: 'Mutton Biryani', quantity: 2 }, { name: 'Grilled Trout', quantity: 1 }, { name: 'Spring Rolls', quantity: 1 }], station: 'hot_kitchen', status: 'pending', rush: true, specialInstructions: 'No onions in biryani', createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
-  { id: 'KT-002', orderId: 'ORD-001', tableId: 2, items: [{ name: 'Chicken Curry', quantity: 2 }, { name: 'Momo Platter', quantity: 1 }, { name: 'Garlic Naan', quantity: 3 }], station: 'hot_kitchen', status: 'preparing', createdAt: new Date(Date.now() - 22 * 60000).toISOString() },
-  { id: 'KT-003', orderId: 'ORD-004', tableId: 12, items: [{ name: 'Tandoori Chicken', quantity: 1 }, { name: 'Dal Tarka', quantity: 2 }, { name: 'Vegetable Fried Rice', quantity: 2 }], station: 'hot_kitchen', status: 'preparing', createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
-  { id: 'KT-004', orderId: 'ORD-003', tableId: 8, items: [{ name: 'Tomato Soup', quantity: 2 }, { name: 'Paneer Tikka Masala', quantity: 1 }], station: 'cold_kitchen', status: 'ready', createdAt: new Date(Date.now() - 35 * 60000).toISOString() },
-  { id: 'KT-005', orderId: 'ORD-001', tableId: 2, items: [{ name: 'Masala Chai', quantity: 3 }], station: 'bar', status: 'ready', createdAt: new Date(Date.now() - 22 * 60000).toISOString() },
-  { id: 'KT-006', orderId: 'ORD-004', tableId: 12, items: [{ name: 'Fresh Lime Soda', quantity: 4 }], station: 'bar', status: 'pending', createdAt: new Date(Date.now() - 12 * 60000).toISOString() },
-  { id: 'KT-007', orderId: 'ORD-002', tableId: 6, items: [{ name: 'Mango Lassi', quantity: 4 }], station: 'bar', status: 'preparing', createdAt: new Date(Date.now() - 5 * 60000).toISOString() },
-]
-
-const GUEST_RESERVATIONS = [
-  { id: 'RES-001', guestName: 'Raj Sharma', roomNumber: '301' },
-  { id: 'RES-002', guestName: 'Emily Johnson', roomNumber: '502' },
-  { id: 'RES-003', guestName: 'Chen Wei', roomNumber: '415' },
-  { id: 'RES-004', guestName: 'Maria Garcia', roomNumber: '208' },
-  { id: 'RES-005', guestName: 'Ahmed Hassan', roomNumber: '610' },
-]
-
-// ─── GET Handler ─────────────────────────────────────────────────────
+// ─── GET Handler ─────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
@@ -259,28 +145,45 @@ export async function GET(request: NextRequest) {
 
   const data: Record<string, unknown> = {}
 
-  if (section === 'all' || section === 'restaurant') {
-    // Fetch from DB: outlets, menu items, orders
-    const outlets = await db.outlet.findMany({ where: { active: true }, include: { menuItems: true }, orderBy: { name: 'asc' } })
-    const restaurantOutlets = outlets.filter((o) => o.type === 'restaurant')
-    const menuItems = restaurantOutlets.flatMap((o) => o.menuItems.map((m) => ({
-      id: m.id,
-      name: m.name,
-      price: m.price,
-      category: m.category,
-      available: m.available,
-      allergens: m.allergens ? JSON.parse(m.allergens) : undefined,
-    })))
+  // ─── Pre-fetch all outlets grouped by type (used by multiple sections) ───
+  const allOutlets = await db.outlet.findMany({
+    where: { active: true },
+    include: { menuItems: true },
+    orderBy: { name: 'asc' },
+  })
 
-    // Fetch active orders for restaurant outlets
-    const restaurantOutletIds = restaurantOutlets.map((o) => o.id)
+  const restaurantOutlets = allOutlets.filter((o) => o.type === 'restaurant')
+  const barOutlets = allOutlets.filter((o) => o.type === 'bar')
+  const spaOutlets = allOutlets.filter((o) => o.type === 'spa')
+  const bizCenterOutlets = allOutlets.filter((o) => o.type === 'business_center')
+
+  const restaurantOutletIds = restaurantOutlets.map((o) => o.id)
+  const barOutletIds = barOutlets.map((o) => o.id)
+  const spaOutletIds = spaOutlets.map((o) => o.id)
+  const bizCenterOutletIds = bizCenterOutlets.map((o) => o.id)
+
+  // ─── Restaurant section ───
+  if (section === 'all' || section === 'restaurant') {
+    // Menu items from restaurant outlets
+    const menuItems: MenuItem[] = restaurantOutlets.flatMap((o) =>
+      o.menuItems.map((m) => ({
+        id: m.id,
+        name: m.name,
+        price: m.price,
+        category: m.category,
+        available: m.available,
+        allergens: m.allergens ? JSON.parse(m.allergens) : undefined,
+      }))
+    )
+
+    // Active orders for restaurant outlets
     const activeOrders = await db.posOrder.findMany({
-      where: { outletId: { in: restaurantOutletIds }, status: { not: 'closed' } },
-      include: { items: { include: { menuItem: { select: { name: true } } } }, outlet: { select: { name: true } } },
+      where: { outletId: { in: restaurantOutletIds }, status: { notIn: ['closed', 'voided'] } },
+      include: { items: { include: { menuItem: { select: { name: true, category: true } } } }, outlet: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     })
 
-    const orders = activeOrders.map((o) => ({
+    const orders: Order[] = activeOrders.map((o) => ({
       id: o.id,
       tableId: o.tableNumber || 1,
       items: o.items.map((i) => ({
@@ -297,57 +200,366 @@ export async function GET(request: NextRequest) {
       guestName: o.serverName || `Table ${o.tableNumber}`,
     }))
 
-    data.tables = TABLES
-    data.menuItems = menuItems.length > 0 ? menuItems : outlets.flatMap((o) => o.menuItems.map((m) => ({
-      id: m.id, name: m.name, price: m.price, category: m.category, available: m.available,
-    })))
-    data.orders = orders.length > 0 ? orders : activeOrders.map((o) => ({
-      id: o.id, tableId: o.tableNumber || 1,
-      items: o.items.map((i) => ({ id: i.id, menuItemId: i.menuItemId, name: i.menuItem?.name || 'Unknown', price: i.unitPrice, quantity: i.quantity })),
-      status: o.status, createdAt: o.createdAt.toISOString(), station: 'hot_kitchen', guestName: o.serverName || 'Guest',
+    // Build virtual table layout from DB orders
+    // Find all table numbers ever used for restaurant outlets
+    const allRestaurantOrders = await db.posOrder.findMany({
+      where: { outletId: { in: restaurantOutletIds }, tableNumber: { not: null } },
+      select: { tableNumber: true },
+      distinct: ['tableNumber'],
+      orderBy: { tableNumber: 'asc' },
+    })
+    const allTableNumbers = allRestaurantOrders.map((o) => o.tableNumber!)
+    const occupiedTableNumbers = new Set(
+      activeOrders.filter((o) => o.tableNumber != null).map((o) => o.tableNumber!)
+    )
+
+    // Create table entries for each known table number
+    const tables: TableItem[] = allTableNumbers.map((tn) => {
+      const activeOrder = activeOrders.find((o) => o.tableNumber === tn)
+      if (activeOrder) {
+        return {
+          id: tn,
+          seats: activeOrder.guestCount || 4,
+          status: 'occupied' as const,
+          guestCount: activeOrder.guestCount,
+          orderId: activeOrder.id,
+        }
+      }
+      return { id: tn, seats: 4, status: 'available' as const }
+    })
+
+    // Guest reservations (in-house guests)
+    const guestReservations = await db.reservation.findMany({
+      where: { status: 'checked_in' },
+      include: {
+        guest: { select: { firstName: true, lastName: true } },
+        room: { select: { roomNumber: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    const formattedGuestReservations = guestReservations.map((r) => ({
+      id: r.id,
+      guestName: r.guest
+        ? `${r.guest.firstName} ${r.guest.lastName}`
+        : 'Unknown Guest',
+      roomNumber: r.room?.roomNumber || '—',
     }))
-    data.guestReservations = GUEST_RESERVATIONS
+
+    data.tables = tables
+    data.menuItems = menuItems
+    data.orders = orders
+    data.guestReservations = formattedGuestReservations
   }
 
+  // ─── Bar section ───
   if (section === 'all' || section === 'bar') {
-    // Fetch bar menu items from DB
-    const barOutlets = await db.outlet.findMany({ where: { type: 'bar', active: true }, include: { menuItems: true } })
-    const barMenuItems = barOutlets.flatMap((o) => o.menuItems.map((m) => ({
+    const barMenuItems: MenuItem[] = barOutlets.flatMap((o) =>
+      o.menuItems.map((m) => ({
+        id: m.id,
+        name: m.name,
+        price: m.price,
+        category: m.category,
+        available: m.available,
+        allergens: m.allergens ? JSON.parse(m.allergens) : undefined,
+      }))
+    )
+
+    // Active bar orders represent occupied stools
+    const activeBarOrders = await db.posOrder.findMany({
+      where: { outletId: { in: barOutletIds }, status: { notIn: ['closed', 'voided'] } },
+      include: {
+        items: { include: { menuItem: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    // Determine stool count from all historical bar orders with tableNumber
+    const allBarOrders = await db.posOrder.findMany({
+      where: { outletId: { in: barOutletIds }, tableNumber: { not: null } },
+      select: { tableNumber: true },
+      distinct: ['tableNumber'],
+      orderBy: { tableNumber: 'asc' },
+    })
+    const allStoolNumbers = allBarOrders.map((o) => o.tableNumber!)
+    const maxStoolNumber = allStoolNumbers.length > 0 ? Math.max(...allStoolNumbers) : 0
+
+    // Map active orders to their stool numbers
+    const orderToStool = new Map<string, number>()
+    for (const order of activeBarOrders) {
+      if (order.tableNumber != null) {
+        orderToStool.set(order.id, order.tableNumber)
+      }
+    }
+    // For orders without tableNumber, assign sequential stool numbers starting after max used
+    let nextStool = maxStoolNumber + 1
+    for (const order of activeBarOrders) {
+      if (order.tableNumber == null) {
+        orderToStool.set(order.id, nextStool++)
+      }
+    }
+
+    const totalStoolCount = Math.max(maxStoolNumber, nextStool - 1, 0)
+    const barStools: BarStool[] = []
+    for (let i = 1; i <= totalStoolCount; i++) {
+      const activeOrder = activeBarOrders.find((o) => orderToStool.get(o.id) === i)
+      if (activeOrder) {
+        barStools.push({
+          id: i,
+          status: 'occupied',
+          tabId: activeOrder.id,
+          guestName: activeOrder.serverName || `Guest ${i}`,
+        })
+      } else {
+        barStools.push({ id: i, status: 'available' })
+      }
+    }
+
+    // Build bar tabs from active orders
+    const barTabs: BarTab[] = activeBarOrders.map((o) => {
+      const stoolId = orderToStool.get(o.id) || 1
+      return {
+        id: o.id,
+        stoolId,
+        guestName: o.serverName || `Guest ${stoolId}`,
+        items: o.items.map((i) => ({
+          id: i.id,
+          menuItemId: i.menuItemId,
+          name: i.menuItem?.name || 'Unknown',
+          price: i.unitPrice,
+          quantity: i.quantity,
+          notes: i.notes || undefined,
+        })),
+        total: o.totalAmount,
+        openedAt: o.createdAt.toISOString(),
+        status: 'open' as const,
+      }
+    })
+
+    data.barStools = barStools
+    data.barTabs = barTabs.filter((t) => t.status === 'open')
+    data.barMenuItems = barMenuItems
+  }
+
+  // ─── Spa section ───
+  if (section === 'all' || section === 'spa') {
+    // Spa services from menu items
+    const spaServices: SpaService[] = spaOutlets.flatMap((o) =>
+      o.menuItems.map((m) => ({
+        id: m.id,
+        name: m.name,
+        duration: 60, // default since MenuItem has no duration field
+        price: m.price,
+        category: m.category,
+      }))
+    )
+
+    // Therapists from Employee records in Spa department
+    const therapists = await db.employee.findMany({
+      where: { department: { contains: 'Spa', mode: 'insensitive' }, status: 'active' },
+      orderBy: { firstName: 'asc' },
+    })
+    const formattedTherapists: Therapist[] = therapists.map((e) => ({
+      id: e.id,
+      name: `${e.firstName} ${e.lastName}`,
+      specialties: [e.position || 'general'],
+      status: 'available' as const,
+    }))
+
+    // Spa appointments from active PosOrders for spa outlets
+    const activeSpaOrders = await db.posOrder.findMany({
+      where: {
+        outletId: { in: spaOutletIds },
+        status: { in: ['open', 'in_progress'] },
+      },
+      include: {
+        items: { include: { menuItem: { select: { name: true } } } },
+        outlet: { select: { name: true, location: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+    const spaAppointments: SpaAppointment[] = activeSpaOrders.map((o) => {
+      const firstItem = o.items[0]
+      return {
+        id: o.id,
+        serviceId: firstItem?.menuItemId || '',
+        serviceName: firstItem?.menuItem?.name || 'Spa Service',
+        therapistId: '',
+        therapistName: o.serverName || '',
+        guestName: o.serverName || 'Guest',
+        startTime: o.createdAt.toISOString(),
+        endTime: new Date(o.createdAt.getTime() + 60 * 60000).toISOString(),
+        status: o.status === 'in_progress' ? 'in_progress' : 'scheduled',
+        room: o.outlet?.location || o.outlet?.name || 'Spa Room',
+      }
+    })
+
+    // Mark therapists as busy if they are assigned to an active appointment
+    for (const apt of spaAppointments) {
+      if (apt.therapistName) {
+        const therapist = formattedTherapists.find((t) => t.name === apt.therapistName)
+        if (therapist) {
+          therapist.status = 'busy'
+        }
+      }
+    }
+
+    data.spaServices = spaServices
+    data.therapists = formattedTherapists
+    data.appointments = spaAppointments
+  }
+
+  // ─── Business Center section ───
+  if (section === 'all' || section === 'business-center') {
+    // All business center menu items as services
+    const bizServices: BizService[] = bizCenterOutlets.flatMap((o) =>
+      o.menuItems.map((m) => ({
+        id: m.id,
+        name: m.name,
+        category: m.category,
+        pricePerUnit: m.price,
+        unit: m.category === 'printing' ? 'page' : m.category === 'calls' ? 'minute' : m.category === 'courier' ? 'delivery' : 'hour',
+        description: '',
+      }))
+    )
+
+    // Meeting rooms from business center menu items with category 'meeting_room'
+    const meetingRoomItems = bizCenterOutlets.flatMap((o) =>
+      o.menuItems.filter((m) => m.category === 'meeting_room')
+    )
+    // Get active orders for meeting room items to determine status
+    const meetingRoomOrderIds = new Set<string>()
+    const activeBizOrders = await db.posOrder.findMany({
+      where: { outletId: { in: bizCenterOutletIds }, status: { notIn: ['closed', 'voided'] } },
+      include: { items: { select: { menuItemId: true } } },
+    })
+    for (const order of activeBizOrders) {
+      for (const item of order.items) {
+        if (meetingRoomItems.some((m) => m.id === item.menuItemId)) {
+          meetingRoomOrderIds.add(item.menuItemId)
+        }
+      }
+    }
+    const meetingRooms: MeetingRoom[] = meetingRoomItems.map((m) => ({
       id: m.id,
       name: m.name,
-      price: m.price,
-      category: m.category,
-      available: m.available,
-      allergens: m.allergens ? JSON.parse(m.allergens) : undefined,
-    })))
+      capacity: 8, // default since MenuItem has no capacity field
+      hourlyRate: m.price,
+      status: meetingRoomOrderIds.has(m.id) ? 'occupied' : 'available',
+    }))
 
-    data.barStools = BAR_STOOLS
-    data.barTabs = BAR_TABS.filter((t) => t.status === 'open')
-    data.barMenuItems = barMenuItems.length > 0 ? barMenuItems : [
-      { id: 'b1', name: 'Tuborg Lager', price: 450, category: 'beer', available: true },
-      { id: 'b2', name: 'Gorkha Beer', price: 500, category: 'beer', available: true },
-      { id: 'b4', name: 'Mojito', price: 650, category: 'cocktail', available: true },
-      { id: 'b5', name: 'Margarita', price: 700, category: 'cocktail', available: true },
-      { id: 'b8', name: 'Nepali Wine (Glass)', price: 550, category: 'wine', available: true },
-    ]
+    // Active rentals from open business center orders (excluding meeting rooms)
+    const rentalOrders = activeBizOrders.filter((o) =>
+      o.items.some((item) => !meetingRoomItems.some((m) => m.id === item.menuItemId))
+    )
+    // Enrich with reservation info for guest name and room number
+    const rentalReservationIds = rentalOrders
+      .map((o) => o.reservationId)
+      .filter((id): id is string => id != null)
+    const rentalReservations = rentalReservationIds.length > 0
+      ? await db.reservation.findMany({
+          where: { id: { in: rentalReservationIds } },
+          include: {
+            guest: { select: { firstName: true, lastName: true } },
+            room: { select: { roomNumber: true } },
+          },
+        })
+      : []
+    const reservationMap = new Map(rentalReservations.map((r) => [r.id, r]))
+
+    // Build a lookup for menu item names across all biz center outlets
+    const allBizMenuItems = bizCenterOutlets.flatMap((o) => o.menuItems)
+    const menuItemLookup = new Map(allBizMenuItems.map((m) => [m.id, m]))
+
+    const activeRentals: ActiveRental[] = rentalOrders.map((o) => {
+      const firstNonMeetingItem = o.items.find(
+        (item) => !meetingRoomItems.some((m) => m.id === item.menuItemId)
+      )
+      const res = o.reservationId ? reservationMap.get(o.reservationId) : null
+      const serviceMenuItem = firstNonMeetingItem ? menuItemLookup.get(firstNonMeetingItem.menuItemId) : null
+      return {
+        id: o.id,
+        serviceId: firstNonMeetingItem?.menuItemId || '',
+        serviceName: serviceMenuItem?.name || 'Service',
+        guestName: res?.guest
+          ? `${res.guest.firstName} ${res.guest.lastName}`
+          : o.serverName || 'Guest',
+        roomNumber: res?.room?.roomNumber || '—',
+        startedAt: o.createdAt.toISOString(),
+        estimatedEnd: new Date(o.createdAt.getTime() + 60 * 60000).toISOString(),
+        charges: o.totalAmount,
+      }
+    })
+
+    data.bizServices = bizServices
+    data.meetingRooms = meetingRooms
+    data.activeRentals = activeRentals
   }
 
-  if (section === 'all' || section === 'spa') {
-    data.spaServices = SPA_SERVICES
-    data.therapists = THERAPISTS
-    data.appointments = SPA_APPOINTMENTS
-  }
-
-  if (section === 'all' || section === 'business-center') {
-    data.bizServices = BIZ_SERVICES
-    data.meetingRooms = MEETING_ROOMS
-    data.activeRentals = ACTIVE_RENTALS
-  }
-
+  // ─── Kitchen Display section ───
   if (section === 'all' || section === 'kitchen-display') {
-    data.kitchenTickets = KITCHEN_TICKETS
+    // Kitchen tickets from OrderItems with pending/preparing/ready status
+    // for restaurant and bar outlets
+    const fAndBOutletIds = [...restaurantOutletIds, ...barOutletIds]
+    const kitchenOrderItems = await db.orderItem.findMany({
+      where: {
+        status: { in: ['pending', 'preparing', 'ready'] },
+        order: {
+          outletId: { in: fAndBOutletIds },
+          status: { notIn: ['closed', 'voided'] },
+        },
+      },
+      include: {
+        order: {
+          include: {
+            outlet: { select: { type: true, name: true } },
+          },
+        },
+        menuItem: { select: { name: true, category: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    // Group items by orderId to form tickets
+    const ticketMap = new Map<string, (typeof kitchenOrderItems)[number][]>()
+    for (const item of kitchenOrderItems) {
+      const existing = ticketMap.get(item.orderId) || []
+      existing.push(item)
+      ticketMap.set(item.orderId, existing)
+    }
+
+    const kitchenTickets: KitchenTicket[] = []
+    for (const [orderId, items] of ticketMap) {
+      const order = items[0].order
+      const station = order.outlet?.type === 'bar' ? 'bar' : 'hot_kitchen'
+      // Check if any item has notes containing 'rush' or 'urgent'
+      const isRush = items.some(
+        (i) => i.notes?.toLowerCase().includes('rush') || i.notes?.toLowerCase().includes('urgent')
+      )
+      const specialNotes = items
+        .map((i) => i.notes)
+        .filter((n): n is string => n != null && n.length > 0 && !n.toLowerCase().includes('rush') && !n.toLowerCase().includes('urgent'))
+        .join('; ') || undefined
+
+      kitchenTickets.push({
+        id: `KT-${orderId.slice(0, 8)}`,
+        orderId,
+        tableId: order.tableNumber || 0,
+        items: items.map((i) => ({
+          name: i.menuItem?.name || 'Unknown',
+          quantity: i.quantity,
+        })),
+        station,
+        status: items[0].status,
+        rush: isRush,
+        specialInstructions: specialNotes,
+        createdAt: items[0].createdAt.toISOString(),
+      })
+    }
+
+    data.kitchenTickets = kitchenTickets
   }
 
+  // ─── Order History section ───
   if (section === 'order-history') {
     const dateFilter = searchParams.get('date')
     const statusFilter = searchParams.get('status') ?? 'all'
@@ -372,7 +584,7 @@ export async function GET(request: NextRequest) {
       include: {
         items: {
           include: { menuItem: { select: { name: true } } },
-          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -420,21 +632,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data)
   }
 
-  // Compute stats from DB
-  const allOrders = await db.posOrder.findMany()
+  // ─── Compute stats from DB ───
+  const today = new Date()
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const [allOrders, todayOrders] = await Promise.all([
+    db.posOrder.findMany(),
+    db.posOrder.findMany({ where: { createdAt: { gte: todayStart } } }),
+  ])
+
   const openOrders = allOrders.filter((o) => o.status !== 'closed' && o.status !== 'voided')
   const completedOrders = allOrders.filter((o) => o.status === 'closed')
-  const revenueToday = allOrders
-    .filter((o) => {
-      const today = new Date()
-      const orderDate = new Date(o.createdAt)
-      return orderDate.getFullYear() === today.getFullYear() && orderDate.getMonth() === today.getMonth() && orderDate.getDate() === today.getDate()
-    })
+  const revenueToday = todayOrders
+    .filter((o) => o.status === 'closed')
     .reduce((sum, o) => sum + o.totalAmount, 0)
   const totalCovers = openOrders.reduce((sum, o) => sum + o.guestCount, 0)
 
+  // Count occupied restaurant tables from DB
+  const occupiedTableCount = await db.posOrder.groupBy({
+    by: ['tableNumber'],
+    where: {
+      outletId: { in: restaurantOutletIds },
+      tableNumber: { not: null },
+      status: { notIn: ['closed', 'voided'] },
+    },
+  })
+
   data.stats = {
-    openTables: TABLES.filter((t) => t.status === 'occupied').length,
+    openTables: occupiedTableCount.length,
     totalCovers,
     revenueToday,
     openOrders: openOrders.length,
@@ -444,7 +669,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data)
 }
 
-// ─── POST Handler - Create Order ────────────────────────────────────
+// ─── POST Handler - Create Order ────────────────────────────────
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth

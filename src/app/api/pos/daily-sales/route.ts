@@ -111,38 +111,18 @@ export async function GET(request: NextRequest) {
       }))
       .sort((a, b) => b.amount - a.amount)
 
-    // ─── Group by payment (derived from paymentStatus) ───────────
-    // Since PosOrder doesn't have a paymentMethod field:
-    // "paid" orders → Cash (default), "unpaid" → Room Charge
+    // ─── Group by payment ─────────────────
+    // Since PosOrder doesn't have a paymentMethod field, we can only distinguish
+    // paid vs unpaid (room charge). Report actual totals without fabrication.
     const paymentMap = new Map<string, { method: string; amount: number; icon: string }>()
-    paymentMap.set('Cash', { method: 'Cash', amount: 0, icon: 'banknote' })
-    paymentMap.set('Card', { method: 'Card', amount: 0, icon: 'creditcard' })
-    paymentMap.set('Mobile (eSewa/Khalti)', { method: 'Mobile (eSewa/Khalti)', amount: 0, icon: 'smartphone' })
     paymentMap.set('Room Charge', { method: 'Room Charge', amount: 0, icon: 'bed' })
+    paymentMap.set('Paid', { method: 'Paid', amount: 0, icon: 'creditcard' })
 
     for (const order of orders) {
       if (order.paymentStatus === 'unpaid') {
-        // Unpaid closed orders are room charges (charged to folio)
         paymentMap.get('Room Charge')!.amount += order.totalAmount || 0
       } else {
-        // Paid orders: distribute among Cash/Card/Mobile based on outlet type
-        // This is an approximation since we don't have paymentMethod field
-        const outletType = order.outlet?.type || ''
-        if (outletType === 'bar') {
-          // Bars tend to have more card/mobile payments
-          paymentMap.get('Card')!.amount += (order.totalAmount || 0) * 0.5
-          paymentMap.get('Mobile (eSewa/Khalti)')!.amount += (order.totalAmount || 0) * 0.3
-          paymentMap.get('Cash')!.amount += (order.totalAmount || 0) * 0.2
-        } else if (outletType === 'spa') {
-          paymentMap.get('Card')!.amount += (order.totalAmount || 0) * 0.6
-          paymentMap.get('Cash')!.amount += (order.totalAmount || 0) * 0.3
-          paymentMap.get('Mobile (eSewa/Khalti)')!.amount += (order.totalAmount || 0) * 0.1
-        } else {
-          // Restaurant, room service, etc.
-          paymentMap.get('Cash')!.amount += (order.totalAmount || 0) * 0.5
-          paymentMap.get('Card')!.amount += (order.totalAmount || 0) * 0.35
-          paymentMap.get('Mobile (eSewa/Khalti)')!.amount += (order.totalAmount || 0) * 0.15
-        }
+        paymentMap.get('Paid')!.amount += order.totalAmount || 0
       }
     }
 
