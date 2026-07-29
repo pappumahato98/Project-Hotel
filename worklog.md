@@ -1315,3 +1315,29 @@ Stage Summary:
 - Dashboard shows Live Activity Feed and Realtime Status Card
 - Room Board auto-refreshes when room status changes via realtime
 - UserPresence table created for future presence tracking
+---
+Task ID: vercel-audit
+Agent: main
+Task: Comprehensive Vercel deployment audit — visit deployment, find all errors
+
+Work Log:
+- Attempted to visit https://project-i3ind2to2-pappumahato98-7206s-projects.vercel.app/
+- Found CRITICAL: Vercel SSO Protection blocks all access — redirects to vercel.com/login
+- Launched 3 parallel sub-agents to audit: (1) all API routes, (2) all frontend components, (3) database/Supabase config
+- Each sub-agent read every file in their scope and produced detailed reports
+- Verified audit findings against actual code — 2 false positives eliminated (reservations/health syntax errors were already correct)
+- Fixed 13 confirmed issues across 13 files
+- Pushed commit c61c4a0 to GitHub
+
+Stage Summary:
+- CRITICAL (User Action): Vercel SSO Protection must be disabled in Vercel Dashboard → Settings → Deployment Protection
+- CRITICAL (User Action): 5 Supabase env vars must be set in Vercel Dashboard → Settings → Environment Variables
+- FIXED: broadcast.ts localhost:3004 → safe no-op
+- FIXED: folio PATCH raw body → field whitelisting
+- FIXED: departures email-receipt wrong Prisma relation
+- FIXED: realtime trigger non-existent orderType column
+- FIXED: operations route dead variance calculation
+- FIXED: debug route missing auth (was publicly accessible)
+- FIXED: not-found.tsx, error.tsx, unused imports
+- CLEANUP: deleted ensure-db.ts (SQLite leftover) and rls-policies.sql (duplicate)
+- Remaining non-critical items: ~2,400 lines dead code in unused HR components, inconsistent query key usage, hardcoded mock data in operations module, no pagination on list endpoints
