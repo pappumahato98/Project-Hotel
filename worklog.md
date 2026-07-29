@@ -1280,3 +1280,38 @@ Stage Summary:
   13. trg_night_audit_close_shifts (NightAudit) — Close cashier shifts on audit completion
   14. trg_hk_task_room_status (HkTask) — Cleaned→inspected, Inspected→vacant_clean
   15. trg_prevent_double_booking (Reservation) — Overbooking prevention guard
+
+---
+Task ID: 3
+Agent: main
+Task: Build Supabase Realtime Experiences
+
+Work Log:
+- Created migration `supabase/migrations/20260729000003_realtime_enable.sql`:
+  - Enabled Supabase Realtime publication on 20 key tables (Room, Reservation, Guest, Folio, FolioTransaction, FolioPayment, HkTask, WorkOrder, PosOrder, OrderItem, InventoryItem, SecurityEvent, ActivityLog, RoomRatePosting, NightAudit, CashierShift, DailyRate, Outlet, MenuItem, Employee)
+  - Created `fn_realtime_broadcast()` helper for pg_notify events
+  - Created 10 broadcast triggers: room status, reservation events, payment events, HK task events, work order events, security events, POS events, activity log, folio transaction, inventory alerts
+  - Created UserPresence table for online status tracking with stale cleanup function
+- Built frontend realtime layer:
+  - `src/lib/realtime.ts` — Supabase Realtime client utilities (subscribeToTable, subscribeToBroadcast, sendBroadcast, trackPresence)
+  - `src/lib/realtime-notifications.ts` — Zustand notification store (RealtimeNotification type, useNotificationStore with add/markRead/clear, category/severity helpers, formatRelativeTime)
+  - `src/hooks/use-realtime.ts` — Comprehensive realtime hooks (useRealtimeProvider subscribes to 9 tables, useRealtimeSubscription for per-module, usePresence for online tracking)
+- Built realtime notification UI:
+  - `src/components/shared/notification-bell.tsx` — Dynamic NotificationBell (replaces static hardcoded bell), RealtimeStatusIndicator, EmptyNotifications, LiveActivityFeed
+  - `src/components/shared/realtime-provider.tsx` — RealtimeProvider wrapper with connection indicator badge
+- Updated header (`src/components/layout/header.tsx`) — replaced hardcoded notification dropdown with live NotificationBell component
+- Updated providers (`src/components/providers.tsx`) — wrapped children with RealtimeProvider
+- Integrated realtime subscriptions into key modules:
+  - RoomBoard.tsx — subscribes to Room INSERT/UPDATE, auto-refetch on changes
+  - DashboardModule.tsx — added LiveActivityFeed and RealtimeStatusCard with channel list, connection status, and event count breakdown
+- Verified: lint passes with 0 errors, dev server compiles and serves 200 responses
+
+Stage Summary:
+- Supabase Realtime is fully integrated: database-side (publication + broadcast triggers) and client-side (hooks + store + UI)
+- 20 tables enabled for realtime postgres_changes subscriptions
+- 10 broadcast triggers send categorized events through pg_notify
+- Frontend automatically receives and displays live notifications with toast alerts for important events
+- Notification bell shows unread count, category icons, severity dots, relative timestamps, mark-all-read/clear-all actions
+- Dashboard shows Live Activity Feed and Realtime Status Card
+- Room Board auto-refreshes when room status changes via realtime
+- UserPresence table created for future presence tracking

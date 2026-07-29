@@ -4,7 +4,7 @@ import * as React from 'react'
 import { apiFetch } from '@/lib/api'
 import { useTheme } from 'next-themes'
 import {
-  Search, Bell, User, Building2,
+  Search, User, Building2,
   Sun, Moon, LogOut, Settings,
   HelpCircle, Check, Clock,
   Shield, Mail, Phone, MapPin, Calendar,
@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore, usePreferencesStore } from '@/lib/store'
 import { DualCalendarDisplay } from '@/components/shared/dual-calendar'
+import { NotificationBell } from '@/components/shared/notification-bell'
 import { NAV_ITEMS, getSubModuleLabel, getDefaultSubModule } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -687,66 +688,8 @@ export function AppHeader() {
           </Button>
         )}
 
-        {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative size-8">
-              <Bell className="size-4" />
-              <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
-                5
-              </span>
-              <span className="sr-only">Notifications</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-72">
-            <DropdownMenuLabel className="flex items-center justify-between">
-              Notifications
-              <Badge variant="secondary" className="text-[10px]">5 new</Badge>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup className="max-h-64 overflow-y-auto">
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="flex h-2 w-2 rounded-full bg-blue-500" />
-                  New reservation from John Smith
-                </div>
-                <span className="text-xs text-muted-foreground pl-4">2 minutes ago</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="flex h-2 w-2 rounded-full bg-amber-500" />
-                  Room 305 checkout reminder
-                </div>
-                <span className="text-xs text-muted-foreground pl-4">15 minutes ago</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="flex h-2 w-2 rounded-full bg-green-500" />
-                  Housekeeping task completed
-                </div>
-                <span className="text-xs text-muted-foreground pl-4">1 hour ago</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="flex h-2 w-2 rounded-full bg-orange-500" />
-                  Low stock alert: Towels
-                </div>
-                <span className="text-xs text-muted-foreground pl-4">2 hours ago</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <span className="flex h-2 w-2 rounded-full bg-purple-500" />
-                  Payment received: NPR 1,250
-                </div>
-                <span className="text-xs text-muted-foreground pl-4">3 hours ago</span>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center text-sm font-medium text-primary cursor-pointer">
-              View all notifications
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* Realtime Notifications */}
+        <NotificationBell />
 
         {/* User menu */}
         <UserMenu key={user?.firstName + '|' + user?.lastName + '|' + (user?.avatarUrl || '').slice(0, 30)} />

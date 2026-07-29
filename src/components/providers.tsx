@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSettingsStore, useAuthStore } from '@/lib/store'
 import { initAuthFetch } from '@/lib/api'
 import { createClient, setAccessToken, getAccessToken } from '@/lib/supabase/client'
+import { RealtimeProvider } from '@/components/shared/realtime-provider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -147,7 +148,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <RealtimeProvider>
+        {children}
+      </RealtimeProvider>
     </QueryClientProvider>
   )
 }

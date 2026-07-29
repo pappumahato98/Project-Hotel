@@ -12,10 +12,13 @@ import {
   AlertTriangle, Star, Clock, ArrowRight, UserCheck, CreditCard,
   Wrench, UtensilsCrossed, FileText, Moon, Coffee, AlertCircle,
   PartyPopper, ChevronUp, ChevronDown, LogOut, WifiOff, RefreshCw,
+  Radio,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useAuthStore, useSettingsStore } from '@/lib/store'
+import { useNotificationStore } from '@/lib/realtime-notifications'
+import { LiveActivityFeed } from '@/components/shared/notification-bell'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -881,6 +884,86 @@ function DashboardError({ error, refetch }: { error: Error; refetch: () => void 
   )
 }
 
+// ─── Realtime Status Card ────────────────────────────────────────────────
+function RealtimeStatusCard() {
+  const { isConnected, channelCount } = useNotificationStore()
+  const notifications = useNotificationStore((s) => s.notifications)
+
+  const categoryCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const n of notifications) {
+      counts[n.category] = (counts[n.category] || 0) + 1
+    }
+    return counts
+  }, [notifications])
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Radio className="size-4" />
+          Realtime Status
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Connection status */}
+        <div className={cn(
+          'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
+          isConnected
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+            : 'bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
+        )}>
+          <span className={cn(
+            'h-2 w-2 rounded-full',
+            isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+          )} />
+          <span className="font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
+          <span className="ml-auto text-xs">
+            {channelCount} channels
+          </span>
+        </div>
+
+        {/* Channel breakdown */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Subscribed Tables</p>
+          {[
+            { name: 'Rooms', key: 'room' },
+            { name: 'Reservations', key: 'reservation' },
+            { name: 'Payments', key: 'payment' },
+            { name: 'Housekeeping', key: 'housekeeping' },
+            { name: 'Maintenance', key: 'maintenance' },
+            { name: 'Security', key: 'security' },
+            { name: 'POS', key: 'pos' },
+            { name: 'Activity', key: 'activity' },
+          ].map((table) => (
+            <div key={table.key} className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{table.name}</span>
+              <span className={cn(
+                'h-1.5 w-1.5 rounded-full',
+                isConnected ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+              )} />
+            </div>
+          ))}
+        </div>
+
+        {/* Event counts */}
+        {notifications.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">Events Received</p>
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(categoryCounts).map(([cat, count]) => (
+                <Badge key={cat} variant="secondary" className="text-[10px] h-5 px-1.5">
+                  {count} {cat}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
   const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
@@ -952,6 +1035,20 @@ export function DashboardModule() {
         {/* 8. Quick Actions */}
         <div className="lg:col-span-1">
           <QuickActions />
+        </div>
+      </div>
+
+      {/* 9. Realtime Live Activity Feed */}
+      <div className="grid gap-2 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <Card>
+            <CardContent className="p-4">
+              <LiveActivityFeed maxHeight="max-h-64" />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-1">
+          <RealtimeStatusCard />
         </div>
       </div>
     </div>

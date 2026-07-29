@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { useRealtimeSubscription } from '@/hooks/use-realtime'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomDetailDrawer } from './RoomDetailDrawer'
 import { Card, CardContent } from '@/components/ui/card'
@@ -543,6 +544,12 @@ export function RoomBoard() {
     queryFn: () => apiFetch('/api/rooms'),
     staleTime: 30_000, // 30s stale time for near-real-time
     refetchInterval: 60_000, // Auto refresh every minute
+  })
+
+  // Subscribe to realtime room status changes — auto-refetch on update
+  useRealtimeSubscription('Room', {
+    onUpdate: () => { refetch() },
+    onInsert: () => { refetch() },
   })
 
   // Filter rooms
