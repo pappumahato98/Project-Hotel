@@ -1248,3 +1248,35 @@ Stage Summary:
 - Dev server runs stably on port 3000
 - Auth system: retry (3x), timeout (10s), fallback login, auto-retry on network errors
 - All 3 tasks complete: (1) Auth freeze fix, (2) Supabase migrations, (3) middleware cleanup
+
+---
+Task ID: 3
+Agent: main
+Task: Build Supabase Database Triggers
+
+Work Log:
+- Analyzed full Prisma schema (46 models) to design hotel PMS-specific triggers
+- Created 14 trigger functions and 15 triggers across 10 tables
+- Migration file: supabase/migrations/20260729000002_db_triggers.sql
+- Executed migration via pg client (direct session pooler connection)
+- Marked migration as applied in Supabase migration history
+- Verified: all 15 triggers active, all 14 functions valid
+- Tested: Inventory low-stock alert ✓, Folio balance auto-sync ✓
+
+Stage Summary:
+- 15 Triggers installed on 10 tables:
+  1. trg_reservation_room_status (Reservation) — Check-in→occupied, Check-out→vacant_dirty+HK task, Cancel→release
+  2. trg_folio_trans_balance (FolioTransaction) — Auto-recalculate folio balance
+  3. trg_folio_payment_balance (FolioPayment) — Auto-recalculate folio balance
+  4. trg_reservation_status_log (Reservation) — Auto-activity log on status changes
+  5. trg_guest_stats_checkout (Reservation) — Update totalStays/revenue/loyalty on check-out
+  6. trg_pos_order_total (OrderItem) — Auto-calculate POS order totals
+  7. trg_inventory_low_stock (InventoryItem) — Low stock alert to SecurityEvent
+  8. trg_payment_sync_reservation (FolioPayment) — Sync paidAmount to reservation
+  9. trg_work_order_room (WorkOrder) — Emergency→out_of_order, Complete→vacant_dirty
+  10. trg_journal_balance_check (JournalEntry) — Debit≠Credit validation before posting
+  11. trg_room_rate_posting_folio (RoomRatePosting) — Auto-create FolioTransaction
+  12. trg_auto_close_folio (Reservation) — Close folios on check-out
+  13. trg_night_audit_close_shifts (NightAudit) — Close cashier shifts on audit completion
+  14. trg_hk_task_room_status (HkTask) — Cleaned→inspected, Inspected→vacant_clean
+  15. trg_prevent_double_booking (Reservation) — Overbooking prevention guard
