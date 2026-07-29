@@ -1448,3 +1448,39 @@ Stage Summary:
 - Cache: 5-min server-side TTL eliminates redundant DB queries
 - PgBouncer: hardened with connection limits, statement cache disabled, retry logic
 - Awaiting Vercel build deployment (large project, build takes 5+ minutes)
+
+---
+Task ID: 4
+Agent: main + 2 sub-agents
+Task: Fix auth page, slow modules, CRUD operations
+
+Work Log:
+- Rebuilt auth page (login-page.tsx) with new clean design:
+  - Sign In / Sign Up tabs using Radix Tabs
+  - Forgot Password dialog using Radix Dialog + supabase.auth.resetPasswordForEmail()
+  - Sign Up with firstName, lastName, email, password, confirm password
+  - Removed exposed demo credentials box
+  - Enterprise SaaS design with amber theme
+- Converted 9 React.lazy() modules to eager imports in app-shell.tsx:
+  - RoomManagementModule, PosModule, OperationsModule, EventsModule
+  - AccountingModule, InventoryModule, MaintenanceModule
+  - RevenueModule, ChannelManagerModule
+  - Removed Suspense wrapper and preload block
+- Fixed Room CRUD bug in RoomDetailDrawer.tsx:
+  - handleStatusChange and handleOOO were fake stubs (only toast, no API call)
+  - Added useMutation with PATCH /api/rooms/[id] + cache invalidation
+- Verified Reservations CRUD: create, edit, cancel, noshow all working
+- Verified Inventory CRUD: stock, vendors, POs, requisitions all working
+- Pushed to GitHub: commit fc1b76c
+- Verified on Vercel (project-neo-theta.vercel.app):
+  - New auth page renders with Sign In/Sign Up tabs
+  - Forgot Password dialog opens and works
+  - Login succeeds, dashboard loads with real data
+  - Room Management loads instantly (no lazy delay), shows 81 rooms
+  - All API calls return 200
+
+Stage Summary:
+- Auth: ✅ New design with Sign In, Sign Up, Forgot Password
+- Performance: ✅ All modules now eager-loaded (no lazy delays)
+- CRUD: ✅ Room status changes now call real API, Reservations/Inventory verified
+- Vercel: ✅ Verified working end-to-end on project-neo-theta.vercel.app
