@@ -9,10 +9,8 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/sidebar-nav'
 import { AppHeader } from '@/components/layout/header'
 
-// ─── Eagerly loaded: Dashboard (default view, first thing users see) ──
-import { DashboardModule } from '@/components/modules/dashboard/DashboardModule'
-
-// ─── Lazy loaded: all other modules (loaded on demand) ──
+// ─── All modules lazy loaded to keep initial bundle small ──
+const DashboardModule = React.lazy(() => import('@/components/modules/dashboard/DashboardModule').then(m => ({ default: m.DashboardModule })))
 const FrontDeskModule = React.lazy(() => import('@/components/modules/front-desk/FrontDeskModule').then(m => ({ default: m.FrontDeskModule })))
 const SettingsModule = React.lazy(() => import('@/components/modules/settings/SettingsModule').then(m => ({ default: m.SettingsModule })))
 const ProfileModule = React.lazy(() => import('@/components/modules/profile/ProfileModule').then(m => ({ default: m.ProfileModule })))
@@ -78,11 +76,9 @@ function ModulePlaceholder({ moduleId, subModuleId }: { moduleId: string; subMod
 function MainContent() {
   const { activeModule, activeSubModule } = useNavigationStore()
 
-  // Eagerly loaded
-  if (activeModule === 'dashboard') return <DashboardModule />
-
-  // Lazy loaded modules
+  // All modules lazy loaded
   const LazyModules: Record<string, React.LazyExoticComponent<any>> = {
+    'dashboard': DashboardModule,
     'front-desk': FrontDeskModule,
     'settings': SettingsModule,
     'profile': ProfileModule,

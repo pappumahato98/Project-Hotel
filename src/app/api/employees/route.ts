@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -55,24 +56,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No property found' }, { status: 400 })
     }
 
-    const employee = await db.employee.create({
-      data: {
-        firstName: body.firstName,
-        lastName: body.lastName,
-        email: body.email || null,
-        phone: body.phone || null,
-        department: body.department || '',
-        position: body.position || '',
-        role: body.role || 'staff',
-        propertyId: body.propertyId || property.id,
-        hireDate: body.hireDate ? new Date(body.hireDate) : null,
-        salary: body.salary || null,
-        status: body.status || 'active',
-      },
-    })
+    const employee = await withRetry(() =>
+      db.employee.create({
+        data: {
+          firstName: body.firstName,
+          lastName: body.lastName,
+          email: body.email || null,
+          phone: body.phone || null,
+          department: body.department || '',
+          position: body.position || '',
+          role: body.role || 'staff',
+          propertyId: body.propertyId || property.id,
+          hireDate: body.hireDate ? new Date(body.hireDate) : null,
+          salary: body.salary || null,
+          status: body.status || 'active',
+        },
+      }),
+    )
 
+    afterMutation('employees')
     broadcastEvent('employee:created', employee)
-    return NextResponse.json(employee, { status: 201 })
+    return NextResponse.json({ employee }, { status: 201 })
   } catch (error) {
     console.error('Employees POST error:', error)
     return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 })

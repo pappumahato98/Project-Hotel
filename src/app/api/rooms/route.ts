@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // Allow up to 60s on Vercel (Hobby plan default is 10s — this prevents timeouts)
@@ -119,5 +120,46 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Rooms API error:', error)
     return NextResponse.json({ error: 'Failed to fetch rooms' }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+  try {
+    const body = await req.json()
+    const { number, typeId, status, floor, wing, notes, propertyId } = body
+
+    // Validate required fields
+    if (!number || !typeId || !status || floor === undefined) {
+      return NextResponse.json(
+        { error: 'Missing required fields: number, typeId, status, floor' },
+        { status: 400 },
+      )
+    }
+
+    const createdRoom = await withRetry(() =>
+      db.room.create({
+        data: {
+          number,
+          typeId,
+          status,
+          floor,
+          wing: wing || null,
+          notes: notes || null,
+          propertyId: propertyId || null,
+        },
+        include: {
+          type: true,
+          property: true,
+        },
+      }),
+    )
+
+    afterMutation('rooms')
+    return NextResponse.json({ room: createdRoom }, { status: 201 })
+  } catch (error) {
+    console.error('Create room error:', error)
+    return NextResponse.json({ error: 'Failed to create room' }, { status: 500 })
   }
 }

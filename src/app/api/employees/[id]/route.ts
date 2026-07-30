@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -22,7 +23,7 @@ export async function GET(
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    return NextResponse.json(employee)
+    return NextResponse.json({ employee })
   } catch (error) {
     console.error('Employee GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch employee' }, { status: 500 })
@@ -52,16 +53,19 @@ export async function PATCH(
     if (body.status) data.status = body.status
     if (body.avatarUrl !== undefined) data.avatarUrl = body.avatarUrl
 
-    const employee = await db.employee.update({
-      where: { id },
-      data,
-      include: {
-        property: { select: { id: true, name: true, code: true } },
-      },
-    })
+    const employee = await withRetry(() =>
+      db.employee.update({
+        where: { id },
+        data,
+        include: {
+          property: { select: { id: true, name: true, code: true } },
+        },
+      }),
+    )
 
+    afterMutation('employees')
     broadcastEvent('employee:updated', employee)
-    return NextResponse.json(employee)
+    return NextResponse.json({ employee })
   } catch (error) {
     console.error('Employee PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update employee' }, { status: 500 })
@@ -76,7 +80,8 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
-    await db.employee.delete({ where: { id } })
+    await withRetry(() => db.employee.delete({ where: { id } }))
+    afterMutation('employees')
     broadcastEvent('employee:deleted', { id })
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -138,32 +139,38 @@ export async function POST(request: NextRequest) {
     const { action, ...data } = body
 
     if (action === 'create_rate_plan') {
-      const ratePlan = await db.ratePlan.create({
-        data: {
-          name: data.name,
-          code: data.code || `RP-${Date.now()}`,
-          propertyId: data.propertyId || '',
-          roomTypeId: data.roomTypeId || null,
-          baseRate: data.baseRate || 0,
-          channel: data.channel || 'direct',
-          active: data.active !== false,
-        },
-      })
+      const ratePlan = await withRetry(() =>
+        db.ratePlan.create({
+          data: {
+            name: data.name,
+            code: data.code || `RP-${Date.now()}`,
+            propertyId: data.propertyId || '',
+            roomTypeId: data.roomTypeId || null,
+            baseRate: data.baseRate || 0,
+            channel: data.channel || 'direct',
+            active: data.active !== false,
+          },
+        }),
+      )
+      afterMutation('revenue')
       broadcastEvent('rate_plan:created', ratePlan)
-      return NextResponse.json(ratePlan, { status: 201 })
+      return NextResponse.json({ ratePlan }, { status: 201 })
     }
 
     if (action === 'create_daily_rate') {
-      const dailyRate = await db.dailyRate.create({
-        data: {
-          ratePlanId: data.ratePlanId,
-          date: new Date(data.date),
-          rate: data.rate,
-          available: data.available || 0,
-        },
-      })
+      const dailyRate = await withRetry(() =>
+        db.dailyRate.create({
+          data: {
+            ratePlanId: data.ratePlanId,
+            date: new Date(data.date),
+            rate: data.rate,
+            available: data.available || 0,
+          },
+        }),
+      )
+      afterMutation('revenue')
       broadcastEvent('daily_rate:created', dailyRate)
-      return NextResponse.json(dailyRate, { status: 201 })
+      return NextResponse.json({ dailyRate }, { status: 201 })
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })

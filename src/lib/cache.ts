@@ -69,6 +69,65 @@ export function invalidateDashboardCache(): void {
 }
 
 /**
+ * Invalidate ALL cache entries (nuclear option — use sparingly).
+ */
+export function invalidateAllCache(): void {
+  store.clear()
+}
+
+/**
+ * Convenience: invalidate caches related to a specific module after a mutation.
+ * Call this after every successful POST / PATCH / DELETE.
+ *
+ * Usage:
+ *   afterMutation('rooms')          // invalidates room-related + dashboard caches
+ *   afterMutation('reservations')    // invalidates reservation-related + dashboard caches
+ *   afterMutation()                   // invalidates everything (dashboard + all module data)
+ */
+export function afterMutation(module?: string): void {
+  // Always invalidate dashboard (it aggregates everything)
+  invalidateDashboardCache()
+
+  if (!module) {
+    invalidateAllCache()
+    return
+  }
+
+  // Module-specific cache keys
+  const moduleKeys: Record<string, string[]> = {
+    rooms: ['rooms', 'room-status', 'room-types'],
+    reservations: ['reservations', 'arrivals', 'departures', 'in-house'],
+    guests: ['guests', 'guest-directory'],
+    folio: ['folio', 'folio-transactions', 'guest-ledger'],
+    'check-in': ['rooms', 'reservations', 'in-house', 'arrivals'],
+    employees: ['employees'],
+    'work-orders': ['work-orders', 'maintenance'],
+    housekeeping: ['housekeeping', 'hk-tasks', 'hk-workflow'],
+    inventory: ['inventory', 'stock', 'purchase-orders', 'requisitions'],
+    pos: ['pos', 'pos-orders', 'pos-daily-sales'],
+    settings: ['settings', 'system-settings'],
+    accounting: ['accounting', 'journal', 'ledger', 'financial-reports'],
+    events: ['events', 'banquet-orders'],
+    revenue: ['revenue', 'rate-plans', 'demand-calendar'],
+    channels: ['channels', 'channel-bookings'],
+    hr: ['hr', 'employees', 'attendance', 'payroll', 'schedules', 'leave', 'training'],
+    operations: ['operations', 'night-audit', 'shift-handover', 'cashier'],
+    maintenance: ['maintenance', 'work-orders', 'assets'],
+  }
+
+  const keys = moduleKeys[module]
+  if (keys) {
+    // Delete any cache entry that starts with one of these keys
+    for (const k of store.keys()) {
+      const keyLower = k.toLowerCase()
+      if (keys.some(prefix => keyLower.includes(prefix.toLowerCase()))) {
+        store.delete(k)
+      }
+    }
+  }
+}
+
+/**
  * Debug helper — returns cache size (used in dev only).
  */
 export function getCacheStats(): { size: number; keys: string[] } {

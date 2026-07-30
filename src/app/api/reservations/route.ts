@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 import { adToBS } from '@/lib/nepali-calendar'
+import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Nepali Fiscal Year Helpers ─────────────────────────────
@@ -294,7 +295,8 @@ export async function POST(request: NextRequest) {
     const taxAmount = subtotal * (taxRate / 100)
     const totalAmount = subtotal + taxAmount
 
-    const reservation = await db.reservation.create({
+    const reservation = await withRetry(() =>
+      db.reservation.create({
       data: {
         confirmationNo,
         reservationNumber,
@@ -343,8 +345,11 @@ export async function POST(request: NextRequest) {
         room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true, bedConfig: true } } } },
         bookingContact: true,
       },
-    })
+      }),
+    )
 
+
+    afterMutation('reservations')
     return NextResponse.json({ reservation }, { status: 201 })
   } catch (error) {
     console.error('Create reservation error:', error)

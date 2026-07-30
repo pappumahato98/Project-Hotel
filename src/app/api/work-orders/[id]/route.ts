@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -24,7 +25,7 @@ export async function GET(
       return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
     }
 
-    return NextResponse.json(workOrder)
+    return NextResponse.json({ workOrder })
   } catch (error) {
     console.error('Work Order GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch work order' }, { status: 500 })
@@ -50,18 +51,21 @@ export async function PATCH(
     if (body.assignedTo !== undefined) data.assignedTo = body.assignedTo
     if (body.completedAt) data.completedAt = new Date(body.completedAt)
 
-    const workOrder = await db.workOrder.update({
-      where: { id },
-      data,
-      include: {
-        room: {
-          select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true } } },
+    const workOrder = await withRetry(() =>
+      db.workOrder.update({
+        where: { id },
+        data,
+        include: {
+          room: {
+            select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true } } },
+          },
         },
-      },
-    })
+      }),
+    )
 
+    afterMutation('work-orders')
     broadcastEvent('work_order:updated', workOrder)
-    return NextResponse.json(workOrder)
+    return NextResponse.json({ workOrder })
   } catch (error) {
     console.error('Work Order PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update work order' }, { status: 500 })
@@ -76,7 +80,8 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
-    await db.workOrder.delete({ where: { id } })
+    await withRetry(() => db.workOrder.delete({ where: { id } }))
+    afterMutation('work-orders')
     broadcastEvent('work_order:deleted', { id })
     return NextResponse.json({ success: true })
   } catch (error) {

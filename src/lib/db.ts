@@ -1,10 +1,8 @@
 /**
- * Prisma Client — PostgreSQL via Supabase (with PgBouncer support).
+ * Prisma Client — works with both SQLite (local) and PostgreSQL/Supabase (Vercel).
  *
- * In production (Vercel), DATABASE_URL points to Supabase's PgBouncer port (6543).
- * We inject `pgbouncer=true` and connection-limiting params to prevent
- * 42P05 (prepared statement already exists) and 26000 (invalid SQL statement name)
- * errors that PgBouncer's transaction-mode pooling causes.
+ * When DATABASE_URL starts with `postgresql://`, we inject PgBouncer-compatible
+ * connection params to prevent 42P05/26000 prepared-statement errors.
  */
 import { PrismaClient } from '@prisma/client'
 
@@ -12,13 +10,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-/**
- * Build a PgBouncer-compatible connection URL.
- * Strips any existing query params and appends the required ones.
- */
-function getPgBouncerUrl(): string {
+function buildDatasourceUrl(): string {
   let url = process.env.DATABASE_URL ?? ''
-  if (!url) return url
+  if (!url || !url.startsWith('postgresql://')) return url
 
   // Strip existing query params
   if (url.includes('?')) {
@@ -41,7 +35,7 @@ export const db =
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     datasources: {
       db: {
-        url: getPgBouncerUrl(),
+        url: buildDatasourceUrl(),
       },
     },
   })

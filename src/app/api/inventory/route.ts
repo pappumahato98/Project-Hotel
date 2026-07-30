@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -48,24 +49,27 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
-    const item = await db.inventoryItem.create({
-      data: {
-        name: body.name,
-        category: body.category || '',
-        unit: body.unit || 'piece',
-        currentStock: body.currentStock || 0,
-        reorderPoint: body.reorderPoint || 0,
-        unitCost: body.unitCost || 0,
-        supplier: body.supplier || null,
-        location: body.location || null,
-        minStock: body.minStock || 0,
-        maxStock: body.maxStock || 0,
-        active: body.active !== false,
-      },
-    })
+    const item = await withRetry(() =>
+      db.inventoryItem.create({
+        data: {
+          name: body.name,
+          category: body.category || '',
+          unit: body.unit || 'piece',
+          currentStock: body.currentStock || 0,
+          reorderPoint: body.reorderPoint || 0,
+          unitCost: body.unitCost || 0,
+          supplier: body.supplier || null,
+          location: body.location || null,
+          minStock: body.minStock || 0,
+          maxStock: body.maxStock || 0,
+          active: body.active !== false,
+        },
+      }),
+    )
 
+    afterMutation('inventory')
     broadcastEvent('inventory:created', item)
-    return NextResponse.json(item, { status: 201 })
+    return NextResponse.json({ item }, { status: 201 })
   } catch (error) {
     console.error('Inventory POST error:', error)
     return NextResponse.json({ error: 'Failed to create inventory item' }, { status: 500 })

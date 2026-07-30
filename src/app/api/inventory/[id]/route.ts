@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -17,7 +18,7 @@ export async function GET(
       return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 })
     }
 
-    return NextResponse.json(item)
+    return NextResponse.json({ item })
   } catch (error) {
     console.error('Inventory Item GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch inventory item' }, { status: 500 })
@@ -47,13 +48,16 @@ export async function PATCH(
     if (body.maxStock !== undefined) data.maxStock = body.maxStock
     if (body.active !== undefined) data.active = body.active
 
-    const item = await db.inventoryItem.update({
-      where: { id },
-      data,
-    })
+    const item = await withRetry(() =>
+      db.inventoryItem.update({
+        where: { id },
+        data,
+      }),
+    )
 
+    afterMutation('inventory')
     broadcastEvent('inventory:updated', item)
-    return NextResponse.json(item)
+    return NextResponse.json({ item })
   } catch (error) {
     console.error('Inventory Item PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update inventory item' }, { status: 500 })
@@ -68,7 +72,8 @@ export async function DELETE(
   if (auth instanceof NextResponse) return auth
   try {
     const { id } = await params
-    await db.inventoryItem.delete({ where: { id } })
+    await withRetry(() => db.inventoryItem.delete({ where: { id } }))
+    afterMutation('inventory')
     broadcastEvent('inventory:deleted', { id })
     return NextResponse.json({ success: true })
   } catch (error) {

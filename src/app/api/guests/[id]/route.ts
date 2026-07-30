@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // Fields allowed to be updated via PATCH
@@ -169,10 +170,10 @@ export async function PATCH(
 
     // ─── Room status side-effects for check-in / check-out ─────────
     if (updateData.status === 'checked_in' && updateData.roomId) {
-      await db.room.update({
+      await withRetry(() => db.room.update({
         where: { id: updateData.roomId as string },
         data: { status: 'occupied' },
-      })
+      }))
     }
 
     // If checking out, update the OLD room status (fetch current reservation first)
@@ -197,15 +198,15 @@ export async function PATCH(
       })
       if (currentRes?.status === 'checked_in' && currentRes?.roomId && currentRes.roomId !== updateData.roomId) {
         // Free the old room
-        await db.room.update({
+        await withRetry(() => db.room.update({
           where: { id: currentRes.roomId },
           data: { status: 'vacant_dirty' },
-        })
+        }))
         // Occupy the new room
-        await db.room.update({
+        await withRetry(() => db.room.update({
           where: { id: updateData.roomId as string },
           data: { status: 'occupied' },
-        })
+        }))
       }
     }
 

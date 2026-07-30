@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(
@@ -75,24 +76,49 @@ export async function PATCH(
       updateData.previousStatus = previousStatus
     }
 
-    const updated = await db.room.update({
-      where: { id },
-      data: updateData,
-      include: {
-        type: true,
-        property: true,
-        guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
-        reservation: {
-          select: { id: true, confirmationNo: true, checkIn: true, checkOut: true, roomRate: true, adults: true, children: true, source: true },
-          where: { status: { in: ['confirmed', 'checked_in'] } },
-          orderBy: { checkIn: 'desc' },
-          take: 1,
+    const updated = await withRetry(() =>
+      db.room.update({
+        where: { id },
+        data: updateData,
+        include: {
+          type: true,
+          property: true,
+          guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
+          reservation: {
+            select: { id: true, confirmationNo: true, checkIn: true, checkOut: true, roomRate: true, adults: true, children: true, source: true },
+            where: { status: { in: ['confirmed', 'checked_in'] } },
+            orderBy: { checkIn: 'desc' },
+            take: 1,
+          },
         },
-      },
-    })
+      }),
+    )
+    afterMutation('rooms')
     return NextResponse.json({ room: updated })
   } catch (error) {
     console.error('Room PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update room' }, { status: 500 })
+  }
+}
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireAuth(request, ['admin', 'gm'])
+  if (auth instanceof NextResponse) return auth
+  try {
+    const { id } = await params
+
+    const room = await db.room.findUnique({ where: { id } })
+    if (!room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+    }
+
+    await withRetry(() => db.room.delete({ where: { id } }))
+    afterMutation('rooms')
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Room DELETE error:', error)
+    return NextResponse.json({ error: 'Failed to delete room' }, { status: 500 })
   }
 }
