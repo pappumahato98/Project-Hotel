@@ -210,7 +210,7 @@ export async function PATCH(
       }
     }
 
-    const reservation = await db.reservation.update({
+    const reservation = await withRetry(() => db.reservation.update({
       where: { id },
       data: updateData,
       include: {
@@ -218,8 +218,9 @@ export async function PATCH(
         room: { select: { id: true, number: true, floor: true, wing: true, type: { select: { name: true, code: true, bedConfig: true } } } },
         folios: { select: { id: true, balance: true, status: true } },
       },
-    })
+    }))
 
+    afterMutation('reservations')
     return NextResponse.json({ reservation })
   } catch (error) {
     console.error('Update reservation error:', error)
@@ -248,7 +249,8 @@ export async function DELETE(
       })
     }
 
-    await db.reservation.delete({ where: { id } })
+    await withRetry(() => db.reservation.delete({ where: { id } }))
+    afterMutation('reservations')
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Delete reservation error:', error)

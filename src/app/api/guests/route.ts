@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 })
     }
 
-    const guest = await db.guest.create({
+    const guest = await withRetry(() => db.guest.create({
       data: {
         firstName,
         lastName,
@@ -111,8 +111,9 @@ export async function POST(request: NextRequest) {
         country: country || null,
         vipLevel: vipLevel || 'none',
       },
-    })
+    }))
 
+    afterMutation('guests')
     return NextResponse.json({ guest }, { status: 201 })
   } catch (error) {
     console.error('Create guest error:', error)

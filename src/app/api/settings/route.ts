@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -293,7 +293,7 @@ export async function PUT(request: NextRequest) {
       const serialized = serializeValue(value)
       const category = KEY_CATEGORY_MAP[key] || 'general'
 
-      await db.systemSetting.upsert({
+      await withRetry(() => db.systemSetting.upsert({
         where: { key },
         update: {
           value: serialized,
@@ -307,8 +307,10 @@ export async function PUT(request: NextRequest) {
           type,
           description: undefined,
         },
-      })
+      }))
     }
+
+    afterMutation('settings')
 
     // Return full settings after update
     const settings = await db.systemSetting.findMany()

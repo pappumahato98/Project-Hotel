@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -69,14 +69,49 @@ export async function PATCH(
       return NextResponse.json({ error: 'Last name is required' }, { status: 400 })
     }
 
-    const updated = await db.guest.update({
+    const updated = await withRetry(() => db.guest.update({
       where: { id },
       data,
-    })
+    }))
 
+    afterMutation('guests')
     return NextResponse.json({ guest: updated, message: 'Guest updated successfully' })
   } catch (error) {
     console.error('Update guest error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// DELETE /api/guests/[id] — Delete guest
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+  try {
+    const { id } = await params
+
+    // Check if guest has active reservations
+    const activeReservations = await db.reservation.count({
+      where: {
+        guestId: id,
+        status: { in: ['confirmed', 'checked_in', 'tentative'] },
+      },
+    })
+
+    if (activeReservations > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete guest with ${activeReservations} active reservation(s)` },
+        { status: 409 }
+      )
+    }
+
+    await withRetry(() => db.guest.delete({ where: { id } }))
+    afterMutation('guests')
+    return NextResponse.json({ success: true, message: 'Guest deleted successfully' })
+  } catch (error) {
+    console.error('Delete guest error:', error)
+    return NextResponse.json({ error: 'Failed to delete guest' }, { status: 500 })
   }
 }
