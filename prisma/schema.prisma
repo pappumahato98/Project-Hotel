@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")      // Transaction pooler (port 6543) — for runtime Prisma Client queries
-  directUrl = env("DIRECT_URL")       // Session pooler (port 5432) — for migrations / db push
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ─── AUTH (Profile data — auth credentials live in Supabase Auth) ───
@@ -13,7 +12,7 @@ datasource db {
 // Email/password authentication is handled by Supabase; this table holds
 // app-specific profile data (role, department, name, etc.).
 model AuthUser {
-  id            String   @id @default(uuid())
+  id            String   @id @default(cuid())
   email         String   @unique
   firstName     String
   lastName      String

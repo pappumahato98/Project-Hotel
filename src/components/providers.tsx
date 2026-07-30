@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSettingsStore, useAuthStore } from '@/lib/store'
 import { initAuthFetch } from '@/lib/api'
-import { createClient, setAccessToken, getAccessToken } from '@/lib/supabase/client'
+import { createClient, setAccessToken, getAccessToken, isDemoMode } from '@/lib/supabase/client'
 import { RealtimeProvider } from '@/components/shared/realtime-provider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -21,34 +21,40 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   )
 
-  // Single mount effect: set up Supabase auth listener + register fetch.
-  // This version eliminates the race condition that existed between
-  // onAuthStateChange and getSession() both trying to fetch the profile.
   useEffect(() => {
-    // Skip Supabase setup if env vars aren't configured yet (fresh clone).
-    if (
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    ) {
-      useAuthStore.setState({ _hasHydrated: true })
+    // ── Demo mode: auto-login as admin ──
+    if (isDemoMode()) {
+      // Set demo token for apiFetch
+      setAccessToken('demo-token')
+      initAuthFetch(() => getAccessToken(), () => useAuthStore.getState().user?.id ?? null)
+
+      // Fetch admin profile from API
+      fetch('/api/auth/profile', {
+        headers: { Authorization: 'Bearer demo-token' },
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.user) {
+            useAuthStore.getState().login(data.user, 'demo-token')
+          }
+        })
+        .catch(err => {
+          console.error('Demo login failed:', err)
+        })
+      .finally(() => {
+        useAuthStore.setState({ _hasHydrated: true })
+      })
       return
     }
 
+    // ── Production mode: Supabase auth ──
     const supabase = createClient()
-
-    // Register auth token getter — reads from the in-memory cache kept
-    // in sync by onAuthStateChange below.
     initAuthFetch(
       () => getAccessToken(),
       () => useAuthStore.getState().user?.id ?? null
     )
 
-    // Flag to prevent duplicate profile fetches:
-    // onAuthStateChange fires once for INITIAL_SESSION (triggered by getSession below),
-    // then again for SIGNED_IN (triggered by signInWithPassword).
-    // We only want to fetch the profile once during initialization.
     let initialSessionChecked = false
-    // Guard against concurrent profile fetches
     let profileFetchInProgress = false
 
     const fetchProfile = async (accessToken: string): Promise<boolean> => {
@@ -64,16 +70,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
             useAuthStore.getState().login(data.user, accessToken)
             return true
           }
-        } else {
-          const data = await res.json().catch(() => ({}))
-          console.error('Profile fetch failed:', res.status, data)
-          if (res.status === 403) {
-            // Profile not found in DB — seed data missing?
-            // Don't sign out, let the user see the app but show error
-            if (typeof window !== 'undefined') {
-              console.error('Profile not found in database. Your account may not be registered.')
-            }
-          }
+        } else if (res.status === 403) {
+          console.error('Profile not found in database.')
         }
       } catch (err) {
         console.error('Failed to fetch profile:', err)
@@ -83,27 +81,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
       return false
     }
 
-    // Listen for auth state changes (sign-in, sign-out, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Keep the access-token cache in sync
         setAccessToken(session?.access_token ?? null)
-
         if (event === 'SIGNED_OUT' || !session) {
           useAuthStore.getState().logout()
           useAuthStore.setState({ _hasHydrated: true })
           return
         }
-
-        // SIGNED_IN — user just logged in (or session was restored)
         if (event === 'SIGNED_IN') {
           if (!initialSessionChecked) return
-
           await fetchProfile(session.access_token)
           useAuthStore.setState({ _hasHydrated: true })
         }
-
-        // TOKEN_REFRESHED — token was silently refreshed, just cache it
         if (event === 'TOKEN_REFRESHED') {
           const store = useAuthStore.getState()
           if (store.isAuthenticated && session.access_token) {
@@ -113,12 +103,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     )
 
-    // Initial session check — runs once on mount.
-    // This fires onAuthStateChange with INITIAL_SESSION, which we skip
-    // via the initialSessionChecked flag.
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       initialSessionChecked = true
-
       if (session) {
         setAccessToken(session.access_token ?? null)
         await fetchProfile(session.access_token!)
@@ -131,12 +117,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       useAuthStore.setState({ _hasHydrated: true })
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
+    return () => { subscription.unsubscribe() }
   }, [])
 
-  // Sync settings whenever auth state transitions to authenticated
+  // Sync settings when authenticated
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state, prev) => {
       if (!prev.isAuthenticated && state.isAuthenticated) {
@@ -148,9 +132,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <RealtimeProvider>
-        {children}
-      </RealtimeProvider>
+      {isDemoMode() ? children : <RealtimeProvider>{children}</RealtimeProvider>}
     </QueryClientProvider>
   )
 }

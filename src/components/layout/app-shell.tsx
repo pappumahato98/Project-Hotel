@@ -1,9 +1,7 @@
 'use client'
 
-import {
-  LayoutDashboard,
-} from 'lucide-react'
-
+import React, { Suspense } from 'react'
+import { LayoutDashboard, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNavigationStore } from '@/lib/store'
 import { NAV_ITEMS } from '@/lib/navigation'
@@ -11,26 +9,41 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/sidebar-nav'
 import { AppHeader } from '@/components/layout/header'
 
-// ─── Core modules: direct imports (always fast, no loading spinner) ──
+// ─── Eagerly loaded: Dashboard (default view, first thing users see) ──
 import { DashboardModule } from '@/components/modules/dashboard/DashboardModule'
-import { FrontDeskModule } from '@/components/modules/front-desk/FrontDeskModule'
-import { SettingsModule } from '@/components/modules/settings/SettingsModule'
-import { ProfileModule } from '@/components/modules/profile/ProfileModule'
-import { HousekeepingModule } from '@/components/modules/housekeeping/HousekeepingModule'
-import { CrmModule } from '@/components/modules/crm/CrmModule'
-import { HelpModule } from '@/components/modules/help/HelpModule'
-import HrModule from '@/components/modules/hr/HrModule'
-import RoomManagementModule from '@/components/modules/rooms/RoomManagementModule'
-import PosModule from '@/components/modules/pos/PosModule'
-import OperationsModule from '@/components/modules/operations/OperationsModule'
-import EventsModule from '@/components/modules/events/EventsModule'
-import AccountingModule from '@/components/modules/accounting/AccountingModule'
-import InventoryModule from '@/components/modules/inventory/InventoryModule'
-import MaintenanceModule from '@/components/modules/maintenance/MaintenanceModule'
-import RevenueModule from '@/components/modules/revenue/RevenueModule'
-import ChannelManagerModule from '@/components/modules/channel-manager/ChannelManagerModule'
 
-// ─── Placeholder Content for Modules ─────────────────────────────────
+// ─── Lazy loaded: all other modules (loaded on demand) ──
+const FrontDeskModule = React.lazy(() => import('@/components/modules/front-desk/FrontDeskModule').then(m => ({ default: m.FrontDeskModule })))
+const SettingsModule = React.lazy(() => import('@/components/modules/settings/SettingsModule').then(m => ({ default: m.SettingsModule })))
+const ProfileModule = React.lazy(() => import('@/components/modules/profile/ProfileModule').then(m => ({ default: m.ProfileModule })))
+const HousekeepingModule = React.lazy(() => import('@/components/modules/housekeeping/HousekeepingModule').then(m => ({ default: m.HousekeepingModule })))
+const CrmModule = React.lazy(() => import('@/components/modules/crm/CrmModule').then(m => ({ default: m.CrmModule })))
+const HelpModule = React.lazy(() => import('@/components/modules/help/HelpModule').then(m => ({ default: m.HelpModule })))
+const HrModule = React.lazy(() => import('@/components/modules/hr/HrModule'))
+const RoomManagementModule = React.lazy(() => import('@/components/modules/rooms/RoomManagementModule'))
+const PosModule = React.lazy(() => import('@/components/modules/pos/PosModule'))
+const OperationsModule = React.lazy(() => import('@/components/modules/operations/OperationsModule'))
+const EventsModule = React.lazy(() => import('@/components/modules/events/EventsModule'))
+const AccountingModule = React.lazy(() => import('@/components/modules/accounting/AccountingModule'))
+const InventoryModule = React.lazy(() => import('@/components/modules/inventory/InventoryModule'))
+const MaintenanceModule = React.lazy(() => import('@/components/modules/maintenance/MaintenanceModule'))
+const RevenueModule = React.lazy(() => import('@/components/modules/revenue/RevenueModule'))
+const ChannelManagerModule = React.lazy(() => import('@/components/modules/channel-manager/ChannelManagerModule'))
+
+// ─── Module Loading Spinner ──
+function ModuleLoader() {
+  const { activeModule } = useNavigationStore()
+  const navItem = NAV_ITEMS.find((item) => item.id === activeModule)
+  const label = navItem?.label ?? activeModule
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6">
+      <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <p className="text-sm text-muted-foreground">Loading {label}…</p>
+    </div>
+  )
+}
+
+// ─── Placeholder Content ──
 function ModulePlaceholder({ moduleId, subModuleId }: { moduleId: string; subModuleId: string | null }) {
   const navItem = NAV_ITEMS.find((item) => item.id === moduleId)
   const subItem = navItem?.children?.find((c) => c.id === subModuleId ?? '')
@@ -61,32 +74,46 @@ function ModulePlaceholder({ moduleId, subModuleId }: { moduleId: string; subMod
   )
 }
 
-// ─── Main Content Router ─────────────────────────────────────────────
+// ─── Main Content Router ──
 function MainContent() {
   const { activeModule, activeSubModule } = useNavigationStore()
 
+  // Eagerly loaded
   if (activeModule === 'dashboard') return <DashboardModule />
-  if (activeModule === 'front-desk') return <FrontDeskModule />
-  if (activeModule === 'settings') return <SettingsModule />
-  if (activeModule === 'profile') return <ProfileModule />
-  if (activeModule === 'housekeeping') return <HousekeepingModule />
-  if (activeModule === 'crm') return <CrmModule />
-  if (activeModule === 'help') return <HelpModule />
-  if (activeModule === 'hr') return <HrModule />
 
-  if (activeModule === 'rooms') return <RoomManagementModule />
-  if (activeModule === 'pos') return <PosModule />
-  if (activeModule === 'operations') return <OperationsModule />
-  if (activeModule === 'events') return <EventsModule />
-  if (activeModule === 'accounting') return <AccountingModule />
-  if (activeModule === 'inventory') return <InventoryModule />
-  if (activeModule === 'maintenance') return <MaintenanceModule />
-  if (activeModule === 'revenue') return <RevenueModule />
-  if (activeModule === 'channel-manager') return <ChannelManagerModule />
+  // Lazy loaded modules
+  const LazyModules: Record<string, React.LazyExoticComponent<any>> = {
+    'front-desk': FrontDeskModule,
+    'settings': SettingsModule,
+    'profile': ProfileModule,
+    'housekeeping': HousekeepingModule,
+    'crm': CrmModule,
+    'help': HelpModule,
+    'hr': HrModule,
+    'rooms': RoomManagementModule,
+    'pos': PosModule,
+    'operations': OperationsModule,
+    'events': EventsModule,
+    'accounting': AccountingModule,
+    'inventory': InventoryModule,
+    'maintenance': MaintenanceModule,
+    'revenue': RevenueModule,
+    'channel-manager': ChannelManagerModule,
+  }
+
+  const LazyComponent = LazyModules[activeModule]
+  if (LazyComponent) {
+    return (
+      <Suspense fallback={<ModuleLoader />}>
+        <LazyComponent />
+      </Suspense>
+    )
+  }
+
   return <ModulePlaceholder moduleId={activeModule} subModuleId={activeSubModule} />
 }
 
-// ─── AppShell ───────────────────────────────────────────────────────
+// ─── AppShell ──
 export function AppShell() {
   return (
     <SidebarProvider className="h-svh max-h-svh overflow-hidden">

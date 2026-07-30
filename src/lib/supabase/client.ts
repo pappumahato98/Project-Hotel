@@ -1,13 +1,12 @@
 /**
  * Supabase browser client + access-token cache.
- *
- * The token cache is kept in sync by the onAuthStateChange listener in
- * Providers.tsx. apiFetch reads from this cache synchronously to attach
- * the Bearer header to every API request.
+ * Supports demo mode when Supabase is not configured.
  */
 import { createBrowserClient } from '@supabase/ssr'
 
-let _accessToken: string | null = null
+const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL
+
+let _accessToken: string | null = IS_DEMO ? 'demo-token' : null
 
 export function setAccessToken(token: string | null) {
   _accessToken = token
@@ -17,7 +16,14 @@ export function getAccessToken(): string | null {
   return _accessToken
 }
 
+export function isDemoMode(): boolean {
+  return IS_DEMO
+}
+
 export function createClient() {
+  if (IS_DEMO) {
+    return null as any // Won't be called in demo mode
+  }
   return createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!

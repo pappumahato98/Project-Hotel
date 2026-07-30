@@ -1,16 +1,15 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import { useAuthStore } from '@/lib/store'
-import { AppShell } from '@/components/layout/app-shell'
-import { LoginPage } from '@/components/auth/login-page'
 import { Building2, Loader2 } from 'lucide-react'
+
+const AppShell = React.lazy(() => import('@/components/layout/app-shell').then(m => ({ default: m.AppShell })))
+const LoginPage = React.lazy(() => import('@/components/auth/login-page').then(m => ({ default: m.LoginPage })))
 
 export default function Home() {
   const { isAuthenticated, _hasHydrated } = useAuthStore()
 
-  // Wait for Zustand persist to hydrate from localStorage before rendering
-  // This prevents the login state from being overwritten by hydration
   if (!_hasHydrated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -28,8 +27,28 @@ export default function Home() {
   }
 
   if (!isAuthenticated) {
-    return <LoginPage />
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        }
+      >
+        <LoginPage />
+      </Suspense>
+    )
   }
 
-  return <AppShell />
+  return (
+    <Suspense
+      fallback={
+        <div className="h-svh flex items-center justify-center">
+          <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <AppShell />
+    </Suspense>
+  )
 }
