@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getClientIp } from '@/lib/security/auth-helpers'
@@ -10,43 +10,27 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const user = await db.authUser.findUnique({
-      where: { id: auth.user.userId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        department: true,
-        position: true,
-        avatarUrl: true,
-        phone: true,
-        dateOfBirth: true,
-        gender: true,
-        address: true,
-        city: true,
-        country: true,
-        nationality: true,
-        idType: true,
-        idNumber: true,
-        twoFactorEnabled: true,
-        active: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    })
+    const [user, employee] = await withRetry(() => Promise.all([
+      db.authUser.findUnique({
+        where: { id: auth.user.userId },
+        select: {
+          id: true, email: true, firstName: true, lastName: true, role: true,
+          department: true, position: true, avatarUrl: true, phone: true,
+          dateOfBirth: true, gender: true, address: true, city: true,
+          country: true, nationality: true, idType: true, idNumber: true,
+          twoFactorEnabled: true, active: true, lastLoginAt: true,
+          createdAt: true, updatedAt: true,
+        },
+      }),
+      db.employee.findFirst({
+        where: { email: auth.user.email },
+        select: { hireDate: true },
+      }),
+    ]))
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
-
-    // Also fetch Employee record for hire date
-    const employee = await db.employee.findFirst({
-      where: { email: user.email },
-      select: { hireDate: true },
-    })
 
     return NextResponse.json({
       user: { ...user, hireDate: employee?.hireDate ?? null },

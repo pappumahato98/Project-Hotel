@@ -81,6 +81,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       return false
     }
 
+    let profilePromise: Promise<boolean> | null = null
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setAccessToken(session?.access_token ?? null)
@@ -89,9 +91,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
           useAuthStore.setState({ _hasHydrated: true })
           return
         }
-        if (event === 'SIGNED_IN') {
-          if (!initialSessionChecked) return
-          await fetchProfile(session.access_token)
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+          // Deduplicate: if getSession() is already fetching, piggyback on that promise
+          if (profilePromise) {
+            await profilePromise
+          } else {
+            await fetchProfile(session.access_token)
+          }
           useAuthStore.setState({ _hasHydrated: true })
         }
         if (event === 'TOKEN_REFRESHED') {
@@ -104,16 +110,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     )
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      initialSessionChecked = true
       if (session) {
         setAccessToken(session.access_token ?? null)
-        await fetchProfile(session.access_token!)
-        useAuthStore.setState({ _hasHydrated: true })
-      } else {
-        useAuthStore.setState({ _hasHydrated: true })
+        profilePromise = fetchProfile(session.access_token!)
+        await profilePromise
       }
+      useAuthStore.setState({ _hasHydrated: true })
+      profilePromise = null
     }).catch(() => {
-      initialSessionChecked = true
+      profilePromise = null
       useAuthStore.setState({ _hasHydrated: true })
     })
 

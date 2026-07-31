@@ -255,3 +255,23 @@ Stage Summary:
 - Search endpoint now requires minimum 2 characters before hitting DB
 - Accounting endpoint journalLines limited to 50 most recent per account
 - Lint: zero errors
+
+---
+Task ID: 3
+Agent: Sub Agent
+Task: Create Vercel environment variable setup script
+
+Work Log:
+- Created scripts/setup-vercel-env.sh — interactive script that reads local .env and pushes all Supabase env vars to Vercel
+- Script handles: prerequisite checks (Vercel CLI, .env file), project linking, value validation (PostgreSQL URLs, JWT keys, Supabase URLs)
+- Supports targeting specific environments: defaults to production/preview/development, or pass specific ones as args
+- Uses `printf | vercel env add` to pipe values non-interactively for each of the 5 env vars (DATABASE_URL, DIRECT_URL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY)
+- DIRECT_URL is optional (warns if missing, doesn't fail)
+- Made script executable (chmod +x)
+- Lint: zero errors
+
+Stage Summary:
+- Created scripts/setup-vercel-env.sh — one-command env var deployment to Vercel
+- Reads validated values from local .env (created by setup-supabase.sh)
+- Pushes all 5 Supabase env vars to Vercel with proper environment targeting
+- Lint: zero errors
