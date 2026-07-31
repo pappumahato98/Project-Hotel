@@ -126,14 +126,10 @@ export async function DELETE(
       })
 
       // Recalculate the folio balance
-      const charges = await db.folioTransaction.findMany({
-        where: { folioId: transaction.folioId },
-        select: { totalAmount: true },
-      })
-      const payments = await db.folioPayment.findMany({
-        where: { folioId: transaction.folioId },
-        select: { amount: true },
-      })
+      const [charges, payments] = await Promise.all([
+        db.folioTransaction.findMany({ where: { folioId: transaction.folioId }, select: { totalAmount: true } }),
+        db.folioPayment.findMany({ where: { folioId: transaction.folioId }, select: { amount: true } }),
+      ])
 
       const totalCharges = charges.reduce((sum, c) => sum + c.totalAmount, 0)
       const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
@@ -176,14 +172,10 @@ export async function DELETE(
       })
 
       // Recalculate the folio balance
-      const charges = await db.folioTransaction.findMany({
-        where: { folioId: payment.folioId },
-        select: { totalAmount: true },
-      })
-      const payments = await db.folioPayment.findMany({
-        where: { folioId: payment.folioId },
-        select: { amount: true },
-      })
+      const [charges, payments] = await Promise.all([
+        db.folioTransaction.findMany({ where: { folioId: payment.folioId }, select: { totalAmount: true } }),
+        db.folioPayment.findMany({ where: { folioId: payment.folioId }, select: { amount: true } }),
+      ])
 
       const totalCharges = charges.reduce((sum, c) => sum + c.totalAmount, 0)
       const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)

@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     const orders = await db.purchaseOrder.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      take: 100,
     })
 
     // Parse JSON items and shape response

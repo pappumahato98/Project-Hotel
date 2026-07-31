@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -80,67 +80,71 @@ export async function POST(
       }
     }
 
-    // 3. Update room status to occupied if roomId is assigned
-    if (reservation.roomId) {
-      await db.room.update({
-        where: { id: reservation.roomId },
-        data: { status: 'occupied' },
-      })
-    }
+    // Wrap sequential DB writes in withRetry for transient error resilience
+    const updatedReservation = await withRetry(async () => {
+      // 3. Update room status to occupied if roomId is assigned
+      if (reservation.roomId) {
+        await db.room.update({
+          where: { id: reservation.roomId },
+          data: { status: 'occupied' },
+        })
+      }
 
-    // 4. Create a guest folio if not exists
-    if (reservation.guestId) {
-      const existingFolio = await db.folio.findFirst({
-        where: {
-          reservationId: id,
-          guestId: reservation.guestId,
-          folioType: 'guest',
-        },
-      })
-
-      if (!existingFolio) {
-        await db.folio.create({
-          data: {
+      // 4. Create a guest folio if not exists
+      if (reservation.guestId) {
+        const existingFolio = await db.folio.findFirst({
+          where: {
             reservationId: id,
             guestId: reservation.guestId,
             folioType: 'guest',
-            status: 'open',
-            balance: 0,
           },
         })
-      }
-    }
 
-    // 5. Update the reservation
-    const updatedReservation = await db.reservation.update({
-      where: { id },
-      data: updateData,
-      include: {
-        guest: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            vipLevel: true,
+        if (!existingFolio) {
+          await db.folio.create({
+            data: {
+              reservationId: id,
+              guestId: reservation.guestId,
+              folioType: 'guest',
+              status: 'open',
+              balance: 0,
+            },
+          })
+        }
+      }
+
+      // 5. Update the reservation
+      return db.reservation.update({
+        where: { id },
+        data: updateData,
+        include: {
+          guest: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              vipLevel: true,
+            },
+          },
+          room: {
+            select: {
+              id: true,
+              number: true,
+              floor: true,
+              wing: true,
+              type: { select: { name: true, code: true, bedConfig: true } },
+            },
+          },
+          folios: {
+            select: { id: true, balance: true, status: true },
           },
         },
-        room: {
-          select: {
-            id: true,
-            number: true,
-            floor: true,
-            wing: true,
-            type: { select: { name: true, code: true, bedConfig: true } },
-          },
-        },
-        folios: {
-          select: { id: true, balance: true, status: true },
-        },
-      },
+      })
     })
 
+    afterMutation('reservations')
     return NextResponse.json({ reservation: updatedReservation })
   } catch (error) {
     console.error('Check-in error:', error)

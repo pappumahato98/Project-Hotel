@@ -19,14 +19,13 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
 
     const assets = await db.asset.findMany({ where, orderBy: { name: 'asc' } })
-    const allAssets = await db.asset.findMany({ where: {} })
 
-    const total = allAssets.length
-    const operational = allAssets.filter((a) => a.status === 'operational').length
-    const needsRepair = allAssets.filter((a) => a.status === 'needs_repair').length
-    const totalPurchaseValue = allAssets.reduce((s, a) => s + a.purchaseCost, 0)
-    const totalCurrentValue = allAssets.reduce((s, a) => s + a.currentValue, 0)
-    const categories = [...new Set(allAssets.map((a) => a.category))]
+    const total = assets.length
+    const operational = assets.filter((a) => a.status === 'operational').length
+    const needsRepair = assets.filter((a) => a.status === 'needs_repair').length
+    const totalPurchaseValue = assets.reduce((s, a) => s + a.purchaseCost, 0)
+    const totalCurrentValue = assets.reduce((s, a) => s + a.currentValue, 0)
+    const categories = [...new Set(assets.map((a) => a.category))]
 
     return NextResponse.json({
       assets,

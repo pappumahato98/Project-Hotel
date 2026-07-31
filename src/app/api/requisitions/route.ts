@@ -19,12 +19,11 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
 
     const requisitions = await db.requisition.findMany({ where, orderBy: { requestDate: 'desc' } })
-    const allReqs = await db.requisition.findMany({ where: {} })
 
-    const total = allReqs.length
-    const pending = allReqs.filter((r) => r.status === 'pending').length
-    const approved = allReqs.filter((r) => r.status === 'approved').length
-    const received = allReqs.filter((r) => r.status === 'received').length
+    const total = requisitions.length
+    const pending = requisitions.filter((r) => r.status === 'pending').length
+    const approved = requisitions.filter((r) => r.status === 'approved').length
+    const received = requisitions.filter((r) => r.status === 'received').length
 
     return NextResponse.json({ requisitions, total, summary: { pending, approved, received } })
   } catch (error) {

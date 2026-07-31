@@ -24,16 +24,14 @@ export async function GET(request: NextRequest) {
     }
 
     const attendance = await db.attendance.findMany({ where, orderBy: { employeeName: 'asc' } })
-    const allAttendance = await db.attendance.findMany({ where })
-
-    const departments = [...new Set(allAttendance.map((a) => a.department))]
-    const present = allAttendance.filter((a) => a.status === 'present').length
-    const absent = allAttendance.filter((a) => a.status === 'absent').length
-    const onLeave = allAttendance.filter((a) => a.status === 'on_leave').length
-    const late = allAttendance.filter((a) => a.late).length
+    const departments = [...new Set(attendance.map((a) => a.department))]
+    const present = attendance.filter((a) => a.status === 'present').length
+    const absent = attendance.filter((a) => a.status === 'absent').length
+    const onLeave = attendance.filter((a) => a.status === 'on_leave').length
+    const late = attendance.filter((a) => a.late).length
 
     const departmentSummary = departments.map((dept) => {
-      const deptEmployees = allAttendance.filter((a) => a.department === dept)
+      const deptEmployees = attendance.filter((a) => a.department === dept)
       return {
         department: dept,
         total: deptEmployees.length,
@@ -47,7 +45,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       date: new Date().toISOString().split('T')[0],
       attendance,
-      summary: { present, absent, onLeave, late, total: allAttendance.length },
+      summary: { present, absent, onLeave, late, total: attendance.length },
       departmentSummary,
     })
   } catch (error) {

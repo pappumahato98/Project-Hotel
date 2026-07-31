@@ -1,23 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { db, withRetry } from '@/lib/db'
+import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
-
-// ─── Settings helper (same pattern as reservations) ───────────
-async function getSettingsMap(): Promise<Record<string, unknown>> {
-  const rows = await db.systemSetting.findMany()
-  const map: Record<string, unknown> = {}
-  for (const r of rows) {
-    if (r.type === 'number') map[r.key] = parseFloat(r.value)
-    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
-    else if (r.type === 'json') {
-      try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value }
-    } else {
-      map[r.key] = r.value
-    }
-  }
-  return map
-}
 
 // ─── Generate unique 8-char alphanumeric confirmation number ───
 async function generateConfirmationNo(): Promise<string> {
@@ -327,57 +311,6 @@ export async function POST(request: NextRequest) {
       reservationIdToUse = newReservation.id
     }
 
-    // ── Update reservation (for reservation source) ─────────
-    if (source === 'reservation') {
-      const existingRes = await db.reservation.findUnique({
-        where: { id: reservationIdToUse },
-        select: { totalAmount: true, checkIn: true, checkOut: true },
-      })
-
-      if (existingRes) {
-        const nights = calcNights(new Date(existingRes.checkIn), new Date(existingRes.checkOut))
-        const subtotal = roomRate * nights
-        const totalAmount = subtotal * (1 + taxRate / 100)
-
-        // Determine payment status
-        let paymentStatus: string = 'unpaid'
-        if (advanceAmount && advanceAmount > 0) {
-          paymentStatus = advanceAmount >= totalAmount ? 'paid' : 'partial'
-        } else if (existingRes.totalAmount > 0 && existingRes.paidAmount >= existingRes.totalAmount) {
-          paymentStatus = 'paid'
-        }
-
-        await db.reservation.update({
-          where: { id: reservationIdToUse },
-          data: {
-            status: 'checked_in',
-            roomId,
-            roomTypeId,
-            ratePlanId: ratePlanId || undefined,
-            roomRate,
-            totalAmount,
-            adults: adults || undefined,
-            children: children || undefined,
-            paymentStatus,
-          },
-        })
-      }
-
-      // Free the old room if room changed
-      if (oldRoomId && oldRoomId !== roomId) {
-        await db.room.update({
-          where: { id: oldRoomId },
-          data: { status: 'vacant_dirty' },
-        })
-      }
-    }
-
-    // ── Update room status to occupied ──────────────────────
-    await db.room.update({
-      where: { id: roomId },
-      data: { status: 'occupied' },
-    })
-
     // ── Guard: ensure guestId is available ──────────────────
     if (!guestIdToUse) {
       return NextResponse.json(
@@ -386,116 +319,170 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ── Create Folio if not already exists ──────────────────
-    const existingFolio = await db.folio.findFirst({
-      where: { reservationId: reservationIdToUse, folioType: 'guest' },
-    })
-
-    if (!existingFolio) {
-      await db.folio.create({
-        data: {
-          reservationId: reservationIdToUse,
-          guestId: guestIdToUse,
-          folioType: 'guest',
-          status: 'open',
-          balance: 0,
-        },
-      })
-    }
-
-    // ── Handle advance payment ──────────────────────────────
-    if (advanceAmount && advanceAmount > 0) {
-      // Re-fetch folio (may have just been created)
-      const folio =
-        existingFolio ??
-        (await db.folio.findFirst({
-          where: { reservationId: reservationIdToUse, folioType: 'guest' },
-        }))
-
-      if (folio) {
-        await db.folioPayment.create({
-          data: {
-            folioId: folio.id,
-            paymentMethod: advancePaymentMethod || 'cash',
-            amount: advanceAmount,
-            reference: advanceReference || null,
-            receivedBy: checkedInBy || null,
-            status: 'completed',
-          },
-        })
-
-        // Update reservation paid amount
-        await db.reservation.update({
+    // Wrap sequential DB writes in withRetry for transient error resilience
+    const reservation = await withRetry(async () => {
+      // ── Update reservation (for reservation source) ─────────
+      if (source === 'reservation') {
+        const existingRes = await db.reservation.findUnique({
           where: { id: reservationIdToUse },
-          data: { paidAmount: { increment: advanceAmount } },
+          select: { totalAmount: true, checkIn: true, checkOut: true, paidAmount: true },
         })
 
-        // Decrement folio balance (payment reduces debit balance)
-        await db.folio.update({
-          where: { id: folio.id },
-          data: { balance: { decrement: advanceAmount } },
+        if (existingRes) {
+          const nights = calcNights(new Date(existingRes.checkIn), new Date(existingRes.checkOut))
+          const subtotal = roomRate * nights
+          const totalAmount = subtotal * (1 + taxRate / 100)
+
+          // Determine payment status
+          let paymentStatus: string = 'unpaid'
+          if (advanceAmount && advanceAmount > 0) {
+            paymentStatus = advanceAmount >= totalAmount ? 'paid' : 'partial'
+          } else if (existingRes.totalAmount > 0 && existingRes.paidAmount >= existingRes.totalAmount) {
+            paymentStatus = 'paid'
+          }
+
+          await db.reservation.update({
+            where: { id: reservationIdToUse },
+            data: {
+              status: 'checked_in',
+              roomId,
+              roomTypeId,
+              ratePlanId: ratePlanId || undefined,
+              roomRate,
+              totalAmount,
+              adults: adults || undefined,
+              children: children || undefined,
+              paymentStatus,
+            },
+          })
+        }
+
+        // Free the old room if room changed
+        if (oldRoomId && oldRoomId !== roomId) {
+          await db.room.update({
+            where: { id: oldRoomId },
+            data: { status: 'vacant_dirty' },
+          })
+        }
+      }
+
+      // ── Update room status to occupied ──────────────────────
+      await db.room.update({
+        where: { id: roomId },
+        data: { status: 'occupied' },
+      })
+
+      // ── Create Folio if not already exists ──────────────────
+      const existingFolio = await db.folio.findFirst({
+        where: { reservationId: reservationIdToUse, folioType: 'guest' },
+      })
+
+      if (!existingFolio) {
+        await db.folio.create({
+          data: {
+            reservationId: reservationIdToUse,
+            guestId: guestIdToUse,
+            folioType: 'guest',
+            status: 'open',
+            balance: 0,
+          },
         })
       }
-    }
 
-    // ── Handle guest documents ──────────────────────────────
-    if (documents && documents.length > 0) {
-      await db.guestDocument.createMany({
-        data: documents.map((doc) => ({
-          reservationId: reservationIdToUse,
-          guestId: guestIdToUse,
-          docType: doc.docType,
-          docNumber: doc.docNumber || null,
-          docExpiry: doc.docExpiry ? new Date(doc.docExpiry) : null,
-          issueCountry: doc.issueCountry || null,
-          issueDate: doc.issueDate ? new Date(doc.issueDate) : null,
-          placeOfIssue: doc.placeOfIssue || null,
-          notes: doc.notes || null,
-        })),
+      // ── Handle advance payment ──────────────────────────────
+      if (advanceAmount && advanceAmount > 0) {
+        // Re-fetch folio (may have just been created)
+        const folio =
+          existingFolio ??
+          (await db.folio.findFirst({
+            where: { reservationId: reservationIdToUse, folioType: 'guest' },
+          }))
+
+        if (folio) {
+          await db.folioPayment.create({
+            data: {
+              folioId: folio.id,
+              paymentMethod: advancePaymentMethod || 'cash',
+              amount: advanceAmount,
+              reference: advanceReference || null,
+              receivedBy: checkedInBy || null,
+              status: 'completed',
+            },
+          })
+
+          // Update reservation paid amount
+          await db.reservation.update({
+            where: { id: reservationIdToUse },
+            data: { paidAmount: { increment: advanceAmount } },
+          })
+
+          // Decrement folio balance (payment reduces debit balance)
+          await db.folio.update({
+            where: { id: folio.id },
+            data: { balance: { decrement: advanceAmount } },
+          })
+        }
+      }
+
+      // ── Handle guest documents ──────────────────────────────
+      if (documents && documents.length > 0) {
+        await db.guestDocument.createMany({
+          data: documents.map((doc) => ({
+            reservationId: reservationIdToUse,
+            guestId: guestIdToUse,
+            docType: doc.docType,
+            docNumber: doc.docNumber || null,
+            docExpiry: doc.docExpiry ? new Date(doc.docExpiry) : null,
+            issueCountry: doc.issueCountry || null,
+            issueDate: doc.issueDate ? new Date(doc.issueDate) : null,
+            placeOfIssue: doc.placeOfIssue || null,
+            notes: doc.notes || null,
+          })),
+        })
+      }
+
+      // ── Update guest stats (totalStays, lastStayAt) ────────
+      await db.guest.update({
+        where: { id: guestIdToUse },
+        data: {
+          totalStays: { increment: 1 },
+          lastStayAt: new Date(),
+        },
       })
-    }
 
-    // ── Update guest stats (totalStays, lastStayAt) ────────
-    await db.guest.update({
-      where: { id: guestIdToUse },
-      data: {
-        totalStays: { increment: 1 },
-        lastStayAt: new Date(),
-      },
-    })
-
-    // ── Fetch and return the full updated reservation ───────
-    const reservation = await db.reservation.findUnique({
-      where: { id: reservationIdToUse },
-      include: {
-        guest: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            phone: true,
-            nationality: true,
-            vipLevel: true,
+      // ── Fetch and return the full updated reservation ───────
+      return db.reservation.findUnique({
+        where: { id: reservationIdToUse },
+        include: {
+          guest: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              nationality: true,
+              vipLevel: true,
+            },
+          },
+          room: {
+            include: {
+              type: { select: { id: true, name: true, code: true, bedConfig: true } },
+            },
+          },
+          folios: {
+            include: {
+              transactions: { orderBy: { createdAt: 'desc' } },
+              payments: { orderBy: { createdAt: 'desc' } },
+              ratePostings: { orderBy: { postingDate: 'asc' } },
+            },
+          },
+          guestDocuments: { orderBy: { createdAt: 'desc' } },
+          property: {
+            select: { id: true, name: true, code: true, currency: true, taxRate: true },
           },
         },
-        room: {
-          include: {
-            type: { select: { id: true, name: true, code: true, bedConfig: true } },
-          },
-        },
-        folios: {
-          include: {
-            transactions: { orderBy: { createdAt: 'desc' } },
-            payments: { orderBy: { createdAt: 'desc' } },
-            ratePostings: { orderBy: { postingDate: 'asc' } },
-          },
-        },
-        guestDocuments: { orderBy: { createdAt: 'desc' } },
-        property: {
-          select: { id: true, name: true, code: true, currency: true, taxRate: true },
-        },
-      },
+      })
     })
 
     if (!reservation) {

@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     const guests = await db.guest.findMany({
       where,
       // Limit results when searching to prevent flooding with single-char queries
-      ...(search ? { take: 20 } : {}),
+      ...(search ? { take: 20 } : { take: 100 }),
       include: {
         reservations: {
           select: {

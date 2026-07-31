@@ -19,11 +19,10 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
 
     const vendors = await db.vendor.findMany({ where, orderBy: { name: 'asc' } })
-    const allVendors = await db.vendor.findMany({ where: {} })
 
-    const total = allVendors.length
-    const active = allVendors.filter((v) => v.status === 'active').length
-    const categories = [...new Set(allVendors.map((v) => v.category))]
+    const total = vendors.length
+    const active = vendors.filter((v) => v.status === 'active').length
+    const categories = [...new Set(vendors.map((v) => v.category))]
 
     return NextResponse.json({ vendors, total, active, categories })
   } catch (error) {

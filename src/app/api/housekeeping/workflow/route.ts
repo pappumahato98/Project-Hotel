@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         { priority: 'desc' },
         { requestedDate: 'asc' },
       ],
+      take: 100,
     })
 
     const summary = {

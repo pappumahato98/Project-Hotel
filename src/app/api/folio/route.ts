@@ -1,21 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getSettingsMap, afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
-
-// ─── Settings helper ──────────────────────────────────────
-async function getSettingsMap() {
-  const rows = await db.systemSetting.findMany()
-  const map: Record<string, unknown> = {}
-  for (const r of rows) {
-    if (r.type === 'number') map[r.key] = parseFloat(r.value)
-    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
-    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
-    else map[r.key] = r.value
-  }
-  return map
-}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -61,6 +48,7 @@ export async function GET(request: NextRequest) {
         payments: { orderBy: { createdAt: 'desc' } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     })
 
     // Read relevant settings from DB
@@ -89,6 +77,7 @@ export async function GET(request: NextRequest) {
       const openFolios = await db.folio.findMany({
         where: { status: 'open' },
         select: { balance: true },
+        take: 100,
       })
 
       // Today's charges

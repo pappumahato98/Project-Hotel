@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   try {
     const tickets = await db.supportTicket.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 100,
     })
 
     return NextResponse.json(tickets)

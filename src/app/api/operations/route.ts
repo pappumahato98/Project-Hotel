@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { db, withRetry } from '@/lib/db'
+import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Nepal timezone helper (UTC+5:45) ───────────────────────────
@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
+    const result = await getOrSet('operations:dashboard', async () => {
     const nepalToday = getNepalToday()
     const nepalTomorrow = getNepalTomorrow()
     const todayStr = nepalToday.toISOString().split('T')[0]
@@ -380,22 +381,50 @@ export async function GET(req: NextRequest) {
     // In-house guests
     const inHouseCount = inHouseReservations.length
 
-    // Today's arrivals: already checked in vs still pending (confirmed)
-    const todayArrivalsCheckedIn = await db.reservation.count({
-      where: {
-        checkIn: { gte: nepalToday, lt: nepalTomorrow },
-        status: 'checked_in',
-      },
-    })
-    const todayArrivalsPending = todayArrivals - todayArrivalsCheckedIn
+    // Wrap sequential DB queries in withRetry for transient error resilience
+    const [todayArrivalsCheckedIn, todayDeparturesDone, foliosAboveCredit] = await withRetry(async () => {
+      // Today's arrivals: already checked in vs still pending (confirmed)
+      const arrivalsCheckedIn = await db.reservation.count({
+        where: {
+          checkIn: { gte: nepalToday, lt: nepalTomorrow },
+          status: 'checked_in',
+        },
+      })
 
-    // Today's departures: already checked out vs still in-house
-    const todayDeparturesDone = await db.reservation.count({
-      where: {
-        checkOut: { gte: nepalToday, lt: nepalTomorrow },
-        status: 'checked_out',
-      },
+      // Today's departures: already checked out vs still in-house
+      const departuresDone = await db.reservation.count({
+        where: {
+          checkOut: { gte: nepalToday, lt: nepalTomorrow },
+          status: 'checked_out',
+        },
+      })
+
+      // Folios above credit limit
+      const aboveCredit = await db.reservation.findMany({
+        where: {
+          status: 'checked_in',
+          checkIn: { lt: nepalTomorrow },
+          checkOut: { gt: nepalToday },
+          folios: {
+            some: {
+              status: 'open',
+              balance: { gt: 15000 },
+            },
+          },
+        },
+        select: {
+          id: true,
+          confirmationNo: true,
+          creditLimit: true,
+          guest: { select: { firstName: true, lastName: true } },
+          room: { select: { number: true } },
+        },
+      })
+
+      return [arrivalsCheckedIn, departuresDone, aboveCredit] as const
     })
+
+    const todayArrivalsPending = todayArrivals - todayArrivalsCheckedIn
     const todayDeparturesPending = todayDepartures - todayDeparturesDone
 
     // HK task completion rate
@@ -407,28 +436,6 @@ export async function GET(req: NextRequest) {
     const cashierBalance = activeShift
       ? activeShift.openingFloat + activeShift.totalPayments - activeShift.totalRefunds
       : 0
-
-    // Folios above credit limit
-    const foliosAboveCredit = await db.reservation.findMany({
-      where: {
-        status: 'checked_in',
-        checkIn: { lt: nepalTomorrow },
-        checkOut: { gt: nepalToday },
-        folios: {
-          some: {
-            status: 'open',
-            balance: { gt: 15000 },
-          },
-        },
-      },
-      select: {
-        id: true,
-        confirmationNo: true,
-        creditLimit: true,
-        guest: { select: { firstName: true, lastName: true } },
-        room: { select: { number: true } },
-      },
-    })
 
     // VIP in-house guests
     const vipGuests = vipInHouseReservations.map((r) => ({
@@ -475,6 +482,8 @@ export async function GET(req: NextRequest) {
       },
       shiftHandover: shiftHandoverData,
     })
+    }, 120000)
+    return result
   } catch (error) {
     console.error('Operations API error:', error)
     return NextResponse.json({ error: 'Failed to fetch operations data' }, { status: 500 })

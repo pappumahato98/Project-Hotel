@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getOrSet, getSettingsMap } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
   try {
+    const result = await getOrSet('front-desk:dashboard', async () => {
     // ─── Fetch system settings ─────────────────────────────
-    const dbSettings = await db.systemSetting.findMany()
-    const sMap: Record<string, any> = {}
-    dbSettings.forEach(s => {
-      const val = s.type === 'number' ? parseFloat(s.value) : s.type === 'boolean' ? s.value === 'true' : s.type === 'json' ? JSON.parse(s.value) : s.value
-      sMap[s.key] = val
-    })
+    const sMap = await getSettingsMap()
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -50,24 +47,16 @@ export async function GET(req: NextRequest) {
     const available = (statusMap['vacant_clean'] || 0) + (statusMap['inspected'] || 0)
     const occupancyPct = totalRooms > 0 ? Math.round((inHouse / totalRooms) * 100) : 0
 
-    // ─── Overbooking detection ────────────────────────────────
-    // Find rooms with multiple checked_in reservations (SQLite doesn't support groupBy on findMany)
-    const checkedInRoomIds = await db.reservation.findMany({
+    // ─── Overbooking detection via single groupBy query ────
+    const roomCounts = await db.reservation.groupBy({
+      by: ['roomId'],
       where: { status: 'checked_in', roomId: { not: null } },
-      select: { roomId: true },
-      distinct: ['roomId'],
+      _count: { roomId: true },
+      having: {
+        roomId: { _count: { gt: 1 } },
+      },
     })
-    const doubleBookedRoomIds: string[] = []
-    for (const occ of checkedInRoomIds) {
-      if (!occ.roomId) continue
-      const count = await db.reservation.count({
-        where: { status: 'checked_in', roomId: occ.roomId },
-      })
-      if (count > 1) {
-        doubleBookedRoomIds.push(occ.roomId)
-      }
-    }
-    const overbookingCount = doubleBookedRoomIds.length
+    const overbookingCount = roomCounts.filter(rc => rc.roomId !== null).length
 
     // ─── Today's activity timeline ────────────────────────────
     // Gather recent check-ins, check-outs, and room moves from today
@@ -186,6 +175,8 @@ export async function GET(req: NextRequest) {
         starRating: sMap.starRating,
       },
     })
+    }, 120000)
+    return result
   } catch (error) {
     console.error('Front Desk Dashboard API error:', error)
     return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 })

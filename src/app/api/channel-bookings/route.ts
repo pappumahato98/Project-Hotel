@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         room: { select: { number: true, type: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     })
 
     // Apply additional filters on top

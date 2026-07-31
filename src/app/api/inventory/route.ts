@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     const items = await db.inventoryItem.findMany({
       where,
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      take: 100,
     })
 
     const total = await db.inventoryItem.count({ where })

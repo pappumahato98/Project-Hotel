@@ -288,27 +288,29 @@ export async function PUT(request: NextRequest) {
 
     const entries = Object.entries(body)
 
-    for (const [key, value] of entries) {
-      const type = detectType(value)
-      const serialized = serializeValue(value)
-      const category = KEY_CATEGORY_MAP[key] || 'general'
+    await Promise.all(
+      entries.map(([key, value]) => {
+        const type = detectType(value)
+        const serialized = serializeValue(value)
+        const category = KEY_CATEGORY_MAP[key] || 'general'
 
-      await withRetry(() => db.systemSetting.upsert({
-        where: { key },
-        update: {
-          value: serialized,
-          type,
-          updatedAt: new Date(),
-        },
-        create: {
-          category,
-          key,
-          value: serialized,
-          type,
-          description: undefined,
-        },
-      }))
-    }
+        return withRetry(() => db.systemSetting.upsert({
+          where: { key },
+          update: {
+            value: serialized,
+            type,
+            updatedAt: new Date(),
+          },
+          create: {
+            category,
+            key,
+            value: serialized,
+            type,
+            description: undefined,
+          },
+        }))
+      })
+    )
 
     afterMutation('settings')
 

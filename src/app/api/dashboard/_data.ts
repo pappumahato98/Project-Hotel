@@ -11,7 +11,7 @@
  */
 
 import { db } from '@/lib/db'
-import { getOrSet } from '@/lib/cache'
+import { getOrSet, getSettingsMap } from '@/lib/cache'
 
 // ─── Date Helpers ────────────────────────────────────────────────────────
 
@@ -64,10 +64,9 @@ export async function fetchKpis(): Promise<KpisData> {
 
     // Batch 1 — lightweight counts
     const [
-      allSettings, totalRooms, occupiedRooms, vacantClean,
+      totalRooms, occupiedRooms, vacantClean,
       yesterdayAudit, lastAudit, arrivals, departures,
     ] = await Promise.all([
-      db.systemSetting.findMany(),
       db.room.count(),
       db.room.count({ where: { status: 'occupied' } }),
       db.room.count({ where: { status: 'vacant_clean' } }),
@@ -98,8 +97,7 @@ export async function fetchKpis(): Promise<KpisData> {
     ])
 
     // ─── Compute (CPU-only) ──────────────────────────────────────
-    const settingsMap: Record<string, string> = {}
-    for (const s of allSettings) settingsMap[s.key] = s.value
+    const settingsMap = await getSettingsMap()
 
     const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
     const occupancyTrend = yesterdayAudit?.occupancy
@@ -142,8 +140,7 @@ export async function fetchKpis(): Promise<KpisData> {
       },
       roomStatusBreakdown: roomStatusMap,
       revenueChart: revenueChartData,
-      defaultCreditLimit: settingsMap['defaultCreditLimit']
-        ? parseFloat(settingsMap['defaultCreditLimit']) : 15000,
+      defaultCreditLimit: (settingsMap['defaultCreditLimit'] as number) ?? 15000,
     }
   })
 }
@@ -243,11 +240,8 @@ export async function fetchAlerts(): Promise<AlertsData> {
     ])
 
     // Get credit limit from settings
-    const settings = await db.systemSetting.findMany()
-    const settingsMap: Record<string, string> = {}
-    for (const s of settings) settingsMap[s.key] = s.value
-    const defaultCreditLimit = settingsMap['defaultCreditLimit']
-      ? parseFloat(settingsMap['defaultCreditLimit']) : 15000
+    const settingsMap = await getSettingsMap()
+    const defaultCreditLimit = (settingsMap['defaultCreditLimit'] as number) ?? 15000
 
     return {
       alerts: {

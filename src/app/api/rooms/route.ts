@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // Allow up to 60s on Vercel (Hobby plan default is 10s — this prevents timeouts)
@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
   try {
+    return await getOrSet('rooms:list', async () => {
     // Get property first (needed for filtering)
     const property = await db.property.findFirst()
 
@@ -117,6 +118,7 @@ export async function GET(req: NextRequest) {
         vacantClean, inspected, occupancyRate,
       },
     })
+    }, 120000)
   } catch (error) {
     console.error('Rooms API error:', error)
     return NextResponse.json({ error: 'Failed to fetch rooms' }, { status: 500 })

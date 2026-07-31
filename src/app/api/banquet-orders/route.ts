@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
     // First try to load from DB Events with banquet order data
     const events = await db.event.findMany({
       orderBy: { startDate: 'asc' },
+      take: 50,
     })
 
     // Build banquet orders from events — parse order data from event.notes JSON

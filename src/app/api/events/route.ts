@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const events = await db.event.findMany({
       where,
       orderBy: { startDate: 'asc' },
+      take: 50,
     })
 
     const total = await db.event.count({ where })

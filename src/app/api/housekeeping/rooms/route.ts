@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { toDateOnly } from '@/lib/format'
+import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
   try {
+    return await getOrSet('housekeeping:rooms', async () => {
     const { searchParams } = new URL(request.url)
     const hkStatus = searchParams.get('hkStatus')
     const roomTypeId = searchParams.get('roomTypeId')
@@ -204,6 +206,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ rows })
+    }, 120000)
   } catch (error) {
     console.error('HK Rooms API error:', error)
     return NextResponse.json({ error: 'Failed to fetch room data' }, { status: 500 })

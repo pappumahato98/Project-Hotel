@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all folios for this guest with transactions, payments, reservation & room
-    const folios = await db.folio.findMany({
+    const folios = await withRetry(() => db.folio.findMany({
       where: { guestId },
       include: {
         reservation: {
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: 'desc' },
-    })
+    }))
 
     // ─── Build stays array ────────────────────────────────
     const stays = folios.map((folio) => {
@@ -290,100 +290,104 @@ export async function POST(request: NextRequest) {
       const taxAmount = amount * (DEFAULT_TAX_RATE / 100)
       const totalAmount = amount + taxAmount
 
-      const transaction = await db.folioTransaction.create({
+      const result = await withRetry(async () => {
+        const transaction = await db.folioTransaction.create({
+          data: {
+            folioId,
+            transactionType: transactionType || 'miscellaneous',
+            description,
+            amount,
+            taxAmount,
+            totalAmount,
+            quantity: 1,
+            reference: reference || null,
+            outlet: null,
+            postedBy: 'System',
+          },
+        })
+
+        // Recalculate folio balance
+        const [charges, payments] = await Promise.all([
+          db.folioTransaction.findMany({ where: { folioId }, select: { totalAmount: true } }),
+          db.folioPayment.findMany({ where: { folioId }, select: { amount: true } }),
+        ])
+
+        const totalCharges = charges.reduce((sum, c) => sum + c.totalAmount, 0)
+        const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
+        const newBalance = Math.round((totalCharges - totalPayments) * 100) / 100
+
+        await db.folio.update({
+          where: { id: folioId },
+          data: { balance: newBalance },
+        })
+
+        return { transaction, newBalance }
+      })
+
+      afterMutation('folio')
+
+      return NextResponse.json({
+        transaction: {
+          id: result.transaction.id,
+          type: 'charge',
+          transactionType: result.transaction.transactionType,
+          description: result.transaction.description,
+          amount: result.transaction.amount,
+          taxAmount: result.transaction.taxAmount,
+          totalAmount: result.transaction.totalAmount,
+          folioId,
+          createdAt: result.transaction.createdAt.toISOString(),
+        },
+        folioBalance: result.newBalance,
+      })
+    }
+
+    // type === 'payment'
+    const result = await withRetry(async () => {
+      const payment = await db.folioPayment.create({
         data: {
           folioId,
-          transactionType: transactionType || 'miscellaneous',
-          description,
+          paymentMethod,
           amount,
-          taxAmount,
-          totalAmount,
-          quantity: 1,
           reference: reference || null,
-          outlet: null,
-          postedBy: 'System',
+          cardType: cardType || null,
+          receivedBy: 'System',
         },
       })
 
       // Recalculate folio balance
-      const charges = await db.folioTransaction.findMany({
-        where: { folioId },
-        select: { totalAmount: true },
-      })
-      const payments = await db.folioPayment.findMany({
-        where: { folioId },
-        select: { amount: true },
-      })
+      const [charges, payments] = await Promise.all([
+        db.folioTransaction.findMany({ where: { folioId }, select: { totalAmount: true } }),
+        db.folioPayment.findMany({ where: { folioId }, select: { amount: true } }),
+      ])
 
       const totalCharges = charges.reduce((sum, c) => sum + c.totalAmount, 0)
       const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
-      const newBalance = Math.round((totalCharges - totalPayments) * 100) / 100
+      const newBalance = Math.round(Math.max(0, totalCharges - totalPayments) * 100) / 100
 
       await db.folio.update({
         where: { id: folioId },
         data: { balance: newBalance },
       })
 
-      return NextResponse.json({
-        transaction: {
-          id: transaction.id,
-          type: 'charge',
-          transactionType: transaction.transactionType,
-          description: transaction.description,
-          amount: transaction.amount,
-          taxAmount: transaction.taxAmount,
-          totalAmount: transaction.totalAmount,
-          folioId,
-          createdAt: transaction.createdAt.toISOString(),
-        },
-        folioBalance: newBalance,
-      })
-    }
-
-    // type === 'payment'
-    const payment = await db.folioPayment.create({
-      data: {
-        folioId,
-        paymentMethod,
-        amount,
-        reference: reference || null,
-        cardType: cardType || null,
-        receivedBy: 'System',
-      },
+      return { payment, newBalance }
     })
 
-    // Recalculate folio balance
-    const charges = await db.folioTransaction.findMany({
-      where: { folioId },
-      select: { totalAmount: true },
-    })
-    const payments = await db.folioPayment.findMany({
-      where: { folioId },
-      select: { amount: true },
-    })
-
-    const totalCharges = charges.reduce((sum, c) => sum + c.totalAmount, 0)
-    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0)
-    const newBalance = Math.round(Math.max(0, totalCharges - totalPayments) * 100) / 100
-
-    await db.folio.update({
-      where: { id: folioId },
-      data: { balance: newBalance },
-    })
+    afterMutation('folio')
 
     return NextResponse.json({
       payment: {
-        id: payment.id,
+        id: result.payment.id,
         type: 'payment',
-        paymentMethod: payment.paymentMethod,
+        paymentMethod: result.payment.paymentMethod,
         description: `${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1).replace(/_/g, ' ')} payment`,
-        amount: payment.amount,
-        reference: payment.reference,
-        cardType: payment.cardType,
+        amount: result.payment.amount,
+        reference: result.payment.reference,
+        cardType: result.payment.cardType,
         folioId,
-        createdAt: payment.createdAt.toISOString(),
+        createdAt: result.payment.createdAt.toISOString(),
       },
-      folioBalance: newBalance,
+      folioBalance: result.newBalance,
     })
   } catch (error) {
     console.error('Guest Ledger POST error:', error)

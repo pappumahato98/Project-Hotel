@@ -30,20 +30,17 @@ export async function GET(request: NextRequest) {
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     })
 
-    const total = await db.workOrder.count({ where })
-
-    const allOrders = await db.workOrder.findMany({ where })
     const summary = {
-      total: allOrders.length,
-      open: allOrders.filter((o) => o.status === 'open').length,
-      assigned: allOrders.filter((o) => o.status === 'assigned').length,
-      inProgress: allOrders.filter((o) => o.status === 'in_progress').length,
-      completed: allOrders.filter((o) => o.status === 'completed').length,
-      closed: allOrders.filter((o) => o.status === 'closed').length,
-      emergency: allOrders.filter((o) => o.priority === 'emergency' && o.status !== 'closed' && o.status !== 'completed').length,
+      total: workOrders.length,
+      open: workOrders.filter((o) => o.status === 'open').length,
+      assigned: workOrders.filter((o) => o.status === 'assigned').length,
+      inProgress: workOrders.filter((o) => o.status === 'in_progress').length,
+      completed: workOrders.filter((o) => o.status === 'completed').length,
+      closed: workOrders.filter((o) => o.status === 'closed').length,
+      emergency: workOrders.filter((o) => o.priority === 'emergency' && o.status !== 'closed' && o.status !== 'completed').length,
     }
 
-    return NextResponse.json({ workOrders, total, summary })
+    return NextResponse.json({ workOrders, summary })
   } catch (error) {
     console.error('Work Orders API error:', error)
     return NextResponse.json({ error: 'Failed to fetch work orders' }, { status: 500 })

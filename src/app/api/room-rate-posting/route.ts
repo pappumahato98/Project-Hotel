@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
-
-// ─── Settings helper ──────────────────────────────────────
-async function getSettingsMap() {
-  const rows = await db.systemSetting.findMany()
-  const map: Record<string, unknown> = {}
-  for (const r of rows) {
-    if (r.type === 'number') map[r.key] = parseFloat(r.value)
-    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
-    else if (r.type === 'json') {
-      try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value }
-    } else map[r.key] = r.value
-  }
-  return map
-}
 
 // ─── Date helpers ─────────────────────────────────────────
 function toDateOnly(d: Date): string {
@@ -268,67 +254,88 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 5. Create postings and folio transactions for each new date
-    const createdPostings = []
+    // 5. Collect all posting and transaction data, then batch insert
     const poster = postedBy || 'System'
+    const postingsData: Array<{
+      reservationId: string
+      folioId: string
+      roomId: string
+      postingDate: Date
+      roomRate: number
+      taxAmount: number
+      serviceCharge: number
+      totalAmount: number
+      status: 'posted'
+      postedBy: string
+    }> = []
+    const transactionsData: Array<{
+      folioId: string
+      transactionType: 'room'
+      description: string
+      amount: number
+      taxAmount: number
+      totalAmount: number
+      quantity: number
+      reference: string
+      postedBy: string
+    }> = []
 
     for (const postingDate of newDates) {
       const taxAmount = roomRate * (taxRate / 100)
       const serviceCharge = roomRate * (serviceChargeRate / 100)
       const totalAmount = roomRate + taxAmount + serviceCharge
-
       const dateStr = formatDateShort(postingDate)
 
-      // Create the RoomRatePosting record
-      const posting = await db.roomRatePosting.create({
-        data: {
-          reservationId,
-          folioId,
-          roomId,
-          postingDate,
-          roomRate,
-          taxAmount: Math.round(taxAmount * 100) / 100,
-          serviceCharge: Math.round(serviceCharge * 100) / 100,
-          totalAmount: Math.round(totalAmount * 100) / 100,
-          status: 'posted',
-          postedBy: poster,
-        },
+      // Generate a placeholder ID for reference construction (will be replaced after createMany)
+      const tempRef = `tmp-${toDateOnly(postingDate)}-${Math.random().toString(36).slice(2, 9)}`
+
+      postingsData.push({
+        reservationId,
+        folioId,
+        roomId,
+        postingDate,
+        roomRate,
+        taxAmount: Math.round(taxAmount * 100) / 100,
+        serviceCharge: Math.round(serviceCharge * 100) / 100,
+        totalAmount: Math.round(totalAmount * 100) / 100,
+        status: 'posted',
+        postedBy: poster,
       })
 
-      // Create FolioTransaction for room charge
       const roomTxnTotal = roomRate + taxAmount
-      await db.folioTransaction.create({
-        data: {
+      transactionsData.push({
+        folioId,
+        transactionType: 'room',
+        description: `Room Charge - ${roomNumber} - ${dateStr}`,
+        amount: roomRate,
+        taxAmount: Math.round(taxAmount * 100) / 100,
+        totalAmount: Math.round(roomTxnTotal * 100) / 100,
+        quantity: 1,
+        reference: tempRef,
+        postedBy: poster,
+      })
+
+      if (serviceCharge > 0) {
+        transactionsData.push({
           folioId,
           transactionType: 'room',
-          description: `Room Charge - ${roomNumber} - ${dateStr}`,
-          amount: roomRate,
-          taxAmount: Math.round(taxAmount * 100) / 100,
-          totalAmount: Math.round(roomTxnTotal * 100) / 100,
+          description: `Service Charge - ${roomNumber} - ${dateStr}`,
+          amount: Math.round(serviceCharge * 100) / 100,
+          taxAmount: 0,
+          totalAmount: Math.round(serviceCharge * 100) / 100,
           quantity: 1,
-          reference: posting.id,
+          reference: `${tempRef}-sc`,
           postedBy: poster,
-        },
-      })
-
-      // If service charge > 0, create separate FolioTransaction
-      if (serviceCharge > 0) {
-        await db.folioTransaction.create({
-          data: {
-            folioId,
-            transactionType: 'room',
-            description: `Service Charge - ${roomNumber} - ${dateStr}`,
-            amount: Math.round(serviceCharge * 100) / 100,
-            taxAmount: 0,
-            totalAmount: Math.round(serviceCharge * 100) / 100,
-            quantity: 1,
-            reference: `${posting.id}-sc`,
-            postedBy: poster,
-          },
         })
       }
+    }
 
-      createdPostings.push(posting)
+    // Batch insert postings and transactions in parallel
+    const createdPostings = postingsData.length > 0
+      ? await db.roomRatePosting.createMany({ data: postingsData })
+      : null
+    if (transactionsData.length > 0) {
+      await db.folioTransaction.createMany({ data: transactionsData })
     }
 
     // 6. Update folio balance
@@ -356,12 +363,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const newCount = createdPostings?.count ?? postingsData.length
+
+    afterMutation('reservations')
+
     return NextResponse.json({
-      message: `Successfully posted room charges for ${createdPostings.length} night(s)`,
-      newPostings: createdPostings,
+      message: `Successfully posted room charges for ${newCount} night(s)`,
+      newPostings: allPostings.slice(-newCount),
       postings: allPostings,
       folio: updatedFolio,
-      newCount: createdPostings.length,
+      newCount,
       skippedCount: postingDates.length - newDates.length,
     })
   } catch (error) {
@@ -438,17 +449,27 @@ export async function DELETE(request: NextRequest) {
       },
     })
 
-    // Void corresponding folio transactions (zero out amounts, mark in description)
-    for (const txn of posting.folio.transactions) {
-      await db.folioTransaction.update({
-        where: { id: txn.id },
+    // Void corresponding folio transactions in batch
+    const txnIds = posting.folio.transactions.map(t => t.id)
+    if (txnIds.length > 0) {
+      // Build voided descriptions from in-memory data, then batch zero amounts
+      await db.folioTransaction.updateMany({
+        where: { id: { in: txnIds } },
         data: {
           amount: 0,
           taxAmount: 0,
           totalAmount: 0,
-          description: `${txn.description} [VOIDED: Rate posting deleted]`,
         },
       })
+      // Description append requires original value — use parallel updates since count is small (1-2 per posting)
+      await Promise.all(
+        posting.folio.transactions.map(txn =>
+          db.folioTransaction.update({
+            where: { id: txn.id },
+            data: { description: `${txn.description} [VOIDED: Rate posting deleted]` },
+          })
+        )
+      )
     }
 
     // Recalculate folio balance
@@ -464,6 +485,8 @@ export async function DELETE(request: NextRequest) {
         payments: { orderBy: { createdAt: 'desc' } },
       },
     })
+
+    afterMutation('reservations')
 
     return NextResponse.json({
       message: 'Rate posting voided successfully',

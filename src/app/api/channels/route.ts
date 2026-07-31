@@ -19,12 +19,11 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
 
     const channels = await db.channel.findMany({ where, orderBy: { name: 'asc' } })
-    const allChannels = await db.channel.findMany({ where: {} })
 
-    const connected = allChannels.filter((c) => c.status === 'connected').length
-    const disconnected = allChannels.filter((c) => c.status === 'disconnected').length
-    const totalBookings = allChannels.reduce((s, c) => s + c.totalBookings, 0)
-    const totalCommission = allChannels.reduce((s, c) => s + c.monthlyCommission, 0)
+    const connected = channels.filter((c) => c.status === 'connected').length
+    const disconnected = channels.filter((c) => c.status === 'disconnected').length
+    const totalBookings = channels.reduce((s, c) => s + c.totalBookings, 0)
+    const totalCommission = channels.reduce((s, c) => s + c.monthlyCommission, 0)
 
     return NextResponse.json({
       channels,

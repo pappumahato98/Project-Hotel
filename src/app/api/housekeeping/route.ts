@@ -1,23 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getSettingsMap, afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
-
-// Force recompile for new Prisma client model (HkInspectionAudit)
-
-// ─── Settings helper ──────────────────────────────────────
-async function getSettingsMap() {
-  const rows = await db.systemSetting.findMany()
-  const map: Record<string, unknown> = {}
-  for (const r of rows) {
-    if (r.type === 'number') map[r.key] = parseFloat(r.value)
-    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
-    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
-    else map[r.key] = r.value
-  }
-  return map
-}
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -83,15 +68,14 @@ export async function GET(request: NextRequest) {
     })
 
     // Summary counts
-    const allTasks = await db.hkTask.findMany({ where })
     const summary = {
-      total: allTasks.length,
-      pending: allTasks.filter((t) => t.status === 'pending').length,
-      assigned: allTasks.filter((t) => t.status === 'assigned').length,
-      inProgress: allTasks.filter((t) => t.status === 'in_progress').length,
-      cleaned: allTasks.filter((t) => t.status === 'cleaned').length,
-      inspected: allTasks.filter((t) => t.status === 'inspected').length,
-      failed: allTasks.filter((t) => t.status === 'failed').length,
+      total: tasks.length,
+      pending: tasks.filter((t) => t.status === 'pending').length,
+      assigned: tasks.filter((t) => t.status === 'assigned').length,
+      inProgress: tasks.filter((t) => t.status === 'in_progress').length,
+      cleaned: tasks.filter((t) => t.status === 'cleaned').length,
+      inspected: tasks.filter((t) => t.status === 'inspected').length,
+      failed: tasks.filter((t) => t.status === 'failed').length,
     }
 
     // Read settings for hotel name

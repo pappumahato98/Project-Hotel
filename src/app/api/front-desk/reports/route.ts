@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(request: NextRequest) {
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
 
     switch (reportType) {
       case 'arrivals': {
+        return await getOrSet(`front-desk:report:arrivals:${dateFrom || ''}:${dateTo || ''}`, async () => {
         const targetDate = dateFrom ? new Date(dateFrom) : new Date()
         targetDate.setHours(0, 0, 0, 0)
         const nextDay = new Date(targetDate)
@@ -30,9 +32,11 @@ export async function GET(request: NextRequest) {
           orderBy: { checkIn: 'asc' },
         })
         return NextResponse.json({ report: 'arrivals', date: targetDate.toISOString(), reservations, total: reservations.length })
+        }, 300000)
       }
 
       case 'departures': {
+        return await getOrSet(`front-desk:report:departures:${dateFrom || ''}:${dateTo || ''}`, async () => {
         const targetDate = dateFrom ? new Date(dateFrom) : new Date()
         targetDate.setHours(0, 0, 0, 0)
         const nextDay = new Date(targetDate)
@@ -51,9 +55,11 @@ export async function GET(request: NextRequest) {
           orderBy: { checkOut: 'asc' },
         })
         return NextResponse.json({ report: 'departures', date: targetDate.toISOString(), reservations, total: reservations.length })
+        }, 300000)
       }
 
       case 'inhouse': {
+        return await getOrSet('front-desk:report:inhouse::', async () => {
         const reservations = await db.reservation.findMany({
           where: { status: 'checked_in' },
           include: {
@@ -64,6 +70,7 @@ export async function GET(request: NextRequest) {
           orderBy: { room: { number: 'asc' } },
         })
         return NextResponse.json({ report: 'inhouse', reservations, total: reservations.length })
+        }, 300000)
       }
 
       case 'room-moves': {
@@ -79,6 +86,7 @@ export async function GET(request: NextRequest) {
       }
 
       case 'occupancy': {
+        return await getOrSet(`front-desk:report:occupancy:${dateFrom || ''}:${dateTo || ''}`, async () => {
         const startDate = dateFrom ? new Date(dateFrom) : new Date()
         startDate.setHours(0, 0, 0, 0)
         const endDate = dateTo ? new Date(dateTo) : new Date(startDate)
@@ -87,45 +95,51 @@ export async function GET(request: NextRequest) {
         const totalRooms = await db.room.count()
         const days: Array<{ date: string; total: number; occupied: number; arrivals: number; departures: number }> = []
 
+        // Fetch all relevant data in 3 batched queries, then compute per-day counts in memory
+        const [allActive, allArrivals, allDepartures] = await Promise.all([
+          db.reservation.findMany({
+            where: {
+              status: 'checked_in',
+              checkIn: { lt: endDate },
+              checkOut: { gt: startDate },
+            },
+            select: { checkIn: true, checkOut: true },
+          }),
+          db.reservation.findMany({
+            where: {
+              checkIn: { gte: startDate, lt: endDate },
+              status: { notIn: ['cancelled', 'checked_out', 'no_show'] },
+            },
+            select: { checkIn: true },
+          }),
+          db.reservation.findMany({
+            where: {
+              checkOut: { gte: startDate, lt: endDate },
+              status: { in: ['confirmed', 'checked_in'] },
+            },
+            select: { checkOut: true },
+          }),
+        ])
+
         for (let d = new Date(startDate); d < endDate; d.setDate(d.getDate() + 1)) {
           const nextD = new Date(d)
           nextD.setDate(nextD.getDate() + 1)
-
-          const [active, arrivals, departures] = await Promise.all([
-            db.reservation.count({
-              where: {
-                status: 'checked_in',
-                checkIn: { lt: nextD },
-                checkOut: { gt: d },
-              },
-            }),
-            db.reservation.count({
-              where: {
-                checkIn: { gte: d, lt: nextD },
-                status: { notIn: ['cancelled', 'checked_out', 'no_show'] },
-              },
-            }),
-            db.reservation.count({
-              where: {
-                checkOut: { gte: d, lt: nextD },
-                status: { in: ['confirmed', 'checked_in'] },
-              },
-            }),
-          ])
-
+          const dStr = d.toISOString().split('T')[0]
           days.push({
-            date: d.toISOString().split('T')[0],
+            date: dStr,
             total: totalRooms,
-            occupied: active,
-            arrivals,
-            departures,
+            occupied: allActive.filter(r => r.checkIn < nextD && r.checkOut > d).length,
+            arrivals: allArrivals.filter(r => r.checkIn >= d && r.checkIn < nextD).length,
+            departures: allDepartures.filter(r => r.checkOut >= d && r.checkOut < nextD).length,
           })
         }
 
         return NextResponse.json({ report: 'occupancy', totalRooms, days })
+        }, 300000)
       }
 
       case 'revenue': {
+        return await getOrSet(`front-desk:report:revenue:${dateFrom || ''}:${dateTo || ''}`, async () => {
         const start = dateFrom ? new Date(dateFrom) : new Date()
         start.setDate(start.getDate() - 30)
         start.setHours(0, 0, 0, 0)
@@ -163,9 +177,11 @@ export async function GET(request: NextRequest) {
             ? reservations.reduce((sum, r) => sum + (r.roomRate || 0), 0) / reservations.length
             : 0,
         })
+        }, 300000)
       }
 
       default: {
+        return await getOrSet(`front-desk:report:summary:${dateFrom || ''}:${dateTo || ''}`, async () => {
         // Summary report
         const today = new Date()
         today.setHours(0, 0, 0, 0)
@@ -213,6 +229,7 @@ export async function GET(request: NextRequest) {
           outstanding: (totalRevenue._sum.totalAmount || 0) - (totalRevenue._sum.paidAmount || 0),
           moveLogs: moves,
         })
+        }, 300000)
       }
     }
   } catch (error) {

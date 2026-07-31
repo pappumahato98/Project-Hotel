@@ -1,3 +1,5 @@
+import { db } from '@/lib/db'
+
 /**
  * Server-side in-memory cache with TTL.
  *
@@ -132,4 +134,22 @@ export function afterMutation(module?: string): void {
  */
 export function getCacheStats(): { size: number; keys: string[] } {
   return { size: store.size, keys: [...store.keys()] }
+}
+
+/**
+ * Returns a cached settings map (key → parsed value).
+ * TTL: 5 minutes — settings change rarely.
+ */
+export async function getSettingsMap(): Promise<Record<string, unknown>> {
+  return getOrSet('system-settings:map', async () => {
+    const rows = await db.systemSetting.findMany()
+    const map: Record<string, unknown> = {}
+    for (const s of rows) {
+      if (s.type === 'number') map[s.key] = parseFloat(s.value)
+      else if (s.type === 'boolean') map[s.key] = s.value === 'true'
+      else if (s.type === 'json') { try { map[s.key] = JSON.parse(s.value) } catch { map[s.key] = s.value } }
+      else map[s.key] = s.value
+    }
+    return map
+  }, 5 * 60 * 1000)
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -676,13 +676,8 @@ export async function POST(request: NextRequest) {
   if (auth instanceof NextResponse) return auth
   try {
     // ─── Fetch system settings ─────────────────────────────
-    const dbSettings = await db.systemSetting.findMany()
-    const sMap: Record<string, any> = {}
-    dbSettings.forEach(s => {
-      const val = s.type === 'number' ? parseFloat(s.value) : s.type === 'boolean' ? s.value === 'true' : s.type === 'json' ? JSON.parse(s.value) : s.value
-      sMap[s.key] = val
-    })
-    const taxRateDecimal = (sMap.taxRate || 13) / 100
+    const sMap = await getSettingsMap()
+    const taxRateDecimal = ((sMap.taxRate as number) || 13) / 100
 
     const body = await request.json()
     const { action, outletId, tableNumber, items, guestCount, serverName, guestName, rush, specialInstructions } = body
@@ -700,27 +695,34 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Create order items
+      // Create order items — batch fetch menu prices, then createMany
       let totalAmount = 0
       if (items && Array.isArray(items)) {
-        for (const item of items) {
-          const menuItem = await db.menuItem.findUnique({ where: { id: item.menuItemId } })
+        // Batch fetch all menu items
+        const menuItemIds = items.map(i => i.menuItemId).filter(Boolean)
+        const menuItems = menuItemIds.length > 0
+          ? await db.menuItem.findMany({ where: { id: { in: menuItemIds } }, select: { id: true, price: true } })
+          : []
+        const priceMap = new Map(menuItems.map(m => [m.id, m.price]))
+
+        const orderItemsData = items.map(item => {
           const qty = item.quantity || 1
-          const unitPrice = item.price || menuItem?.price || 0
+          const unitPrice = item.price || priceMap.get(item.menuItemId) || 0
           const itemTotal = unitPrice * qty
           totalAmount += itemTotal
+          return {
+            orderId: order.id,
+            menuItemId: item.menuItemId,
+            quantity: qty,
+            unitPrice,
+            totalPrice: itemTotal,
+            status: 'pending' as const,
+            notes: item.notes || null,
+          }
+        })
 
-          await db.orderItem.create({
-            data: {
-              orderId: order.id,
-              menuItemId: item.menuItemId,
-              quantity: qty,
-              unitPrice,
-              totalPrice: itemTotal,
-              status: 'pending',
-              notes: item.notes || null,
-            },
-          })
+        if (orderItemsData.length > 0) {
+          await db.orderItem.createMany({ data: orderItemsData })
         }
       }
 
@@ -731,6 +733,7 @@ export async function POST(request: NextRequest) {
       })
 
       broadcastEvent('pos:order_created', updated)
+      afterMutation('pos')
       return NextResponse.json(updated, { status: 201 })
     }
 
@@ -847,11 +850,14 @@ export async function POST(request: NextRequest) {
       })
 
       // Recalculate folio balance
-      const allCharges = await db.folioTransaction.findMany({ where: { folioId: folio.id }, select: { totalAmount: true } })
-      const allPayments = await db.folioPayment.findMany({ where: { folioId: folio.id }, select: { amount: true } })
+      const [allCharges, allPayments] = await Promise.all([
+        db.folioTransaction.findMany({ where: { folioId: folio.id }, select: { totalAmount: true } }),
+        db.folioPayment.findMany({ where: { folioId: folio.id }, select: { amount: true } }),
+      ])
       const newBalance = allCharges.reduce((s, c) => s + c.totalAmount, 0) - allPayments.reduce((s, p) => s + p.amount, 0)
       await db.folio.update({ where: { id: folio.id }, data: { balance: newBalance } })
 
+      afterMutation('folio')
       broadcastEvent('pos:charge_to_room', { folioId: folio.id, amount, reservationId })
       return NextResponse.json({ success: true, folioId: folio.id, amount })
     }

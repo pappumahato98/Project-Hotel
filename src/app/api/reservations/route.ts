@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 import { adToBS } from '@/lib/nepali-calendar'
-import { afterMutation } from '@/lib/cache'
+import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Nepali Fiscal Year Helpers ─────────────────────────────
@@ -39,24 +39,17 @@ async function generateReservationNumber(date: Date): Promise<string> {
   return `${prefix}${String(nextSeq).padStart(3, '0')}`
 }
 
-// ─── Settings helper ──────────────────────────────────────
-async function getSettingsMap() {
-  const rows = await db.systemSetting.findMany()
-  const map: Record<string, unknown> = {}
-  for (const r of rows) {
-    if (r.type === 'number') map[r.key] = parseFloat(r.value)
-    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
-    else if (r.type === 'json') { try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value } }
-    else map[r.key] = r.value
-  }
-  return map
-}
-
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
   try {
+    // Extract params for cache key before wrapping in getOrSet
     const { searchParams } = new URL(request.url)
+    const cacheStatus = searchParams.get('status') || 'all'
+    const cacheSearch = searchParams.get('search') || ''
+    const cachePage = searchParams.get('page') || '1'
+
+    return await getOrSet(`reservations:list:${cacheStatus}:${cacheSearch}:${cachePage}`, async () => {
     const status = searchParams.get('status')
     const search = searchParams.get('search')
     const date = searchParams.get('date')
@@ -182,6 +175,7 @@ export async function GET(request: NextRequest) {
         lateCheckoutCharge,
       },
     })
+    }, 120000)
   } catch (error) {
     console.error('Reservations API error:', error)
     return NextResponse.json({ error: 'Failed to fetch reservations' }, { status: 500 })

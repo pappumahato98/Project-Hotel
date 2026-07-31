@@ -23,8 +23,8 @@ function buildDatasourceUrl(): string {
   params.set('pgbouncer', 'true')
   params.set('connection_limit', '3')
   params.set('statement_cache_size', '0')
-  params.set('connect_timeout', '10')
-  params.set('pool_timeout', '10')
+  params.set('connect_timeout', '15')
+  params.set('pool_timeout', '15')
 
   return url + '?' + params.toString()
 }

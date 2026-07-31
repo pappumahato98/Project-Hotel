@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     if (month) where.month = month
     if (status) where.status = status
 
-    const records = await db.payroll.findMany({ where, orderBy: { employeeName: 'asc' } })
+    const records = await db.payroll.findMany({ where, orderBy: { employeeName: 'asc' }, take: 100 })
 
     const totalBaseSalary = records.reduce((s, e) => s + e.baseSalary, 0)
     const totalVariablePay = records.reduce((s, e) => s + e.variablePay, 0)
