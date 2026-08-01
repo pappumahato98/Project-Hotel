@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Icon mapping from outlet type ──────────────────────────────────
@@ -46,149 +47,152 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const dateParam = searchParams.get('date')
 
-    // Determine the target date range
-    const targetDate = dateParam ? new Date(dateParam) : new Date()
-    targetDate.setHours(0, 0, 0, 0)
-    const nextDay = new Date(targetDate)
-    nextDay.setDate(nextDay.getDate() + 1)
+    const cacheKey = `pos:daily-sales:${dateParam || 'today'}`
+    const response = await getOrSet(cacheKey, async () => {
+      // Determine the target date range
+      const targetDate = dateParam ? new Date(dateParam) : new Date()
+      targetDate.setHours(0, 0, 0, 0)
+      const nextDay = new Date(targetDate)
+      nextDay.setDate(nextDay.getDate() + 1)
 
-    // Fetch all closed or voided orders for the date range with relations
-    const orders = await db.posOrder.findMany({
-      where: {
-        createdAt: { gte: targetDate, lt: nextDay },
-        status: { in: ['closed', 'voided'] },
-      },
-      include: {
-        outlet: { select: { id: true, name: true, code: true, type: true, active: true } },
-        items: {
-          where: { status: { not: 'voided' } },
-          include: {
-            menuItem: { select: { id: true, name: true, category: true, price: true, taxRate: true } },
+      // Fetch all closed or voided orders for the date range with relations
+      const orders = await db.posOrder.findMany({
+        where: {
+          createdAt: { gte: targetDate, lt: nextDay },
+          status: { in: ['closed', 'voided'] },
+        },
+        include: {
+          outlet: { select: { id: true, name: true, code: true, type: true, active: true } },
+          items: {
+            where: { status: { not: 'voided' } },
+            include: {
+              menuItem: { select: { id: true, name: true, category: true, price: true, taxRate: true } },
+            },
           },
         },
-      },
-    })
-
-    // ─── Compute summary metrics ──────────────────────────────────
-    const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
-    const totalOrders = orders.length
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-    const taxCollected = orders.reduce((sum, o) => sum + (o.taxAmount || 0), 0)
-
-    // ─── Group by outlet ──────────────────────────────────────────
-    const outletMap = new Map<string, { name: string; revenue: number; orders: number; icon: string }>()
-    for (const order of orders) {
-      const outlet = order.outlet
-      const key = outlet.id
-      if (!outletMap.has(key)) {
-        outletMap.set(key, {
-          name: outlet.name,
-          revenue: 0,
-          orders: 0,
-          icon: getOutletIcon(outlet.type),
-        })
-      }
-      const entry = outletMap.get(key)!
-      entry.revenue += order.totalAmount || 0
-      entry.orders += 1
-    }
-    const byOutlet = Array.from(outletMap.values()).sort((a, b) => b.revenue - a.revenue)
-
-    // ─── Group by MenuItem category ───────────────────────────────
-    const categoryMap = new Map<string, number>()
-    for (const order of orders) {
-      for (const item of order.items) {
-        const cat = item.menuItem?.category || 'Other'
-        categoryMap.set(cat, (categoryMap.get(cat) || 0) + (item.totalPrice || 0))
-      }
-    }
-    const categoryTotal = Array.from(categoryMap.values()).reduce((a, b) => a + b, 0)
-    const byCategory = Array.from(categoryMap.entries())
-      .map(([name, amount]) => ({
-        name,
-        amount,
-        percentage: categoryTotal > 0 ? Math.round((amount / categoryTotal) * 1000) / 10 : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount)
-
-    // ─── Group by payment ─────────────────
-    // Since PosOrder doesn't have a paymentMethod field, we can only distinguish
-    // paid vs unpaid (room charge). Report actual totals without fabrication.
-    const paymentMap = new Map<string, { method: string; amount: number; icon: string }>()
-    paymentMap.set('Room Charge', { method: 'Room Charge', amount: 0, icon: 'bed' })
-    paymentMap.set('Paid', { method: 'Paid', amount: 0, icon: 'creditcard' })
-
-    for (const order of orders) {
-      if (order.paymentStatus === 'unpaid') {
-        paymentMap.get('Room Charge')!.amount += order.totalAmount || 0
-      } else {
-        paymentMap.get('Paid')!.amount += order.totalAmount || 0
-      }
-    }
-
-    const paymentTotal = Array.from(paymentMap.values()).reduce((s, p) => s + p.amount, 0)
-    const byPayment = Array.from(paymentMap.values())
-      .map((p) => ({
-        method: p.method,
-        amount: Math.round(p.amount),
-        percentage: paymentTotal > 0 ? Math.round((p.amount / paymentTotal) * 1000) / 10 : 0,
-        icon: p.icon,
-      }))
-      .filter((p) => p.amount > 0)
-      .sort((a, b) => b.amount - a.amount)
-
-    // ─── Top 5 items by quantity sold ─────────────────────────────
-    const itemMap = new Map<string, { name: string; qtySold: number; revenue: number }>()
-    for (const order of orders) {
-      for (const item of order.items) {
-        const itemName = item.menuItem?.name || `Item ${item.menuItemId}`
-        if (!itemMap.has(itemName)) {
-          itemMap.set(itemName, { name: itemName, qtySold: 0, revenue: 0 })
-        }
-        const entry = itemMap.get(itemName)!
-        entry.qtySold += item.quantity || 1
-        entry.revenue += item.totalPrice || 0
-      }
-    }
-    const topItems = Array.from(itemMap.values())
-      .sort((a, b) => b.qtySold - a.qtySold)
-      .slice(0, 5)
-      .map((item, idx) => ({ rank: idx + 1, ...item }))
-
-    // ─── Hourly sales ──────────────────────────────────────────────
-    const hourlyMap = new Map<number, { revenue: number; orders: number }>()
-    // Initialize all 24 hours
-    for (let h = 0; h < 24; h++) {
-      hourlyMap.set(h, { revenue: 0, orders: 0 })
-    }
-    for (const order of orders) {
-      const hour = new Date(order.createdAt).getHours()
-      const entry = hourlyMap.get(hour)!
-      entry.revenue += order.totalAmount || 0
-      entry.orders += 1
-    }
-    const hourlySales = Array.from(hourlyMap.entries())
-      .filter(([_h, data]) => data.orders > 0)
-      .map(([h, data]) => ({ hour: formatHour(h), revenue: Math.round(data.revenue), orders: data.orders }))
-      .sort((a, b) => {
-        // Sort by hour of day
-        const aH = parseHourStr(a.hour)
-        const bH = parseHourStr(b.hour)
-        return aH - bH
       })
 
-    // ─── Build response ──────────────────────────────────────────
-    const response: DailySalesResponse = {
-      totalRevenue: Math.round(totalRevenue),
-      totalOrders,
-      avgOrderValue: Math.round(avgOrderValue),
-      taxCollected: Math.round(taxCollected),
-      byOutlet,
-      byCategory,
-      byPayment,
-      topItems,
-      hourlySales,
-    }
+      // ─── Compute summary metrics ──────────────────────────────────
+      const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+      const totalOrders = orders.length
+      const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+      const taxCollected = orders.reduce((sum, o) => sum + (o.taxAmount || 0), 0)
+
+      // ─── Group by outlet ──────────────────────────────────────────
+      const outletMap = new Map<string, { name: string; revenue: number; orders: number; icon: string }>()
+      for (const order of orders) {
+        const outlet = order.outlet
+        const key = outlet.id
+        if (!outletMap.has(key)) {
+          outletMap.set(key, {
+            name: outlet.name,
+            revenue: 0,
+            orders: 0,
+            icon: getOutletIcon(outlet.type),
+          })
+        }
+        const entry = outletMap.get(key)!
+        entry.revenue += order.totalAmount || 0
+        entry.orders += 1
+      }
+      const byOutlet = Array.from(outletMap.values()).sort((a, b) => b.revenue - a.revenue)
+
+      // ─── Group by MenuItem category ───────────────────────────────
+      const categoryMap = new Map<string, number>()
+      for (const order of orders) {
+        for (const item of order.items) {
+          const cat = item.menuItem?.category || 'Other'
+          categoryMap.set(cat, (categoryMap.get(cat) || 0) + (item.totalPrice || 0))
+        }
+      }
+      const categoryTotal = Array.from(categoryMap.values()).reduce((a, b) => a + b, 0)
+      const byCategory = Array.from(categoryMap.entries())
+        .map(([name, amount]) => ({
+          name,
+          amount,
+          percentage: categoryTotal > 0 ? Math.round((amount / categoryTotal) * 1000) / 10 : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+
+      // ─── Group by payment ─────────────────
+      // Since PosOrder doesn't have a paymentMethod field, we can only distinguish
+      // paid vs unpaid (room charge). Report actual totals without fabrication.
+      const paymentMap = new Map<string, { method: string; amount: number; icon: string }>()
+      paymentMap.set('Room Charge', { method: 'Room Charge', amount: 0, icon: 'bed' })
+      paymentMap.set('Paid', { method: 'Paid', amount: 0, icon: 'creditcard' })
+
+      for (const order of orders) {
+        if (order.paymentStatus === 'unpaid') {
+          paymentMap.get('Room Charge')!.amount += order.totalAmount || 0
+        } else {
+          paymentMap.get('Paid')!.amount += order.totalAmount || 0
+        }
+      }
+
+      const paymentTotal = Array.from(paymentMap.values()).reduce((s, p) => s + p.amount, 0)
+      const byPayment = Array.from(paymentMap.values())
+        .map((p) => ({
+          method: p.method,
+          amount: Math.round(p.amount),
+          percentage: paymentTotal > 0 ? Math.round((p.amount / paymentTotal) * 1000) / 10 : 0,
+          icon: p.icon,
+        }))
+        .filter((p) => p.amount > 0)
+        .sort((a, b) => b.amount - a.amount)
+
+      // ─── Top 5 items by quantity sold ─────────────────────────────
+      const itemMap = new Map<string, { name: string; qtySold: number; revenue: number }>()
+      for (const order of orders) {
+        for (const item of order.items) {
+          const itemName = item.menuItem?.name || `Item ${item.menuItemId}`
+          if (!itemMap.has(itemName)) {
+            itemMap.set(itemName, { name: itemName, qtySold: 0, revenue: 0 })
+          }
+          const entry = itemMap.get(itemName)!
+          entry.qtySold += item.quantity || 1
+          entry.revenue += item.totalPrice || 0
+        }
+      }
+      const topItems = Array.from(itemMap.values())
+        .sort((a, b) => b.qtySold - a.qtySold)
+        .slice(0, 5)
+        .map((item, idx) => ({ rank: idx + 1, ...item }))
+
+      // ─── Hourly sales ──────────────────────────────────────────────
+      const hourlyMap = new Map<number, { revenue: number; orders: number }>()
+      // Initialize all 24 hours
+      for (let h = 0; h < 24; h++) {
+        hourlyMap.set(h, { revenue: 0, orders: 0 })
+      }
+      for (const order of orders) {
+        const hour = new Date(order.createdAt).getHours()
+        const entry = hourlyMap.get(hour)!
+        entry.revenue += order.totalAmount || 0
+        entry.orders += 1
+      }
+      const hourlySales = Array.from(hourlyMap.entries())
+        .filter(([_h, data]) => data.orders > 0)
+        .map(([h, data]) => ({ hour: formatHour(h), revenue: Math.round(data.revenue), orders: data.orders }))
+        .sort((a, b) => {
+          // Sort by hour of day
+          const aH = parseHourStr(a.hour)
+          const bH = parseHourStr(b.hour)
+          return aH - bH
+        })
+
+      // ─── Build response ──────────────────────────────────────────
+      return {
+        totalRevenue: Math.round(totalRevenue),
+        totalOrders,
+        avgOrderValue: Math.round(avgOrderValue),
+        taxCollected: Math.round(taxCollected),
+        byOutlet,
+        byCategory,
+        byPayment,
+        topItems,
+        hourlySales,
+      } satisfies DailySalesResponse
+    }, 120000)
 
     return NextResponse.json(response)
   } catch (error) {

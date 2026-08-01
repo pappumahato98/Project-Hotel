@@ -175,7 +175,7 @@ export function SettlementView() {
         '/api/reservations?status=checked_in'
       )
     },
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   })
 
   const reservations: InHouseReservation[] = data?.reservations || []

@@ -28,8 +28,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       setAccessToken('demo-token')
       initAuthFetch(() => getAccessToken(), () => useAuthStore.getState().user?.id ?? null)
 
-      // Fetch admin profile from API
-      fetch('/api/auth/profile', {
+      // Fetch admin profile and settings in parallel (saves ~100-300ms)
+      const profilePromise = fetch('/api/auth/profile', {
         headers: { Authorization: 'Bearer demo-token' },
       })
         .then(res => res.json())
@@ -41,9 +41,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         .catch(err => {
           console.error('Demo login failed:', err)
         })
-      .finally(() => {
-        useAuthStore.setState({ _hasHydrated: true })
-      })
+
+      const settingsPromise = useSettingsStore.getState().syncFromBackend(true)
+
+      Promise.all([profilePromise, settingsPromise])
+        .finally(() => {
+          useAuthStore.setState({ _hasHydrated: true })
+        })
       return
     }
 

@@ -402,7 +402,7 @@ export default function RoomServiceView() {
   const { data: guestsData, isLoading } = useQuery({
     queryKey: ['pos-guests'],
     queryFn: () => apiFetch<{ guests: Array<{ id: string; firstName: string; lastName: string; phone: string | null; reservations: Array<{ room: { number: string } | null; status: string }> }> }>('/api/guests'),
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   })
 
   const inHouseGuests: InHouseGuest[] = useMemo(() => {

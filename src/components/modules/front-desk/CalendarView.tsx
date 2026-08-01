@@ -465,13 +465,13 @@ export function CalendarView() {
       params.set('dateTo', endDateStr)
       return apiFetch(`/api/reservations?${params.toString()}`)
     },
-    staleTime: 0,
   })
 
   // ─── Fetch guests for new reservation dialog ──────────────────────────
   const { data: guestsRaw } = useQuery({
     queryKey: ['guests'],
     queryFn: () => apiFetch('/api/guests'),
+    enabled: false,
   })
 
   // ─── Process data ────────────────────────────────────────────────────

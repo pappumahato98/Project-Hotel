@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { db, withRetry } from '@/lib/db'
+import { afterMutation, getOrSet } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -16,28 +16,28 @@ async function generateDemandCalendar() {
   const today = getNepalToday()
   today.setHours(0, 0, 0, 0)
 
-  // Fetch rooms count
-  const totalRooms = await db.room.count()
-
-  // Fetch reservations that overlap the next 30 days
   const startDate = today
   const endDate = new Date(today)
   endDate.setDate(endDate.getDate() + 30)
 
-  const reservations = await db.reservation.findMany({
-    where: {
-      status: { in: ['confirmed', 'checked_in'] },
-      OR: [
-        { checkIn: { lt: endDate } },
-        { checkOut: { gt: startDate } },
-      ],
-    },
-    select: {
-      checkIn: true,
-      checkOut: true,
-      status: true,
-    },
-  })
+  // Fetch rooms count and reservations in parallel
+  const [totalRooms, reservations] = await Promise.all([
+    db.room.count(),
+    db.reservation.findMany({
+      where: {
+        status: { in: ['confirmed', 'checked_in'] },
+        OR: [
+          { checkIn: { lt: endDate } },
+          { checkOut: { gt: startDate } },
+        ],
+      },
+      select: {
+        checkIn: true,
+        checkOut: true,
+        status: true,
+      },
+    }),
+  ])
 
   const days = []
   for (let i = 0; i < 30; i++) {
@@ -78,53 +78,55 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
   try {
-    // Fetch rate plans from DB
-    const ratePlans = await db.ratePlan.findMany({
-      include: { roomType: { select: { name: true } } },
-      orderBy: { name: 'asc' },
-    })
+    const data = await getOrSet('revenue:data', async () => {
+      // Fetch rate plans, rate rules, and demand calendar in parallel
+      const [ratePlans, roomRatePostings, demandCalendar] = await Promise.all([
+        db.ratePlan.findMany({
+          include: { roomType: { select: { name: true } } },
+          orderBy: { name: 'asc' },
+        }),
+        db.roomRatePosting.findMany({
+          where: {
+            status: 'active',
+            endDate: { gte: new Date() },
+          },
+          include: { roomType: { select: { name: true } } },
+          orderBy: { startDate: 'asc' },
+        }),
+        generateDemandCalendar(),
+      ])
 
-    const mappedPlans = ratePlans.map((rp) => ({
-      id: rp.id,
-      name: rp.name,
-      roomType: rp.roomType?.name || 'All',
-      baseRate: rp.baseRate,
-      channel: rp.channel || 'Direct',
-      active: rp.active,
-    }))
+      const mappedPlans = ratePlans.map((rp) => ({
+        id: rp.id,
+        name: rp.name,
+        roomType: rp.roomType?.name || 'All',
+        baseRate: rp.baseRate,
+        channel: rp.channel || 'Direct',
+        active: rp.active,
+      }))
 
-    // Fetch active rate rules from DB
-    const roomRatePostings = await db.roomRatePosting.findMany({
-      where: {
-        status: 'active',
-        endDate: { gte: new Date() },
-      },
-      include: { roomType: { select: { name: true } } },
-      orderBy: { startDate: 'asc' },
-    })
+      const pricingRules = roomRatePostings.map((rr) => ({
+        id: rr.id,
+        name: rr.description || `Rate: ${rr.rateType}`,
+        type: rr.rateType === 'increase' ? 'surcharge' : rr.rateType === 'decrease' ? 'discount' : 'override',
+        value: rr.amount || 0,
+        appliesTo: rr.roomType?.name || 'All Room Types',
+        dates: `${rr.startDate?.toISOString().split('T')[0] ?? ''} - ${rr.endDate?.toISOString().split('T')[0] ?? ''}`,
+        active: rr.status === 'active',
+      }))
+      const highDays = demandCalendar.filter((d) => d.demandLevel === 'high').length
+      const mediumDays = demandCalendar.filter((d) => d.demandLevel === 'medium').length
+      const lowDays = demandCalendar.filter((d) => d.demandLevel === 'low').length
 
-    const pricingRules = roomRatePostings.map((rr) => ({
-      id: rr.id,
-      name: rr.description || `Rate: ${rr.rateType}`,
-      type: rr.rateType === 'increase' ? 'surcharge' : rr.rateType === 'decrease' ? 'discount' : 'override',
-      value: rr.amount || 0,
-      appliesTo: rr.roomType?.name || 'All Room Types',
-      dates: `${rr.startDate?.toISOString().split('T')[0] ?? ''} - ${rr.endDate?.toISOString().split('T')[0] ?? ''}`,
-      active: rr.status === 'active',
-    }))
+      return {
+        demandCalendar,
+        ratePlans: mappedPlans,
+        pricingRules,
+        summary: { highDays, mediumDays, lowDays },
+      }
+    }, 120000)
 
-    // Demand calendar from real reservation data
-    const demandCalendar = await generateDemandCalendar()
-    const highDays = demandCalendar.filter((d) => d.demandLevel === 'high').length
-    const mediumDays = demandCalendar.filter((d) => d.demandLevel === 'medium').length
-    const lowDays = demandCalendar.filter((d) => d.demandLevel === 'low').length
-
-    return NextResponse.json({
-      demandCalendar,
-      ratePlans: mappedPlans,
-      pricingRules,
-      summary: { highDays, mediumDays, lowDays },
-    })
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Revenue API error:', error)
     return NextResponse.json({ error: 'Failed to fetch revenue data' }, { status: 500 })

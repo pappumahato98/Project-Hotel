@@ -1304,7 +1304,7 @@ function ActivityLogTab() {
       return apiFetch(`/api/auth/activity-log?${params}`)
     },
     enabled: !!user?.id,
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   })
 
   const logs = data?.logs ?? []

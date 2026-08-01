@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
+import { qk } from '@/lib/queryKeys'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -288,7 +289,7 @@ export function RestrictionsView() {
   const [viewDays] = useState(14)
 
   const { data, isLoading, error, refetch } = useQuery<RestrictionsResponse>({
-    queryKey: ['rooms', 'restrictions'],
+    queryKey: qk.rooms(),
     queryFn: () => apiFetch('/api/rooms'),
     staleTime: 60_000,
   })

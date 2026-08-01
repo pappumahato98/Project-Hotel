@@ -164,7 +164,7 @@ export function InHouseView() {
     queryFn: async () => {
       return apiFetch('/api/reservations?status=checked_in')
     },
-    refetchInterval: 5000,
+    refetchInterval: 30000,
   })
 
   const reservations: InHouseReservation[] = (data?.reservations || []).filter((r: any) => r.room)

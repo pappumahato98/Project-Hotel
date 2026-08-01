@@ -175,7 +175,7 @@ export function DeparturesView() {
       })
       return { reservations: merged }
     },
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   })
 
   const departures: Departure[] = data?.reservations || []

@@ -85,7 +85,7 @@ export function GuestDirectoryView() {
   const { data, isLoading, error: queryError } = useQuery({
     queryKey: ['reservations', 'checked_in', 'guest-directory'],
     queryFn: () => apiFetch<{ reservations: any[]; total: number }>('/api/reservations?status=checked_in'),
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   })
 
   const guests: Guest[] = useMemo(() => {

@@ -543,7 +543,7 @@ export function RoomBoard() {
     queryKey: ['rooms', 'board'],
     queryFn: () => apiFetch('/api/rooms'),
     staleTime: 30_000, // 30s stale time for near-real-time
-    refetchInterval: 60_000, // Auto refresh every minute
+    refetchInterval: 120_000, // Auto refresh every 2 minutes
   })
 
   // Subscribe to realtime room status changes — auto-refetch on update

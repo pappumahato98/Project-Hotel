@@ -988,7 +988,7 @@ export function DashboardModule() {
   const kpisQuery = useQuery<KpisData>({
     queryKey: ['dashboard', 'kpis'],
     queryFn: () => apiFetch('/api/dashboard/kpis'),
-    refetchInterval: 10000,
+    refetchInterval: 60000,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     staleTime: 30_000, // consider data fresh for 30s on client
@@ -997,7 +997,7 @@ export function DashboardModule() {
   const alertsQuery = useQuery<AlertsData>({
     queryKey: ['dashboard', 'alerts'],
     queryFn: () => apiFetch('/api/dashboard/alerts'),
-    refetchInterval: 10000,
+    refetchInterval: 60000,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     staleTime: 30_000,
@@ -1006,7 +1006,7 @@ export function DashboardModule() {
   const activityQuery = useQuery<ActivityData>({
     queryKey: ['dashboard', 'activity'],
     queryFn: () => apiFetch('/api/dashboard/activity'),
-    refetchInterval: 10000,
+    refetchInterval: 60000,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     staleTime: 30_000,

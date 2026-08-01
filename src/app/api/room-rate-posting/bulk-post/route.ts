@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
-
-// ─── Settings helper ──────────────────────────────────────
-async function getSettingsMap() {
-  const rows = await db.systemSetting.findMany()
-  const map: Record<string, unknown> = {}
-  for (const r of rows) {
-    if (r.type === 'number') map[r.key] = parseFloat(r.value)
-    else if (r.type === 'boolean') map[r.key] = r.value === 'true'
-    else if (r.type === 'json') {
-      try { map[r.key] = JSON.parse(r.value) } catch { map[r.key] = r.value }
-    } else map[r.key] = r.value
-  }
-  return map
-}
 
 // ─── Date helpers ─────────────────────────────────────────
 function toDateOnly(d: Date): string {

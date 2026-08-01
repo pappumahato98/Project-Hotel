@@ -485,12 +485,8 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    if (!reservation) {
-      return NextResponse.json(
-        { error: 'Failed to retrieve updated reservation' },
-        { status: 500 },
-      )
-    }
+    // Invalidate caches for rooms, reservations, dashboard
+    afterMutation('check-in')
 
     return NextResponse.json(
       {

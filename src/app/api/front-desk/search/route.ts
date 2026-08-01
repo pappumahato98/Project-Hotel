@@ -15,18 +15,41 @@ export async function GET(request: NextRequest) {
 
     const results: Array<{ type: string; id: string; label: string; sublabel: string }> = []
 
-    // Search guests
-    const guests = await db.guest.findMany({
-      where: {
-        OR: [
-          { firstName: { contains: query } },
-          { lastName: { contains: query } },
-          { phone: { contains: query } },
-        ],
-      },
-      select: { id: true, firstName: true, lastName: true, phone: true, vipLevel: true },
-      take: 5,
-    })
+    // Search guests, rooms, and reservations in parallel
+    const [guests, rooms, reservations] = await Promise.all([
+      db.guest.findMany({
+        where: {
+          OR: [
+            { firstName: { contains: query } },
+            { lastName: { contains: query } },
+            { phone: { contains: query } },
+          ],
+        },
+        select: { id: true, firstName: true, lastName: true, phone: true, vipLevel: true },
+        take: 5,
+      }),
+      db.room.findMany({
+        where: {
+          OR: [
+            { number: { contains: query } },
+          ],
+        },
+        select: { id: true, number: true, status: true, type: { select: { name: true } } },
+        take: 5,
+      }),
+      db.reservation.findMany({
+        where: {
+          OR: [
+            { confirmationNo: { contains: query } },
+          ],
+        },
+        select: {
+          id: true, confirmationNo: true, status: true,
+          guest: { select: { firstName: true, lastName: true } },
+        },
+        take: 5,
+      }),
+    ])
 
     for (const g of guests) {
       results.push({
@@ -37,17 +60,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Search rooms
-    const rooms = await db.room.findMany({
-      where: {
-        OR: [
-          { number: { contains: query } },
-        ],
-      },
-      select: { id: true, number: true, status: true, type: { select: { name: true } } },
-      take: 5,
-    })
-
     for (const r of rooms) {
       results.push({
         type: 'room',
@@ -56,20 +68,6 @@ export async function GET(request: NextRequest) {
         sublabel: `${r.type.name} • ${r.status.replace('_', ' ')}`,
       })
     }
-
-    // Search reservations
-    const reservations = await db.reservation.findMany({
-      where: {
-        OR: [
-          { confirmationNo: { contains: query } },
-        ],
-      },
-      select: {
-        id: true, confirmationNo: true, status: true,
-        guest: { select: { firstName: true, lastName: true } },
-      },
-      take: 5,
-    })
 
     for (const r of reservations) {
       results.push({

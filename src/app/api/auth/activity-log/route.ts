@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { afterMutation, getOrSet } from '@/lib/cache'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -23,44 +23,49 @@ export async function GET(req: NextRequest) {
       userId = auth.user.userId
     }
 
-    const where: Record<string, unknown> = { userId }
-    if (module_ && module_ !== 'all') {
-      where.module = module_
-    }
+    const cacheKey = `activity-log:list:${userId}:${limit}:${module_ || 'all'}`
+    const data = await getOrSet(cacheKey, async () => {
+      const where: Record<string, unknown> = { userId }
+      if (module_ && module_ !== 'all') {
+        where.module = module_
+      }
 
-    const logs = await db.activityLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: Math.min(limit, 200),
-    })
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
 
-    // Summary stats
-    const totalCount = await db.activityLog.count({ where: { userId } })
-    const loginCount = await db.activityLog.count({
-      where: { userId, action: 'login' },
-    })
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    const todayCount = await db.activityLog.count({
-      where: {
-        userId,
-        createdAt: { gte: todayStart },
-      },
-    })
+      // Fetch logs, summary stats, and distinct modules in parallel
+      const [logs, totalCount, loginCount, todayCount, allLogs] = await Promise.all([
+        db.activityLog.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: Math.min(limit, 200),
+        }),
+        db.activityLog.count({ where: { userId } }),
+        db.activityLog.count({
+          where: { userId, action: 'login' },
+        }),
+        db.activityLog.count({
+          where: {
+            userId,
+            createdAt: { gte: todayStart },
+          },
+        }),
+        db.activityLog.findMany({
+          where: { userId },
+          select: { module: true },
+          distinct: ['module'],
+        }),
+      ])
+      const modules = allLogs.map((l) => l.module)
 
-    // Get unique modules for filter
-    const allLogs = await db.activityLog.findMany({
-      where: { userId },
-      select: { module: true },
-      distinct: ['module'],
-    })
-    const modules = allLogs.map((l) => l.module)
+      return {
+        logs,
+        stats: { total: totalCount, logins: loginCount, today: todayCount },
+        modules,
+      }
+    }, 60000)
 
-    return NextResponse.json({
-      logs,
-      stats: { total: totalCount, logins: loginCount, today: todayCount },
-      modules,
-    })
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Fetch activity log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

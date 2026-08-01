@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { apiFetch } from '@/lib/api'
+import { qk } from '@/lib/queryKeys'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -158,7 +159,7 @@ export function WorkflowView() {
 
   // ─── Fetch Rooms & Employees for dropdowns ──────────────
   const { data: roomsData } = useQuery({
-    queryKey: ['rooms-list'],
+    queryKey: qk.roomsAll(),
     queryFn: () => apiFetch('/api/rooms'),
     staleTime: 60000,
   })
@@ -183,7 +184,7 @@ export function WorkflowView() {
       if (searchQuery) params.set('search', searchQuery)
       return apiFetch(`/api/housekeeping/workflow?${params.toString()}`)
     },
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   })
 
   const items: WorkflowItem[] = (data as any)?.items ?? []

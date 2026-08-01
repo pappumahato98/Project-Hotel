@@ -232,7 +232,7 @@ export default function OrderHistoryView() {
       })
       return apiFetch(`/api/pos?${params}`)
     },
-    refetchInterval: 15000, // 15-second auto-refresh
+    refetchInterval: 60000, // 60-second auto-refresh
   })
 
   const orders = historyData?.orders ?? []

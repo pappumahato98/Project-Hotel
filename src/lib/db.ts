@@ -21,7 +21,7 @@ function buildDatasourceUrl(): string {
 
   const params = new URLSearchParams()
   params.set('pgbouncer', 'true')
-  params.set('connection_limit', '3')
+  params.set('connection_limit', '7')
   params.set('statement_cache_size', '0')
   params.set('connect_timeout', '15')
   params.set('pool_timeout', '15')

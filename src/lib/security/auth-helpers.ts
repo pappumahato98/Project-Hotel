@@ -20,13 +20,27 @@ const ROLE_HIERARCHY: Record<string, number> = {
 
 const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL
 
+// ─── Auth session cache (eliminates 200-450ms per API call) ───
+interface CachedAuth {
+  user: AuthUser
+  expiresAt: number
+}
+const _authCache = new Map<string, CachedAuth>()
+const AUTH_TTL = 60_000 // 60 seconds
+let _supabaseSingleton: ReturnType<typeof import('@supabase/supabase-js')['createClient']> | null = null
+
 /**
  * In demo mode (no Supabase), we accept any Bearer token
  * and return the first admin user from the database.
+ * Result is cached for 60s since admin user never changes during a session.
  */
 async function getDemoSession(req: NextRequest): Promise<AuthUser | NextResponse> {
-  const authHeader = req.headers.get('authorization')
-  // In demo mode, accept any auth header or no auth header
+  // Check cache first
+  const cached = _authCache.get('demo-admin')
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.user
+  }
+
   try {
     const profile = await db.authUser.findFirst({
       where: { role: 'admin', active: true },
@@ -35,7 +49,9 @@ async function getDemoSession(req: NextRequest): Promise<AuthUser | NextResponse
     if (!profile) {
       return NextResponse.json({ error: 'No admin user found in database. Run seed first.' }, { status: 500 })
     }
-    return { userId: profile.id, email: profile.email, role: profile.role, firstName: profile.firstName, lastName: profile.lastName }
+    const user: AuthUser = { userId: profile.id, email: profile.email, role: profile.role, firstName: profile.firstName, lastName: profile.lastName }
+    _authCache.set('demo-admin', { user, expiresAt: Date.now() + AUTH_TTL })
+    return user
   } catch (dbErr) {
     const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
     return NextResponse.json({ error: 'Database error', detail: msg.substring(0, 300) }, { status: 500 })
@@ -59,15 +75,26 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
 
-  try {
-    const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+  // Check token cache first (saves 200-450ms Supabase + DB round-trip)
+  const cached = _authCache.get(token)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.user
+  }
 
-    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser(token)
+  try {
+    // Use singleton Supabase client instead of creating new one per request
+    let supabaseClient = (_supabaseSingleton as ReturnType<typeof import('@supabase/supabase-js')['createClient']> | null)
+    if (!supabaseClient) {
+      const { createClient: createSupabaseClient } = await import('@supabase/supabase-js')
+      supabaseClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      )
+      _supabaseSingleton = supabaseClient
+    }
+
+    const { data: { user: supabaseUser }, error } = await supabaseClient.auth.getUser(token)
 
     if (error || !supabaseUser) {
       const ip = getClientIp(req)
@@ -97,7 +124,10 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
       return NextResponse.json({ error: 'Account is deactivated. Contact administrator.' }, { status: 403 })
     }
 
-    return { userId: profile.id, email: profile.email, role: profile.role, firstName: profile.firstName, lastName: profile.lastName }
+    const user: AuthUser = { userId: profile.id, email: profile.email, role: profile.role, firstName: profile.firstName, lastName: profile.lastName }
+    // Cache by token with 60s TTL (JWT exp is typically 1h, 60s is safe)
+    _authCache.set(token, { user, expiresAt: Date.now() + AUTH_TTL })
+    return user
   } catch (err) {
     return NextResponse.json({ error: 'Auth service error' }, { status: 500 })
   }

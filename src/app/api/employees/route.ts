@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { afterMutation, getOrSet } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -13,33 +13,38 @@ export async function GET(request: NextRequest) {
     const department = searchParams.get('department')
     const status = searchParams.get('status')
 
-    const where: Prisma.EmployeeWhereInput = {}
+    const cacheKey = `employees:list:${department || ''}:${status || ''}`
+    const data = await getOrSet(cacheKey, async () => {
+      const where: Prisma.EmployeeWhereInput = {}
 
-    if (department) where.department = department
-    if (status) where.status = status
+      if (department) where.department = department
+      if (status) where.status = status
 
-    const employees = await db.employee.findMany({
-      where,
-      include: {
-        property: { select: { id: true, name: true, code: true } },
-      },
-      orderBy: [{ department: 'asc' }, { lastName: 'asc' }],
-    })
+      const [employees, deptBreakdown] = await Promise.all([
+        db.employee.findMany({
+          where,
+          include: {
+            property: { select: { id: true, name: true, code: true } },
+          },
+          orderBy: [{ department: 'asc' }, { lastName: 'asc' }],
+        }),
+        db.employee.groupBy({
+          by: ['department'],
+          _count: { department: true },
+        }),
+      ])
 
-    const total = await db.employee.count({ where })
+      const total = employees.length
 
-    // Department breakdown
-    const deptBreakdown = await db.employee.groupBy({
-      by: ['department'],
-      _count: { department: true },
-    })
+      const deptMap: Record<string, number> = {}
+      for (const item of deptBreakdown) {
+        deptMap[item.department] = item._count.department
+      }
 
-    const deptMap: Record<string, number> = {}
-    for (const item of deptBreakdown) {
-      deptMap[item.department] = item._count.department
-    }
+      return { employees, total, departmentBreakdown: deptMap }
+    }, 120000)
 
-    return NextResponse.json({ employees, total, departmentBreakdown: deptMap })
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Employees API error:', error)
     return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 })

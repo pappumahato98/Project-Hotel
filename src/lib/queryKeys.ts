@@ -1,22 +1,17 @@
 /**
  * Shared query-key constants and cross-module invalidation helpers.
  *
- * Every module that mutates room / reservation / folio / guest data MUST call
- * the appropriate `invalidate*` helper on success so that ALL other modules
- * re-fetch fresh data.
- *
- * Usage in a mutation's onSuccess:
- *   onSuccess: () => {
- *     invalidateAfterCheckIn(queryClient)
- *     // or invalidateAfterCheckout, invalidateAfterReservationChange, etc.
- *   }
+ * PERFORMANCE OPTIMIZED: Invalidations use `refetchType: 'none'` to mark
+ * queries as stale WITHOUT triggering immediate refetches. Only queries
+ * currently being observed (visible on screen) will refetch on next
+ * observation cycle. This prevents 8-14 request storms per mutation.
  */
 import type { QueryClient } from '@tanstack/react-query'
 
 // ─── Query-key factories (single source of truth) ──────────────────────
 
 export const qk = {
-  // Rooms
+  // Rooms — normalized: all room queries share base key
   rooms:        ()           => ['rooms'] as const,
   roomsBoard:   ()           => ['rooms', 'board'] as const,
   roomsTypes:   ()           => ['rooms', 'types'] as const,
@@ -58,121 +53,130 @@ export const qk = {
   housekeeping:    ()               => ['housekeeping'] as const,
 } as const
 
+// ─── Optimized invalidation: stale-only, no immediate refetch storm ────
+
+/**
+ * Mark queries as stale WITHOUT triggering immediate refetch.
+ * Only actively-observed queries will refetch on their next cycle.
+ * This prevents 8-14 simultaneous requests per mutation.
+ */
+function softInvalidate(qc: QueryClient, keys: readonly (readonly [string, ...unknown[]])[]) {
+  for (const k of keys) {
+    qc.invalidateQueries({ queryKey: k as unknown[], refetchType: 'none' })
+  }
+}
+
+/**
+ * Actively refetch only the specified keys (for current view).
+ * Use this for 1-2 keys the user is currently looking at.
+ */
+function activeRefetch(qc: QueryClient, keys: readonly (readonly [string, ...unknown[]])[]) {
+  for (const k of keys) {
+    qc.invalidateQueries({ queryKey: k as unknown[], refetchType: 'active' })
+  }
+}
+
 // ─── Cross-module invalidation helpers ─────────────────────────────────
 
-/** Keys that change when a guest is CHECKED IN. */
-function checkInKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after check-in. Soft-invalidates all, actively refetches rooms + dashboard. */
+export function invalidateAfterCheckIn(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
     qk.roomsCalendar(), qk.roomsVacant(), qk.vacantRooms(),
     qk.reservations(), qk.arrivals(), qk.inHouse(), qk.departures(),
-    qk.dashboard(), qk.frontDeskDashboard(), qk.guests(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+    qk.dashboard(), qk.frontDeskDashboard(), qk.folios(), qk.guests(),
+  ])
+  // Only actively refetch what the user is likely looking at
+  activeRefetch(qc, [qk.roomsBoard(), qk.inHouse(), qk.frontDeskDashboard()])
 }
 
-/** Keys that change when a guest is CHECKED OUT. */
-function checkoutKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after check-out. Soft-invalidates all, actively refetches rooms + dashboard. */
+export function invalidateAfterCheckout(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
     qk.roomsCalendar(), qk.roomsVacant(), qk.vacantRooms(),
     qk.reservations(), qk.inHouse(), qk.departures(), qk.arrivals(),
     qk.dashboard(), qk.frontDeskDashboard(), qk.folios(), qk.guests(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  ])
+  activeRefetch(qc, [qk.roomsBoard(), qk.departures(), qk.frontDeskDashboard()])
 }
 
-/** Keys that change when a RESERVATION is created / updated / cancelled / deleted. */
-function reservationChangeKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after reservation create/update/cancel/delete. */
+export function invalidateAfterReservationChange(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
     qk.roomsCalendar(), qk.roomsForRes(), qk.roomsVacant(), qk.vacantRooms(),
     qk.reservations(), qk.arrivals(), qk.departures(), qk.inHouse(),
     qk.dashboard(), qk.frontDeskDashboard(), qk.guests(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  ])
+  activeRefetch(qc, [qk.reservations(), qk.arrivals(), qk.dashboard()])
 }
 
-/** Keys that change when a FOLIO transaction is posted / payment recorded / voided. */
-function folioChangeKeys(qc: QueryClient, guestId?: string | null, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
-    qk.folios(), qk.inHouse(), qk.departures(), qk.dashboard(),
-    qk.frontDeskDashboard(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+/** Call after folio charge/payment/void. */
+export function invalidateAfterFolioChange(qc: QueryClient, guestId?: string | null) {
+  softInvalidate(qc, [
+    qk.folios(), qk.inHouse(), qk.departures(),
+    qk.dashboard(), qk.frontDeskDashboard(),
+  ])
   if (guestId) {
-    qc.invalidateQueries({ queryKey: qk.guestLedger(guestId) as unknown[] })
-    qc.invalidateQueries({ queryKey: qk.guestFolios(guestId) as unknown[] })
+    qc.invalidateQueries({ queryKey: qk.guestLedger(guestId) as unknown[], refetchType: 'active' })
+    qc.invalidateQueries({ queryKey: qk.guestFolios(guestId) as unknown[], refetchType: 'active' })
   }
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  activeRefetch(qc, [qk.folios(), qk.frontDeskDashboard()])
 }
 
-/** Keys that change when a ROOM TRANSFER happens. */
-function roomTransferKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after room transfer. */
+export function invalidateAfterRoomTransfer(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
     qk.roomsCalendar(), qk.roomsVacant(), qk.vacantRooms(),
     qk.reservations(), qk.inHouse(), qk.dashboard(), qk.frontDeskDashboard(),
     qk.roomMoves(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  ])
+  activeRefetch(qc, [qk.roomsBoard(), qk.inHouse(), qk.frontDeskDashboard()])
 }
 
-/** Keys that change when a NIGHT AUDIT or DAY CLOSE runs. */
-function auditKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after night audit / day close. */
+export function invalidateAfterAudit(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
     qk.roomsCalendar(), qk.roomsVacant(), qk.vacantRooms(),
     qk.reservations(), qk.folios(), qk.inHouse(), qk.arrivals(),
     qk.departures(), qk.dashboard(), qk.frontDeskDashboard(),
     qk.operations(), qk.guests(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  ])
+  // Night audit: actively refetch everything since it's a major event
+  activeRefetch(qc, [qk.roomsBoard(), qk.dashboard(), qk.operations(), qk.frontDeskDashboard()])
 }
 
-/** Keys that change when a ROOM STATUS changes (HK cleaning → inspected → vacant, not check-in/checkout/transfer). */
-function roomStatusChangeKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after room status change (HK cleaning → inspected → vacant). */
+export function invalidateAfterRoomStatusChange(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.rooms(), qk.roomsBoard(), qk.roomsTypes(), qk.roomsAll(),
     qk.roomsCalendar(), qk.roomsVacant(), qk.vacantRooms(),
     qk.frontDeskDashboard(), qk.dashboard(), qk.housekeeping(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  ])
+  activeRefetch(qc, [qk.roomsBoard(), qk.housekeeping(), qk.frontDeskDashboard()])
 }
 
-/** Keys that change when a FOLIO CHARGE is posted (POS → room, no guestId required). */
-function folioChargeKeys(qc: QueryClient, extra?: readonly [string, ...unknown[]][]) {
-  const base = [
+/** Call after posting a folio charge from POS / external module. */
+export function invalidateAfterFolioCharge(qc: QueryClient) {
+  softInvalidate(qc, [
     qk.folios(), qk.inHouse(), qk.departures(),
     qk.dashboard(), qk.frontDeskDashboard(),
-  ] as const
-  base.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
-  extra?.forEach(k => qc.invalidateQueries({ queryKey: k as unknown[] }))
+  ])
+  activeRefetch(qc, [qk.folios(), qk.frontDeskDashboard()])
 }
 
-// ─── Public API ────────────────────────────────────────────────────────
+// ─── Public API (backward-compatible) ──────────────────────────────────
 
 export const invalidate = {
-  /** Call after check-in (room vacant → occupied, reservation → checked_in). */
-  afterCheckIn:       (qc: QueryClient)      => checkInKeys(qc),
-  /** Call after check-out (room occupied → dirty, reservation → checked_out). */
-  afterCheckout:      (qc: QueryClient)      => checkoutKeys(qc),
-  /** Call after creating, updating, cancelling, or deleting a reservation. */
-  afterReservationChange: (qc: QueryClient)  => reservationChangeKeys(qc),
-  /** Call after posting a charge, recording a payment, or voiding a folio entry. */
-  afterFolioChange:   (qc: QueryClient, guestId?: string | null) => folioChangeKeys(qc, guestId),
-  /** Call after transferring a guest to a different room. */
-  afterRoomTransfer:  (qc: QueryClient)      => roomTransferKeys(qc),
-  /** Call after running night audit or day close. */
-  afterAudit:         (qc: QueryClient)      => auditKeys(qc),
-  /** Call after a room status change from housekeeping (cleaning → inspected → vacant_clean). */
-  afterRoomStatusChange: (qc: QueryClient)   => roomStatusChangeKeys(qc),
-  /** Call after posting a folio charge from POS / external module (no guestId required). */
-  afterFolioCharge:   (qc: QueryClient)      => folioChargeKeys(qc),
+  afterCheckIn:           invalidateAfterCheckIn,
+  afterCheckout:          invalidateAfterCheckout,
+  afterReservationChange: invalidateAfterReservationChange,
+  afterFolioChange:       invalidateAfterFolioChange,
+  afterRoomTransfer:      invalidateAfterRoomTransfer,
+  afterAudit:             invalidateAfterAudit,
+  afterRoomStatusChange:  invalidateAfterRoomStatusChange,
+  afterFolioCharge:       invalidateAfterFolioCharge,
 }

@@ -10,30 +10,17 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const [user, employee] = await withRetry(() => Promise.all([
-      db.authUser.findUnique({
-        where: { id: auth.user.userId },
-        select: {
-          id: true, email: true, firstName: true, lastName: true, role: true,
-          department: true, position: true, avatarUrl: true, phone: true,
-          dateOfBirth: true, gender: true, address: true, city: true,
-          country: true, nationality: true, idType: true, idNumber: true,
-          twoFactorEnabled: true, active: true, lastLoginAt: true,
-          createdAt: true, updatedAt: true,
-        },
-      }),
+    // requireAuth() already fetched authUser and returned auth.user — don't re-fetch.
+    // Only fetch the employee record (hireDate) which requireAuth doesn't provide.
+    const employee = await withRetry(() =>
       db.employee.findFirst({
         where: { email: auth.user.email },
         select: { hireDate: true },
-      }),
-    ]))
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
+      })
+    )
 
     return NextResponse.json({
-      user: { ...user, hireDate: employee?.hireDate ?? null },
+      user: { ...auth.user, hireDate: employee?.hireDate ?? null },
     })
   } catch (error) {
     console.error('Fetch profile error:', error)

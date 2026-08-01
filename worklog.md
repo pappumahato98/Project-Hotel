@@ -305,3 +305,94 @@ Stage Summary:
 - App now runs in demo mode (auto-login as admin) with full SQLite backend
 - Code cleanup: removed 2 unused imports
 - Lint: zero errors
+
+---
+Task ID: 5
+Agent: Sub Agent
+Task: Parallelize 6 sequential API routes with Promise.all
+
+Work Log:
+- F1: front-desk/search/route.ts — Wrapped 3 independent search queries (guests, rooms, reservations) in a single Promise.all. Mapping loops moved after the parallel fetch.
+- F2: accounting/route.ts — Wrapped 3 DB queries (ledgerAccount findMany, journalEntry findMany, ledgerAccount groupBy) + getSettingsMap() in a single Promise.all (4 promises total).
+- F3: employees/route.ts — Removed redundant `db.employee.count({ where })` (replaced with `employees.length`). Wrapped remaining 2 queries (findMany, groupBy) in Promise.all.
+- F4: revenue/route.ts — Wrapped 3 independent fetches (ratePlans, roomRatePostings, generateDemandCalendar()) in Promise.all. Also parallelized 2 internal queries inside generateDemandCalendar() (room.count + reservation.findMany).
+- F5: auth/activity-log/route.ts — Wrapped 5 sequential queries (findMany logs, count total, count login, count today, findMany distinct modules) in a single Promise.all.
+- F6: folio/route.ts — Wrapped 3 stats queries (openFolios, todayTxns, todayPayments) in Promise.all. Added `take: 50` to todayTxns and todayPayments queries.
+- Lint: zero errors after all edits
+
+Stage Summary:
+- 6 API route files edited — 16 sequential DB round-trips eliminated (reduced to parallel batches)
+- F1: 3 sequential → 1 Promise.all
+- F2: 4 sequential → 1 Promise.all (includes cached getSettingsMap)
+- F3: 3 sequential → 1 Promise.all (count removed, uses in-memory .length)
+- F4: 3 sequential + 2 internal sequential → 2 Promise.all batches
+- F5: 5 sequential → 1 Promise.all
+- F6: 3 sequential → 1 Promise.all + added take:50 limits
+- Error handling preserved — all parallel fetches remain inside existing try/catch blocks
+- Lint: zero errors
+
+---
+Task ID: 4
+Agent: Sub Agent
+Task: Reduce ALL frontend polling intervals to eliminate unnecessary network load
+
+Work Log:
+- Searched comprehensively for all `refetchInterval` instances in src/components/ — found 18 instances across 16 files
+- Changed polling rates per specification:
+  - 5s → 30s: InHouseView.tsx (1 instance)
+  - 10s → 60s: DashboardModule.tsx (3 instances — kpis, alerts, activity), FrontDeskDashboard.tsx, ArrivalsView.tsx, DeparturesView.tsx, SettlementView.tsx, DepartureSettlementView.tsx, WorkflowView.tsx (9 instances total)
+  - 15s → 60s: pos-types.ts (usePosData hook), OrderHistoryView.tsx (2 instances)
+  - 30s → 120s: GuestDirectoryView.tsx, ReportsView.tsx, TableReservationsView.tsx, RoomServiceView.tsx, ProfileModule.tsx (5 instances)
+  - 60s → 120s: RoomBoard.tsx (1 instance, updated comment too)
+- Updated inline comments where applicable (pos-types.ts, OrderHistoryView.tsx, RoomBoard.tsx)
+- Verified: all 18 instances now show correct new values via rg scan
+- Lint: zero errors after all edits
+
+Stage Summary:
+- 18 refetchInterval changes across 16 files
+- Estimated polling rate reduced from ~85 req/min to ~15.5 req/min (~82% reduction)
+- No instances of 5000ms, 10000ms, 15000ms, or 30000ms remain in any refetchInterval
+- All pollers now use 30000ms, 60000ms, or 120000ms
+- Lint: zero errors
+
+---
+Task ID: 7
+Agent: Sub Agent
+Task: Fix frontend query key normalization, CalendarView guest fetch, POS limits, bulk-post getSettingsMap
+
+Work Log:
+- FIX 1: Normalized room query keys to use qk factories from @/lib/queryKeys
+  - WorkflowView.tsx — Changed queryKey ['rooms-list'] → qk.roomsAll(); added `import { qk } from '@/lib/queryKeys'`
+  - RestrictionsView.tsx — Changed queryKey ['rooms', 'restrictions'] → qk.rooms(); added `import { qk } from '@/lib/queryKeys'`
+- FIX 2: CalendarView.tsx — deferred guest fetch and removed staleTime:0
+  - Added `enabled: false` to guests useQuery to prevent fetching ALL guests on mount (only used for search dropdown)
+  - Removed `staleTime: 0` from reservations useQuery to use 30s default
+- FIX 3: POS route.ts — Added `take: 100` to order-history findMany query to prevent unbounded result sets
+- FIX 4: Bulk-post route.ts — Replaced local getSettingsMap() with shared cached version from @/lib/cache
+  - Removed 12-line local function, added `getSettingsMap` to import from '@/lib/cache'
+  - Existing call `await getSettingsMap()` on line ~104 continues to work with imported function (cached, 5-min TTL)
+- Lint: zero errors after all edits
+
+Stage Summary:
+- 2 files updated with normalized query keys (React Query deduplication now works across rooms endpoints)
+- 1 file updated to defer guest fetch + remove aggressive staleTime
+- 1 file updated with pagination limit on order-history
+- 1 file updated to use shared cached getSettingsMap (eliminates redundant DB query on every bulk-post)
+- Lint: zero errors
+
+---
+Task ID: 8
+Agent: Sub Agent
+Task: Fix profile re-fetch, parallelize auth+settings init, add payroll afterMutation
+
+Work Log:
+- FIX 1: src/app/api/auth/profile/route.ts — Removed redundant `db.authUser.findUnique()` in GET handler. `requireAuth()` already fetches the authUser row and returns it as `auth.user`. Now the GET handler only fetches the employee record (hireDate) and combines it with `auth.user`. Eliminated 1 DB round-trip per profile request.
+- FIX 2: src/components/providers.tsx — In demo mode, replaced sequential fetch (profile → then settings) with parallel `Promise.all`. Profile fetch and `useSettingsStore.getState().syncFromBackend(true)` now run concurrently. Estimated savings: ~100-300ms on initial load.
+- FIX 3: src/app/api/payroll/route.ts — Added `afterMutation('hr')` after successful `broadcastEvent` in both POST (create) and PATCH (update) handlers. Import was already present. Ensures HR-related caches (employees, payroll, attendance, etc.) are invalidated on payroll mutations.
+- Lint: zero errors after all edits
+
+Stage Summary:
+- FIX 1: Eliminated redundant authUser DB fetch in profile GET (requireAuth already provides user data)
+- FIX 2: Parallelized demo-mode initialization — profile + settings fetched concurrently instead of sequentially
+- FIX 3: Added missing cache invalidation on payroll POST and PATCH via afterMutation('hr')
+- Lint: zero errors

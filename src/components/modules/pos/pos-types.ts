@@ -177,6 +177,6 @@ export function usePosData(section: string = 'all') {
   return useQuery<PosData>({
     queryKey: ['pos', section],
     queryFn: () => apiFetch(`/api/pos?section=${section}`),
-    refetchInterval: 15000, // Auto refresh every 15 seconds
+    refetchInterval: 60000, // Auto refresh every 60 seconds
   })
 }

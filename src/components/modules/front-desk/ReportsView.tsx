@@ -199,7 +199,7 @@ function useReportQuery<T>(type: ReportType, date?: string) {
       if (date) params.set('date', date)
       return apiFetch(`/api/front-desk/reports?${params.toString()}`)
     },
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   })
 }
 

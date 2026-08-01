@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSettingsMap, afterMutation } from '@/lib/cache'
+import { getSettingsMap, getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -8,51 +8,52 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req, ['admin', 'gm'])
   if (auth instanceof NextResponse) return auth
   try {
-    // Ledger accounts
-    const accounts = await db.ledgerAccount.findMany({
-      include: {
-        journalLines: {
-          take: 50,
-          orderBy: { date: 'desc' },
-        },
-      },
-      orderBy: { code: 'asc' },
-    })
-
-    // Journal entries (most recent first)
-    const journalEntries = await db.journalEntry.findMany({
-      include: {
-        lines: {
+    const data = await getOrSet('accounting:summary', async () => {
+      // Fetch accounts, journal entries, type breakdown, and settings in parallel
+      const [accounts, journalEntries, accountTypeBreakdown, s] = await Promise.all([
+        db.ledgerAccount.findMany({
           include: {
-            account: { select: { id: true, code: true, name: true, type: true } },
+            journalLines: {
+              take: 50,
+              orderBy: { date: 'desc' },
+            },
           },
-        },
-      },
-      orderBy: { date: 'desc' },
-      take: 50,
-    })
+          orderBy: { code: 'asc' },
+        }),
+        db.journalEntry.findMany({
+          include: {
+            lines: {
+              include: {
+                account: { select: { id: true, code: true, name: true, type: true } },
+              },
+            },
+          },
+          orderBy: { date: 'desc' },
+          take: 50,
+        }),
+        db.ledgerAccount.groupBy({
+          by: ['type'],
+          _count: { type: true },
+        }),
+        getSettingsMap(),
+      ])
 
-    // Summary by account type
-    const accountTypeBreakdown = await db.ledgerAccount.groupBy({
-      by: ['type'],
-      _count: { type: true },
-    })
+      const typeMap: Record<string, number> = {}
+      for (const item of accountTypeBreakdown) {
+        typeMap[item.type] = item._count.type
+      }
 
-    const typeMap: Record<string, number> = {}
-    for (const item of accountTypeBreakdown) {
-      typeMap[item.type] = item._count.type
-    }
+      const taxRate = (s.taxRate as number) ?? 13
 
-    // Read settings for tax rate
-    const s = await getSettingsMap()
-    const taxRate = (s.taxRate as number) ?? 13
+      return {
+        accounts,
+        journalEntries,
+        accountTypeBreakdown: typeMap,
+        settings: { taxRate },
+      }
+    }, 120000)
 
-    return NextResponse.json({
-      accounts,
-      journalEntries,
-      accountTypeBreakdown: typeMap,
-      settings: { taxRate },
-    })
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Accounting API error:', error)
     return NextResponse.json({ error: 'Failed to fetch accounting data' }, { status: 500 })

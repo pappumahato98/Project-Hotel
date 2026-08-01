@@ -73,28 +73,28 @@ export async function GET(request: NextRequest) {
       const todayEnd = new Date()
       todayEnd.setHours(23, 59, 59, 999)
 
-      // Open folios count and outstanding
-      const openFolios = await db.folio.findMany({
-        where: { status: 'open' },
-        select: { balance: true },
-        take: 100,
-      })
-
-      // Today's charges
-      const todayTxns = await db.folioTransaction.findMany({
-        where: {
-          createdAt: { gte: todayStart, lte: todayEnd },
-        },
-        select: { totalAmount: true },
-      })
-
-      // Today's payments
-      const todayPayments = await db.folioPayment.findMany({
-        where: {
-          createdAt: { gte: todayStart, lte: todayEnd },
-        },
-        select: { amount: true },
-      })
+      // Open folios count, today's charges, and today's payments in parallel
+      const [openFolios, todayTxns, todayPayments] = await Promise.all([
+        db.folio.findMany({
+          where: { status: 'open' },
+          select: { balance: true },
+          take: 100,
+        }),
+        db.folioTransaction.findMany({
+          where: {
+            createdAt: { gte: todayStart, lte: todayEnd },
+          },
+          select: { totalAmount: true },
+          take: 50,
+        }),
+        db.folioPayment.findMany({
+          where: {
+            createdAt: { gte: todayStart, lte: todayEnd },
+          },
+          select: { amount: true },
+          take: 50,
+        }),
+      ])
 
       stats = {
         openFolios: openFolios.length,

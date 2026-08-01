@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('payroll:created', record)
+    afterMutation('hr')
     return NextResponse.json(record, { status: 201 })
   } catch (error) {
     console.error('Payroll POST error:', error)
@@ -110,6 +111,7 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('payroll:updated', record)
+    afterMutation('hr')
     return NextResponse.json(record)
   } catch (error) {
     console.error('Payroll PATCH error:', error)

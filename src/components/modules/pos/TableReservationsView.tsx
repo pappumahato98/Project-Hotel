@@ -438,7 +438,7 @@ export default function TableReservationsView() {
   const { data: reservationsData, isLoading } = useQuery({
     queryKey: ['pos-reservations'],
     queryFn: () => apiFetch<{ reservations: ApiReservation[] }>('/api/reservations'),
-    refetchInterval: 30000,
+    refetchInterval: 120000,
   })
 
   const apiReservations = useMemo(() => {

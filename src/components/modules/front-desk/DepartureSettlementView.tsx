@@ -227,7 +227,7 @@ export function DepartureSettlementView() {
       })
       return apiFetch(`/api/reservations?${params.toString()}`)
     },
-    refetchInterval: 10000,
+    refetchInterval: 60000,
   })
 
   const departures: SettlementDeparture[] = data?.reservations || []
