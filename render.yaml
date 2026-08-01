@@ -31,7 +31,7 @@ services:
     runtime: node
     plan: starter # $7/mo — always-on, no cold starts
     buildCommand: npm install && npm run build
-    startCommand: npx next start -H 0.0.0.0
+    startCommand: npx next start -H 0.0.0.0 -p $PORT
     envVars:
       # Supabase — COPY YOUR VALUES from Vercel or .env.local
       - key: NEXT_PUBLIC_SUPABASE_URL
