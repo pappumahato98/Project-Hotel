@@ -8,16 +8,14 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
   try {
     const result = await getOrSet('front-desk:dashboard', async () => {
-    // ─── Fetch system settings ─────────────────────────────
-    const sMap = await getSettingsMap()
-
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const nextDay = new Date(today)
     nextDay.setDate(nextDay.getDate() + 1)
 
-    // ─── Snapshot counts ──────────────────────────────────────
-    const [totalRooms, arrivals, departures, inHouse, roomsBreakdown] = await Promise.all([
+    // ─── Single batch: ALL independent queries (settings + snapshot + overbooking + timeline + upcoming) ────
+    const [sMap, totalRooms, arrivals, departures, inHouse, roomsBreakdown, roomCounts, todayCheckIns, todayCheckOuts, todayMoves, upcomingArrivals] = await Promise.all([
+      getSettingsMap(),
       db.room.count(),
       db.reservation.count({
         where: {
@@ -36,6 +34,42 @@ export async function GET(req: NextRequest) {
         by: ['status'],
         _count: { status: true },
       }),
+      // Overbooking detection via groupBy
+      db.reservation.groupBy({
+        by: ['roomId'],
+        where: { status: 'checked_in', roomId: { not: null } },
+        _count: { roomId: true },
+        having: { roomId: { _count: { gt: 1 } } },
+      }),
+      // Timeline: recent check-ins
+      db.reservation.findMany({
+        where: { status: 'checked_in', updatedAt: { gte: today } },
+        include: { guest: { select: { firstName: true, lastName: true } }, room: { select: { number: true } } },
+        orderBy: { updatedAt: 'desc' }, take: 10,
+      }),
+      // Timeline: recent check-outs
+      db.reservation.findMany({
+        where: { status: 'checked_out', updatedAt: { gte: today } },
+        include: { guest: { select: { firstName: true, lastName: true } }, room: { select: { number: true } } },
+        orderBy: { updatedAt: 'desc' }, take: 10,
+      }),
+      // Timeline: room moves
+      db.roomMoveLog.findMany({
+        where: { createdAt: { gte: today } },
+        orderBy: { createdAt: 'desc' }, take: 10,
+      }),
+      // Upcoming arrivals (next 5 expected today)
+      db.reservation.findMany({
+        where: {
+          checkIn: { gte: today, lt: nextDay },
+          status: { in: ['confirmed', 'tentative'] },
+        },
+        include: {
+          guest: { select: { firstName: true, lastName: true, vipLevel: true } },
+          room: { select: { number: true, type: { select: { name: true, code: true, bedConfig: true } } } },
+        },
+        orderBy: { checkIn: 'asc' }, take: 5,
+      }),
     ])
 
     // Build status map
@@ -46,53 +80,9 @@ export async function GET(req: NextRequest) {
 
     const available = (statusMap['vacant_clean'] || 0) + (statusMap['inspected'] || 0)
     const occupancyPct = totalRooms > 0 ? Math.round((inHouse / totalRooms) * 100) : 0
-
-    // ─── Overbooking detection via single groupBy query ────
-    const roomCounts = await db.reservation.groupBy({
-      by: ['roomId'],
-      where: { status: 'checked_in', roomId: { not: null } },
-      _count: { roomId: true },
-      having: {
-        roomId: { _count: { gt: 1 } },
-      },
-    })
     const overbookingCount = roomCounts.filter(rc => rc.roomId !== null).length
 
-    // ─── Today's activity timeline ────────────────────────────
-    // Gather recent check-ins, check-outs, and room moves from today
-    const [todayCheckIns, todayCheckOuts, todayMoves] = await Promise.all([
-      db.reservation.findMany({
-        where: {
-          status: 'checked_in',
-          updatedAt: { gte: today },
-        },
-        include: {
-          guest: { select: { firstName: true, lastName: true } },
-          room: { select: { number: true } },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 10,
-      }),
-      db.reservation.findMany({
-        where: {
-          status: 'checked_out',
-          updatedAt: { gte: today },
-        },
-        include: {
-          guest: { select: { firstName: true, lastName: true } },
-          room: { select: { number: true } },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 10,
-      }),
-      db.roomMoveLog.findMany({
-        where: { createdAt: { gte: today } },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-    ])
-
-    // Build unified timeline
+    // Build unified timeline (CPU-only)
     const timeline: Array<{
       id: string
       type: 'check_in' | 'check_out' | 'room_move' | 'reservation_modified'
@@ -105,64 +95,34 @@ export async function GET(req: NextRequest) {
 
     for (const ci of todayCheckIns) {
       timeline.push({
-        id: ci.id,
-        type: 'check_in',
-        time: ci.updatedAt.toISOString(),
-        description: 'Checked in',
+        id: ci.id, type: 'check_in',
+        time: ci.updatedAt.toISOString(), description: 'Checked in',
         guestName: ci.guest ? `${ci.guest.firstName} ${ci.guest.lastName}` : 'Unknown Guest',
         roomNumber: ci.room?.number,
       })
     }
-
     for (const co of todayCheckOuts) {
       timeline.push({
-        id: co.id,
-        type: 'check_out',
-        time: co.updatedAt.toISOString(),
-        description: 'Checked out',
+        id: co.id, type: 'check_out',
+        time: co.updatedAt.toISOString(), description: 'Checked out',
         guestName: co.guest ? `${co.guest.firstName} ${co.guest.lastName}` : 'Unknown Guest',
         roomNumber: co.room?.number,
       })
     }
-
     for (const move of todayMoves) {
       timeline.push({
-        id: move.id,
-        type: 'room_move',
-        time: move.createdAt.toISOString(),
-        description: 'Room transferred',
+        id: move.id, type: 'room_move',
+        time: move.createdAt.toISOString(), description: 'Room transferred',
         guestName: move.confirmationNo || '—',
         roomNumber: `${move.fromRoomNumber || '?'} → ${move.toRoomNumber || '?'}`,
         details: move.reason || undefined,
       })
     }
-
-    // Sort by time descending (most recent first)
     timeline.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-
-    // ─── Upcoming arrivals (next 5 expected) ──────────────────
-    const upcomingArrivals = await db.reservation.findMany({
-      where: {
-        checkIn: { gte: today, lt: nextDay },
-        status: { in: ['confirmed', 'tentative'] },
-      },
-      include: {
-        guest: { select: { firstName: true, lastName: true, vipLevel: true } },
-        room: { select: { number: true, type: { select: { name: true, code: true, bedConfig: true } } } },
-      },
-      orderBy: { checkIn: 'asc' },
-      take: 5,
-    })
 
     return {
       snapshot: {
-        totalRooms,
-        arrivals,
-        departures,
-        inHouse,
-        available,
-        occupancyPct,
-        overbookingCount,
+        totalRooms, arrivals, departures, inHouse, available, occupancyPct, overbookingCount,
       },
       timeline,
       upcomingArrivals,

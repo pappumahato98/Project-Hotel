@@ -26,7 +26,7 @@ interface CachedAuth {
   expiresAt: number
 }
 const _authCache = new Map<string, CachedAuth>()
-const AUTH_TTL = 60_000 // 60 seconds
+const AUTH_TTL = 120_000 // 120 seconds (JWT lasts 1h, safe margin)
 let _supabaseSingleton: ReturnType<typeof import('@supabase/supabase-js')['createClient']> | null = null
 
 /**

@@ -11,15 +11,12 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
   try {
     const data = await getOrSet('rooms:list', async () => {
-    // Get property first (needed for filtering)
-    const property = await db.property.findFirst()
-
-    // ─── Batch all independent queries in parallel ───────────
-    // Previously these ran sequentially (5 round-trips × ~600ms = 3s).
-    const [rooms, statusBreakdown, roomTypes, restrictions] = await Promise.all([
+    // ─── Batch ALL independent queries in parallel ───────────
+    const [property, rooms, statusBreakdown, roomTypes, restrictions, activeReservations] = await Promise.all([
+      // Property (for optional filtering)
+      db.property.findFirst(),
       // Rooms with type info
       db.room.findMany({
-        where: property ? { propertyId: property.id } : undefined,
         include: {
           type: { select: { id: true, name: true, code: true, baseOccupancy: true, maxOccupancy: true, bedConfig: true, areaSqFt: true, view: true, amenities: true } },
         },
@@ -28,14 +25,13 @@ export async function GET(req: NextRequest) {
       // Status breakdown
       db.room.groupBy({
         by: ['status'],
-        where: property ? { propertyId: property.id } : undefined,
         _count: { status: true },
       }),
       // Room types with counts and rates
       db.roomType.findMany({
         where: { active: true },
         include: {
-          rooms: { where: property ? { propertyId: property.id } : undefined, select: { id: true } },
+          rooms: { select: { id: true } },
           ratePlans: { where: { active: true }, select: { id: true, name: true, code: true, baseRate: true, channel: true } },
         },
         orderBy: { sortOrder: 'asc' },
@@ -48,18 +44,14 @@ export async function GET(req: NextRequest) {
         include: { roomType: { select: { id: true, name: true, code: true } } },
         orderBy: [{ date: 'asc' }, { roomTypeId: 'asc' }],
       }),
+      // Active reservations — fetch all checked_in (small dataset, avoids sequential round-trip)
+      db.reservation.findMany({
+        where: { status: 'checked_in' },
+        include: {
+          guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
+        },
+      }),
     ])
-
-    // Fetch active reservations for occupied rooms (depends on rooms query above)
-    const activeReservations = await db.reservation.findMany({
-      where: {
-        status: 'checked_in',
-        roomId: { in: rooms.map(r => r.id) },
-      },
-      include: {
-        guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
-      },
-    })
 
     // Build a map of roomId -> reservation+guest
     const reservationMap = new Map<string, typeof activeReservations[0]>()

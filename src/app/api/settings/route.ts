@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { afterMutation, getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // ─── Default Settings ───────────────────────────────────────────
@@ -254,24 +254,21 @@ async function seedDefaults() {
   }
 }
 
-// ─── GET: Fetch all settings as flat key → parsed value ────────
+// ─── GET: Fetch all settings as flat key → parsed value (cached 5 min) ────────
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
   try {
-    const count = await db.systemSetting.count()
-
-    if (count === 0) {
-      await seedDefaults()
-    }
-
-    const settings = await db.systemSetting.findMany()
-
-    const result: Record<string, unknown> = {}
-    for (const s of settings) {
-      result[s.key] = parseValue(s.value, s.type)
-    }
-
+    const result = await getOrSet('settings:all', async () => {
+      const count = await db.systemSetting.count()
+      if (count === 0) await seedDefaults()
+      const settings = await db.systemSetting.findMany()
+      const map: Record<string, unknown> = {}
+      for (const s of settings) {
+        map[s.key] = parseValue(s.value, s.type)
+      }
+      return map
+    }, 5 * 60 * 1000)
     return NextResponse.json(result)
   } catch (error) {
     console.error('Settings GET error:', error)

@@ -62,11 +62,13 @@ export async function fetchKpis(): Promise<KpisData> {
   return getOrSet('dashboard:kpis', async () => {
     const { today, tomorrow, yesterday, sevenDaysAgo } = getDates()
 
-    // Batch 1 — lightweight counts
+    // Single batch — ALL independent queries (settings + counts + breakdown + revenue)
     const [
-      totalRooms, occupiedRooms, vacantClean,
+      settingsMap, totalRooms, occupiedRooms, vacantClean,
       yesterdayAudit, lastAudit, arrivals, departures,
+      roomStatusBreakdown, revenueHistory,
     ] = await Promise.all([
+      getSettingsMap(),
       db.room.count(),
       db.room.count({ where: { status: 'occupied' } }),
       db.room.count({ where: { status: 'vacant_clean' } }),
@@ -84,10 +86,6 @@ export async function fetchKpis(): Promise<KpisData> {
       db.reservation.count({
         where: { checkOut: { gte: today, lt: tomorrow }, status: 'checked_in' },
       }),
-    ])
-
-    // Batch 2 — status breakdown + revenue chart (stagger to limit PgBouncer connections)
-    const [roomStatusBreakdown, revenueHistory] = await Promise.all([
       db.room.groupBy({ by: ['status'], _count: { status: true } }),
       db.nightAudit.findMany({
         where: { status: 'completed', businessDate: { gte: sevenDaysAgo, lt: today } },
@@ -95,9 +93,6 @@ export async function fetchKpis(): Promise<KpisData> {
         select: { businessDate: true, roomRevenue: true, fAndBRevenue: true, totalRevenue: true },
       }),
     ])
-
-    // ─── Compute (CPU-only) ──────────────────────────────────────
-    const settingsMap = await getSettingsMap()
 
     const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
     const occupancyTrend = yesterdayAudit?.occupancy
@@ -182,10 +177,11 @@ export async function fetchAlerts(): Promise<AlertsData> {
     const { today, tomorrow } = getDates()
 
     const [
-      vipArrivals, overdueCheckouts, emergencyWorkOrders,
+      settingsMap, vipArrivals, overdueCheckouts, emergencyWorkOrders,
       outOfOrderRoomsList, unassignedArrivals, creditLimitBreaches,
       pendingHkTasks, openWorkflowTasks, highPriorityWorkflowTasks, openPosOrders,
     ] = await Promise.all([
+      getSettingsMap(),
       db.reservation.findMany({
         where: {
           checkIn: { gte: today, lt: tomorrow },
@@ -239,8 +235,6 @@ export async function fetchAlerts(): Promise<AlertsData> {
       }),
     ])
 
-    // Get credit limit from settings
-    const settingsMap = await getSettingsMap()
     const defaultCreditLimit = (settingsMap['defaultCreditLimit'] as number) ?? 15000
 
     return {

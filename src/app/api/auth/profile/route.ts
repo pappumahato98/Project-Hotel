@@ -1,8 +1,6 @@
-import { db, withRetry } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getClientIp } from '@/lib/security/auth-helpers'
-import { logSecurityEvent } from '@/lib/security'
+import { requireAuth } from '@/lib/security/auth-helpers'
 
 // GET /api/auth/profile — Fetch current user's profile (session-derived)
 export async function GET(req: NextRequest) {
@@ -12,12 +10,10 @@ export async function GET(req: NextRequest) {
   try {
     // requireAuth() already fetched authUser and returned auth.user — don't re-fetch.
     // Only fetch the employee record (hireDate) which requireAuth doesn't provide.
-    const employee = await withRetry(() =>
-      db.employee.findFirst({
-        where: { email: auth.user.email },
-        select: { hireDate: true },
-      })
-    )
+    const employee = await db.employee.findFirst({
+      where: { email: auth.user.email },
+      select: { hireDate: true },
+    })
 
     return NextResponse.json({
       user: { ...auth.user, hireDate: employee?.hireDate ?? null },

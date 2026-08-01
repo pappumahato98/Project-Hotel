@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 
 /**
- * Server-side in-memory cache with TTL.
+ * Server-side in-memory cache with TTL + request deduplication.
  *
  * On Vercel each Serverless Function instance has its own memory space,
  * but within a single cold-start / warm invocation the cache survives
@@ -22,6 +22,12 @@ const store = new Map<string, CacheEntry<unknown>>()
 /** Default TTL: 5 minutes */
 const DEFAULT_TTL_MS = 5 * 60 * 1000
 
+// ─── In-flight request deduplication ────────────────────────────────────
+// When multiple concurrent requests hit the same uncached key, only ONE
+// DB call fires — all waiters share the same Promise. This eliminates
+// thundering-herd on cache expiry (e.g. dashboard polling).
+const inflight = new Map<string, Promise<unknown>>()
+
 /**
  * Get a cached value, or compute + store it.
  * Returns `null` when the cache is empty / expired and `fn` is not provided.
@@ -36,20 +42,38 @@ export function getCached<T>(key: string, ttlMs: number = DEFAULT_TTL_MS): T | n
 }
 
 /**
- * Compute and cache a value.  If the key already has a fresh entry,
+ * Compute and cache a value. If the key already has a fresh entry,
  * the existing value is returned without calling `fn`.
+ *
+ * Includes in-flight deduplication: if `fn` is already running for
+ * this key (from a concurrent request), we piggyback on that Promise
+ * instead of firing a duplicate DB call.
  */
 export async function getOrSet<T>(
   key: string,
   fn: () => Promise<T>,
   ttlMs: number = DEFAULT_TTL_MS,
 ): Promise<T> {
+  // 1. Check cache
   const cached = getCached<T>(key, ttlMs)
   if (cached !== null) return cached
 
-  const value = await fn()
-  store.set(key, { value, expiresAt: Date.now() + ttlMs })
-  return value
+  // 2. Check inflight — if another call is already computing, piggyback
+  const pending = inflight.get(key) as Promise<T> | undefined
+  if (pending) return pending
+
+  // 3. Fire the computation
+  const promise = fn().then((value) => {
+    store.set(key, { value, expiresAt: Date.now() + ttlMs })
+    inflight.delete(key) // done — allow future calls to run
+    return value
+  }).catch((err) => {
+    inflight.delete(key) // failed — allow retry
+    throw err
+  })
+
+  inflight.set(key, promise)
+  return promise
 }
 
 /**
@@ -75,6 +99,7 @@ export function invalidateDashboardCache(): void {
  */
 export function invalidateAllCache(): void {
   store.clear()
+  inflight.clear()
 }
 
 /**
@@ -125,14 +150,31 @@ export function afterMutation(module?: string): void {
         store.delete(k)
       }
     }
+    // Also clear any inflight promises for invalidated keys
+    for (const k of inflight.keys()) {
+      if (keys.some(prefix => k.startsWith(prefix + ':'))) {
+        inflight.delete(k)
+      }
+    }
   }
 }
 
 /**
  * Debug helper — returns cache size (used in dev only).
  */
-export function getCacheStats(): { size: number; keys: string[] } {
-  return { size: store.size, keys: [...store.keys()] }
+export function getCacheStats(): { size: number; keys: string[]; inflight: number } {
+  return { size: store.size, keys: [...store.keys()], inflight: inflight.size }
+}
+
+/**
+ * Pre-warm a cache key in the background (fire-and-forget).
+ * Useful for warming critical paths on server init.
+ */
+export function prewarm(key: string, fn: () => Promise<unknown>, ttlMs?: number): void {
+  // Only fire if not already cached or inflight
+  if (getCached(key) !== null) return
+  if (inflight.has(key)) return
+  getOrSet(key, fn, ttlMs).catch(() => { /* swallow prewarm errors */ })
 }
 
 /**
