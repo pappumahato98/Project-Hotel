@@ -192,7 +192,7 @@ export async function GET(req: NextRequest) {
           status: 'open',
           balance: { gt: 0 },
         },
-        select: { balance: true, isComplimentary: true },
+        select: { balance: true },
       }),
 
       // Property config
@@ -285,9 +285,8 @@ export async function GET(req: NextRequest) {
     // Total payments today
     const totalPaymentsToday = todayPayments.reduce((sum, p) => sum + p.amount, 0)
 
-    // Pending folio balance (non-complimentary open folios)
+    // Pending folio balance (open folios)
     const pendingFolioBalance = openFolios
-      .filter((f) => !f.isComplimentary)
       .reduce((sum, f) => sum + f.balance, 0)
 
     // Revenue breakdown by transaction type
