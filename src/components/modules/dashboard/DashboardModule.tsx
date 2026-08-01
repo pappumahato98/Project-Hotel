@@ -982,64 +982,39 @@ function RealtimeStatusCard() {
 
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
-  // Fetch 3 endpoints in parallel — each is independently cached server-side (5-min TTL).
-  // This replaces the single /api/dashboard monolith that ran 24 parallel DB queries
-  // and caused PgBouncer 500 errors on Vercel.
-  const kpisQuery = useQuery<KpisData>({
-    queryKey: ['dashboard', 'kpis'],
-    queryFn: () => apiFetch('/api/dashboard/kpis'),
-    refetchInterval: 60000,
-    retry: 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
-    staleTime: 30_000, // consider data fresh for 30s on client
-  })
-
-  const alertsQuery = useQuery<AlertsData>({
-    queryKey: ['dashboard', 'alerts'],
-    queryFn: () => apiFetch('/api/dashboard/alerts'),
+  // Single /api/dashboard call — eliminates 2 extra Vercel serverless cold starts
+  // (3 separate endpoints × 8s cold start each → 1 endpoint × 1 cold start).
+  // Server-side: fetchKpis(), fetchAlerts(), fetchActivity() run in parallel internally.
+  const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
+    queryKey: ['dashboard'],
+    queryFn: () => apiFetch('/api/dashboard'),
     refetchInterval: 60000,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     staleTime: 30_000,
   })
 
-  const activityQuery = useQuery<ActivityData>({
-    queryKey: ['dashboard', 'activity'],
-    queryFn: () => apiFetch('/api/dashboard/activity'),
-    refetchInterval: 60000,
-    retry: 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
-    staleTime: 30_000,
-  })
-
-  const isLoading = kpisQuery.isLoading || alertsQuery.isLoading || activityQuery.isLoading
-  const isError = kpisQuery.isError && alertsQuery.isError && activityQuery.isError
-
-  // Refetch all on demand
-  const refetch = () => { kpisQuery.refetch(); alertsQuery.refetch(); activityQuery.refetch() }
-
-  // Compose into the original DashboardData shape — backward compatible with all child components
+  // Compose into the original DashboardData shape with safe defaults
   const safeData: DashboardData = {
-    kpis: kpisQuery.data?.kpis ?? {
+    kpis: data?.kpis ?? {
       totalRooms: 0, occupiedRooms: 0, occupancy: 0, occupancyTrend: 0,
       arrivals: 0, departures: 0, vacantClean: 0,
       totalRevenue: 0, roomRevenue: 0, fAndBRevenue: 0, otherRevenue: 0,
       adr: 0, revpar: 0, revenueTrend: 0, adrTrend: 0, revparTrend: 0,
     },
-    roomStatusBreakdown: kpisQuery.data?.roomStatusBreakdown ?? {},
-    alerts: alertsQuery.data?.alerts ?? {
+    roomStatusBreakdown: data?.roomStatusBreakdown ?? {},
+    alerts: data?.alerts ?? {
       vipArrivals: [], overdueCheckouts: 0,
       emergencyWorkOrders: [], outOfOrderRooms: [], outOfOrderCount: 0,
       unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0, openWorkflowTasks: 0, highPriorityWorkflowTasks: [], openPosOrders: 0,
     },
-    revenueChart: kpisQuery.data?.revenueChart ?? [],
-    recentActivity: activityQuery.data?.recentActivity ?? [],
+    revenueChart: data?.revenueChart ?? [],
+    recentActivity: data?.recentActivity ?? [],
   }
 
   if (isLoading) return <DashboardLoading />
   if (isError) {
-    const firstError = kpisQuery.error ?? alertsQuery.error ?? activityQuery.error
-    return <DashboardError error={firstError ?? new Error('Unknown error')} refetch={refetch} />
+    return <DashboardError error={error ?? new Error('Unknown error')} refetch={refetch} />
   }
 
   return (
