@@ -1,8 +1,11 @@
 /**
- * Prisma Client — works with both SQLite (local) and PostgreSQL/Supabase (Vercel).
+ * Prisma Client — PostgreSQL (Supabase).
  *
- * When DATABASE_URL starts with `postgresql://`, we inject PgBouncer-compatible
- * connection params to prevent 42P05/26000 prepared-statement errors.
+ * Lazy initialization: the client is created on first query, not at module
+ * evaluation time. This avoids Turbopack env-loading race conditions where
+ * process.env.DATABASE_URL may be empty when the module is first compiled.
+ *
+ * PgBouncer params should be embedded in the DATABASE_URL itself (see .env).
  */
 import { PrismaClient } from '@prisma/client'
 
@@ -10,37 +13,32 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function buildDatasourceUrl(): string {
-  let url = process.env.DATABASE_URL ?? ''
-  if (!url || !url.startsWith('postgresql://')) return url
+let _db: PrismaClient | undefined
 
-  // Strip existing query params
-  if (url.includes('?')) {
-    url = url.split('?')[0]
+function getDb(): PrismaClient {
+  if (_db) return _db
+  if (globalForPrisma.prisma) {
+    _db = globalForPrisma.prisma
+    return _db
   }
-
-  const params = new URLSearchParams()
-  params.set('pgbouncer', 'true')
-  params.set('connection_limit', '7')
-  params.set('statement_cache_size', '0')
-  params.set('connect_timeout', '15')
-  params.set('pool_timeout', '15')
-
-  return url + '?' + params.toString()
+  _db = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  })
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = _db
+  return _db
 }
 
-export const db =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-    datasources: {
-      db: {
-        url: buildDatasourceUrl(),
-      },
-    },
-  })
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+/** Proxy that delegates every property access to the lazily-created client */
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const client = getDb()
+    const value = Reflect.get(client, prop, receiver)
+    if (typeof value === 'function') {
+      return value.bind(client)
+    }
+    return value
+  },
+})
 
 /** Retry wrapper for transient DB errors (PgBouncer, connection drops) */
 export async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
