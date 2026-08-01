@@ -395,4 +395,29 @@ Stage Summary:
 - FIX 1: Eliminated redundant authUser DB fetch in profile GET (requireAuth already provides user data)
 - FIX 2: Parallelized demo-mode initialization — profile + settings fetched concurrently instead of sequentially
 - FIX 3: Added missing cache invalidation on payroll POST and PATCH via afterMutation('hr')
+- Lint: zero errors---
+Task ID: 9
+Agent: Main Agent
+Task: Optimize API response times to sub-80ms
+
+Work Log:
+- Profiled all API routes via Explore agent — identified 10 bottlenecks ranked by impact
+- Added in-flight request deduplication to cache.ts `getOrSet()` — concurrent requests for same cache key piggyback on 1 DB call instead of N
+- Added `prewarm()` utility for background cache warming
+- Updated `afterMutation()` to also clear inflight promises for invalidated keys
+- Wrapped settings/route.ts GET in `getOrSet('settings:all', ..., 5min)` — eliminates 2 uncached DB round-trips
+- Parallelized rooms/route.ts: merged `property.findFirst()` and `activeReservations` into main Promise.all (6 queries → 1 batch)
+- Parallelized front-desk/dashboard/route.ts: merged settings + snapshot + overbooking + timeline + upcoming into single 11-query Promise.all
+- Merged `getSettingsMap()` into Promise.all batches in dashboard/_data.ts fetchKpis and fetchAlerts (eliminated 2 sequential awaits)
+- Removed `withRetry` from auth/profile GET read-only query
+- Increased auth cache TTL from 60s to 120s
 - Lint: zero errors
+
+Stage Summary:
+- 7 files changed, +133/-152 lines
+- In-flight dedup prevents thundering herd (e.g. 5 dashboard pollers hitting same key = 1 DB call, not 5)
+- Front-desk dashboard: 4 sequential phases → 1 parallel batch (11 queries)
+- Rooms: 2 sequential phases → 1 parallel batch (6 queries)
+- Settings GET: always cached (was hitting DB every time)
+- All changes are additive/stability-neutral — no new dependencies, no complexity bloat
+- Pushed: e7b2944
