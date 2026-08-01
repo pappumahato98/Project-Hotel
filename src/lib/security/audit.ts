@@ -23,22 +23,23 @@ interface LogParams {
   details?: string
 }
 
-export async function logSecurityEvent(params: LogParams): Promise<void> {
-  try {
-    await db.securityEvent.create({
-      data: {
-        type: params.type,
-        level: params.level ?? 'info',
-        userId: params.userId,
-        email: params.email,
-        ipAddress: params.ipAddress,
-        userAgent: params.userAgent?.substring(0, 500),
-        path: params.path,
-        method: params.method,
-        details: params.details?.substring(0, 2000),
-      },
-    })
-  } catch {
-    // Never let audit logging crash the app
-  }
+/**
+ * Fire-and-forget security audit logging.
+ * Does NOT block the response — the DB write happens asynchronously.
+ */
+export function logSecurityEvent(params: LogParams): void {
+  // Fire-and-forget — don't await, don't block the response
+  db.securityEvent.create({
+    data: {
+      type: params.type,
+      level: params.level ?? 'info',
+      userId: params.userId,
+      email: params.email,
+      ipAddress: params.ipAddress,
+      userAgent: params.userAgent?.substring(0, 500),
+      path: params.path,
+      method: params.method,
+      details: params.details?.substring(0, 2000),
+    },
+  }).catch(() => { /* Never let audit logging crash the app */ })
 }

@@ -119,10 +119,9 @@ export function afterMutation(module?: string): void {
 
   const keys = moduleKeys[module]
   if (keys) {
-    // Delete any cache entry that starts with one of these keys
+    // Use startsWith for exact prefix matching (avoids false positives from 'includes')
     for (const k of store.keys()) {
-      const keyLower = k.toLowerCase()
-      if (keys.some(prefix => keyLower.includes(prefix.toLowerCase()))) {
+      if (keys.some(prefix => k.startsWith(prefix + ':'))) {
         store.delete(k)
       }
     }

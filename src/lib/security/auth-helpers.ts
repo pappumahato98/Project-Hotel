@@ -98,7 +98,7 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
 
     if (error || !supabaseUser) {
       const ip = getClientIp(req)
-      await logSecurityEvent({
+      logSecurityEvent({
         type: 'invalid_token', level: 'warning',
         ipAddress: ip, path: req.nextUrl.pathname, method: req.method,
         details: 'Invalid or expired Supabase access token',
@@ -138,7 +138,7 @@ export function requireRole(...roles: string[]) {
     const userLevel = ROLE_HIERARCHY[user.role] ?? 0
     const requiredLevel = Math.min(...roles.map(r => ROLE_HIERARCHY[r] ?? 0))
     if (userLevel < requiredLevel) {
-      await logSecurityEvent({
+      logSecurityEvent({
         type: 'privilege_escalation_attempt', level: 'warning',
         userId: user.userId, email: user.email,
         ipAddress: getClientIp(req), path: req.nextUrl.pathname, method: req.method,

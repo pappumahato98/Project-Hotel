@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSettingsMap, afterMutation } from '@/lib/cache'
+import { getOrSet, afterMutation, getSettingsMap } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -13,102 +13,89 @@ export async function GET(request: NextRequest) {
     const guestId = searchParams.get('guestId')
     const search = searchParams.get('search')
 
-    const where: Prisma.FolioWhereInput = {}
+    // Build cache key from filter params
+    const cacheKey = `folio:list:${reservationId || ''}:${guestId || ''}:${search || ''}`
 
-    if (reservationId) {
-      where.reservationId = reservationId
-    }
+    const result = await getOrSet(cacheKey, async () => {
+      const where: Prisma.FolioWhereInput = {}
 
-    if (guestId) {
-      where.guestId = guestId
-    }
-
-    if (search) {
-      // SQLite does not support mode: 'insensitive'
-      where.OR = [
-        { guest: { firstName: { contains: search } } },
-        { guest: { lastName: { contains: search } } },
-        { reservation: { confirmationNo: { contains: search } } },
-        { reservation: { room: { number: { contains: search } } } },
-      ]
-    }
-
-    const folios = await db.folio.findMany({
-      where,
-      include: {
-        reservation: {
-          select: {
-            id: true, confirmationNo: true, checkIn: true, checkOut: true,
-            roomRate: true, status: true, creditLimit: true,
-            room: { select: { number: true } },
-          },
-        },
-        guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true } },
-        transactions: { orderBy: { createdAt: 'desc' } },
-        payments: { orderBy: { createdAt: 'desc' } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    })
-
-    // Read relevant settings from DB
-    const s = await getSettingsMap()
-    const taxRate = (s.taxRate as number) ?? 13
-    const serviceCharge = (s.serviceCharge as number) ?? 0
-
-    // ─── Compute stats ───────────────────────────────────────
-    // Only compute when no search/filter params (full list view)
-    const isFullList = !reservationId && !guestId && !search
-
-    let stats: {
-      openFolios: number
-      totalOutstanding: number
-      todayCharges: number
-      todayPayments: number
-    } | null = null
-
-    if (isFullList) {
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-      const todayEnd = new Date()
-      todayEnd.setHours(23, 59, 59, 999)
-
-      // Open folios count, today's charges, and today's payments in parallel
-      const [openFolios, todayTxns, todayPayments] = await Promise.all([
-        db.folio.findMany({
-          where: { status: 'open' },
-          select: { balance: true },
-          take: 100,
-        }),
-        db.folioTransaction.findMany({
-          where: {
-            createdAt: { gte: todayStart, lte: todayEnd },
-          },
-          select: { totalAmount: true },
-          take: 50,
-        }),
-        db.folioPayment.findMany({
-          where: {
-            createdAt: { gte: todayStart, lte: todayEnd },
-          },
-          select: { amount: true },
-          take: 50,
-        }),
-      ])
-
-      stats = {
-        openFolios: openFolios.length,
-        totalOutstanding: openFolios.reduce((sum, f) => sum + f.balance, 0),
-        todayCharges: todayTxns.reduce((sum, t) => sum + t.totalAmount, 0),
-        todayPayments: todayPayments.reduce((sum, p) => sum + p.amount, 0),
+      if (reservationId) {
+        where.reservationId = reservationId
       }
-    }
 
-    return NextResponse.json({
-      folios,
-      stats,
-      settings: { taxRate, serviceCharge },
-    })
+      if (guestId) {
+        where.guestId = guestId
+      }
+
+      if (search) {
+        where.OR = [
+          { guest: { firstName: { contains: search } } },
+          { guest: { lastName: { contains: search } } },
+          { reservation: { confirmationNo: { contains: search } } },
+          { reservation: { room: { number: { contains: search } } } },
+        ]
+      }
+
+      const folios = await db.folio.findMany({
+        where,
+        include: {
+          reservation: {
+            select: {
+              id: true, confirmationNo: true, checkIn: true, checkOut: true,
+              roomRate: true, status: true, creditLimit: true,
+              room: { select: { number: true } },
+            },
+          },
+          guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true } },
+          // Limit nested includes to prevent unbounded data
+          transactions: { orderBy: { createdAt: 'desc' }, take: 20 },
+          payments: { orderBy: { createdAt: 'desc' }, take: 10 },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      })
+
+      // Read relevant settings
+      const s = await getSettingsMap()
+      const taxRate = (s.taxRate as number) ?? 13
+      const serviceCharge = (s.serviceCharge as number) ?? 0
+
+      // Only compute stats for full list view
+      const isFullList = !reservationId && !guestId && !search
+
+      let stats: {
+        openFolios: number
+        totalOutstanding: number
+        todayCharges: number
+        todayPayments: number
+      } | null = null
+
+      if (isFullList) {
+        const todayStart = new Date()
+        todayStart.setHours(0, 0, 0, 0)
+        const todayEnd = new Date()
+        todayEnd.setHours(23, 59, 59, 999)
+
+        // Use aggregate instead of findMany for much faster stats
+        const [openCount, outstandingSum, todayChargesSum, todayPaymentsSum] = await Promise.all([
+          db.folio.count({ where: { status: 'open' } }),
+          db.folio.aggregate({ where: { status: 'open' }, _sum: { balance: true } }),
+          db.folioTransaction.aggregate({ where: { createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
+          db.folioPayment.aggregate({ where: { createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { amount: true } }),
+        ])
+
+        stats = {
+          openFolios: openCount,
+          totalOutstanding: outstandingSum._sum.balance ?? 0,
+          todayCharges: todayChargesSum._sum.totalAmount ?? 0,
+          todayPayments: todayPaymentsSum._sum.amount ?? 0,
+        }
+      }
+
+      return { folios, stats, settings: { taxRate, serviceCharge } }
+    }, 30_000) // 30s cache TTL
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Folio API error:', error)
     return NextResponse.json({ error: 'Failed to fetch folio data' }, { status: 500 })
@@ -122,7 +109,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { reservationId, guestId, folioType } = body
 
-    // Check if folio already exists for this reservation
     const existingFolio = await db.folio.findFirst({
       where: { reservationId, folioType: folioType || 'guest' },
     })
@@ -142,6 +128,8 @@ export async function POST(request: NextRequest) {
         guest: true,
       },
     })
+
+    afterMutation('folio')
 
     return NextResponse.json({ folio }, { status: 201 })
   } catch (error) {

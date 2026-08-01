@@ -112,6 +112,8 @@ model Room {
   hkWorkFlows HkWorkFlow[]
 
   @@unique([number, propertyId])
+  @@index([status])
+  @@index([propertyId])
 }
 
 model RoomRestriction {
@@ -226,6 +228,15 @@ model Reservation {
   bookingContact BookingContact?
   ratePostings  RoomRatePosting[]
   guestDocuments GuestDocument[]
+
+  @@index([status])
+  @@index([checkIn])
+  @@index([checkOut])
+  @@index([roomId])
+  @@index([guestId])
+  @@index([propertyId])
+  @@index([status, checkIn])
+  @@index([status, checkOut])
 }
 
 // ─── GUEST FOLIO ─────────────────────────────────────────────
@@ -244,6 +255,10 @@ model Folio {
   transactions  FolioTransaction[]
   payments      FolioPayment[]
   ratePostings  RoomRatePosting[]
+
+  @@index([reservationId])
+  @@index([guestId])
+  @@index([status])
 }
 
 model FolioTransaction {
@@ -261,6 +276,9 @@ model FolioTransaction {
   createdAt     DateTime @default(now())
 
   folio         Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId])
+  @@index([createdAt])
 }
 
 model FolioPayment {
@@ -277,6 +295,9 @@ model FolioPayment {
   createdAt     DateTime @default(now())
 
   folio         Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId])
+  @@index([createdAt])
 }
 
 // ─── POS / OUTLETS ────────────────────────────────────────────
@@ -327,6 +348,10 @@ model PosOrder {
 
   outlet        Outlet @relation(fields: [outletId], references: [id])
   items         OrderItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([outletId])
 }
 
 model OrderItem {
@@ -475,6 +500,8 @@ model NightAudit {
   revpar        Float    @default(0)
   notes         String?
   createdAt     DateTime @default(now())
+
+  @@index([status, businessDate])
 }
 
 model CashierShift {
@@ -525,6 +552,11 @@ model WorkOrder {
   completedAt   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([roomId])
+  @@index([createdAt])
 }
 
 // ─── ACCOUNTING ───────────────────────────────────────────────

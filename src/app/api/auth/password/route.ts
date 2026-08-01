@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest) {
     })
 
     if (signInError) {
-      await logSecurityEvent({
+      logSecurityEvent({
         type: 'password_change_failure', level: 'warning',
         userId: auth.user.userId, email: auth.user.email,
         ipAddress: ip, path: '/api/auth/password', method: 'PUT',
