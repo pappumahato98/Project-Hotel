@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
   try {
-    return await getOrSet('rooms:list', async () => {
+    const data = await getOrSet('rooms:list', async () => {
     // Get property first (needed for filtering)
     const property = await db.property.findFirst()
 
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
     const dirty = (statusMap['vacant_dirty'] || 0) + (statusMap['cleaning'] || 0) + (statusMap['on_change'] || 0)
     const occupancyRate = totalRooms > 0 ? Math.round((occupied / totalRooms) * 100) : 0
 
-    return NextResponse.json({
+    return {
       rooms: enrichedRooms,
       statusBreakdown: statusMap,
       floors,
@@ -117,8 +117,9 @@ export async function GET(req: NextRequest) {
         totalRooms, occupied, available, outOfOrder, dirty,
         vacantClean, inspected, occupancyRate,
       },
-    })
+    }
     }, 120000)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Rooms API error:', error)
     return NextResponse.json({ error: 'Failed to fetch rooms' }, { status: 500 })

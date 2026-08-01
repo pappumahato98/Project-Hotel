@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const cacheSearch = searchParams.get('search') || ''
     const cachePage = searchParams.get('page') || '1'
 
-    return await getOrSet(`reservations:list:${cacheStatus}:${cacheSearch}:${cachePage}`, async () => {
+    const data = await getOrSet(`reservations:list:${cacheStatus}:${cacheSearch}:${cachePage}`, async () => {
     const status = searchParams.get('status')
     const search = searchParams.get('search')
     const date = searchParams.get('date')
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
     const earlyCheckInCharge = (s.earlyCheckInCharge as number) ?? 0
     const lateCheckoutCharge = (s.lateCheckoutCharge as number) ?? 0
 
-    return NextResponse.json({
+    return {
       reservations,
       total,
       settings: {
@@ -174,8 +174,9 @@ export async function GET(request: NextRequest) {
         earlyCheckInCharge,
         lateCheckoutCharge,
       },
-    })
+    }
     }, 120000)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Reservations API error:', error)
     return NextResponse.json({ error: 'Failed to fetch reservations' }, { status: 500 })

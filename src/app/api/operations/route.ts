@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    const result = await getOrSet('operations:dashboard', async () => {
+    const data = await getOrSet('operations:dashboard', async () => {
     const nepalToday = getNepalToday()
     const nepalTomorrow = getNepalTomorrow()
     const todayStr = nepalToday.toISOString().split('T')[0]
@@ -472,7 +472,7 @@ export async function GET(req: NextRequest) {
       },
     }
 
-    return NextResponse.json({
+    return {
       nightAudit: nightAuditData,
       dayClose: dayCloseData,
       cashier: {
@@ -481,9 +481,9 @@ export async function GET(req: NextRequest) {
         summary: cashierSummary,
       },
       shiftHandover: shiftHandoverData,
-    })
+    }
     }, 120000)
-    return result
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Operations API error:', error)
     return NextResponse.json({ error: 'Failed to fetch operations data' }, { status: 500 })

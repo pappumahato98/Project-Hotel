@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
   try {
-    return await getOrSet('housekeeping:rooms', async () => {
+    const data = await getOrSet('housekeeping:rooms', async () => {
     const { searchParams } = new URL(request.url)
     const hkStatus = searchParams.get('hkStatus')
     const roomTypeId = searchParams.get('roomTypeId')
@@ -205,8 +205,9 @@ export async function GET(request: NextRequest) {
       rows = rows.filter((r) => r.priority === priority)
     }
 
-    return NextResponse.json({ rows })
+    return { rows }
     }, 120000)
+    return NextResponse.json(data)
   } catch (error) {
     console.error('HK Rooms API error:', error)
     return NextResponse.json({ error: 'Failed to fetch room data' }, { status: 500 })

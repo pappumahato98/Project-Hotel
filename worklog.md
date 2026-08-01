@@ -275,3 +275,33 @@ Stage Summary:
 - Reads validated values from local .env (created by setup-supabase.sh)
 - Pushes all 5 Supabase env vars to Vercel with proper environment targeting
 - Lint: zero errors
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix broken database layer — revert to SQLite for local sandbox, seed demo data
+
+Work Log:
+- Discovered schema.prisma had `provider = "postgresql"` with `relationMode = "prisma"` but .env pointed to non-existent SQLite file (`file:/home/z/my-project/db/custom.db`)
+- This mismatch (from Task ID 1's Supabase migration) made the app completely non-functional in the sandbox environment
+- Reverted schema.prisma datasource from `postgresql` + `relationMode = "prisma"` to `sqlite`
+- Updated .env DATABASE_URL from absolute path `file:/home/z/my-project/db/custom.db` to relative `file:./db/custom.db`
+- Updated schema comment to remove Supabase-specific UUID references
+- Ran `prisma generate` — generated SQLite-compatible Prisma Client
+- Ran `prisma db push` — created SQLite database at db/custom.db with all 40+ tables
+- Ran `bun prisma/seed.ts` — seeded 643 rows of demo data (81 rooms, 25 reservations, 15 guests, employees, inventory, etc.)
+- Verified no PostgreSQL-specific raw SQL queries exist in src/ (all queries are via Prisma ORM)
+- Verified `groupBy` with `having` clauses are Prisma-compatible with SQLite
+- Verified db.ts buildDatasourceUrl() correctly passes through non-PostgreSQL URLs
+- Verified supabase middleware.ts skips session refresh when env vars are missing
+- Cleaned up unused imports: `Shield` from login-page.tsx, `BarChart3` from navigation.ts
+- Lint: zero errors after all changes
+
+Stage Summary:
+- Root cause: Task ID 1 migrated schema to PostgreSQL for Supabase deployment, but .env in sandbox still pointed to local SQLite — creating a broken state
+- Fix: Reverted schema to SQLite, created + seeded local database
+- Supabase migration work is preserved: supabase/migrations/ SQL files, scripts/setup-supabase.sh, scripts/setup-vercel-env.sh, git history
+- For production (Vercel + Supabase): set env vars per .env.example and run `prisma generate` with PostgreSQL provider
+- App now runs in demo mode (auto-login as admin) with full SQLite backend
+- Code cleanup: removed 2 unused imports
+- Lint: zero errors

@@ -154,7 +154,7 @@ export async function GET(req: NextRequest) {
       take: 5,
     })
 
-    return NextResponse.json({
+    return {
       snapshot: {
         totalRooms,
         arrivals,
@@ -174,9 +174,9 @@ export async function GET(req: NextRequest) {
         defaultCheckOut: sMap.defaultCheckOut,
         starRating: sMap.starRating,
       },
-    })
+    }
     }, 120000)
-    return result
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Front Desk Dashboard API error:', error)
     return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 })
