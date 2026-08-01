@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Required for Render / self-hosted deployment (standalone server)
-  output: 'standalone',
   typescript: {
     // NOTE: Keep true during active development to avoid Vercel build failures
     // on non-critical type warnings. Set to false for production hardening.

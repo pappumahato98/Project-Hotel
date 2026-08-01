@@ -30,8 +30,8 @@ services:
     name: meridian-pms
     runtime: node
     plan: starter # $7/mo — always-on, no cold starts
-    buildCommand: npm install && npm run build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
-    startCommand: node .next/standalone/server.js
+    buildCommand: npm install && npm run build
+    startCommand: npx next start -H 0.0.0.0
     envVars:
       # Supabase — COPY YOUR VALUES from Vercel or .env.local
       - key: NEXT_PUBLIC_SUPABASE_URL
@@ -44,11 +44,9 @@ services:
         sync: false
       - key: DIRECT_URL
         sync: false
-      # Next.js — HOSTNAME required so Render can reach the server
+      # Next.js
       - key: NODE_ENV
         value: production
       - key: HOSTNAME
-        value: 0.0.0.0
-      - key: PORT
-        value: 10000
+        value: "0.0.0.0"
     region: singapore # Closest to Nepal — lowest latency
