@@ -12,18 +12,13 @@ import {
   ArrowLeft,
   CheckCircle2,
   KeyRound,
-  Shield,
 } from 'lucide-react'
 import { useAuthStore, useSettingsStore } from '@/lib/store'
-import { createClient } from '@/lib/supabase/client'
+import { setAccessToken, setCsrfToken } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-
-const SUPABASE_CONFIGURED =
-  !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-  !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 const LOGIN_TIMEOUT_MS = 15_000
 
@@ -32,6 +27,7 @@ type AuthView = 'signin' | 'signup' | 'forgot'
 export function LoginPage() {
   const { isAuthenticated } = useAuthStore()
   const { settings } = useSettingsStore()
+  const router = React.useRouter()
 
   const [view, setView] = React.useState<AuthView>('signin')
   const [loading, setLoading] = React.useState(false)
@@ -63,14 +59,15 @@ export function LoginPage() {
     if (isAuthenticated) {
       setLoading(false)
       setError('')
+      router.push('/')
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, router])
 
-  const doLogin = async (loginEmail: string, loginPassword: string) => {
-    if (!SUPABASE_CONFIGURED) {
-      setError('Authentication service is not configured. Please contact your administrator.')
-      return
-    }
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) { setError('Please enter your email'); return }
+    if (!password) { setError('Please enter your password'); return }
+
     setLoading(true)
     setError('')
 
@@ -80,22 +77,34 @@ export function LoginPage() {
     }, LOGIN_TIMEOUT_MS)
 
     try {
-      const supabase = createClient()
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: loginEmail.trim().toLowerCase(),
-        password: loginPassword,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       })
 
-      if (signInError) {
-        clearTimeout(timeoutId)
+      clearTimeout(timeoutId)
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Login failed')
         setLoading(false)
-        setError(signInError.message)
         return
       }
 
-      // Login succeeded — Supabase session is set.
-      // onAuthStateChange (providers.tsx) will fetch profile and set isAuthenticated.
-      // Don't clear timeout here — let it act as a safety net for profile fetch failures.
+      const data = await res.json()
+
+      // Store access token and CSRF token
+      setAccessToken(data.accessToken)
+      if (data.csrfToken) setCsrfToken(data.csrfToken)
+
+      // Update auth store
+      if (data.user) {
+        useAuthStore.getState().login(data.user, data.accessToken)
+      }
+
+      // Navigate to dashboard
+      router.push('/')
     } catch (err) {
       clearTimeout(timeoutId)
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -103,19 +112,8 @@ export function LoginPage() {
     }
   }
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email.trim()) { setError('Please enter your email'); return }
-    if (!password) { setError('Please enter your password'); return }
-    await doLogin(email, password)
-  }
-
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!SUPABASE_CONFIGURED) {
-      setError('Authentication service is not configured.')
-      return
-    }
     setError('')
 
     if (!firstName.trim() || !lastName.trim()) {
@@ -137,21 +135,21 @@ export function LoginPage() {
 
     setLoading(true)
     try {
-      const supabase = createClient()
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: signUpEmail.trim().toLowerCase(),
-        password: signUpPassword,
-        options: {
-          data: {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-          },
-        },
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: signUpEmail.trim().toLowerCase(),
+          password: signUpPassword,
+        }),
       })
 
-      if (signUpError) {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         setLoading(false)
-        setError(signUpError.message)
+        setError(data.error || 'Sign up failed')
         return
       }
 
@@ -165,11 +163,6 @@ export function LoginPage() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!SUPABASE_CONFIGURED) {
-      setForgotError('Authentication service is not configured.')
-      return
-    }
-
     if (!forgotEmail.trim()) {
       setForgotError('Please enter your email address')
       return
@@ -178,11 +171,15 @@ export function LoginPage() {
     setForgotLoading(true)
     setForgotError('')
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail.trim().toLowerCase())
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail.trim().toLowerCase() }),
+      })
 
-      if (error) {
-        setForgotError(error.message)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setForgotError(data.error || 'Something went wrong')
         setForgotLoading(false)
         return
       }
@@ -313,7 +310,7 @@ export function LoginPage() {
 
           {/* Footer */}
           <p className="text-center text-xs text-muted-foreground">
-            Secured with end-to-end encryption
+            Secured with JWT authentication & CSRF protection
           </p>
         </div>
       </div>

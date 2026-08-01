@@ -8,13 +8,13 @@ datasource db {
   relationMode = "prisma"
 }
 
-// ─── AUTH (Profile data — auth credentials live in Supabase Auth) ───
-// The `id` field stores the Supabase Auth user UUID.
-// Email/password authentication is handled by Supabase; this table holds
-// app-specific profile data (role, department, name, etc.).
+// ─── AUTH ──────────────────────────────────────────────────────
+// Self-contained JWT auth. Password is bcrypt-hashed.
+// Refresh tokens are stored separately in RefreshToken table.
 model AuthUser {
   id            String   @id @default(cuid())
   email         String   @unique
+  passwordHash  String   @default("") // bcrypt hash; empty = no password set
   firstName     String
   lastName      String
   role          String   @default("staff") // admin, gm, manager, supervisor, staff
@@ -36,7 +36,23 @@ model AuthUser {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  activityLogs ActivityLog[]
+  activityLogs   ActivityLog[]
+  refreshTokens  RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // SHA-256 of the raw refresh token
+  userId    String
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // ─── PROPERTY & CONFIG ────────────────────────────────────────

@@ -4,8 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSettingsStore, useAuthStore } from '@/lib/store'
 import { initAuthFetch } from '@/lib/api'
-import { createClient, setAccessToken, getAccessToken, isDemoMode } from '@/lib/supabase/client'
-import { RealtimeProvider } from '@/components/shared/realtime-provider'
+import { setAccessToken, getAccessToken, setCsrfToken, getCsrfToken } from '@/lib/supabase/client'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,114 +21,56 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   useEffect(() => {
-    // ── Demo mode: auto-login as admin ──
-    if (isDemoMode()) {
-      // Set demo token for apiFetch
-      setAccessToken('demo-token')
-      initAuthFetch(() => getAccessToken(), () => useAuthStore.getState().user?.id ?? null)
-
-      // Fetch admin profile and settings in parallel (saves ~100-300ms)
-      const profilePromise = fetch('/api/auth/profile', {
-        headers: { Authorization: 'Bearer demo-token' },
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data?.user) {
-            useAuthStore.getState().login(data.user, 'demo-token')
-          }
-        })
-        .catch(err => {
-          console.error('Demo login failed:', err)
-        })
-
-      const settingsPromise = useSettingsStore.getState().syncFromBackend(true)
-
-      Promise.all([profilePromise, settingsPromise])
-        .finally(() => {
-          useAuthStore.setState({ _hasHydrated: true })
-        })
-      return
-    }
-
-    // ── Production mode: Supabase auth ──
-    const supabase = createClient()
+    // Register auth fetch helpers
     initAuthFetch(
       () => getAccessToken(),
-      () => useAuthStore.getState().user?.id ?? null
+      () => useAuthStore.getState().user?.id ?? null,
+      () => getCsrfToken(),
     )
 
-    let initialSessionChecked = false
-    let profileFetchInProgress = false
-
-    const fetchProfile = async (accessToken: string): Promise<boolean> => {
-      if (profileFetchInProgress) return false
-      profileFetchInProgress = true
-      try {
-        const res = await fetch('/api/auth/profile', {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          if (data?.user) {
-            useAuthStore.getState().login(data.user, accessToken)
-            return true
-          }
-        } else if (res.status === 403) {
-          console.error('Profile not found in database. Profile may need to be provisioned.')
-          // If profile auto-creation failed, sign out to show login again
-          const supabase = createClient()
-          await supabase.auth.signOut()
-        }
-      } catch (err) {
-        console.error('Failed to fetch profile:', err)
-      } finally {
-        profileFetchInProgress = false
-      }
-      return false
+    // Read CSRF token from cookie
+    const csrfFromCookie = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('__meridian_csrf='))
+      ?.split('=')[1]
+    if (csrfFromCookie) {
+      setCsrfToken(csrfFromCookie)
     }
 
-    let profilePromise: Promise<boolean> | null = null
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setAccessToken(session?.access_token ?? null)
-        if (event === 'SIGNED_OUT' || !session) {
-          useAuthStore.getState().logout()
-          useAuthStore.setState({ _hasHydrated: true })
-          return
+    // Try to restore session by refreshing the access token
+    // (if a valid refresh token cookie exists)
+    const restoreSession = async () => {
+      try {
+        const headers: Record<string, string> = {
+          credentials: 'include' as any,
         }
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-          // Deduplicate: if getSession() is already fetching, piggyback on that promise
-          if (profilePromise) {
-            await profilePromise
-          } else {
-            await fetchProfile(session.access_token)
+        if (csrfFromCookie) {
+          headers['X-CSRF-Token'] = csrfFromCookie
+        }
+
+        const res = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          headers,
+        })
+
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.accessToken) {
+            setAccessToken(data.accessToken)
+            if (data.csrfToken) setCsrfToken(data.csrfToken)
+            if (data.user) {
+              useAuthStore.getState().login(data.user, data.accessToken)
+            }
           }
-          useAuthStore.setState({ _hasHydrated: true })
         }
-        if (event === 'TOKEN_REFRESHED') {
-          const store = useAuthStore.getState()
-          if (store.isAuthenticated && session.access_token) {
-            useAuthStore.setState({ token: session.access_token })
-          }
-        }
+      } catch {
+        // No valid refresh token — user needs to log in
+      } finally {
+        useAuthStore.setState({ _hasHydrated: true })
       }
-    )
+    }
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session) {
-        setAccessToken(session.access_token ?? null)
-        profilePromise = fetchProfile(session.access_token!)
-        await profilePromise
-      }
-      useAuthStore.setState({ _hasHydrated: true })
-      profilePromise = null
-    }).catch(() => {
-      profilePromise = null
-      useAuthStore.setState({ _hasHydrated: true })
-    })
-
-    return () => { subscription.unsubscribe() }
+    restoreSession()
   }, [])
 
   // Sync settings when authenticated
@@ -144,7 +85,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isDemoMode() ? children : <RealtimeProvider>{children}</RealtimeProvider>}
+      {children}
     </QueryClientProvider>
   )
 }

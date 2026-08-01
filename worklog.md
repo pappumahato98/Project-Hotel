@@ -512,3 +512,44 @@ Stage Summary:
 - prisma/schema.prisma: 11 new @@index declarations across 6 models for common query patterns
 - operations/route.ts: 18 parallel queries in single Promise.all (was 15 + 3 sequential); removed withRetry from reads; removed unused import
 - Lint: zero errors
+
+---
+Task ID: 4
+Agent: Task 4 Agent
+Task: Create 3 JWT authentication API routes (login, refresh, logout)
+
+Work Log:
+- Read existing auth lib files: token.ts (sign/verify access JWT, generate/hash refresh tokens, cookie helpers), csrf.ts (double-submit pattern, origin validation), auth-helpers.ts (getAuthSession, getClientIp, getClientUA), audit.ts (logSecurityEvent), cache.ts (invalidateAllCache)
+- Read Prisma schema for AuthUser and RefreshToken model fields
+- Created src/app/api/auth/login/route.ts — POST with in-memory IP rate limiter (5/15min), bcrypt password verification, JWT access token + opaque refresh token (SHA-256 hashed in DB), CSRF double-submit cookie, lastLoginAt update, security audit logging on failures
+- Created src/app/api/auth/refresh/route.ts — POST with Origin + CSRF validation, cookie-based refresh token lookup (no Authorization header), token rotation (delete old, create new), inactive user handling, clear cookie on failure
+- Created src/app/api/auth/logout/route.ts — POST with refresh token deletion from DB, CSRF cookie clearing, full cache invalidation via invalidateAllCache()
+- All files use NextRequest/NextResponse, no top-level try/catch, no 'use server'
+- Ran bun run lint: zero errors
+
+Stage Summary:
+- src/app/api/auth/login/route.ts: Rate-limited login with bcrypt, JWT + refresh + CSRF cookies, security audit
+- src/app/api/auth/refresh/route.ts: Origin + CSRF validated token rotation, cookie-based auth
+- src/app/api/auth/logout/route.ts: Token deletion, cookie clearing, cache invalidation
+- Lint: zero errors
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Rewrite auth-helpers.ts to use own JWT verification instead of Supabase
+
+Work Log:
+- Removed all Supabase imports, IS_DEMO check, getDemoSession function, and _supabaseSingleton
+- Replaced Supabase getUser() verification with verifyAccessToken() from @/lib/auth/token
+- Changed cache key from full token string to first 32 chars of token (token prefix)
+- New getAuthSession flow: extract Bearer token → check cache → verifyAccessToken → db.authUser.findUnique by payload.sub → verify active → cache and return
+- On invalid token: logs 'invalid_token' security event, returns 401 'Session expired. Please log in again.'
+- On missing/inactive user: returns 403
+- Kept AuthUser type, ROLE_HIERARCHY, requireRole, requireAuth, getClientIp, getClientUA exactly as before
+- Only imports: NextRequest, NextResponse from next/server; verifyAccessToken from @/lib/auth/token; db from @/lib/db; logSecurityEvent from ./audit
+- Ran bun run lint: zero errors
+
+Stage Summary:
+- src/lib/security/auth-helpers.ts: Fully rewritten to use self-signed JWT verification (jose) instead of Supabase auth
+- Cache uses token prefix (32 chars) as key, TTL 120s
+- Lint: zero errors

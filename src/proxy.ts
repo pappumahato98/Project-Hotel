@@ -1,15 +1,17 @@
 /**
  * Next.js 16 Proxy — replaces the deprecated middleware.ts convention.
  *
- * Refreshes the Supabase auth session cookie on each page navigation
- * so the session stays current.  API routes (/api/*) are excluded via the
- * matcher — they validate Bearer tokens directly.
+ * With self-contained JWT auth, the proxy does NOT need to refresh
+ * any external session. It simply passes through page requests.
+ * API routes (/api/*) are excluded via the matcher.
  */
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { type NextRequest, NextResponse } from 'next/server'
 
 export async function proxy(request: NextRequest) {
-  return await updateSession(request)
+  // No-op: JWT auth is handled by API routes directly.
+  // The access token is stored in memory on the client and
+  // sent via Authorization header. No middleware session refresh needed.
+  return NextResponse.next()
 }
 
 export const config = {

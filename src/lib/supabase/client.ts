@@ -1,12 +1,12 @@
 /**
- * Supabase browser client + access-token cache.
- * Supports demo mode when Supabase is not configured.
+ * Auth client utilities.
+ *
+ * Previously wrapped Supabase Auth. Now manages JWT access tokens
+ * and CSRF tokens for our self-contained auth system.
  */
-import { createBrowserClient } from '@supabase/ssr'
 
-const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL
-
-let _accessToken: string | null = IS_DEMO ? 'demo-token' : null
+let _accessToken: string | null = null
+let _csrfToken: string | null = null
 
 export function setAccessToken(token: string | null) {
   _accessToken = token
@@ -16,16 +16,25 @@ export function getAccessToken(): string | null {
   return _accessToken
 }
 
-export function isDemoMode(): boolean {
-  return IS_DEMO
+export function setCsrfToken(token: string | null) {
+  _csrfToken = token
 }
 
+export function getCsrfToken(): string | null {
+  return _csrfToken
+}
+
+/**
+ * Demo mode is no longer used — auth is always JWT-based.
+ * Kept for backward compat with any remaining checks.
+ */
+export function isDemoMode(): boolean {
+  return false
+}
+
+/**
+ * No-op stub — Supabase client is no longer used.
+ */
 export function createClient() {
-  if (IS_DEMO) {
-    return null as any // Won't be called in demo mode
-  }
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  return null as any
 }

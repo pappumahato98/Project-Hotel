@@ -423,14 +423,12 @@ function UserMenu() {
   const roleBadgeColor = roleColorMap[user?.role ?? 'staff'] ?? roleColorMap.staff
 
   const handleLogout = async () => {
-    // Sign out from Supabase — onAuthStateChange listener clears local state
     try {
-      const { createClient } = await import('@/lib/supabase/client')
-      await createClient().auth.signOut()
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
     } catch {
-      // Supabase unreachable — clear local state anyway
-      logout()
+      // Logout endpoint unreachable — clear local state anyway
     }
+    logout()
     toast.success('Signed out successfully')
   }
 

@@ -1,34 +1,87 @@
 /**
  * Safe fetch wrapper that handles non-JSON responses gracefully.
- * Automatically attaches Bearer token from auth store.
- * Prevents "Unexpected token '<', '<!DOCTYPE'... is not valid JSON" errors
- * when the backend server is temporarily unavailable.
+ * Automatically attaches Bearer token + CSRF token from auth store.
+ * On 401, attempts silent token refresh before redirecting to login.
  */
 
 // Cached reference to auth store (lazy to avoid import issues in SSR)
 let _getToken: (() => string | null) | null = null
 let _getUserId: (() => string | null) | null = null
+let _getCsrfToken: (() => string | null) | null = null
 
-/** Call once from client to register the token and user-id getters */
+// Prevent concurrent refresh attempts
+let _refreshPromise: Promise<boolean> | null = null
+
+/** Call once from client to register the token, user-id, and CSRF getters */
 export function initAuthFetch(
   getToken: () => string | null,
-  getUserId?: () => string | null
+  getUserId?: () => string | null,
+  getCsrfToken?: () => string | null,
 ) {
   _getToken = getToken
   _getUserId = getUserId ?? null
+  _getCsrfToken = getCsrfToken ?? null
+}
+
+/**
+ * Attempt to refresh the access token using the refresh token cookie.
+ * Returns true if refresh succeeded, false otherwise.
+ */
+async function tryRefreshToken(): Promise<boolean> {
+  if (_refreshPromise) return _refreshPromise
+
+  _refreshPromise = (async () => {
+    try {
+      const headers: Record<string, string> = {}
+      if (_getCsrfToken) {
+        const csrf = _getCsrfToken()
+        if (csrf) headers['X-CSRF-Token'] = csrf
+      }
+
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'same-origin', // Ensure cookies are sent
+        headers,
+      })
+
+      if (!res.ok) return false
+
+      const data = await res.json()
+      if (data?.accessToken && data?.csrfToken) {
+        const { useAuthStore } = await import('@/lib/store')
+        const { setAccessToken, setCsrfToken } = await import('@/lib/supabase/client')
+
+        setAccessToken(data.accessToken)
+        setCsrfToken(data.csrfToken)
+
+        if (data.user) {
+          useAuthStore.getState().login(data.user, data.accessToken)
+        }
+        return true
+      }
+      return false
+    } catch {
+      return false
+    } finally {
+      _refreshPromise = null
+    }
+  })()
+
+  return _refreshPromise
 }
 
 export async function apiFetch<T = unknown>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
-  // Attach Bearer token and x-user-id header if available
+  // Attach Bearer token, CSRF token, and x-user-id header if available
   if (_getToken) {
     const token = _getToken()
     if (token) {
       options.headers = {
         ...options.headers,
         Authorization: `Bearer ${token}`,
+        ...(!!_getCsrfToken && _getCsrfToken() ? { 'X-CSRF-Token': _getCsrfToken()! } : {}),
         ...(!!_getUserId ? { 'x-user-id': _getUserId() ?? '' } : {}),
       }
     }
@@ -41,23 +94,36 @@ export async function apiFetch<T = unknown>(
     throw new Error('Server unavailable. Please try again.')
   }
 
-  // Handle 401 — session expired or invalid, sign out from Supabase
+  // Handle 401 — try silent refresh, then redirect to login
   if (res.status === 401 && typeof window !== 'undefined') {
-    try {
-      const { useAuthStore } = await import('@/lib/store')
-      const store = useAuthStore.getState()
-      if (store.isAuthenticated) {
-        store.logout()
-        // Sign out from Supabase to clear the session
-        const { createClient } = await import('@/lib/supabase/client')
-        await createClient().auth.signOut()
-        if (!window.location.pathname.includes('/login')) {
-          window.location.reload()
+    // Don't try to refresh the refresh endpoint itself
+    if (url.includes('/auth/refresh')) {
+      forceLogout()
+      throw new Error('Session expired. Please log in again.')
+    }
+
+    const refreshed = await tryRefreshToken()
+    if (refreshed) {
+      // Retry the original request with new token
+      if (_getToken) {
+        const newToken = _getToken()
+        if (newToken) {
+          options.headers = {
+            ...options.headers,
+            Authorization: `Bearer ${newToken}`,
+          }
         }
       }
-    } catch {
-      // Import failed — continue with error
+      try {
+        res = await fetch(url, options)
+        if (res.ok) return res.json() as Promise<T>
+      } catch {
+        // Retry failed
+      }
     }
+
+    forceLogout()
+    throw new Error('Session expired. Please log in again.')
   }
 
   if (!res.ok) {
@@ -72,11 +138,9 @@ export async function apiFetch<T = unknown>(
       // JSON parse failed — fall through to generic message
     }
     if (errData?.error && typeof errData.error === 'string') {
-      // Add retryAfter info if present (rate limiting)
       if (errData.retryAfter && typeof errData.retryAfter === 'number') {
         throw new Error(`${errData.error} Try again in ${errData.retryAfter}s.`)
       }
-      // Include detail if present (helps debug DB/connection errors)
       if (errData.detail && typeof errData.detail === 'string') {
         throw new Error(`${errData.error}: ${errData.detail}`)
       }
@@ -85,4 +149,22 @@ export async function apiFetch<T = unknown>(
     throw new Error(`Request failed (HTTP ${res.status})`)
   }
   return res.json() as Promise<T>
+}
+
+async function forceLogout() {
+  try {
+    const { useAuthStore } = await import('@/lib/store')
+    const store = useAuthStore.getState()
+    if (store.isAuthenticated) {
+      store.logout()
+    }
+    const { setAccessToken, setCsrfToken } = await import('@/lib/supabase/client')
+    setAccessToken(null)
+    setCsrfToken(null)
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login'
+    }
+  } catch {
+    // Import failed
+  }
 }
