@@ -85,13 +85,17 @@ export function LoginPage() {
         email: loginEmail.trim().toLowerCase(),
         password: loginPassword,
       })
-      clearTimeout(timeoutId)
 
       if (signInError) {
+        clearTimeout(timeoutId)
         setLoading(false)
         setError(signInError.message)
         return
       }
+
+      // Login succeeded — Supabase session is set.
+      // onAuthStateChange (providers.tsx) will fetch profile and set isAuthenticated.
+      // Don't clear timeout here — let it act as a safety net for profile fetch failures.
     } catch (err) {
       clearTimeout(timeoutId)
       setError(err instanceof Error ? err.message : 'Login failed')

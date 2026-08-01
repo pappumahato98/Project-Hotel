@@ -118,7 +118,31 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     }
 
     if (!profile) {
-      return NextResponse.json({ error: 'Profile not found. Contact an administrator.' }, { status: 403 })
+      // Auto-provision: create AuthUser profile from Supabase user data
+      // This handles the case where a Supabase user exists but has no DB profile yet
+      try {
+        const meta = supabaseUser.user_metadata ?? {}
+        profile = await db.authUser.create({
+          data: {
+            id: supabaseUser.id,
+            email: supabaseUser.email!,
+            firstName: meta.firstName || supabaseUser.email!.split('@')[0] || 'User',
+            lastName: meta.lastName || '',
+            role: 'staff',
+            active: true,
+          },
+          select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
+        })
+      } catch (createErr) {
+        // If create fails (e.g. unique constraint on email), try lookup by email as fallback
+        profile = await db.authUser.findFirst({
+          where: { email: supabaseUser.email! },
+          select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
+        })
+        if (!profile) {
+          return NextResponse.json({ error: 'Profile not found and could not be created. Contact administrator.' }, { status: 403 })
+        }
+      }
     }
     if (!profile.active) {
       return NextResponse.json({ error: 'Account is deactivated. Contact administrator.' }, { status: 403 })

@@ -75,7 +75,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
             return true
           }
         } else if (res.status === 403) {
-          console.error('Profile not found in database.')
+          console.error('Profile not found in database. Profile may need to be provisioned.')
+          // If profile auto-creation failed, sign out to show login again
+          const supabase = createClient()
+          await supabase.auth.signOut()
         }
       } catch (err) {
         console.error('Failed to fetch profile:', err)
