@@ -1,0 +1,57 @@
+# ─── Render 1-Click Deploy Configuration ───────────────────────────
+#
+# HOW TO DEPLOY (2 options):
+#
+# Option A — 1-Click Deploy (Blueprint):
+#   1. Go to https://dashboard.render.com/blueprints
+#   2. Click "New Blueprint Instance"
+#   3. Connect repo: pappumahato98/Project-Neo
+#   4. Render reads this file automatically
+#   5. Add your 5 environment variables (see below)
+#   6. Click "Apply" — done!
+#
+# Option B — Manual:
+#   1. Go to https://dashboard.render.com → New → Web Service
+#   2. Connect repo: pappumahato98/Project-Neo
+#   3. Render auto-fills from this file
+#   4. Add env vars → Deploy
+#
+# REQUIRED ENV VARIABLES (set in Render dashboard):
+#   NEXT_PUBLIC_SUPABASE_URL      = https://xxxxx.supabase.co
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJhbGciOi...
+#   SUPABASE_SERVICE_ROLE_KEY    = eyJhbGciOi...
+#   DATABASE_URL                  = postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true
+#   DIRECT_URL                    = postgresql://postgres.[ref]:[pass]@aws-0-[region].supabase.com:5432/postgres
+#
+# ─────────────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: meridian-pms
+    runtime: node
+    plan: starter # $7/mo — always-on, no cold starts
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      # Supabase — COPY YOUR VALUES from Vercel or .env.local
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      # Next.js
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Prisma
+      - key: DATABASE_URL_NON_POOLING
+        fromDatabase:
+          name: meridian-pms-db
+          property: connectionString
+    region: singapore # Closest to Nepal — lowest latency

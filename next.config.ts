@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Required for Render / self-hosted deployment (standalone server)
+  output: 'standalone',
   typescript: {
     // NOTE: Keep true during active development to avoid Vercel build failures
     // on non-critical type warnings. Set to false for production hardening.
@@ -48,7 +50,7 @@ const nextConfig: NextConfig = {
     'localhost',
   ],
   experimental: {
-    // cpus: 1, // Uncomment if Vercel build runs out of memory
+    // cpus: 1, // Uncomment if build runs out of memory
   },
 };
 
