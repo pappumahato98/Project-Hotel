@@ -611,3 +611,28 @@ Stage Summary:
 - Admin password: bcrypt $2b$12$... hash of Admin@123 stored in DB
 - db.ts: Lazy Proxy pattern prevents Turbopack env race condition
 - Production ready: Vercel sets env vars before process start, so lazy init is a bonus safety net
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Prepare Render deployment — remove all Supabase auth dependencies
+
+Work Log:
+- Updated render.yaml: 2 env vars only (DATABASE_URL + JWT_SECRET), removed 3 Supabase vars
+- Updated setup-supabase.sh: interactive 2-value setup (DB URL + JWT secret), auto-generates JWT, runs prisma db push + admin password
+- Updated setup-vercel-env.sh: pushes 2 vars to Vercel (was 5 Supabase vars)
+- Updated vercel.json: added explicit buildCommand with prisma generate
+- Rewrote auth/password/route.ts: bcrypt verify + hash update (was Supabase Auth API)
+- Rewrote health/route.ts: checks JWT_SECRET length instead of Supabase keys
+- Stubbed supabase/server.ts: no runtime Supabase imports
+- Stubbed supabase/middleware.ts: no-op (JWT refresh is client-side)
+- Verified realtime hooks gracefully skip without NEXT_PUBLIC_SUPABASE_URL
+- Lint: zero errors
+- Pushed: 0d7cb6b
+
+Stage Summary:
+- Render deployment: set 2 env vars (DATABASE_URL, JWT_SECRET) → deploy
+- Vercel deployment: run bash scripts/setup-vercel-env.sh → push
+- Zero Supabase auth runtime dependencies remaining
+- Realtime (Supabase Realtime) is optional — gracefully disabled when env vars missing
+- Password change now uses bcrypt (consistent with login)
