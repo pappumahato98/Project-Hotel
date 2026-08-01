@@ -1,12 +1,11 @@
-#!/bin/bash
-# Vercel + Supabase Environment Setup for Meridian PMS
+#!/usr/bin/env bash
+# Vercel Environment Setup for Meridian PMS (JWT Auth)
 #
-# This script helps you configure environment variables on Vercel.
-# Run this AFTER connecting your repo to Vercel.
+# Sets 2 env vars: DATABASE_URL + JWT_SECRET
 #
 # Prerequisites:
 #   - Vercel CLI: npm i -g vercel
-#   - Supabase project with tables already pushed (prisma db push)
+#   - Supabase project with schema already pushed (prisma db push)
 #   - Local .env populated (run scripts/setup-supabase.sh first)
 #
 # Usage:  bash scripts/setup-vercel-env.sh [environment...]
@@ -26,12 +25,11 @@ DIM='\033[2m'
 RESET='\033[0m'
 
 # ── Which Vercel environments to target ──────────────────────────────
-# Defaults to all three if none specified
 ENVS=("${@:-production preview development}")
 
 # ── Banner ───────────────────────────────────────────────────────────
 echo -e "${BOLD}╔════════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}║   Meridian PMS — Vercel Environment Setup                ║${RESET}"
+echo -e "${BOLD}║   Meridian PMS — Vercel Environment Setup (JWT Auth)     ║${RESET}"
 echo -e "${BOLD}╚════════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 echo -e "Target environments: ${CYAN}${ENVS[*]}${RESET}"
@@ -54,7 +52,7 @@ echo -e "${GREEN}✓${RESET} .env file found"
 
 # ── Link to Vercel project (idempotent) ──────────────────────────────
 echo ""
-echo -e "${BOLD}━━━ Linking to Vercel ━━━━━━━━━━━━━══━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${BOLD}━━━ Linking to Vercel ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 
 if [ ! -f .vercel/project.json ]; then
   echo "  No existing Vercel link found. Running 'vercel link'..."
@@ -71,7 +69,6 @@ echo -e "  ${GREEN}✓${RESET} Linked to Vercel project ${DIM}${PROJECT_DIR:-}${
 # ── Helper: read a value from .env ───────────────────────────────────
 get_env() {
   local key="$1"
-  # Handle both quoted and unquoted values; strip surrounding quotes
   local val
   val=$(grep -E "^${key}=" .env 2>/dev/null | head -1 | sed "s/^${key}=//" | sed 's/^"//;s/"$//' | sed "s/^'//;s/'$//")
   echo "$val"
@@ -95,14 +92,11 @@ set_vercel_env() {
   fi
   echo -n " → ${ENVS[*]} ... "
 
-  # Build env flag list
   local env_flags=()
   for env in "${ENVS[@]}"; do
     env_flags+=("-e" "$env")
   done
 
-  # Pipe value into vercel env add
-  # Using printf to avoid trailing newline issues
   if printf '%s' "$value" | vercel env add "$key" "${env_flags[@]}" >/dev/null 2>&1; then
     echo -e "${GREEN}✓${RESET}"
     return 0
@@ -112,64 +106,26 @@ set_vercel_env() {
   fi
 }
 
-# ── Helper: validate a URL ───────────────────────────────────────────
-check_url() {
-  echo "$1" | grep -qE '^https?://'
-}
-
-# ── Helper: validate a JWT ───────────────────────────────────────────
-check_jwt() {
-  echo "$1" | grep -qE '^eyJ'
-}
-
-# ── Helper: validate a postgres URL ──────────────────────────────────
-check_pg() {
-  echo "$1" | grep -qE '^postgresql://|^postgres://'
-}
-
 # ── Read values from .env ────────────────────────────────────────────
 DATABASE_URL=$(get_env "DATABASE_URL")
-DIRECT_URL=$(get_env "DIRECT_URL")
-SUPABASE_URL=$(get_env "NEXT_PUBLIC_SUPABASE_URL")
-ANON_KEY=$(get_env "NEXT_PUBLIC_SUPABASE_ANON_KEY")
-SERVICE_KEY=$(get_env "SUPABASE_SERVICE_ROLE_KEY")
+JWT_SECRET=$(get_env "JWT_SECRET")
 
 # ── Validate values ──────────────────────────────────────────────────
 echo ""
 echo -e "${BOLD}━━━ Validating .env values ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 ERRORS=0
 
-if check_pg "$DATABASE_URL"; then
-  echo -e "  ${GREEN}✓${RESET} DATABASE_URL           (PostgreSQL connection)"
+if echo "$DATABASE_URL" | grep -qE '^postgresql://|^postgres://'; then
+  echo -e "  ${GREEN}✓${RESET} DATABASE_URL  (PostgreSQL with PgBouncer)"
 else
-  echo -e "  ${RED}✗${RESET} DATABASE_URL           missing or invalid"
+  echo -e "  ${RED}✗${RESET} DATABASE_URL  missing or invalid"
   ERRORS=$((ERRORS + 1))
 fi
 
-if check_pg "$DIRECT_URL"; then
-  echo -e "  ${GREEN}✓${RESET} DIRECT_URL             (Direct connection for migrations)"
+if [ -n "$JWT_SECRET" ] && [ ${#JWT_SECRET} -ge 32 ]; then
+  echo -e "  ${GREEN}✓${RESET} JWT_SECRET   (${#JWT_SECRET} chars)"
 else
-  echo -e "  ${AMBER}⚠${RESET} DIRECT_URL             ${DIM}not set — migrations will fall back to DATABASE_URL${RESET}"
-fi
-
-if check_url "$SUPABASE_URL"; then
-  echo -e "  ${GREEN}✓${RESET} NEXT_PUBLIC_SUPABASE_URL"
-else
-  echo -e "  ${RED}✗${RESET} NEXT_PUBLIC_SUPABASE_URL missing or invalid"
-  ERRORS=$((ERRORS + 1))
-fi
-
-if check_jwt "$ANON_KEY"; then
-  echo -e "  ${GREEN}✓${RESET} NEXT_PUBLIC_SUPABASE_ANON_KEY"
-else
-  echo -e "  ${RED}✗${RESET} NEXT_PUBLIC_SUPABASE_ANON_KEY missing or invalid"
-  ERRORS=$((ERRORS + 1))
-fi
-
-if check_jwt "$SERVICE_KEY"; then
-  echo -e "  ${GREEN}✓${RESET} SUPABASE_SERVICE_ROLE_KEY"
-else
-  echo -e "  ${RED}✗${RESET} SUPABASE_SERVICE_ROLE_KEY missing or invalid"
+  echo -e "  ${RED}✗${RESET} JWT_SECRET   missing or too short (need 32+ chars)"
   ERRORS=$((ERRORS + 1))
 fi
 
@@ -194,27 +150,7 @@ else
   SET_FAIL=$((SET_FAIL + 1))
 fi
 
-if [ -n "$DIRECT_URL" ]; then
-  if set_vercel_env "DIRECT_URL" "$DIRECT_URL" "PostgreSQL (direct)" "yes"; then
-    SET_OK=$((SET_OK + 1))
-  else
-    SET_FAIL=$((SET_FAIL + 1))
-  fi
-fi
-
-if set_vercel_env "NEXT_PUBLIC_SUPABASE_URL" "$SUPABASE_URL" "Supabase Project URL" "no"; then
-  SET_OK=$((SET_OK + 1))
-else
-  SET_FAIL=$((SET_FAIL + 1))
-fi
-
-if set_vercel_env "NEXT_PUBLIC_SUPABASE_ANON_KEY" "$ANON_KEY" "Supabase Anon Key" "no"; then
-  SET_OK=$((SET_OK + 1))
-else
-  SET_FAIL=$((SET_FAIL + 1))
-fi
-
-if set_vercel_env "SUPABASE_SERVICE_ROLE_KEY" "$SERVICE_KEY" "Supabase Service Role Key" "yes"; then
+if set_vercel_env "JWT_SECRET" "$JWT_SECRET" "JWT signing secret" "yes"; then
   SET_OK=$((SET_OK + 1))
 else
   SET_FAIL=$((SET_FAIL + 1))
@@ -234,16 +170,15 @@ echo ""
 
 if [ "$SET_FAIL" -eq 0 ]; then
   echo -e "${GREEN}${BOLD}╔════════════════════════════════════════════════════════════╗${RESET}"
-  echo -e "${GREEN}${BOLD}║   ✓ Vercel environment variables configured!             ║${RESET}"
+  echo -e "${GREEN}${BOLD}║   ✓ Vercel environment configured! (JWT auth)              ║${RESET}"
   echo -e "${GREEN}${BOLD}╚════════════════════════════════════════════════════════════╝${RESET}"
   echo ""
-  echo "  Your Vercel deployments will now connect to Supabase."
   echo "  Push a commit or redeploy to pick up the new variables."
+  echo "  Login: admin@meridian.com / Admin@123"
   echo ""
 else
   echo -e "${AMBER}⚠  Some variables failed to set. Check the errors above.${RESET}"
-  echo "  You can also set them manually in the Vercel dashboard:"
-  echo "  ${DIM}https://vercel.com/your-team/your-project/settings/environment-variables${RESET}"
+  echo "  You can also set them manually in the Vercel dashboard."
   echo ""
   exit 1
 fi

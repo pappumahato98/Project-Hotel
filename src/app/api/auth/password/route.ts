@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import bcrypt from 'bcryptjs'
+import { db } from '@/lib/db'
 import { requireAuth, getClientIp, getClientUA } from '@/lib/security/auth-helpers'
-import { createAdminClient } from '@/lib/supabase/server'
 import { passwordChangeLimiter, logSecurityEvent } from '@/lib/security'
 
 export async function PUT(req: NextRequest) {
@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest) {
   const ip = getClientIp(req)
   const rateResult = passwordChangeLimiter(ip)
   if (!rateResult.success) {
-    await logSecurityEvent({
+    logSecurityEvent({
       type: 'rate_limit_exceeded', level: 'warning',
       userId: auth.user.userId, email: auth.user.email,
       ipAddress: ip, path: '/api/auth/password', method: 'PUT',
@@ -43,19 +43,22 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    // Verify current password by attempting a Supabase sign-in.
-    // (Supabase doesn't expose a "verify password" API; sign-in is the way.)
-    const supabaseAnon = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
-    const { error: signInError } = await supabaseAnon.auth.signInWithPassword({
-      email: auth.user.email,
-      password: currentPassword,
+    // Fetch current password hash from DB
+    const user = await db.authUser.findUnique({
+      where: { id: auth.user.userId },
+      select: { id: true, email: true, passwordHash: true },
     })
 
-    if (signInError) {
+    if (!user || !user.passwordHash) {
+      return NextResponse.json(
+        { error: 'No password set for this account. Contact administrator.' },
+        { status: 401 }
+      )
+    }
+
+    // Verify current password with bcrypt
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash)
+    if (!valid) {
       logSecurityEvent({
         type: 'password_change_failure', level: 'warning',
         userId: auth.user.userId, email: auth.user.email,
@@ -68,27 +71,19 @@ export async function PUT(req: NextRequest) {
       )
     }
 
-    // Update password via Supabase Admin API (service role, bypasses RLS)
-    const supabaseAdmin = createAdminClient()
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      auth.user.userId,
-      { password: newPassword }
-    )
+    // Hash and update the new password
+    const newHash = await bcrypt.hash(newPassword, 12)
+    await db.authUser.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash },
+    })
 
-    if (updateError) {
-      console.error('Supabase password update error:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update password. Please try again.' },
-        { status: 500 }
-      )
-    }
-
-    await logSecurityEvent({
+    logSecurityEvent({
       type: 'password_change', level: 'info',
       userId: auth.user.userId, email: auth.user.email,
       ipAddress: ip, userAgent: getClientUA(req),
       path: '/api/auth/password', method: 'PUT',
-      details: 'Password changed successfully — Supabase session invalidated',
+      details: 'Password changed successfully',
     })
 
     return NextResponse.json({

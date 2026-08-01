@@ -7,21 +7,23 @@
 #   2. Click "New Blueprint Instance"
 #   3. Connect repo: pappumahato98/Project-Neo
 #   4. Render reads this file automatically
-#   5. Add your 5 environment variables (see below)
+#   5. Add your 2 environment variables (see below)
 #   6. Click "Apply" — done!
 #
 # Option B — Manual:
 #   1. Go to https://dashboard.render.com → New → Web Service
 #   2. Connect repo: pappumahato98/Project-Neo
-#   3. Render auto-fills from this file
-#   4. Add env vars → Deploy
+#   3. Build Command: npx prisma generate && npx next build
+#   4. Start Command: npx next start -H 0.0.0.0 -p $PORT
+#   5. Add env vars → Deploy
 #
 # REQUIRED ENV VARIABLES (set in Render dashboard):
-#   NEXT_PUBLIC_SUPABASE_URL      = https://xxxxx.supabase.co
-#   NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJhbGciOi...
-#   SUPABASE_SERVICE_ROLE_KEY    = eyJhbGciOi...
-#   DATABASE_URL                  = postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true
-#   DIRECT_URL                    = postgresql://postgres.[ref]:[pass]@aws-0-[region].supabase.com:5432/postgres
+#
+#   DATABASE_URL = postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=7&connect_timeout=15&pool_timeout=15
+#   JWT_SECRET  = <64+ char random string>
+#
+#   Generate JWT_SECRET:
+#     node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 #
 # ─────────────────────────────────────────────────────────────────────
 
@@ -30,21 +32,18 @@ services:
     name: meridian-pms
     runtime: node
     plan: starter # $7/mo — always-on, no cold starts
-    buildCommand: npm install && npm run build
+    buildCommand: npx prisma generate && npx next build
     startCommand: npx next start -H 0.0.0.0 -p $PORT
     envVars:
-      # Supabase — COPY YOUR VALUES from Vercel or .env.local
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+      # ── Database (Supabase PostgreSQL) ─────────────────────────────
+      # Transaction pooler URL with PgBouncer params
       - key: DATABASE_URL
         sync: false
-      - key: DIRECT_URL
+      # ── JWT Auth ────────────────────────────────────────────────────
+      # 64+ char random string for signing access tokens
+      - key: JWT_SECRET
         sync: false
-      # Next.js
+      # ── Next.js ────────────────────────────────────────────────────
       - key: NODE_ENV
         value: production
       - key: HOSTNAME
