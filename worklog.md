@@ -586,3 +586,28 @@ Stage Summary:
 - CSRF: double-submit cookie + Origin validation + timingSafeEqual comparison
 - Rate limiting: 5 login attempts per IP per 15 minutes
 - Schema changes need `prisma db push` on deployment
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Deploy JWT auth - strong secret, schema push, admin password
+
+Work Log:
+- Generated 64-char crypto-random JWT_SECRET (replaced placeholder)
+- Updated .env with PostgreSQL URL (Supabase pooler) + PgBouncer query params
+- Ran `prisma db push` against Supabase: RefreshToken table + passwordHash column created (7.5s)
+- Ran db/set-admin-password.mjs: bcrypt hashed Admin@123 (12 rounds) for admin@meridian.com
+- Discovered Turbopack env-loading race: `db.ts` module evaluation happens before .env is loaded
+- Rewrote db.ts with lazy Prisma initialization via Proxy (defers new PrismaClient() to first query)
+- Removed datasources override — PgBouncer params now in DATABASE_URL query string
+- Cleaned up obsolete Supabase auth scripts (create-admin.mjs, sync-admin.mjs, sync-all-users.mjs)
+- Updated .env.example to reflect new setup (no Supabase auth fields)
+- Lint: zero errors
+- Pushed: 0a25142
+
+Stage Summary:
+- JWT_SECRET=8nQ_L4e4_JD32-th5MeapqNZq-P3unnIcfs5c_zNpuv7rpE6uMTG3ak-oF-g8m3_ (64 chars, base64url)
+- Supabase schema: RefreshToken table created, AuthUser.passwordHash column added
+- Admin password: bcrypt $2b$12$... hash of Admin@123 stored in DB
+- db.ts: Lazy Proxy pattern prevents Turbopack env race condition
+- Production ready: Vercel sets env vars before process start, so lazy init is a bonus safety net
