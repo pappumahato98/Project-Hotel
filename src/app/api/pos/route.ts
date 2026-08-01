@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSettingsMap, afterMutation } from '@/lib/cache'
+import { getSettingsMap, getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -144,7 +144,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const section = searchParams.get('section') ?? 'all'
 
-  const data: Record<string, unknown> = {}
+  const cacheKey = `pos:data:${section}`
+
+  const data = await getOrSet(cacheKey, async () => {
+  const result: Record<string, unknown> = {}
 
   // ─── Pre-fetch all outlets grouped by type (used by multiple sections) ───
   const allOutlets = await db.outlet.findMany({
@@ -246,10 +249,10 @@ export async function GET(request: NextRequest) {
       roomNumber: r.room?.roomNumber || '—',
     }))
 
-    data.tables = tables
-    data.menuItems = menuItems
-    data.orders = orders
-    data.guestReservations = formattedGuestReservations
+    result.tables = tables
+    result.menuItems = menuItems
+    result.orders = orders
+    result.guestReservations = formattedGuestReservations
   }
 
   // ─── Bar section ───
@@ -336,9 +339,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    data.barStools = barStools
-    data.barTabs = barTabs.filter((t) => t.status === 'open')
-    data.barMenuItems = barMenuItems
+    result.barStools = barStools
+    result.barTabs = barTabs.filter((t) => t.status === 'open')
+    result.barMenuItems = barMenuItems
   }
 
   // ─── Spa section ───
@@ -404,9 +407,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    data.spaServices = spaServices
-    data.therapists = formattedTherapists
-    data.appointments = spaAppointments
+    result.spaServices = spaServices
+    result.therapists = formattedTherapists
+    result.appointments = spaAppointments
   }
 
   // ─── Business Center section ───
@@ -491,9 +494,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    data.bizServices = bizServices
-    data.meetingRooms = meetingRooms
-    data.activeRentals = activeRentals
+    result.bizServices = bizServices
+    result.meetingRooms = meetingRooms
+    result.activeRentals = activeRentals
   }
 
   // ─── Kitchen Display section ───
@@ -557,7 +560,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    data.kitchenTickets = kitchenTickets
+    result.kitchenTickets = kitchenTickets
   }
 
   // ─── Order History section ───
@@ -623,15 +626,15 @@ export async function GET(request: NextRequest) {
     const todayRevenue = todayClosed.reduce((s, o) => s + o.totalAmount, 0)
     const todayVoided = allTodayOrders.filter((o) => o.status === 'voided')
 
-    data.orders = formattedOrders
-    data.stats = {
+    result.orders = formattedOrders
+    result.stats = {
       todayOrders: allTodayOrders.length,
       todayRevenue,
       avgOrderValue: todayClosed.length > 0 ? Math.round(todayRevenue / todayClosed.length) : 0,
       voidCount: todayVoided.length,
     }
 
-    return NextResponse.json(data)
+    return result
   }
 
   // ─── Compute stats from DB ───
@@ -660,13 +663,16 @@ export async function GET(request: NextRequest) {
     },
   })
 
-  data.stats = {
+  result.stats = {
     openTables: occupiedTableCount.length,
     totalCovers,
     revenueToday,
     openOrders: openOrders.length,
     completedOrders: completedOrders.length,
   }
+
+  return result
+  }, 60000)
 
   return NextResponse.json(data)
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSettingsMap, afterMutation } from '@/lib/cache'
+import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -22,10 +22,13 @@ export async function GET(request: NextRequest) {
       if (lfStatus) lfWhere.status = lfStatus
       if (lfCategory) lfWhere.category = lfCategory
 
-      const items = await db.lostFound.findMany({
-        where: lfWhere,
-        orderBy: { foundDate: 'desc' },
-      })
+      const cacheKey = `housekeeping:lost-found:${lfStatus || ''}:${lfCategory || ''}`
+      const items = await getOrSet(cacheKey, async () => {
+        return db.lostFound.findMany({
+          where: lfWhere,
+          orderBy: { foundDate: 'desc' },
+        })
+      }, 60000)
 
       return NextResponse.json(items)
     }
@@ -38,11 +41,14 @@ export async function GET(request: NextRequest) {
       if (taskId) where.hkTaskId = taskId
       if (roomId) where.roomId = roomId
 
-      const audits = await db.hkInspectionAudit.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      })
+      const cacheKey = `housekeeping:inspection-audit:${taskId || ''}:${roomId || ''}`
+      const audits = await getOrSet(cacheKey, async () => {
+        return db.hkInspectionAudit.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        })
+      }, 60000)
       return NextResponse.json(audits)
     }
 
@@ -51,42 +57,47 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
     if (priority) where.priority = priority
 
-    const tasks = await db.hkTask.findMany({
-      where,
-      include: {
-        room: {
-          select: {
-            id: true, number: true, floor: true, wing: true, status: true,
-            type: { select: { name: true, code: true } },
+    const cacheKey = `housekeeping:tasks:${status || ''}:${priority || ''}`
+    const result = await getOrSet(cacheKey, async () => {
+      const tasks = await db.hkTask.findMany({
+        where,
+        include: {
+          room: {
+            select: {
+              id: true, number: true, floor: true, wing: true, status: true,
+              type: { select: { name: true, code: true } },
+            },
           },
         },
-      },
-      orderBy: [
-        { priority: 'desc' },
-        { scheduledTime: 'asc' },
-      ],
-    })
+        orderBy: [
+          { priority: 'desc' },
+          { scheduledTime: 'asc' },
+        ],
+      })
 
-    // Summary counts
-    const summary = {
-      total: tasks.length,
-      pending: tasks.filter((t) => t.status === 'pending').length,
-      assigned: tasks.filter((t) => t.status === 'assigned').length,
-      inProgress: tasks.filter((t) => t.status === 'in_progress').length,
-      cleaned: tasks.filter((t) => t.status === 'cleaned').length,
-      inspected: tasks.filter((t) => t.status === 'inspected').length,
-      failed: tasks.filter((t) => t.status === 'failed').length,
-    }
+      // Summary counts
+      const summary = {
+        total: tasks.length,
+        pending: tasks.filter((t) => t.status === 'pending').length,
+        assigned: tasks.filter((t) => t.status === 'assigned').length,
+        inProgress: tasks.filter((t) => t.status === 'in_progress').length,
+        cleaned: tasks.filter((t) => t.status === 'cleaned').length,
+        inspected: tasks.filter((t) => t.status === 'inspected').length,
+        failed: tasks.filter((t) => t.status === 'failed').length,
+      }
 
-    // Read settings for hotel name
-    const s = await getSettingsMap()
-    const hotelName = (s.hotelName as string) ?? 'Hotel'
+      // Read settings for hotel name
+      const s = await getSettingsMap()
+      const hotelName = (s.hotelName as string) ?? 'Hotel'
 
-    return NextResponse.json({
-      tasks,
-      summary,
-      settings: { hotelName },
-    })
+      return {
+        tasks,
+        summary,
+        settings: { hotelName },
+      }
+    }, 60000)
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Housekeeping API error:', error)
     return NextResponse.json({ error: 'Failed to fetch housekeeping data' }, { status: 500 })

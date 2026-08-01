@@ -188,6 +188,9 @@ model Guest {
 
   reservations Reservation[]
   folios        Folio[]
+
+  @@index([firstName])
+  @@index([lastName])
 }
 
 // ─── RESERVATIONS ──────────────────────────────────────────────
@@ -279,6 +282,7 @@ model FolioTransaction {
 
   @@index([folioId])
   @@index([createdAt])
+  @@index([transactionType])
 }
 
 model FolioPayment {
@@ -298,6 +302,7 @@ model FolioPayment {
 
   @@index([folioId])
   @@index([createdAt])
+  @@index([status])
 }
 
 // ─── POS / OUTLETS ────────────────────────────────────────────
@@ -386,6 +391,9 @@ model HkTask {
   updatedAt     DateTime @updatedAt
 
   room          Room     @relation(fields: [roomId], references: [id])
+
+  @@index([status])
+  @@index([roomId])
 }
 
 model HkInspectionAudit {
@@ -437,6 +445,9 @@ model HkWorkFlow {
   updatedAt       DateTime @updatedAt
 
   room            Room?    @relation(fields: [roomId], references: [id])
+
+  @@index([status])
+  @@index([priority])
 }
 
 // ─── EVENTS & BANQUET ────────────────────────────────────────
@@ -479,6 +490,9 @@ model Employee {
   updatedAt     DateTime @updatedAt
 
   property      Property @relation(fields: [propertyId], references: [id])
+
+  @@index([department])
+  @@index([email])
 }
 
 // ─── OPERATIONS ────────────────────────────────────────────────

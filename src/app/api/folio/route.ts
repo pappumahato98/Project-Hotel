@@ -47,9 +47,17 @@ export async function GET(request: NextRequest) {
             },
           },
           guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true } },
-          // Limit nested includes to prevent unbounded data
-          transactions: { orderBy: { createdAt: 'desc' }, take: 20 },
-          payments: { orderBy: { createdAt: 'desc' }, take: 10 },
+          // Only fetch fields needed for list display
+          transactions: {
+            select: { id: true, transactionType: true, description: true, amount: true, totalAmount: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: 20,
+          },
+          payments: {
+            select: { id: true, amount: true, paymentMethod: true, status: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+          },
         },
         orderBy: { createdAt: 'desc' },
         take: 100,

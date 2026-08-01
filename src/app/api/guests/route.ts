@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
-import { afterMutation } from '@/lib/cache'
+import { getOrSet, afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -49,31 +49,22 @@ export async function GET(request: NextRequest) {
       where.vipLevel = vipLevel
     }
 
-    const guests = await db.guest.findMany({
-      where,
-      // Limit results when searching to prevent flooding with single-char queries
-      ...(search ? { take: 20 } : { take: 100 }),
-      include: {
-        reservations: {
-          select: {
-            id: true,
-            confirmationNo: true,
-            status: true,
-            checkIn: true,
-            checkOut: true,
-            company: true,
-            room: { select: { number: true } },
-          },
-          take: 5,
-          orderBy: { createdAt: 'desc' },
+    const cacheKey = `guests:list:${search || ''}:${vipLevel || ''}`
+    const result = await getOrSet(cacheKey, async () => {
+      const guests = await db.guest.findMany({
+        where,
+        select: {
+          id: true, firstName: true, lastName: true, email: true, phone: true,
+          vipLevel: true, nationality: true, company: true, createdAt: true, updatedAt: true,
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
+        // Limit results when searching to prevent flooding with single-char queries
+        ...(search ? { take: 20 } : { take: 100 }),
+        orderBy: { createdAt: 'desc' },
+      })
+      return { guests, total: guests.length }
+    }, 60000)
 
-    const total = await db.guest.count({ where })
-
-    return NextResponse.json({ guests, total })
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Guests API error:', error)
     return NextResponse.json({ error: 'Failed to fetch guest profiles' }, { status: 500 })

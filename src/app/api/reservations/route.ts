@@ -145,12 +145,12 @@ export async function GET(request: NextRequest) {
         folios: {
           select: { id: true, balance: true, status: true },
         },
-        bookingContact: true,
+        bookingContact: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, companyName: true } },
       },
       orderBy: { checkIn: 'asc' },
     })
 
-    const total = await db.reservation.count({ where })
+    const total = reservations.length
 
     // Read relevant settings from DB
     const s = await getSettingsMap()

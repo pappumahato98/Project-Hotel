@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { getOrSet, invalidateCache } from '@/lib/cache'
 
 // GET /api/auth/profile — Fetch current user's profile (session-derived)
 export async function GET(req: NextRequest) {
@@ -8,16 +9,18 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth
 
   try {
-    // requireAuth() already fetched authUser and returned auth.user — don't re-fetch.
-    // Only fetch the employee record (hireDate) which requireAuth doesn't provide.
-    const employee = await db.employee.findFirst({
-      where: { email: auth.user.email },
-      select: { hireDate: true },
-    })
+    const data = await getOrSet(`auth:profile:${auth.user.userId}`, async () => {
+      // requireAuth() already fetched authUser and returned auth.user — don't re-fetch.
+      // Only fetch the employee record (hireDate) which requireAuth doesn't provide.
+      const employee = await db.employee.findFirst({
+        where: { email: auth.user.email },
+        select: { hireDate: true },
+      })
 
-    return NextResponse.json({
-      user: { ...auth.user, hireDate: employee?.hireDate ?? null },
-    })
+      return { user: { ...auth.user, hireDate: employee?.hireDate ?? null } }
+    }, 60000)
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Fetch profile error:', error)
     const msg = error instanceof Error ? error.message : String(error)
@@ -115,6 +118,8 @@ export async function PUT(req: NextRequest) {
         details: `Updated profile fields: ${changedFields}`,
       },
     })
+
+    invalidateCache('auth:profile:' + userId)
 
     return NextResponse.json({ user: updated, message: 'Profile updated successfully' })
   } catch (error) {

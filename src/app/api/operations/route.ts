@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -63,6 +63,9 @@ export async function GET(req: NextRequest) {
       vipInHouseReservations,
       openFolios,
       property,
+      todayArrivalsCheckedIn,
+      todayDeparturesDone,
+      foliosAboveCredit,
     ] = await Promise.all([
       // Night audits (last 30)
       db.nightAudit.findMany({
@@ -198,6 +201,44 @@ export async function GET(req: NextRequest) {
       // Property config
       db.property.findFirst({
         select: { totalRooms: true },
+      }),
+
+      // Today's arrivals: already checked in
+      db.reservation.count({
+        where: {
+          checkIn: { gte: nepalToday, lt: nepalTomorrow },
+          status: 'checked_in',
+        },
+      }),
+
+      // Today's departures: already checked out
+      db.reservation.count({
+        where: {
+          checkOut: { gte: nepalToday, lt: nepalTomorrow },
+          status: 'checked_out',
+        },
+      }),
+
+      // Folios above credit limit
+      db.reservation.findMany({
+        where: {
+          status: 'checked_in',
+          checkIn: { lt: nepalTomorrow },
+          checkOut: { gt: nepalToday },
+          folios: {
+            some: {
+              status: 'open',
+              balance: { gt: 15000 },
+            },
+          },
+        },
+        select: {
+          id: true,
+          confirmationNo: true,
+          creditLimit: true,
+          guest: { select: { firstName: true, lastName: true } },
+          room: { select: { number: true } },
+        },
       }),
     ])
 
@@ -379,49 +420,6 @@ export async function GET(req: NextRequest) {
 
     // In-house guests
     const inHouseCount = inHouseReservations.length
-
-    // Wrap sequential DB queries in withRetry for transient error resilience
-    const [todayArrivalsCheckedIn, todayDeparturesDone, foliosAboveCredit] = await withRetry(async () => {
-      // Today's arrivals: already checked in vs still pending (confirmed)
-      const arrivalsCheckedIn = await db.reservation.count({
-        where: {
-          checkIn: { gte: nepalToday, lt: nepalTomorrow },
-          status: 'checked_in',
-        },
-      })
-
-      // Today's departures: already checked out vs still in-house
-      const departuresDone = await db.reservation.count({
-        where: {
-          checkOut: { gte: nepalToday, lt: nepalTomorrow },
-          status: 'checked_out',
-        },
-      })
-
-      // Folios above credit limit
-      const aboveCredit = await db.reservation.findMany({
-        where: {
-          status: 'checked_in',
-          checkIn: { lt: nepalTomorrow },
-          checkOut: { gt: nepalToday },
-          folios: {
-            some: {
-              status: 'open',
-              balance: { gt: 15000 },
-            },
-          },
-        },
-        select: {
-          id: true,
-          confirmationNo: true,
-          creditLimit: true,
-          guest: { select: { firstName: true, lastName: true } },
-          room: { select: { number: true } },
-        },
-      })
-
-      return [arrivalsCheckedIn, departuresDone, aboveCredit] as const
-    })
 
     const todayArrivalsPending = todayArrivals - todayArrivalsCheckedIn
     const todayDeparturesPending = todayDepartures - todayDeparturesDone

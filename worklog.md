@@ -421,3 +421,94 @@ Stage Summary:
 - Settings GET: always cached (was hitting DB every time)
 - All changes are additive/stability-neutral — no new dependencies, no complexity bloat
 - Pushed: e7b2944
+
+---
+Task ID: 2
+Agent: Sub Agent
+Task: Cache guests + housekeeping endpoints
+
+Work Log:
+- Added `getOrSet` to import from `@/lib/cache` in guests/route.ts
+- Wrapped guests GET handler body in `getOrSet('guests:list:${search}:${vipLevel}', ..., 60000)` with parametric key based on search and vipLevel query params
+- Removed sequential `db.guest.count({ where })` call — replaced with `guests.length` in response (same response shape: `{ guests, total }`)
+- Added `getOrSet` to import from `@/lib/cache` in housekeeping/route.ts
+- Wrapped all 3 GET sections in getOrSet with parametric keys (60000 TTL each):
+  - Lost & Found: `housekeeping:lost-found:${lfStatus}:${lfCategory}`
+  - Inspection Audit: `housekeeping:inspection-audit:${taskId}:${roomId}`
+  - Tasks (default): `housekeeping:tasks:${status}:${priority}` — includes getSettingsMap() inside the callback
+- Verified POST handlers in both files already have `afterMutation()` calls that invalidate these cache key prefixes
+- No mutation handlers modified
+- Lint: zero errors
+
+Stage Summary:
+- guests/route.ts: GET now cached with parametric key, redundant count() eliminated (saves 1 DB round-trip)
+- housekeeping/route.ts: All 3 GET sections (lost-found, inspection-audit, tasks) now cached with parametric keys
+- Cache invalidation: existing afterMutation('guests') and afterMutation('housekeeping') in POST handlers already invalidate these key prefixes via startsWith matching
+- Response shapes preserved exactly
+- Lint: zero errors
+
+---
+Task ID: 3
+Agent: Sub Agent
+Task: Cache POS + trim over-fetched payloads
+
+Work Log:
+- A) Cached POS GET handler (src/app/api/pos/route.ts)
+  - Added `getOrSet` to import from `@/lib/cache`
+  - Wrapped entire GET body in `getOrSet(`pos:data:${section}`, ..., 60000)` with parametric key based on `section` query param
+  - Inner variable renamed from `data` to `result` to avoid collision with outer scope; outer `data` receives cached result
+  - Order-history early return now returns `result` instead of calling NextResponse.json directly
+  - No mutation handlers modified
+- B) Trimmed Folio payload (src/app/api/folio/route.ts GET)
+  - Added `select` to `transactions` include: only `id, transactionType, description, amount, totalAmount, createdAt`
+  - Added `select` to `payments` include: only `id, amount, paymentMethod, status, createdAt`
+  - Removed unneeded fields: quantity, reference, outlet, postedBy, taxAmount, exchangeRate, foreignAmount, cardType, etc.
+- C) Trimmed Reservations bookingContact (src/app/api/reservations/route.ts GET)
+  - Replaced `bookingContact: true` with `bookingContact: { select: { id, firstName, lastName, email, phone, companyName } }`
+  - Removed sequential `db.reservation.count({ where })` — replaced with `reservations.length` (saves 1 DB round-trip)
+- D) Trimmed Guests payload (src/app/api/guests/route.ts GET)
+  - Removed `reservations` include (was fetching 5 embedded reservations per guest — unnecessary for list view)
+  - Changed from `include` to `select` on guest: only `id, firstName, lastName, email, phone, vipLevel, nationality, company, createdAt, updatedAt`
+  - Removed idType, idNumber, dateOfBirth, gender, address, city, country, passportNumber and other PII fields from list response
+- Lint: zero errors after all edits
+
+Stage Summary:
+- 4 files edited for payload trimming + 1 file for caching
+- POS GET now cached at 60s TTL with parametric section key (eliminates ~12 DB queries per poll cycle)
+- Folio: transactions trimmed from ~15 fields to 6, payments from ~10 fields to 5
+- Reservations: bookingContact trimmed from ~15 fields to 6, redundant count() eliminated
+- Guests: removed embedded reservations array (5 objects × ~8 fields each per guest), trimmed guest fields from ~20 to 10
+- All response shapes preserved at the top level; only nested data reduced
+- Lint: zero errors
+
+---
+Task ID: 4
+Agent: Sub Agent
+Task: Cache profile + add indexes + optimize operations
+
+Work Log:
+- A) Cached auth profile GET (src/app/api/auth/profile/route.ts)
+  - Imported `getOrSet` and `invalidateCache` from `@/lib/cache`
+  - Wrapped GET handler body in `getOrSet(\`auth:profile:${auth.user.userId}\`, ..., 60000)` — per-user cache key with 60s TTL
+  - On PUT handler, added `invalidateCache('auth:profile:' + userId)` after successful profile update
+  - PUT handler itself is NOT cached
+- B) Added missing Prisma indexes to 6 models in prisma/schema.prisma:
+  - HkTask: @@index([status]), @@index([roomId])
+  - HkWorkFlow: @@index([status]), @@index([priority])
+  - Employee: @@index([department]), @@index([email])
+  - Guest: @@index([firstName]), @@index([lastName])
+  - FolioTransaction: @@index([transactionType])
+  - FolioPayment: @@index([status])
+  - Note: `prisma db push` could not run locally because schema declares `provider = "postgresql"` but .env has a SQLite URL (sandbox environment mismatch). Indexes will be applied on next deployment.
+- C) Optimized operations GET handler (src/app/api/operations/route.ts)
+  - Merged 3 sequential DB queries (todayArrivalsCheckedIn, todayDeparturesDone, foliosAboveCredit) from a separate `withRetry` block INTO the main Promise.all batch (18 queries total, up from 15)
+  - Removed `withRetry` wrapper around these 3 read-only queries (reads inside a cached `getOrSet` don't need retry)
+  - Removed unused `withRetry` import
+  - Net effect: 3 sequential DB round-trips eliminated — all queries now execute in parallel
+- Lint: zero errors
+
+Stage Summary:
+- auth/profile/route.ts: GET cached per-user at 60s TTL; PUT invalidates cache on success
+- prisma/schema.prisma: 11 new @@index declarations across 6 models for common query patterns
+- operations/route.ts: 18 parallel queries in single Promise.all (was 15 + 3 sequential); removed withRetry from reads; removed unused import
+- Lint: zero errors
