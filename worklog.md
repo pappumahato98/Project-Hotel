@@ -553,3 +553,36 @@ Stage Summary:
 - src/lib/security/auth-helpers.ts: Fully rewritten to use self-signed JWT verification (jose) instead of Supabase auth
 - Cache uses token prefix (32 chars) as key, TTL 120s
 - Lint: zero errors
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Build self-contained JWT auth with Access Token, Refresh Token, CSRF protection
+
+Work Log:
+- Installed jose (JWT) + bcryptjs (password hashing)
+- Added passwordHash to AuthUser model, created RefreshToken model (tokenHash, userId, userAgent, ipAddress, expiresAt)
+- Created src/lib/auth/token.ts: signAccessToken (HS256, 15min), verifyAccessToken, generateRefreshToken (SHA-256 hash), cookie helpers
+- Created src/lib/auth/csrf.ts: double-submit cookie with timingSafeEqual, Origin/Referer validation
+- Created POST /api/auth/login: rate limit 5/15min per IP, bcrypt verify, JWT sign, refresh token in httpOnly cookie, CSRF cookie
+- Created POST /api/auth/refresh: CSRF + Origin validation, token rotation, new access+refresh+CSRF
+- Created POST /api/auth/logout: revoke refresh token, clear all cookies, invalidateAllCache
+- Created POST /api/auth/signup: email validation, bcrypt hash, inactive user (admin activates)
+- Rewrote auth-helpers.ts: verifyAccessToken() instead of Supabase getUser(), cached by token prefix
+- Rewrote api.ts: auto-refresh on 401 (silent token refresh), X-CSRF-Token header on all requests
+- Rewrote providers.tsx: session restore via refresh token cookie on mount
+- Rewrote login-page.tsx: fetch /api/auth/login instead of Supabase signIn
+- Made supabase/client.ts a stub with setAccessToken/getCsrfToken helpers
+- Made proxy.ts a no-op (JWT auth doesn't need middleware)
+- Updated header.tsx: call /api/auth/logout instead of Supabase signOut
+- Added JWT_SECRET to .env
+
+Stage Summary:
+- 17 files changed, +1054/-315 lines
+- Pushed: c99a4e4
+- Zero Supabase auth dependency remaining for core auth flow
+- Access token: HS256 JWT, 15min, Authorization header (CSRF-safe by default)
+- Refresh token: 512-bit opaque, httpOnly SameSite=Lax cookie, 7-day, rotated on refresh
+- CSRF: double-submit cookie + Origin validation + timingSafeEqual comparison
+- Rate limiting: 5 login attempts per IP per 15 minutes
+- Schema changes need `prisma db push` on deployment
