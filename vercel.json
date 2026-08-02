@@ -1,19 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "services": {
-    "meridian-pms": {
-      "root": ".",
-      "framework": "nextjs",
-      "buildCommand": "npx prisma generate && npx next build"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "meridian-pms"
-      }
-    }
-  ]
+  "buildCommand": "npx prisma generate && npx next build",
+  "installCommand": "npm install",
+  "outputDirectory": ".next"
 }
