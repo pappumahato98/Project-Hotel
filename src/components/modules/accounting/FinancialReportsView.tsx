@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
@@ -17,7 +18,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
-import { formatNPR } from '@/lib/utils'
+import { formatNPR, cn } from '@/lib/utils'
 import { formatDate } from '@/lib/format'
 
 const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4']
@@ -238,11 +239,14 @@ export function FinancialReportsView() {
   }
 
   if (isError) {
+    const errMsg = error?.message || 'Unknown error'
+    const isAuthError = errMsg.includes('401') || errMsg.includes('403') || errMsg.includes('Unauthorized')
     return (
       <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
         <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-6 text-center">
           <p className="text-red-600 font-medium">Failed to load financial reports</p>
-          <p className="text-sm text-red-500/70 mt-1">{error?.message || 'Unknown error'}</p>
+          <p className="text-sm text-red-500/70 mt-1">{isAuthError ? 'Authentication required. Please log in again.' : errMsg}</p>
+          <Button variant="outline" className="mt-3" onClick={() => window.location.reload()}>Retry</Button>
         </div>
       </div>
     )
