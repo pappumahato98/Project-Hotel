@@ -968,7 +968,7 @@ model LeaveRequest {
   startDate     DateTime
   endDate       DateTime
   duration      Float    // total days (supports half-day)
-  status        String   @default('Pending') // Pending, Approved, Rejected, Cancelled
+  status        String   @default("Pending") // Pending, Approved, Rejected, Cancelled
   reason        String?
   approvedBy    String?
   approvedAt    DateTime?
