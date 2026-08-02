@@ -636,3 +636,23 @@ Stage Summary:
 - Zero Supabase auth runtime dependencies remaining
 - Realtime (Supabase Realtime) is optional — gracefully disabled when env vars missing
 - Password change now uses bcrypt (consistent with login)
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Deploy to Vercel + Render programmatically
+
+Work Log:
+- Fixed login-page.tsx: `React.useRouter()` → `useRouter` from `next/navigation` (Next.js 16 compat)
+- Fixed vercel.json: removed top-level `buildCommand` (conflicts with Vercel Services API)
+- Vercel: linked project, set 2 env vars (DATABASE_URL, JWT_SECRET), GitHub auto-deployed on push
+- Render: updated existing service env vars via PUT /v1/services/{id}/env-vars, triggered deploy via API
+- Created scripts/deploy.sh for future one-command deploys
+- Verified both platforms: HTTP 200, login returns JWT access token
+
+Stage Summary:
+- Vercel: https://my-project-gray-nine-45.vercel.app (HTTP 200, login JWT works)
+- Render: https://project-neo-pep5.onrender.com (HTTP 200, login JWT works)
+- Both use 2 env vars only: DATABASE_URL + JWT_SECRET
+- Both auto-deploy on git push
+- Pushed: 7813d90
