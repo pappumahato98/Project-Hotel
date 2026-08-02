@@ -982,6 +982,202 @@ model LeaveRequest {
   @@index([startDate])
 }
 
+// ─── PERFORMANCE REVIEWS ──────────────────────────────────
+model PerformanceReview {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employeeName    String
+  department      String
+  position        String
+  reviewPeriod    String   // e.g. "2025-Q1", "2025-H1", "2025"
+  reviewDate      DateTime @default(now())
+  reviewerName    String
+  reviewerId      String?
+  attendanceScore Float    @default(0)
+  taskScore       Float    @default(0)
+  guestSatScore   Float    @default(0)
+  punctualityScore Float   @default(0)
+  overallScore    Float    @default(0)
+  strengths       String?
+  improvements    String?
+  goals           String?
+  status          String   @default("Draft") // Draft, Submitted, Approved
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([department])
+  @@index([reviewPeriod])
+  @@index([status])
+}
+
+// ─── TRAINING ────────────────────────────────────────────
+model TrainingSession {
+  id          String   @id @default(cuid())
+  courseName  String
+  instructor  String
+  date        DateTime
+  endDate     DateTime?
+  duration    String
+  enrolled    Int      @default(0)
+  maxCapacity Int
+  status      String   @default("Upcoming") // Upcoming, In Progress, Completed, Cancelled
+  category    String
+  description String?
+  location    String?
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([date])
+}
+
+model TrainingEnrollment {
+  id            String   @id @default(cuid())
+  sessionId     String
+  employeeId    String
+  employeeName  String
+  department    String
+  status        String   @default("Enrolled") // Enrolled, Completed, Absent, Cancelled
+  score         Float?
+  feedback      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([employeeId])
+}
+
+// ─── SHIFT EXCHANGE ──────────────────────────────────────
+model ShiftExchange {
+  id              String   @id @default(cuid())
+  requesterId     String
+  requesterName   String
+  requesterDept   String
+  fromShift       String   // e.g. "Morning (07:00-15:00)"
+  toShift         String   // e.g. "Evening (15:00-23:00)"
+  targetId        String?
+  targetName      String?
+  exchangeDate    DateTime
+  reason          String
+  status          String   @default("Pending") // Pending, Approved, Rejected, Cancelled
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([requesterDept])
+  @@index([exchangeDate])
+}
+
+// ─── RECRUITMENT ────────────────────────────────────────
+model JobPosting {
+  id              String   @id @default(cuid())
+  position        String
+  department      String
+  employmentType  String   @default("Full-time") // Full-time, Part-time, Contract
+  description     String?
+  requirements    String?
+  salaryMin       Float?
+  salaryMax       Float?
+  status          String   @default("Draft") // Draft, Open, Closed, Filled
+  postedBy        String?
+  postedAt        DateTime?
+  deadline        DateTime?
+  appliedCount    Int      @default(0)
+  screeningCount  Int      @default(0)
+  interviewCount  Int      @default(0)
+  offerCount      Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([department])
+}
+
+model JobApplication {
+  id              String   @id @default(cuid())
+  postingId       String
+  applicantName   String
+  applicantEmail  String?
+  applicantPhone  String?
+  status          String   @default("Applied") // Applied, Screening, Interview, Offer, Rejected, Hired
+  appliedAt       DateTime @default(now())
+  notes           String?
+  resumeUrl       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([postingId])
+  @@index([status])
+}
+
+// ─── BUDGETS ────────────────────────────────────────────
+model Budget {
+  id              String   @id @default(cuid())
+  name            String
+  fiscalYear      String   // e.g. "2025"
+  period          String   // e.g. "2025-01", "2025-Q1", "2025-H1"
+  accountId       String?
+  accountName     String?
+  accountCode     String?
+  department      String?
+  budgetedAmount  Float
+  actualAmount    Float    @default(0)
+  status          String   @default("Active") // Active, Closed, Archived
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fiscalYear])
+  @@index([department])
+  @@index([status])
+}
+
+// ─── INVOICES ───────────────────────────────────────────
+model Invoice {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  type            String   @default("sales") // sales, purchase, credit_note, debit_note
+  vendorName      String?
+  customerName    String?
+  date            DateTime @default(now())
+  dueDate         DateTime?
+  status          String   @default("Draft") // Draft, Sent, Paid, Partially Paid, Overdue, Cancelled
+  subtotal        Float    @default(0)
+  taxAmount       Float    @default(0)
+  totalAmount     Float    @default(0)
+  paidAmount      Float    @default(0)
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([date])
+}
+
+model InvoiceLineItem {
+  id            String   @id @default(cuid())
+  invoiceId     String
+  description   String
+  quantity      Float    @default(1)
+  unitPrice     Float
+  taxRate       Float    @default(13)
+  totalAmount   Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([invoiceId])
+}
+
 // ─── SYSTEM SETTINGS ────────────────────────────────────────
 model SystemSetting {
   id          String   @id @default(cuid())

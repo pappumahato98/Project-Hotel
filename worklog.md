@@ -156,3 +156,73 @@ Stage Summary:
 - All API routes use requireAuth from @/lib/security/auth-helpers, db from @/lib/db
 - All date formatting uses formatDate/toDateOnly from @/lib/format
 - Existing shadcn/ui components used throughout (Calendar, Popover, Select, Dialog, etc.)
+
+---
+Task ID: 3-a
+Agent: HR API Builder
+Task: Create HR API routes for performance, training, shift-exchange, recruitment
+
+Work Log:
+- Created /api/performance/route.ts with GET/POST/PATCH
+- Created /api/training/route.ts with GET/POST/PATCH
+- Created /api/shift-exchange/route.ts with GET/POST/PATCH
+- Created /api/recruitment/route.ts with GET/POST/PATCH
+- Created /api/recruitment/applications/route.ts with GET/POST/PATCH
+
+Stage Summary:
+- All 5 API route files created following existing patterns
+- Uses getOrSet cache, afterMutation('hr'), broadcastEvent
+- Auth via requireAuth on all endpoints
+
+---
+Task ID: 3-c
+Agent: Accounting API Builder
+Task: Create Accounting API routes for budget, invoices, trial-balance, cash-flow
+
+Work Log:
+- Created /api/budget/route.ts with GET/POST/PATCH
+- Created /api/invoices/route.ts with GET/POST/PATCH
+- Created /api/trial-balance/route.ts with GET (computed report)
+- Created /api/cash-flow/route.ts with GET (computed report)
+
+Stage Summary:
+- All 4 API route files created
+- Budget and Invoices use Prisma models
+- Trial Balance and Cash Flow are computed from journal data
+- Uses getOrSet cache, afterMutation('accounting'), broadcastEvent
+
+---
+Task ID: 3-b
+Agent: HR Frontend Builder
+Task: Rewrite HR frontend views with real API data
+
+Work Log:
+- Rewrote PerformanceView.tsx with real API, create review dialog, filters
+- Rewrote TrainingView.tsx with real API, schedule dialog, status toggle
+- Rewrote ShiftExchangeView.tsx with real API, request dialog, approve/reject
+- Rewrote RecruitmentView.tsx with real API, post job dialog, status management
+
+Stage Summary:
+- All 4 HR views fully wired to API
+- Create dialogs for all 4 modules
+- Real-time data with useQuery + useMutation + toast notifications
+- Loading skeletons, error states, filters all functional
+
+---
+Task ID: 3-d
+Agent: Accounting Frontend Builder
+Task: Create Accounting frontend views, update router and navigation
+
+Work Log:
+- Updated navigation.ts with 4 new accounting sub-modules (budget, invoices, trial-balance, cash-flow)
+- Updated AccountingModule.tsx router with new imports and switch cases
+- Created BudgetView.tsx with CRUD, fiscal year/department filters, variance analysis, department bar chart
+- Created InvoicesView.tsx with CRUD, dynamic line items, type/status filters, detail dialog, mark-as-paid
+- Created TrialBalanceView.tsx with computed report, type filter, balance indicator, CSV export, type summary
+- Created CashFlowView.tsx with period selector, 3-category breakdown (operating/investing/financing), waterfall summary
+
+Stage Summary:
+- 4 new accounting views fully functional
+- Navigation and router updated
+- All views use real API data with useQuery/useMutation
+- Lint passes cleanly (0 errors, 0 warnings)

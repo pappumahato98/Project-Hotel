@@ -133,11 +133,11 @@ export function afterMutation(module?: string): void {
     inventory: ['inventory', 'stock', 'purchase-orders', 'requisitions'],
     pos: ['pos', 'pos-orders', 'pos-daily-sales'],
     settings: ['settings', 'system-settings'],
-    accounting: ['accounting', 'journal', 'ledger', 'financial-reports'],
+    accounting: ['accounting', 'journal', 'ledger', 'financial-reports', 'budget', 'invoices', 'trial-balance', 'cash-flow'],
     events: ['events', 'banquet-orders'],
     revenue: ['revenue', 'rate-plans', 'demand-calendar'],
     channels: ['channels', 'channel-bookings'],
-    hr: ['hr', 'employees', 'attendance', 'payroll', 'schedules', 'leave', 'training'],
+    hr: ['hr', 'employees', 'attendance', 'payroll', 'schedules', 'leave', 'training', 'performance', 'shift-exchange', 'recruitment', 'budget', 'invoices', 'trial-balance', 'cash-flow'],
     operations: ['operations', 'night-audit', 'shift-handover', 'cashier'],
     maintenance: ['maintenance', 'work-orders', 'assets'],
   }

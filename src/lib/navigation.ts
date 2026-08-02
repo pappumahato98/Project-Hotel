@@ -140,6 +140,10 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'ledger', label: 'General Ledger' },
       { id: 'journal', label: 'Journal Entries' },
       { id: 'reports', label: 'Financial Reports' },
+      { id: 'budget', label: 'Budget Management' },
+      { id: 'invoices', label: 'Invoices' },
+      { id: 'trial-balance', label: 'Trial Balance' },
+      { id: 'cash-flow', label: 'Cash Flow' },
     ],
   },
   {
