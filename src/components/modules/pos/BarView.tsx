@@ -16,20 +16,26 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   usePosData, formatNPR, timeAgo,
   type BarStool, type BarTab, type MenuItem,
 } from './pos-types'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiFetch } from '@/lib/api'
 
 // ─── Stool Grid ────────────────────────────────────────────────────
 function StoolGrid({
   stools,
   selectedStool,
   onSelect,
+  onCreateTab,
 }: {
   stools: BarStool[]
   selectedStool: number | null
   onSelect: (id: number) => void
+  onCreateTab: (stoolId: number) => void
 }) {
   const statusConfig: Record<BarStool['status'], { bg: string; border: string; dot: string }> = {
     available: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-300 dark:border-emerald-700', dot: 'bg-emerald-500' },
@@ -45,7 +51,13 @@ function StoolGrid({
         return (
           <button
             key={stool.id}
-            onClick={() => onSelect(stool.id)}
+            onClick={() => {
+              if (stool.status === 'available') {
+                onCreateTab(stool.id)
+              } else {
+                onSelect(stool.id)
+              }
+            }}
             className={`relative flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 p-3 transition-all hover:shadow-md w-20 ${config.bg} ${config.border} ${
               isSelected ? 'ring-2 ring-primary ring-offset-1 scale-110 shadow-lg' : ''
             }`}
@@ -66,13 +78,23 @@ function StoolGrid({
 // ─── Tab Order Panel ────────────────────────────────────────────────
 function TabOrderPanel({
   tab,
+  barMenuItems,
+  onAddItemToTab,
   onCloseTab,
 }: {
   tab: BarTab | null
+  barMenuItems: MenuItem[]
+  onAddItemToTab: (menuItemId: string) => void
   onCloseTab: () => void
 }) {
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuSearch, setMenuSearch] = useState('')
   const total = tab?.total ?? 0
+
+  const filteredMenu = barMenuItems.filter((m) =>
+    m.available && (!menuSearch || m.name.toLowerCase().includes(menuSearch.toLowerCase()))
+  )
 
   return (
     <>
@@ -119,7 +141,7 @@ function TabOrderPanel({
                 <span>{formatNPR(total)}</span>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 text-xs">
+                <Button variant="outline" className="flex-1 text-xs" onClick={() => setMenuOpen(true)}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
                 </Button>
                 <Button className="flex-1 text-xs" onClick={() => setPaymentOpen(true)}>
@@ -131,7 +153,45 @@ function TabOrderPanel({
         )}
       </Card>
 
-      <PaymentDialog open={paymentOpen} onClose={() => setPaymentOpen(false)} total={total} />
+      {/* Add Item Menu Dialog */}
+      <Dialog open={menuOpen} onOpenChange={setMenuOpen}>
+        <DialogContent className="sm:max-w-md max-h-[70vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-4 w-4" /> Add to Tab
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search drinks..."
+              value={menuSearch}
+              onChange={(e) => setMenuSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="space-y-1.5 pr-2">
+              {filteredMenu.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => { onAddItemToTab(item.id); setMenuOpen(false); setMenuSearch('') }}
+                  className="flex items-center justify-between w-full rounded-lg border p-2.5 text-left hover:shadow-sm hover:border-primary/20 transition-all"
+                >
+                  <span className="text-sm font-medium truncate">{item.name}</span>
+                  <span className="text-sm font-bold text-primary ml-2">{formatNPR(item.price)}</span>
+                </button>
+              ))}
+              {filteredMenu.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No items found</p>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment/Close Tab Dialog */}
+      <PaymentDialog open={paymentOpen} onClose={() => setPaymentOpen(false)} total={total} onConfirm={onCloseTab} />
     </>
   )
 }
@@ -140,11 +200,13 @@ function TabOrderPanel({
 function QuickMenuBar({
   items,
   category,
+  onAddItem,
 }: {
   items: MenuItem[]
   category: string
+  onAddItem: (menuItemId: string) => void
 }) {
-  const filtered = items.filter((i) => i.category === category)
+  const filtered = items.filter((i) => i.category === category && i.available)
 
   if (filtered.length === 0) return null
 
@@ -160,7 +222,7 @@ function QuickMenuBar({
             variant="outline"
             size="sm"
             className="h-auto py-2 px-3 gap-1.5"
-            onClick={() => { /* add to tab */ }}
+            onClick={() => onAddItem(item.id)}
           >
             <span className="text-xs">{item.name}</span>
             <Badge variant="secondary" className="text-[10px] px-1 py-0">{formatNPR(item.price)}</Badge>
@@ -214,7 +276,7 @@ function RunningTabsList({
 }
 
 // ─── Payment Dialog ─────────────────────────────────────────────────
-function PaymentDialog({ open, onClose, total }: { open: boolean; onClose: () => void; total: number }) {
+function PaymentDialog({ open, onClose, total, onConfirm }: { open: boolean; onClose: () => void; total: number; onConfirm: (method: string) => void }) {
   const [method, setMethod] = useState('cash')
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -237,13 +299,59 @@ function PaymentDialog({ open, onClose, total }: { open: boolean; onClose: () =>
                 <SelectItem value="cash">Cash</SelectItem>
                 <SelectItem value="card">Credit/Debit Card</SelectItem>
                 <SelectItem value="mobile">Mobile Payment (eSewa/Khalti)</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { toast.success('Tab closed successfully'); onClose() }}>Close Tab</Button>
+          <Button onClick={() => { onConfirm(method); onClose() }}>Close Tab</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── New Tab Dialog (for creating a tab on an available stool) ─────
+function NewTabDialog({
+  open,
+  onClose,
+  stoolId,
+  onConfirm,
+}: {
+  open: boolean
+  onClose: () => void
+  stoolId: number
+  onConfirm: (guestName: string, stoolId: number) => void
+}) {
+  const [guestName, setGuestName] = useState('')
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wine className="h-4 w-4" /> Open Tab — Stool #{stoolId}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium">Guest Name</Label>
+            <Input
+              placeholder="Enter guest name"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              className="mt-1.5"
+              onKeyDown={(e) => { if (e.key === 'Enter' && guestName.trim()) { onConfirm(guestName.trim(), stoolId); setGuestName('') } }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button disabled={!guestName.trim()} onClick={() => { onConfirm(guestName.trim(), stoolId); setGuestName('') }}>
+            Open Tab
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -253,13 +361,87 @@ function PaymentDialog({ open, onClose, total }: { open: boolean; onClose: () =>
 // ─── Main BarView ───────────────────────────────────────────────────
 export default function BarView() {
   const { data, isLoading } = usePosData('bar')
+  const queryClient = useQueryClient()
   const [selectedStool, setSelectedStool] = useState<number | null>(null)
+  const [newTabDialog, setNewTabDialog] = useState<{ open: boolean; stoolId: number }>({ open: false, stoolId: 0 })
 
   const stools = data?.barStools ?? []
   const tabs = data?.barTabs ?? []
   const barMenuItems = data?.barMenuItems ?? []
 
   const currentTab = tabs.find((t) => t.stoolId === selectedStool) ?? null
+
+  // ─── Create Tab Mutation ─────────────────────────────────────
+  const createTabMutation = useMutation({
+    mutationFn: async ({ guestName, stoolId }: { guestName: string; stoolId: number }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_order', tableNumber: stoolId, serverName: guestName, guestCount: 1 }),
+      })
+    },
+    onSuccess: () => {
+ toast.success('Tab opened successfully')
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      setNewTabDialog({ open: false, stoolId: 0 })
+    },
+    onError: () => {
+      toast.error('Failed to open tab')
+    },
+  })
+
+  // ─── Add Item to Tab Mutation ────────────────────────────────
+  const addItemMutation = useMutation({
+    mutationFn: async ({ orderId, menuItemId }: { orderId: string; menuItemId: string }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_item', orderId, menuItemId, quantity: 1 }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+    onError: () => {
+      toast.error('Failed to add item to tab')
+    },
+  })
+
+  // ─── Close Tab Mutation ──────────────────────────────────────
+  const closeTabMutation = useMutation({
+    mutationFn: async ({ orderId, paymentMethod }: { orderId: string; paymentMethod: string }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'close_order', orderId, paymentMethod }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Tab closed successfully')
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      setSelectedStool(null)
+    },
+    onError: () => {
+      toast.error('Failed to close tab')
+    },
+  })
+
+  const handleCreateTab = (guestName: string, stoolId: number) => {
+    createTabMutation.mutate({ guestName, stoolId })
+  }
+
+  const handleAddItemToTab = (menuItemId: string) => {
+    if (!currentTab) {
+      toast.error('No active tab selected')
+      return
+    }
+    addItemMutation.mutate({ orderId: currentTab.id, menuItemId })
+  }
+
+  const handleCloseTab = (method: string) => {
+    if (!currentTab) return
+    closeTabMutation.mutate({ orderId: currentTab.id, paymentMethod: method })
+  }
 
   if (isLoading || !data) {
     return (
@@ -320,7 +502,7 @@ export default function BarView() {
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Bar Counter</h2>
             <div className="rounded-xl border bg-gradient-to-r from-purple-50 to-amber-50 dark:from-purple-950/20 dark:to-amber-950/20 p-2.5">
-              <StoolGrid stools={stools} selectedStool={selectedStool} onSelect={setSelectedStool} />
+              <StoolGrid stools={stools} selectedStool={selectedStool} onSelect={setSelectedStool} onCreateTab={(stoolId) => setNewTabDialog({ open: true, stoolId })} />
             </div>
           </div>
 
@@ -330,10 +512,10 @@ export default function BarView() {
               <CardTitle className="text-sm">Quick Menu Access</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <QuickMenuBar items={barMenuItems} category="beer" />
-              <QuickMenuBar items={barMenuItems} category="cocktail" />
-              <QuickMenuBar items={barMenuItems} category="wine" />
-              <QuickMenuBar items={barMenuItems} category="snack" />
+              <QuickMenuBar items={barMenuItems} category="beer" onAddItem={handleAddItemToTab} />
+              <QuickMenuBar items={barMenuItems} category="cocktail" onAddItem={handleAddItemToTab} />
+              <QuickMenuBar items={barMenuItems} category="wine" onAddItem={handleAddItemToTab} />
+              <QuickMenuBar items={barMenuItems} category="snack" onAddItem={handleAddItemToTab} />
             </CardContent>
           </Card>
 
@@ -344,8 +526,16 @@ export default function BarView() {
         </div>
 
         {/* Right: Tab Detail */}
-        <TabOrderPanel tab={currentTab} onCloseTab={() => setSelectedStool(null)} />
+        <TabOrderPanel tab={currentTab} barMenuItems={barMenuItems} onAddItemToTab={handleAddItemToTab} onCloseTab={handleCloseTab} />
       </div>
+
+      {/* New Tab Dialog */}
+      <NewTabDialog
+        open={newTabDialog.open}
+        onClose={() => setNewTabDialog({ open: false, stoolId: 0 })}
+        stoolId={newTabDialog.stoolId}
+        onConfirm={handleCreateTab}
+      />
     </div>
   )
 }

@@ -1,22 +1,26 @@
 'use client'
 
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from 'recharts'
 import { TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
 import { formatNPR } from '@/lib/utils'
-import { toast } from 'sonner'
+import { formatDate } from '@/lib/format'
 
 const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4']
-
-function fetchAccounting() {
-  return apiFetch('/api/accounting')
-}
 
 // ── Types ────────────────────────────────────────────────────
 interface JournalLine {
@@ -39,29 +43,101 @@ interface LedgerAccount {
   journalLines: { debit: number; credit: number }[]
 }
 
-// ── Compute P&L from real data ──────────────────────────────
-function computePLData(accounts: LedgerAccount[], journalEntries: JournalEntry[]) {
-  // Group accounts by type and compute totals from journal lines
+// ── Period Helpers ───────────────────────────────────────────
+type Period = 'this-month' | 'last-month' | 'this-quarter' | 'this-year' | 'all-time'
+
+function getDateRange(period: Period): { start: Date; end: Date } | null {
+  const now = new Date()
+  switch (period) {
+    case 'this-month': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1)
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+      return { start, end }
+    }
+    case 'last-month': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const end = new Date(now.getFullYear(), now.getMonth(), 1)
+      return { start, end }
+    }
+    case 'this-quarter': {
+      const quarter = Math.floor(now.getMonth() / 3)
+      const start = new Date(now.getFullYear(), quarter * 3, 1)
+      const end = new Date(now.getFullYear(), quarter * 3 + 3, 1)
+      return { start, end }
+    }
+    case 'this-year': {
+      const start = new Date(now.getFullYear(), 0, 1)
+      const end = new Date(now.getFullYear() + 1, 0, 1)
+      return { start, end }
+    }
+    case 'all-time':
+      return null
+  }
+}
+
+const PERIOD_LABELS: Record<Period, string> = {
+  'this-month': 'This Month',
+  'last-month': 'Last Month',
+  'this-quarter': 'This Quarter',
+  'this-year': 'This Year',
+  'all-time': 'All Time',
+}
+
+function fetchAccounting() {
+  return apiFetch('/api/accounting')
+}
+
+// ── Compute P&L from real data (filtered by date) ──────────
+function computePLData(accounts: LedgerAccount[], journalEntries: JournalEntry[], dateRange: { start: Date; end: Date } | null) {
   const revenueAccounts = accounts.filter((a) => a.type === 'revenue')
   const expenseAccounts = accounts.filter((a) => a.type === 'expense')
 
   const revenue: Record<string, number> = {}
   const expenses: Record<string, number> = {}
 
-  for (const account of revenueAccounts) {
-    const creditTotal = account.journalLines.reduce((s, l) => s + l.credit, 0)
-    revenue[account.name] = creditTotal
-  }
-
-  for (const account of expenseAccounts) {
-    const debitTotal = account.journalLines.reduce((s, l) => s + l.debit, 0)
-    expenses[account.name] = debitTotal
+  // Get filtered journal line IDs by date range
+  const filteredEntryDates = new Set<string>()
+  if (dateRange) {
+    for (const entry of journalEntries) {
+      const entryDate = new Date(entry.date)
+      if (entryDate >= dateRange.start && entryDate < dateRange.end) {
+        for (const line of entry.lines) {
+          filteredEntryDates.add(line.account.code)
+        }
+      }
+    }
+    // Use account-based filtering from lines that fall in date range
+    for (const entry of journalEntries) {
+      const entryDate = new Date(entry.date)
+      if (entryDate >= dateRange.start && entryDate < dateRange.end) {
+        for (const line of entry.lines) {
+          if (line.account.type === 'revenue') {
+            const name = line.account.name
+            revenue[name] = (revenue[name] || 0) + line.credit
+          }
+          if (line.account.type === 'expense') {
+            const name = line.account.name
+            expenses[name] = (expenses[name] || 0) + line.debit
+          }
+        }
+      }
+    }
+  } else {
+    // All time — use account-level aggregation
+    for (const account of revenueAccounts) {
+      const creditTotal = account.journalLines.reduce((s, l) => s + l.credit, 0)
+      revenue[account.name] = creditTotal
+    }
+    for (const account of expenseAccounts) {
+      const debitTotal = account.journalLines.reduce((s, l) => s + l.debit, 0)
+      expenses[account.name] = debitTotal
+    }
   }
 
   return { revenue, expenses }
 }
 
-function computeBalanceSheet(accounts: LedgerAccount[]) {
+function computeBalanceSheet(accounts: LedgerAccount[], journalEntries: JournalEntry[], dateRange: { start: Date; end: Date } | null) {
   const assetAccounts = accounts.filter((a) => a.type === 'asset')
   const liabilityAccounts = accounts.filter((a) => a.type === 'liability')
   const equityAccounts = accounts.filter((a) => a.type === 'equity')
@@ -70,25 +146,55 @@ function computeBalanceSheet(accounts: LedgerAccount[]) {
   const liabilities: Record<string, number> = {}
   let equity = 0
 
-  for (const account of assetAccounts) {
-    const balance = account.journalLines.reduce((s, l) => s + l.debit - l.credit, 0)
-    if (balance > 0) assets[account.name] = balance
-  }
-
-  for (const account of liabilityAccounts) {
-    const balance = account.journalLines.reduce((s, l) => s + l.credit - l.debit, 0)
-    if (balance > 0) liabilities[account.name] = balance
-  }
-
-  for (const account of equityAccounts) {
-    const balance = account.journalLines.reduce((s, l) => s + l.credit - l.debit, 0)
-    if (balance > 0) equity += balance
+  if (dateRange) {
+    // For balance sheet in a date range, aggregate journal lines within range
+    for (const entry of journalEntries) {
+      const entryDate = new Date(entry.date)
+      if (entryDate >= dateRange.start && entryDate < dateRange.end) {
+        for (const line of entry.lines) {
+          if (line.account.type === 'asset') {
+            const name = line.account.name
+            assets[name] = (assets[name] || 0) + line.debit - line.credit
+          }
+          if (line.account.type === 'liability') {
+            const name = line.account.name
+            liabilities[name] = (liabilities[name] || 0) + line.credit - line.debit
+          }
+          if (line.account.type === 'equity') {
+            equity += line.credit - line.debit
+          }
+        }
+      }
+    }
+    // Remove negative balance sheet items
+    for (const key of Object.keys(assets)) {
+      if (assets[key] <= 0) delete assets[key]
+    }
+    for (const key of Object.keys(liabilities)) {
+      if (liabilities[key] <= 0) delete liabilities[key]
+    }
+  } else {
+    for (const account of assetAccounts) {
+      const balance = account.journalLines.reduce((s, l) => s + l.debit - l.credit, 0)
+      if (balance > 0) assets[account.name] = balance
+    }
+    for (const account of liabilityAccounts) {
+      const balance = account.journalLines.reduce((s, l) => s + l.credit - l.debit, 0)
+      if (balance > 0) liabilities[account.name] = balance
+    }
+    for (const account of equityAccounts) {
+      const balance = account.journalLines.reduce((s, l) => s + l.credit - l.debit, 0)
+      if (balance > 0) equity += balance
+    }
   }
 
   return { assets, liabilities, equity }
 }
 
 export function FinancialReportsView() {
+  const [period, setPeriod] = useState<Period>('this-month')
+  const dateRange = getDateRange(period)
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['accounting-reports'],
     queryFn: fetchAccounting,
@@ -97,8 +203,8 @@ export function FinancialReportsView() {
   const accounts: LedgerAccount[] = data?.accounts ?? []
   const journalEntries: JournalEntry[] = data?.journalEntries ?? []
 
-  const plData = computePLData(accounts, journalEntries)
-  const balanceSheetData = computeBalanceSheet(accounts)
+  const plData = computePLData(accounts, journalEntries, dateRange)
+  const balanceSheetData = computeBalanceSheet(accounts, journalEntries, dateRange)
 
   const totalRevenue = Object.values(plData.revenue).reduce((s, v) => s + v, 0)
   const totalExpenses = Object.values(plData.expenses).reduce((s, v) => s + v, 0)
@@ -111,7 +217,6 @@ export function FinancialReportsView() {
 
   const revenueByDept = [
     ...Object.entries(plData.revenue).map(([department, revenue]) => ({ department, revenue })),
-    { department: 'Other', revenue: 0 },
   ]
 
   if (isLoading) {
@@ -133,7 +238,6 @@ export function FinancialReportsView() {
   }
 
   if (isError) {
-    toast.error('Failed to load financial reports')
     return (
       <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
         <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-6 text-center">
@@ -146,10 +250,34 @@ export function FinancialReportsView() {
 
   return (
     <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
-      <div>
-        <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Financial Reports</h1>
-        <p className="text-xs text-muted-foreground">P&L Summary, Balance Sheet, and Revenue Analytics</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Financial Reports</h1>
+          <p className="text-xs text-muted-foreground">P&L Summary, Balance Sheet, and Revenue Analytics</p>
+        </div>
+        <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+          <SelectTrigger className="w-[160px] h-7 text-[11px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="this-month">This Month</SelectItem>
+            <SelectItem value="last-month">Last Month</SelectItem>
+            <SelectItem value="this-quarter">This Quarter</SelectItem>
+            <SelectItem value="this-year">This Year</SelectItem>
+            <SelectItem value="all-time">All Time</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Period Label */}
+      <p className="text-xs text-muted-foreground">
+        Showing data for: <strong>{PERIOD_LABELS[period]}</strong>
+        {dateRange && (
+          <span className="ml-1">
+            ({formatDate(dateRange.start)} — {formatDate(new Date(dateRange.end.getTime() - 1))})
+          </span>
+        )}
+      </p>
 
       {/* Quick KPIs */}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -160,7 +288,9 @@ export function FinancialReportsView() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Net Income</p>
-              <p className="text-lg font-bold text-green-600">{formatNPR(netIncome)}</p>
+              <p className={cn('text-lg font-bold', netIncome >= 0 ? 'text-green-600' : 'text-red-600')}>
+                {formatNPR(netIncome)}
+              </p>
             </div>
           </div>
         </Card>
@@ -206,7 +336,7 @@ export function FinancialReportsView() {
         </CardHeader>
         <CardContent>
           {Object.keys(plData.revenue).length === 0 && Object.keys(plData.expenses).length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">No financial data available yet. Post journal entries to see reports.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">No financial data available for this period. Post journal entries to see reports.</p>
           ) : (
             <div className="space-y-3">
               {Object.keys(plData.revenue).length > 0 && (
@@ -245,7 +375,7 @@ export function FinancialReportsView() {
               )}
               <div className="flex justify-between font-bold text-lg pt-2 border-t">
                 <span className="text-green-600">Net Income</span>
-                <span className="text-green-600">{formatNPR(netIncome)}</span>
+                <span className={cn(netIncome >= 0 ? 'text-green-600' : 'text-red-600')}>{formatNPR(netIncome)}</span>
               </div>
             </div>
           )}
@@ -261,7 +391,7 @@ export function FinancialReportsView() {
           <CardContent>
             {revenueByDept.length === 0 ? (
               <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
-                No revenue data available yet.
+                No revenue data available for this period.
               </div>
             ) : (
               <div className="h-[300px]">
@@ -291,7 +421,7 @@ export function FinancialReportsView() {
           <CardContent>
             {Object.keys(balanceSheetData.assets).length === 0 && Object.keys(balanceSheetData.liabilities).length === 0 ? (
               <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
-                No balance sheet data available yet.
+                No balance sheet data available for this period.
               </div>
             ) : (
               <div className="space-y-4">

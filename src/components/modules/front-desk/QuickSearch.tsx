@@ -5,7 +5,7 @@ import { apiFetch } from '@/lib/api'
 import { Search, User, BedDouble, CalendarCheck, Loader2, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { useNavigationStore } from '@/lib/store'
+import { useNavigationStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
 
 interface SearchResult {
@@ -13,12 +13,6 @@ interface SearchResult {
   id: string
   label: string
   sublabel: string
-}
-
-const TYPE_CONFIG: Record<string, { icon: typeof User; color: string; navigate: (id: string) => void }> = {
-  guest: { icon: User, color: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300', navigate: (id: string) => { /* navigate to CRM */ } },
-  room: { icon: BedDouble, color: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300', navigate: (id: string) => { /* navigate to room board */ } },
-  reservation: { icon: CalendarCheck, color: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300', navigate: (id: string) => { /* navigate to reservations */ } },
 }
 
 export function QuickSearch() {
@@ -67,15 +61,43 @@ export function QuickSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const TYPE_CONFIG: Record<string, { icon: typeof User; color: string; navigate: (id: string, label: string) => void }> = {
+    guest: {
+      icon: User,
+      color: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+      navigate: (id: string, label: string) => {
+        useGuestLedgerContextStore.getState().setGuestLedgerContext({
+          guestId: id,
+          guestName: label,
+        })
+        navigateTo('front-desk', 'guest-ledger')
+      },
+    },
+    room: {
+      icon: BedDouble,
+      color: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300',
+      navigate: (_id: string) => {
+        navigateTo('rooms', 'room-board')
+      },
+    },
+    reservation: {
+      icon: CalendarCheck,
+      color: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+      navigate: (id: string) => {
+        useReservationContextStore.getState().setReservationContext({
+          reservationId: id,
+        })
+        navigateTo('front-desk', 'reservations')
+      },
+    },
+  }
+
   const handleResultClick = (result: SearchResult) => {
     setOpen(false)
     setQuery('')
-    if (result.type === 'reservation') {
-      navigateTo('front-desk', 'reservations')
-    } else if (result.type === 'room') {
-      navigateTo('front-desk', 'in-house')
-    } else if (result.type === 'guest') {
-      navigateTo('front-desk', 'folio')
+    const config = TYPE_CONFIG[result.type]
+    if (config) {
+      config.navigate(result.id, result.label)
     }
   }
 

@@ -744,6 +744,76 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updated, { status: 201 })
     }
 
+    if (action === 'close_order') {
+      const { orderId: closeOrderId, paymentMethod, paymentAmount } = body
+      const existingOrder = await db.posOrder.findUnique({
+        where: { id: closeOrderId },
+        include: { items: true },
+      })
+      if (!existingOrder) {
+        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+      }
+      const finalAmount = paymentAmount || existingOrder.totalAmount
+      const updated = await db.posOrder.update({
+        where: { id: closeOrderId },
+        data: {
+          status: 'closed',
+          paymentStatus: 'paid',
+          // Store payment method in serverName if empty, or append as JSON
+          serverName: existingOrder.serverName
+            ? JSON.stringify({ guestName: existingOrder.serverName, paymentMethod: paymentMethod || 'cash' })
+            : paymentMethod || 'cash',
+        },
+      })
+      broadcastEvent('order:closed', { orderId: closeOrderId, paymentMethod, finalAmount })
+      afterMutation('pos')
+      return NextResponse.json(updated)
+    }
+
+    if (action === 'add_item') {
+      const { orderId: addItemOrderId, menuItemId, quantity } = body
+      const qty = quantity || 1
+      const menuItem = await db.menuItem.findUnique({ where: { id: menuItemId } })
+      if (!menuItem) {
+        return NextResponse.json({ error: 'Menu item not found' }, { status: 404 })
+      }
+      const itemTotal = menuItem.price * qty
+      await db.orderItem.create({
+        data: {
+          orderId: addItemOrderId,
+          menuItemId,
+          quantity: qty,
+          unitPrice: menuItem.price,
+          totalPrice: itemTotal,
+          status: 'pending',
+        },
+      })
+      // Recalculate order totals
+      const allItems = await db.orderItem.findMany({ where: { orderId: addItemOrderId } })
+      const newTotal = allItems.reduce((s, i) => s + i.totalPrice, 0)
+      const updated = await db.posOrder.update({
+        where: { id: addItemOrderId },
+        data: {
+          totalAmount: newTotal,
+          taxAmount: Math.round(newTotal * taxRateDecimal),
+        },
+      })
+      broadcastEvent('order:item_added', { orderId: addItemOrderId, menuItemId, quantity: qty })
+      afterMutation('pos')
+      return NextResponse.json(updated)
+    }
+
+    if (action === 'update_item_status') {
+      const { itemId, status: itemStatus } = body
+      const updated = await db.orderItem.update({
+        where: { id: itemId },
+        data: { status: itemStatus },
+      })
+      broadcastEvent('order:item_updated', { itemId, status: itemStatus })
+      afterMutation('pos')
+      return NextResponse.json(updated)
+    }
+
     if (action === 'update_order_status') {
       const { orderId, status } = body
       const updated = await db.posOrder.update({

@@ -1,18 +1,22 @@
 'use client'
 import { toast } from 'sonner'
+import { useState } from 'react'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Download, DollarSign, TrendingUp, Users, Banknote } from 'lucide-react'
+import { Download, DollarSign, TrendingUp, TrendingDown, Users, Banknote, Loader2 } from 'lucide-react'
 import { formatNPR } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
+// ── Types ────────────────────────────────────────────────────
 interface PayrollEmployee {
   employeeId: string
   name: string
@@ -34,6 +38,25 @@ interface DeptTotal {
   totalNetPay: number
 }
 
+interface PayrollData {
+  month: string
+  employees: PayrollEmployee[]
+  departmentTotals: DeptTotal[]
+  summary: {
+    totalBaseSalary: number
+    totalVariablePay: number
+    totalOvertime: number
+    totalDeductions: number
+    totalNetPay: number
+    employeeCount: number
+  }
+}
+
+interface PayrollComparison {
+  currentMonth: PayrollData | null
+  previousMonth: PayrollData | null
+}
+
 function escapeCsvField(value: string | number | null | undefined): string {
   const str = String(value ?? '')
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -42,14 +65,52 @@ function escapeCsvField(value: string | number | null | undefined): string {
   return str
 }
 
-function fetchPayroll() {
-  return apiFetch('/api/payroll')
+function getMonthStr(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+function getPreviousMonthStr(monthStr: string): string {
+  const [year, month] = monthStr.split('-').map(Number)
+  const d = new Date(year, month - 2, 1)
+  return getMonthStr(d)
+}
+
+function formatMonthLabel(monthStr: string): string {
+  const [year, month] = monthStr.split('-').map(Number)
+  const d = new Date(year, month - 1, 1)
+  return d.toLocaleString('default', { month: 'long', year: 'numeric' })
 }
 
 export function PayrollView() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['payroll'],
-    queryFn: fetchPayroll,
+  const queryClient = useQueryClient()
+  const today = new Date()
+  const [selectedMonth, setSelectedMonth] = useState(getMonthStr(today))
+
+  const previousMonth = getPreviousMonthStr(selectedMonth)
+
+  // Fetch current month payroll
+  const { data, isLoading } = useQuery<PayrollData>({
+    queryKey: ['payroll', selectedMonth],
+    queryFn: () => apiFetch(`/api/payroll?month=${selectedMonth}`),
+  })
+
+  // Fetch previous month payroll for comparison
+  const { data: prevData } = useQuery<PayrollData>({
+    queryKey: ['payroll', previousMonth],
+    queryFn: () => apiFetch(`/api/payroll?month=${previousMonth}`),
+  })
+
+  // Process Payroll mutation
+  const processMutation = useMutation({
+    mutationFn: () => apiFetch('/api/payroll', {
+      method: 'POST',
+      body: JSON.stringify({ month: selectedMonth }),
+    }),
+    onSuccess: () => {
+      toast.success('Payroll processed successfully')
+      queryClient.invalidateQueries({ queryKey: ['payroll'] })
+    },
+    onError: () => toast.error('Failed to process payroll'),
   })
 
   const handleExportPayroll = () => {
@@ -57,7 +118,6 @@ export function PayrollView() {
       toast.error('No payroll data to export')
       return
     }
-    const monthStr = (data.month || new Date().toISOString().slice(0, 7)).replace(/[^\d-]/g, '')
     const rows: string[][] = [
       ['Employee Name', 'Position', 'Department', 'Base Salary', 'Variable Pay', 'Overtime', 'Deductions', 'Net Pay'],
       ...data.employees.map((emp: PayrollEmployee) => [
@@ -80,26 +140,85 @@ export function PayrollView() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `payroll-${monthStr}.csv`
+    a.download = `payroll-${selectedMonth}.csv`
     a.click()
     URL.revokeObjectURL(url)
     toast.success('Payroll exported as CSV')
   }
 
+  // Trend calculations
+  const trendTotalNetPay = prevData?.summary && data?.summary
+    ? data.summary.totalNetPay - prevData.summary.totalNetPay
+    : null
+  const trendTotalBaseSalary = prevData?.summary && data?.summary
+    ? data.summary.totalBaseSalary - prevData.summary.totalBaseSalary
+    : null
+
   return (
     <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Monthly Payroll</h1>
           <p className="text-xs text-muted-foreground">
-            Payroll summary for {data?.month ?? '...'}
+            Payroll summary for {data?.month || formatMonthLabel(selectedMonth)}
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPayroll}>
-          <Download className="h-4 w-4" />
-          Export
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className="h-7 text-[11px] rounded-md border border-input bg-background px-2 text-foreground"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 h-7 text-[11px]"
+            onClick={handleExportPayroll}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
+          <Button
+            size="sm"
+            className="gap-2 h-7 text-[11px]"
+            onClick={() => processMutation.mutate()}
+            disabled={processMutation.isPending}
+          >
+            {processMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Banknote className="h-3.5 w-3.5" />
+            )}
+            Process Payroll
+          </Button>
+        </div>
       </div>
+
+      {/* Month Comparison Indicator */}
+      {prevData?.summary && data?.summary && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>vs previous month ({formatMonthLabel(previousMonth)})</span>
+          {trendTotalNetPay !== null && (
+            <Badge
+              variant="outline"
+              className={cn(
+                trendTotalNetPay >= 0
+                  ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-950 dark:border-green-800 dark:text-green-300'
+                  : 'bg-red-50 border-red-200 text-red-700 dark:bg-red-950 dark:border-red-800 dark:text-red-300',
+                'text-[10px]',
+              )}
+            >
+              {trendTotalNetPay >= 0 ? (
+                <TrendingUp className="h-3 w-3 mr-1" />
+              ) : (
+                <TrendingDown className="h-3 w-3 mr-1" />
+              )}
+              {trendTotalNetPay >= 0 ? '+' : ''}{formatNPR(trendTotalNetPay)} net pay
+            </Badge>
+          )}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -122,6 +241,11 @@ export function PayrollView() {
             <div>
               <p className="text-xs text-muted-foreground">Base Salaries</p>
               <p className="text-lg font-bold">{data?.summary ? formatNPR(data.summary.totalBaseSalary) : '—'}</p>
+              {trendTotalBaseSalary !== null && trendTotalBaseSalary !== 0 && (
+                <p className={cn('text-[10px]', trendTotalBaseSalary > 0 ? 'text-green-600' : 'text-red-600')}>
+                  {trendTotalBaseSalary > 0 ? '+' : ''}{formatNPR(trendTotalBaseSalary)}
+                </p>
+              )}
             </div>
           </div>
         </Card>

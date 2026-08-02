@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api'
 import {
   Search, Phone, MessageSquare, Receipt, Bell, Users, Crown,
   Star, Mail, CalendarDays, BedDouble, Building,
-  Sparkles, X, BookOpen,
+  Sparkles, X, BookOpen, List, LayoutGrid,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -18,14 +18,20 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
+import { StatusBadge } from '@/components/shared/status-badge'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
 type VipLevel = 'none' | 'silver' | 'gold' | 'platinum'
+
+type ViewMode = 'card' | 'table'
 
 interface Guest {
   id: string
@@ -48,6 +54,7 @@ interface Guest {
   children: number
   specialRequests: string | null
   folioBalance: number
+  status: string
 }
 
 // ─── VIP Badge ────────────────────────────────────────────────────────
@@ -79,6 +86,7 @@ export function GuestDirectoryView() {
   const [vipFilter, setVipFilter] = useState<string>('all')
   const [floorFilter, setFloorFilter] = useState<string>('all')
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>('all')
+  const [viewMode, setViewMode] = useState<ViewMode>('card')
 
   // ─── Data Fetching ──────────────────────────────────────────────────
 
@@ -112,6 +120,7 @@ export function GuestDirectoryView() {
       children: res.children || 0,
       specialRequests: res.specialRequests || null,
       folioBalance: res.folios?.[0]?.balance ?? 0,
+      status: res.status || 'checked_in',
     }))
   }, [data])
 
@@ -233,6 +242,31 @@ export function GuestDirectoryView() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {/* View Mode Toggle */}
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  type="button"
+                  className={cn(
+                    'inline-flex items-center justify-center size-7 transition-colors',
+                    viewMode === 'card' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => setViewMode('card')}
+                  title="Card view"
+                >
+                  <LayoutGrid className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'inline-flex items-center justify-center size-7 transition-colors border-l',
+                    viewMode === 'table' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => setViewMode('table')}
+                  title="Table view"
+                >
+                  <List className="size-3.5" />
+                </button>
+              </div>
               <div className="relative">
                 <Select value={vipFilter} onValueChange={setVipFilter}>
                   <SelectTrigger className={cn('w-[100px] h-7 data-[size=default]:h-7 text-xs', vipFilter !== 'all' && 'pr-8')}><SelectValue placeholder="VIP Level" /></SelectTrigger>
@@ -289,7 +323,7 @@ export function GuestDirectoryView() {
         </CardContent>
       </Card>
 
-      {/* Guest Cards Grid */}
+      {/* Guest Cards / Table */}
       {filteredGuests.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -297,7 +331,8 @@ export function GuestDirectoryView() {
             <p className="text-sm">No guests match your search criteria</p>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === 'card' ? (
+        /* Card View */
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {filteredGuests.map((guest) => {
             const isVip = guest.vipLevel !== 'none'
@@ -374,6 +409,80 @@ export function GuestDirectoryView() {
             )
           })}
         </div>
+      ) : (
+        /* Table View */
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Room</TableHead>
+                  <TableHead className="text-xs">Guest Name</TableHead>
+                  <TableHead className="text-xs">Type</TableHead>
+                  <TableHead className="text-xs hidden lg:table-cell">Dates</TableHead>
+                  <TableHead className="text-xs text-right">Balance</TableHead>
+                  <TableHead className="text-xs">VIP</TableHead>
+                  <TableHead className="text-xs">Status</TableHead>
+                  <TableHead className="text-xs text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredGuests.map((guest) => (
+                  <TableRow key={guest.reservationId}>
+                    <TableCell>
+                      <span className="font-mono text-sm font-medium">{guest.roomNumber}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <span className="text-sm font-medium">{guest.firstName} {guest.lastName}</span>
+                        <p className="text-[10px] text-muted-foreground font-mono">{guest.confirmationNo}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs">{guest.roomTypeName}</span>
+                        {guest.roomBedConfig && (
+                          <RoomTypeBedBadge typeName={guest.roomTypeName} bedConfig={guest.roomBedConfig} typeCode={guest.roomTypeCode} pax={guest.adults + guest.children} inline />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {guest.checkIn && guest.checkOut ? (
+                        <span className="text-xs text-muted-foreground">
+                          {formatDate(guest.checkIn)} → {formatDate(guest.checkOut)}
+                        </span>
+                      ) : '—'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={cn('text-sm font-semibold', guest.folioBalance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                        {formatCurrency(guest.folioBalance)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <VipBadge level={guest.vipLevel} />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={guest.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => handleCallGuest(guest)} title="Call">
+                          <Phone className="size-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => handleViewFolio(guest)} title="Folio">
+                          <Receipt className="size-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="size-7 p-0" onClick={() => handleViewLedger(guest)} title="Ledger">
+                          <BookOpen className="size-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
       )}
     </div>
   )

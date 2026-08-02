@@ -12,9 +12,29 @@ export async function GET(req: NextRequest) {
     today.setHours(0, 0, 0, 0)
     const nextDay = new Date(today)
     nextDay.setDate(nextDay.getDate() + 1)
+    const dayAfter = new Date(nextDay)
+    dayAfter.setDate(dayAfter.getDate() + 1)
 
-    // ─── Single batch: ALL independent queries (settings + snapshot + overbooking + timeline + upcoming) ────
-    const [sMap, totalRooms, arrivals, departures, inHouse, roomsBreakdown, roomCounts, todayCheckIns, todayCheckOuts, todayMoves, upcomingArrivals] = await Promise.all([
+    // ─── Single batch: ALL independent queries ────
+    const [
+      sMap,
+      totalRooms,
+      arrivals,
+      departures,
+      inHouse,
+      roomsBreakdown,
+      roomCounts,
+      todayCheckIns,
+      todayCheckOuts,
+      todayMoves,
+      upcomingArrivals,
+      // New queries for enhanced dashboard
+      todayTransactions,
+      todayPayments,
+      checkedInReservations,
+      dueOutTomorrow,
+      hkStatusBreakdown,
+    ] = await Promise.all([
       getSettingsMap(),
       db.room.count(),
       db.reservation.count({
@@ -70,6 +90,34 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { checkIn: 'asc' }, take: 5,
       }),
+      // Today's folio transactions
+      db.folioTransaction.findMany({
+        where: { createdAt: { gte: today, lt: nextDay } },
+        select: { totalAmount: true },
+      }),
+      // Today's folio payments
+      db.folioPayment.findMany({
+        where: { createdAt: { gte: today, lt: nextDay } },
+        select: { amount: true },
+      }),
+      // Checked-in reservations for ADR calculation
+      db.reservation.findMany({
+        where: { status: 'checked_in' },
+        select: { roomRate: true },
+      }),
+      // Due out tomorrow
+      db.reservation.count({
+        where: {
+          checkOut: { gte: nextDay, lt: dayAfter },
+          status: { in: ['confirmed', 'checked_in'] },
+        },
+      }),
+      // Housekeeping status breakdown
+      db.room.groupBy({
+        by: ['status'],
+        where: { status: { in: ['vacant_dirty', 'cleaning', 'inspected'] } },
+        _count: { status: true },
+      }),
     ])
 
     // Build status map
@@ -81,6 +129,30 @@ export async function GET(req: NextRequest) {
     const available = (statusMap['vacant_clean'] || 0) + (statusMap['inspected'] || 0)
     const occupancyPct = totalRooms > 0 ? Math.round((inHouse / totalRooms) * 100) : 0
     const overbookingCount = roomCounts.filter(rc => rc.roomId !== null).length
+
+    // ─── New KPIs ──────────────────────────────────────────
+    // Today's Revenue = sum of folio transaction totals + sum of payment amounts
+    const todayRevenue = todayTransactions.reduce((s, t) => s + t.totalAmount, 0)
+      + todayPayments.reduce((s, p) => s + p.amount, 0)
+
+    // ADR = Average room rate of currently checked-in reservations
+    const adr = checkedInReservations.length > 0
+      ? checkedInReservations.reduce((s, r) => s + r.roomRate, 0) / checkedInReservations.length
+      : 0
+
+    // RevPAR = todayRevenue / totalRooms
+    const revpar = totalRooms > 0 ? todayRevenue / totalRooms : 0
+
+    // Housekeeping status counts
+    const hkStatusMap: Record<string, number> = {}
+    for (const item of hkStatusBreakdown) {
+      hkStatusMap[item.status] = item._count.status
+    }
+    const housekeepingStatus = {
+      vacant_dirty: hkStatusMap['vacant_dirty'] || 0,
+      cleaning: hkStatusMap['cleaning'] || 0,
+      inspected: hkStatusMap['inspected'] || 0,
+    }
 
     // Build unified timeline (CPU-only)
     const timeline: Array<{
@@ -123,6 +195,11 @@ export async function GET(req: NextRequest) {
     return {
       snapshot: {
         totalRooms, arrivals, departures, inHouse, available, occupancyPct, overbookingCount,
+        todayRevenue: Math.round(todayRevenue),
+        adr: Math.round(adr),
+        revpar: Math.round(revpar),
+        dueOutTomorrow,
+        housekeepingStatus,
       },
       timeline,
       upcomingArrivals,

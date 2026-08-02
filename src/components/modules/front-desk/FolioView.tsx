@@ -8,6 +8,7 @@ import {
   Search, Plus, CreditCard, Receipt, Printer, Mail, DollarSign, FileText,
   ArrowLeft, ArrowUpDown, ChevronRight, BedDouble, CalendarDays, User, Shield,
   StickyNote, XCircle, Activity, CircleAlert, Ban, X, BookOpen, Loader2, Check,
+  Download, Filter,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -134,6 +135,18 @@ const TRANSACTION_TYPE_LABELS: Record<string, string> = {
   miscellaneous: 'Misc',
 }
 
+const TRANSACTION_TYPE_OPTIONS: Record<string, string> = {
+  all: 'All Types',
+  room: 'Room',
+  f_and_b: 'Food & Beverage',
+  laundry: 'Laundry',
+  spa: 'Spa',
+  phone: 'Phone',
+  minibar: 'Minibar',
+  business_center: 'Business Center',
+  miscellaneous: 'Miscellaneous',
+}
+
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: 'Cash',
   card: 'Card',
@@ -193,6 +206,55 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(timer)
   }, [value, delay])
   return debounced
+}
+
+// ─── CSV Export Helper ─────────────────────────────────────────────────
+
+function exportTransactionsCsv(folio: Folio, transactions: FolioTransaction[]) {
+  const headers = ['Date', 'Type', 'Description', 'Qty', 'Amount', 'Tax', 'Total', 'Running Balance', 'Posted By', 'Reference', 'Outlet']
+  const rows: string[][] = []
+  let runningBalance = 0
+
+  for (const txn of transactions) {
+    runningBalance += txn.totalAmount
+    rows.push([
+      formatDateTime(txn.createdAt),
+      TRANSACTION_TYPE_LABELS[txn.transactionType] || txn.transactionType,
+      txn.description.replace(/,/g, ';'),
+      String(txn.quantity),
+      String(txn.amount),
+      String(txn.taxAmount),
+      String(txn.totalAmount),
+      String(runningBalance),
+      txn.postedBy || '',
+      txn.reference || '',
+      txn.outlet || '',
+    ])
+  }
+
+  const guestName = guestFullName(folio.guest)
+  const roomNum = folio.reservation.room?.number || 'N/A'
+  const confNo = folio.reservation.confirmationNo
+  const csvContent = [
+    `Folio Statement - ${guestName}`,
+    `Room: ${roomNum} | Confirmation: ${confNo}`,
+    `Generated: ${new Date().toLocaleString()}`,
+    '',
+    headers.join(','),
+    ...rows.map(r => r.map(c => `"${c}"`).join(',')),
+    '',
+    `"Total Charges","${folioCharges(folio)}"`,
+    `"Total Payments","${folioPayments(folio)}"`,
+    `"Outstanding Balance","${folioOutstanding(folio)}"`,
+  ].join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `folio-${confNo}-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
@@ -430,6 +492,11 @@ export function FolioView() {
   }
 
   const handleSortToggle = (field: SortField) => () => handleSort(field)
+
+  const handleExportCsv = (folio: Folio, filteredTxns: FolioTransaction[]) => {
+    exportTransactionsCsv(folio, filteredTxns)
+    toast.success('CSV exported successfully')
+  }
 
   // ─── Mutations ────────────────────────────────────────────────────
 
@@ -770,6 +837,7 @@ export function FolioView() {
                 }}
                 onPrintFolio={handlePrintFolio}
                 onEmailFolio={handleEmailFolio}
+                onExportCsv={handleExportCsv}
               />
             </div>
           </div>
@@ -957,97 +1025,66 @@ export function FolioView() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── 7. Void Transaction Dialog ─────────────────────────── */}
-      <AlertDialog open={voidDialogOpen} onOpenChange={(open) => { setVoidDialogOpen(open); if (!open) { setVoidTarget(null); setVoidReason('') } }}>
-        <AlertDialogContent className="max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+      {/* ─── 7. Void Transaction Dialog ──────────────────────────── */}
+      <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
               <Ban className="size-5 text-red-500" />
               Void {voidTarget?.type === 'transaction' ? 'Charge' : 'Payment'}
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-3">
-                <p className="text-sm">
-                  Are you sure you want to void this {voidTarget?.type === 'transaction' ? 'charge' : 'payment'}? This action cannot be undone.
-                </p>
-                {voidTarget && (
-                  <div className="rounded-lg bg-muted/50 p-3 text-sm space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Description</span>
-                      <span className="font-medium">{voidTarget.description}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Amount</span>
-                      <span className="font-medium">{formatCurrency(voidTarget.amount)}</span>
-                    </div>
-                  </div>
-                )}
-                <div className="space-y-1.5">
-                  <Label className="text-sm">
-                    Reason <span className="text-red-500">*</span>
-                  </Label>
-                  <Textarea
-                    placeholder="Enter reason for voiding..."
-                    value={voidReason}
-                    onChange={(e) => setVoidReason(e.target.value)}
-                    rows={3}
-                  />
+            </DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The amount will be reversed from the folio.
+            </DialogDescription>
+          </DialogHeader>
+          {voidTarget && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 p-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Description</span>
+                  <span className="font-medium">{voidTarget.description}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-bold text-red-600">{formatCurrency(voidTarget.amount)}</span>
                 </div>
               </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => voidMutation.mutate()}
-              disabled={!voidReason.trim() || voidMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {voidMutation.isPending ? 'Voiding...' : 'Confirm Void'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Reason for voiding *</Label>
+                <Textarea
+                  placeholder="Enter reason for voiding this transaction..."
+                  value={voidReason}
+                  onChange={(e) => setVoidReason(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setVoidDialogOpen(false)} disabled={voidMutation.isPending}>Cancel</Button>
+            <Button variant="destructive" onClick={() => voidMutation.mutate()} disabled={!voidReason || voidMutation.isPending}>
+              {voidMutation.isPending ? <><Loader2 className="size-4 mr-1.5 animate-spin" /> Voiding...</> : <><XCircle className="size-4 mr-1.5" /> Void</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* ─── 8. Split Folio Dialog ────────────────────────────── */}
-      <Dialog open={splitDialogOpen} onOpenChange={(open) => { setSplitDialogOpen(open); if (!open) setSplitSelectedTxnIds(new Set()) }}>
-        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col">
+      {/* ─── 8. Split Folio Dialog ──────────────────────────────── */}
+      <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SplitIcon className="size-5" />
               Split Folio
             </DialogTitle>
             <DialogDescription>
-              Select charges to move to a new folio. The source folio balance will be recalculated.
+              Select charges to move to a new folio. The original folio will be reduced by the selected amounts.
             </DialogDescription>
           </DialogHeader>
-
           {activeFolio && (
-            <div className="flex flex-col gap-4 flex-1 min-h-0">
-              {/* Transaction list with checkboxes */}
-              <div className="rounded-lg border max-h-64 overflow-y-auto">
-                <div className="sticky top-0 bg-background/95 backdrop-sm border-b px-3 py-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Charges ({activeFolio.transactions.filter((t) => !isVoidedTransaction(t)).length} non-voided)
-                  </span>
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => {
-                      const nonVoided = activeFolio.transactions.filter((t) => !isVoidedTransaction(t))
-                      const allIds = new Set(nonVoided.map((t) => t.id))
-                      if (splitSelectedTxnIds.size === allIds.size) {
-                        setSplitSelectedTxnIds(new Set())
-                      } else {
-                        setSplitSelectedTxnIds(allIds)
-                      }
-                    }}
-                  >
-                    {splitSelectedTxnIds.size === activeFolio.transactions.filter((t) => !isVoidedTransaction(t)).length
-                      ? 'Deselect All'
-                      : 'Select All'}
-                  </button>
-                </div>
+            <div className="space-y-4">
+              {/* Transaction Selection */}
+              <div className="max-h-60 overflow-y-auto rounded-lg border p-2">
                 <div className="divide-y">
                   {activeFolio.transactions
                     .filter((t) => !isVoidedTransaction(t))
@@ -1374,7 +1411,7 @@ function FolioDetailPanel({
   creditLimit, creditPct, currency, taxRate, activityTimeline,
   onBack, onViewGuestLedger, onViewInHouse, onChargeClick, onPaymentClick,
   onVoidTransaction, onVoidPayment, onNotesChange, folioNotes, onSplitClick,
-  onPrintFolio, onEmailFolio,
+  onPrintFolio, onEmailFolio, onExportCsv,
 }: {
   folio: Folio
   loading: boolean
@@ -1398,8 +1435,50 @@ function FolioDetailPanel({
   onSplitClick: () => void
   onPrintFolio: () => void
   onEmailFolio: () => void
+  onExportCsv: (folio: Folio, filteredTxns: FolioTransaction[]) => void
 }) {
   const ratePerNight = folio.reservation.roomRate
+
+  // ─── Transaction Filters State ──────────────────────────────
+  const [txTypeFilter, setTxTypeFilter] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
+  // ─── Filtered & sorted transactions ──────────────────────────
+  const filteredTransactions = useMemo(() => {
+    let txns = folio.transactions
+    if (txTypeFilter !== 'all') {
+      txns = txns.filter((t) => t.transactionType === txTypeFilter)
+    }
+    if (dateFrom) {
+      const from = new Date(dateFrom)
+      from.setHours(0, 0, 0, 0)
+      txns = txns.filter((t) => new Date(t.createdAt) >= from)
+    }
+    if (dateTo) {
+      const to = new Date(dateTo)
+      to.setHours(23, 59, 59, 999)
+      txns = txns.filter((t) => new Date(t.createdAt) <= to)
+    }
+    return txns
+  }, [folio.transactions, txTypeFilter, dateFrom, dateTo])
+
+  // ─── Running balance computation ────────────────────────────
+  const transactionsWithRunningBalance = useMemo(() => {
+    return filteredTransactions.reduce<Array<FolioTransaction & { runningBalance: number }>>((acc, t) => {
+      const prev = acc.length > 0 ? acc[acc.length - 1].runningBalance : 0
+      acc.push({ ...t, runningBalance: prev + t.totalAmount })
+      return acc
+    }, [])
+  }, [filteredTransactions])
+
+  const hasActiveFilters = txTypeFilter !== 'all' || dateFrom || dateTo
+
+  const clearFilters = () => {
+    setTxTypeFilter('all')
+    setDateFrom('')
+    setDateTo('')
+  }
 
   return (
     <div className="space-y-2">
@@ -1646,6 +1725,62 @@ function FolioDetailPanel({
               </div>
             ) : (
               <>
+                {/* Filter Bar */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 border-b bg-muted/20">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                    <Filter className="size-3.5" />
+                    <span className="font-medium">Filters:</span>
+                  </div>
+                  <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
+                    <SelectTrigger className="w-[160px] h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(TRANSACTION_TYPE_OPTIONS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="date"
+                      value={dateFrom}
+                      onChange={(e) => setDateFrom(e.target.value)}
+                      className="h-7 text-xs w-[130px]"
+                      placeholder="From"
+                    />
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Input
+                      type="date"
+                      value={dateTo}
+                      onChange={(e) => setDateTo(e.target.value)}
+                      className="h-7 text-xs w-[130px]"
+                      placeholder="To"
+                    />
+                  </div>
+                  {hasActiveFilters && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center justify-center size-6 rounded-full bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors shrink-0"
+                      title="Clear filters"
+                    >
+                      <X className="size-3" strokeWidth={2.5} />
+                    </button>
+                  )}
+                  <div className="flex-1" />
+                  <span className="text-[11px] text-muted-foreground">{filteredTransactions.length} of {folio.transactions.length}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1.5"
+                    onClick={() => onExportCsv(folio, filteredTransactions)}
+                  >
+                    <Download className="size-3.5" />
+                    Export CSV
+                  </Button>
+                </div>
+
                 {/* Desktop Table */}
                 <div className="hidden md:block overflow-x-auto">
                   <Table>
@@ -1658,12 +1793,13 @@ function FolioDetailPanel({
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead className="text-right">Tax</TableHead>
                         <TableHead className="text-right">Total</TableHead>
+                        <TableHead className="text-right">Running Bal.</TableHead>
                         <TableHead className="text-center w-[100px]">Posted By</TableHead>
                         <TableHead className="text-center w-[60px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {folio.transactions.map((txn) => {
+                      {transactionsWithRunningBalance.map((txn) => {
                         const voided = isVoidedTransaction(txn)
                         return (
                           <TableRow key={txn.id} className={voided ? 'opacity-40' : ''}>
@@ -1683,6 +1819,9 @@ function FolioDetailPanel({
                             <TableCell className="text-right text-sm">{formatCurrency(txn.amount)}</TableCell>
                             <TableCell className="text-right text-sm text-muted-foreground">{formatCurrency(txn.taxAmount)}</TableCell>
                             <TableCell className="text-right text-sm font-medium">{formatCurrency(txn.totalAmount)}</TableCell>
+                            <TableCell className={cn('text-right text-sm font-semibold', txn.runningBalance > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                              {formatCurrency(txn.runningBalance)}
+                            </TableCell>
                             <TableCell className="text-center text-xs text-muted-foreground">{txn.postedBy || '—'}</TableCell>
                             <TableCell className="text-center">
                               {!voided && (
@@ -1705,7 +1844,7 @@ function FolioDetailPanel({
 
                 {/* Mobile Cards */}
                 <div className="md:hidden divide-y max-h-96 overflow-y-auto">
-                  {folio.transactions.map((txn) => {
+                  {transactionsWithRunningBalance.map((txn) => {
                     const voided = isVoidedTransaction(txn)
                     return (
                       <div key={txn.id} className={cn('p-3 space-y-1.5', voided && 'opacity-40')}>
@@ -1721,6 +1860,7 @@ function FolioDetailPanel({
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-sm font-semibold">{formatCurrency(txn.totalAmount)}</p>
+                            <p className={cn('text-[10px]', txn.runningBalance > 0 ? 'text-red-500' : 'text-emerald-500')}>Bal: {formatCurrency(txn.runningBalance)}</p>
                             {!voided && (
                               <Button variant="ghost" size="sm" className="size-6 p-0 text-muted-foreground hover:text-red-600" onClick={() => onVoidTransaction(txn.id, txn.description, txn.totalAmount)}>
                                 <XCircle className="size-3.5" />

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -30,6 +30,7 @@ interface RoomServiceItem {
   name: string
   quantity: number
   price: number
+  menuItemId?: string
 }
 
 interface RoomServiceOrder {
@@ -43,6 +44,8 @@ interface RoomServiceOrder {
   specialInstructions: string
   createdAt: string
   phone: string
+  reservationId?: string
+  posOrderId?: string
 }
 
 // ─── Menu Config (local, not from DB) ─────────────────────────────────
@@ -210,6 +213,7 @@ interface InHouseGuest {
   room: string
   floor: number
   phone: string
+  reservationId: string
 }
 
 // ─── New Order Dialog ─────────────────────────────────────────────────
@@ -218,14 +222,16 @@ function NewOrderDialog({
   onClose,
   onSubmit,
   guests,
+  isPending,
 }: {
   open: boolean
   onClose: () => void
   onSubmit: (order: Omit<RoomServiceOrder, 'id' | 'createdAt' | 'status' | 'total'> & { total: number }) => void
   guests: InHouseGuest[]
+  isPending: boolean
 }) {
   const [selectedGuest, setSelectedGuest] = useState('')
-  const [orderItems, setOrderItems] = useState<{ name: string; quantity: number; price: number }[]>([])
+  const [orderItems, setOrderItems] = useState<{ name: string; quantity: number; price: number; menuItemId: string }[]>([])
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [selectedMenuCategory, setSelectedMenuCategory] = useState('all')
 
@@ -239,7 +245,7 @@ function NewOrderDialog({
     if (existing) {
       setOrderItems(orderItems.map((i) => i.name === menuItem.name ? { ...i, quantity: i.quantity + 1 } : i))
     } else {
-      setOrderItems([...orderItems, { name: menuItem.name, quantity: 1, price: menuItem.price }])
+      setOrderItems([...orderItems, { name: menuItem.name, quantity: 1, price: menuItem.price, menuItemId: menuItem.id }])
     }
   }
 
@@ -270,15 +276,26 @@ function NewOrderDialog({
       items: orderItems,
       specialInstructions,
       total,
+      reservationId: selectedGuestData!.reservationId,
     })
     setSelectedGuest('')
     setOrderItems([])
     setSpecialInstructions('')
-    onClose()
+    setSelectedMenuCategory('all')
+  }
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v) {
+      setSelectedGuest('')
+      setOrderItems([])
+      setSpecialInstructions('')
+      setSelectedMenuCategory('all')
+      onClose()
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -386,8 +403,11 @@ function NewOrderDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={!selectedGuest || orderItems.length === 0}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!selectedGuest || orderItems.length === 0 || isPending}>
+            {isPending && (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5" />
+            )}
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Place Order
           </Button>
@@ -399,9 +419,10 @@ function NewOrderDialog({
 
 // ─── Main RoomServiceView ────────────────────────────────────────────
 export default function RoomServiceView() {
+  const queryClient = useQueryClient()
   const { data: guestsData, isLoading } = useQuery({
     queryKey: ['pos-guests'],
-    queryFn: () => apiFetch<{ guests: Array<{ id: string; firstName: string; lastName: string; phone: string | null; reservations: Array<{ room: { number: string } | null; status: string }> }> }>('/api/guests'),
+    queryFn: () => apiFetch<{ guests: Array<{ id: string; firstName: string; lastName: string; phone: string | null; reservations: Array<{ id: string; room: { number: string } | null; status: string }> }> }>('/api/guests'),
     refetchInterval: 120000,
   })
 
@@ -419,6 +440,7 @@ export default function RoomServiceView() {
           room: roomNumber,
           floor,
           phone: g.phone || '',
+          reservationId: activeRes?.id || '',
         }
       })
   }, [guestsData])
@@ -441,14 +463,105 @@ export default function RoomServiceView() {
     })
   }, [orders, statusFilter, floorFilter])
 
+  // ─── Create Order Mutation (persist to PosOrder) ──────────────
+  const createOrderMutation = useMutation({
+    mutationFn: async (params: {
+      reservationId: string
+      serverName: string
+      items: { name: string; quantity: number; price: number }[]
+      specialInstructions: string
+    }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_order',
+          reservationId: params.reservationId,
+          serverName: `Room Service — ${params.serverName}`,
+          specialInstructions: params.specialInstructions,
+          items: params.items.map((i) => ({
+            menuItemId: '', // local menu items don't have real DB IDs
+            name: i.name,
+            quantity: i.quantity,
+            price: i.price,
+            notes: `Room service for ${params.serverName}`,
+          })),
+        }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+    onError: () => {
+      toast.error('Failed to persist order to system')
+    },
+  })
+
+  // ─── Update Order Status Mutation ─────────────────────────────
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ posOrderId, status }: { posOrderId: string; status: string }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_order_status', orderId: posOrderId, status }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+  })
+
+  // ─── Charge to Room Mutation ──────────────────────────────────
+  const chargeToRoomMutation = useMutation({
+    mutationFn: async ({ reservationId, amount, description }: { reservationId: string; amount: number; description: string }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'charge_to_room', reservationId, amount, description }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      queryClient.invalidateQueries({ queryKey: ['folios'] })
+    },
+    onError: () => {
+      toast.error('Failed to post charge to room')
+    },
+  })
+
   const handleStatusChange = (id: string, newStatus: RoomServiceOrder['status']) => {
+    const order = orders.find((o) => o.id === id)
+    if (!order) return
+
+    // Optimistic update
     setOrders((prev) => prev.map((o) => o.id === id ? { ...o, status: newStatus } : o))
+
     const actionLabels: Record<string, string> = {
       preparing: 'Order is now being prepared',
       delivered: 'Order marked as delivered',
       cancelled: 'Order has been cancelled',
     }
     toast.success(actionLabels[newStatus] ?? 'Order updated')
+
+    // Sync with API if we have a posOrderId
+    if (order.posOrderId) {
+      if (newStatus === 'preparing') {
+        updateStatusMutation.mutate({ posOrderId: order.posOrderId, status: 'in_progress' })
+      } else if (newStatus === 'delivered') {
+        updateStatusMutation.mutate({ posOrderId: order.posOrderId, status: 'served' })
+
+        // Post charge to guest folio
+        if (order.reservationId) {
+          chargeToRoomMutation.mutate({
+            reservationId: order.reservationId,
+            amount: order.total,
+            description: `Room Service: ${order.items.map((i) => i.name).join(', ')}`,
+          })
+        }
+      } else if (newStatus === 'cancelled') {
+        updateStatusMutation.mutate({ posOrderId: order.posOrderId, status: 'voided' })
+      }
+    }
   }
 
   const handleNewOrder = (order: Omit<RoomServiceOrder, 'id' | 'createdAt' | 'status' | 'total'> & { total: number }) => {
@@ -458,8 +571,27 @@ export default function RoomServiceView() {
       status: 'received',
       createdAt: new Date().toISOString(),
     }
+
+    // Optimistic: add to local state immediately
     setOrders((prev) => [newOrder, ...prev])
     toast.success(`Room service order placed for Room ${order.roomNumber}`)
+
+    // Persist to POS API in background
+    createOrderMutation.mutate({
+      reservationId: order.reservationId || '',
+      serverName: order.guestName,
+      items: order.items,
+      specialInstructions: order.specialInstructions,
+    }).then((result) => {
+      // If we get a real order ID back, update the local order
+      if (result && typeof result === 'object' && 'id' in result) {
+        setOrders((prev) =>
+          prev.map((o) => o.id === newOrder.id ? { ...o, posOrderId: (result as { id: string }).id } : o)
+        )
+      }
+    })
+
+    setNewOrderOpen(false)
   }
 
   if (isLoading && !guestsData) {
@@ -567,6 +699,7 @@ export default function RoomServiceView() {
         onClose={() => setNewOrderOpen(false)}
         onSubmit={handleNewOrder}
         guests={inHouseGuests}
+        isPending={createOrderMutation.isPending}
       />
     </div>
   )

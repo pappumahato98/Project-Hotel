@@ -18,10 +18,12 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { apiFetch } from '@/lib/api'
 import {
   usePosData, formatNPR,
   type SpaService, type Therapist, type SpaAppointment,
 } from './pos-types'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 // ─── Time Slot Helpers ───────────────────────────────────────────────
 const SPA_HOURS = Array.from({ length: 10 }, (_, i) => i + 9) // 9 AM to 6 PM
@@ -56,11 +58,11 @@ function ApptStatusBadge({ status }: { status: SpaAppointment['status'] }) {
 function AppointmentCalendar({
   appointments,
   services,
-  onSelectAppt,
+  onUpdateStatus,
 }: {
   appointments: SpaAppointment[]
   services: SpaService[]
-  onSelectAppt: (id: string) => void
+  onUpdateStatus: (id: string, status: string) => void
 }) {
   return (
     <Card>
@@ -87,8 +89,19 @@ function AppointmentCalendar({
                         {hourAppts.map((appt) => (
                           <button
                             key={appt.id}
-                            onClick={() => onSelectAppt(appt.id)}
+                            onClick={() => {
+                              if (appt.status === 'scheduled') {
+                                onUpdateStatus(appt.id, 'in_progress')
+                              } else if (appt.status === 'in_progress') {
+                                onUpdateStatus(appt.id, 'completed')
+                              }
+                            }}
                             className="flex items-center justify-between w-full rounded-lg border p-2 text-left transition-all hover:shadow-sm hover:border-primary/20"
+                            title={
+                              appt.status === 'scheduled' ? 'Click to start session' :
+                              appt.status === 'in_progress' ? 'Click to mark completed' :
+                              undefined
+                            }
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <div className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-bold text-white ${
@@ -105,7 +118,15 @@ function AppointmentCalendar({
                                 </p>
                               </div>
                             </div>
-                            <ApptStatusBadge status={appt.status} />
+                            <div className="flex items-center gap-1.5">
+                              {appt.status === 'scheduled' && (
+                                <Play className="h-3 w-3 text-blue-500" />
+                              )}
+                              {appt.status === 'in_progress' && (
+                                <CheckCircle className="h-3 w-3 text-emerald-500" />
+                              )}
+                              <ApptStatusBadge status={appt.status} />
+                            </div>
                           </button>
                         ))}
                       </div>
@@ -298,10 +319,44 @@ function BookingDialog({
   services: SpaService[]
   therapists: Therapist[]
 }) {
+  const [guestName, setGuestName] = useState('')
+  const [selectedService, setSelectedService] = useState('')
+  const [selectedTherapist, setSelectedTherapist] = useState('')
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('')
+
   const availableTherapists = therapists.filter((t) => t.status === 'available')
+  const selectedServiceData = services.find((s) => s.id === selectedService)
+
+  const resetForm = () => {
+    setGuestName('')
+    setSelectedService('')
+    setSelectedTherapist('')
+    setSelectedTimeSlot('')
+  }
+
+  const handleSubmit = () => {
+    if (!guestName.trim() || !selectedService || !selectedTimeSlot) {
+      toast.error('Please fill in guest name, service, and time slot')
+      return
+    }
+    const serviceName = selectedServiceData?.name || 'Spa Service'
+    const therapistName = selectedTherapist ? (therapists.find((t) => t.id === selectedTherapist)?.name || 'Assigned') : 'Any Available'
+    toast.success(`Appointment booked successfully!`, {
+      description: `${guestName} — ${serviceName} with ${therapistName} at ${selectedTimeSlot}`,
+    })
+    resetForm()
+    onClose()
+  }
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v) {
+      resetForm()
+      onClose()
+    }
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -311,11 +366,16 @@ function BookingDialog({
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium">Guest Name</Label>
-            <Input placeholder="Enter guest name" className="mt-1.5" />
+            <Input
+              placeholder="Enter guest name"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              className="mt-1.5"
+            />
           </div>
           <div>
             <Label className="text-sm font-medium">Service</Label>
-            <Select>
+            <Select value={selectedService} onValueChange={setSelectedService}>
               <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select service..." /></SelectTrigger>
               <SelectContent>
                 {services.map((s) => (
@@ -328,7 +388,7 @@ function BookingDialog({
           </div>
           <div>
             <Label className="text-sm font-medium">Therapist</Label>
-            <Select>
+            <Select value={selectedTherapist} onValueChange={setSelectedTherapist}>
               <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select therapist..." /></SelectTrigger>
               <SelectContent>
                 {availableTherapists.map((t) => (
@@ -342,7 +402,7 @@ function BookingDialog({
           </div>
           <div>
             <Label className="text-sm font-medium">Time Slot</Label>
-            <Select>
+            <Select value={selectedTimeSlot} onValueChange={setSelectedTimeSlot}>
               <SelectTrigger className="mt-1.5"><SelectValue placeholder="Select time..." /></SelectTrigger>
               <SelectContent>
                 {TIME_SLOTS.map((slot) => (
@@ -353,8 +413,10 @@ function BookingDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { toast.success('Appointment booked successfully'); onClose() }}>Book Appointment</Button>
+          <Button variant="outline" onClick={() => { resetForm(); onClose() }}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={!guestName.trim() || !selectedService || !selectedTimeSlot}>
+            Book Appointment
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -364,12 +426,35 @@ function BookingDialog({
 // ─── Main SpaView ───────────────────────────────────────────
 export default function SpaView() {
   const { data, isLoading } = usePosData('spa')
+  const queryClient = useQueryClient()
   const [bookingOpen, setBookingOpen] = useState(false)
-  const [selectedAppt, setSelectedAppt] = useState<string | null>(null)
 
   const services = data?.spaServices ?? []
   const therapists = data?.therapists ?? []
   const appointments = data?.appointments ?? []
+
+  // ─── Update Appointment Status Mutation ─────────────────────
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_order_status', orderId, status }),
+      })
+    },
+    onSuccess: (_, variables) => {
+      const label = variables.status === 'in_progress' ? 'started' : 'completed'
+      toast.success(`Appointment ${label} successfully`)
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+    onError: () => {
+      toast.error('Failed to update appointment status')
+    },
+  })
+
+  const handleUpdateStatus = (id: string, status: string) => {
+    updateStatusMutation.mutate({ orderId: id, status })
+  }
 
   if (isLoading || !data) {
     return (
@@ -434,7 +519,7 @@ export default function SpaView() {
         <AppointmentCalendar
           appointments={appointments}
           services={services}
-          onSelectAppt={setSelectedAppt}
+          onUpdateStatus={handleUpdateStatus}
         />
         {/* Right: Services + Therapists */}
         <div className="space-y-2">

@@ -115,6 +115,10 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'payroll', label: 'Payroll' },
       { id: 'schedules', label: 'Schedules' },
       { id: 'performance', label: 'Performance' },
+      { id: 'leave', label: 'Leave Management' },
+      { id: 'training', label: 'Training' },
+      { id: 'shift-exchange', label: 'Shift Exchange' },
+      { id: 'recruitment', label: 'Recruitment' },
     ],
   },
   {

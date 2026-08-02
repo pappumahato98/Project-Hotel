@@ -374,12 +374,33 @@ function PaymentDialog({
   open,
   onClose,
   total,
+  orderId,
 }: {
   open: boolean
   onClose: () => void
   total: number
+  orderId: string | null
 }) {
+  const queryClient = useQueryClient()
   const [method, setMethod] = useState('cash')
+
+  const closeMutation = useMutation({
+    mutationFn: async () => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'close_order', orderId, paymentMethod: method }),
+      })
+    },
+    onSuccess: () => {
+      toast.success('Payment processed successfully')
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      onClose()
+    },
+    onError: () => {
+      toast.error('Failed to process payment')
+    },
+  })
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -405,7 +426,7 @@ function PaymentDialog({
                 <SelectItem value="cash">Cash</SelectItem>
                 <SelectItem value="card">Credit/Debit Card</SelectItem>
                 <SelectItem value="mobile">Mobile Payment (eSewa/Khalti)</SelectItem>
-                <SelectItem value="bank">Bank Transfer</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -418,7 +439,12 @@ function PaymentDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { toast.success('Payment processed successfully'); onClose() }}>Complete Payment</Button>
+          <Button disabled={!orderId || closeMutation.isPending} onClick={() => closeMutation.mutate()}>
+            {closeMutation.isPending && (
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent mr-1.5" />
+            )}
+            Complete Payment
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -434,11 +460,13 @@ function VoidDialog({
 }: {
   open: boolean
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (reason: string) => void
   itemName: string
 }) {
+  const [reason, setReason] = useState('')
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setReason(''); onClose() } }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
@@ -449,10 +477,16 @@ function VoidDialog({
         <p className="text-sm">
           Are you sure you want to void <strong>{itemName}</strong>? This requires manager approval.
         </p>
-        <Input placeholder="Reason for void (required)" />
+        <Input
+          placeholder="Reason for void (required)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button variant="destructive" onClick={() => { onConfirm(); onClose() }}>Void Item</Button>
+          <Button variant="outline" onClick={() => { setReason(''); onClose() }}>Cancel</Button>
+          <Button variant="destructive" onClick={() => { onConfirm(reason); setReason(''); onClose() }} disabled={!reason.trim()}>
+            Void Item
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -472,7 +506,7 @@ function PostToRoomDialog({
   amount: number
 }) {
   const queryClient = useQueryClient()
-  const [selectedReservation, setSelectedReservation] = useState<string>('')
+  const [selectedReservation, setSelectedReservation] = useState('')
 
   const chargeMutation = useMutation({
     mutationFn: async () => {
@@ -828,6 +862,7 @@ function SplitBillDialog({
 // ─── Main RestaurantView ────────────────────────────────────────────
 export default function RestaurantView() {
   const { data, isLoading } = usePosData('restaurant')
+  const queryClient = useQueryClient()
   const [selectedTable, setSelectedTable] = useState<number | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
@@ -849,13 +884,83 @@ export default function RestaurantView() {
     return orders.find((o) => o.tableId === selectedTable) ?? null
   }, [selectedTable, orders])
 
+  // Get the first restaurant outlet ID for creating orders
+  const restaurantOutletId = useMemo(() => {
+    // We'll find it from tables — orders with tableId exist for restaurant outlets
+    if (orders.length > 0) return undefined // orders exist, we can infer the outlet
+    return undefined
+  }, [orders])
+
   const handleSelectTable = (id: number) => {
     setSelectedTable(selectedTable === id ? null : id)
     setDiscountAmount(0)
   }
 
+  // ─── Add Item Mutation ────────────────────────────────────────
+  const addItemMutation = useMutation({
+    mutationFn: async (params: { menuItemId: string; quantity: number }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_item',
+          orderId: currentOrder!.id,
+          menuItemId: params.menuItemId,
+          quantity: params.quantity,
+        }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+    onError: () => {
+      toast.error('Failed to add item')
+    },
+  })
+
+  // ─── Create Order + Add Item Mutation ────────────────────────
+  const createAndAddMutation = useMutation({
+    mutationFn: async (params: { menuItemId: string; quantity: number }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_order',
+          tableNumber: selectedTable!,
+          guestCount: 1,
+          items: [{ menuItemId: params.menuItemId, quantity: params.quantity }],
+        }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+    onError: () => {
+      toast.error('Failed to create order')
+    },
+  })
+
+  const handleAddItem = (item: MenuItem) => {
+    if (currentOrder) {
+      addItemMutation.mutate({ menuItemId: item.id, quantity: 1 })
+    } else if (selectedTable) {
+      createAndAddMutation.mutate({ menuItemId: item.id, quantity: 1 })
+    } else {
+      toast.error('Please select a table first')
+    }
+  }
+
   const handleUpdateQty = (itemId: string, delta: number) => {
-    // Client-side optimistic simulation
+    if (!currentOrder) return
+    const existingItem = currentOrder.items.find((i) => i.id === itemId)
+    if (!existingItem) return
+    const newQty = existingItem.quantity + delta
+    if (newQty <= 0) {
+      // Trigger void dialog
+      handleRemoveItem(itemId)
+      return
+    }
+    addItemMutation.mutate({ menuItemId: existingItem.menuItemId, quantity: newQty })
   }
 
   const handleRemoveItem = (itemId: string) => {
@@ -865,14 +970,21 @@ export default function RestaurantView() {
     }
   }
 
-  const handleConfirmVoid = () => {
+  const handleConfirmVoid = (reason: string) => {
     setIsRemoving(voidDialog.itemId)
-    toast.success(`Item "${voidDialog.itemName}" voided`)
-    setTimeout(() => setIsRemoving(null), 1000)
-  }
-
-  const handleAddItem = (_item: MenuItem) => {
-    // Optimistic add
+    // Update item status to voided
+    apiFetch('/api/pos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_item_status', itemId: voidDialog.itemId, status: 'voided' }),
+    }).then(() => {
+      toast.success(`Item "${voidDialog.itemName}" voided. Reason: ${reason}`)
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+      setIsRemoving(null)
+    }).catch(() => {
+      toast.error('Failed to void item')
+      setIsRemoving(null)
+    })
   }
 
   const { settings } = useSettingsStore()
@@ -950,7 +1062,12 @@ export default function RestaurantView() {
       />
 
       {/* Payment Dialog */}
-      <PaymentDialog open={paymentOpen} onClose={() => setPaymentOpen(false)} total={total} />
+      <PaymentDialog
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        total={total}
+        orderId={currentOrder?.id ?? null}
+      />
 
       {/* Void Dialog */}
       <VoidDialog

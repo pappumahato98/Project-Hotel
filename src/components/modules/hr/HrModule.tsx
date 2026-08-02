@@ -7,6 +7,10 @@ import { AttendanceView } from './AttendanceView'
 import { PayrollView } from './PayrollView'
 import { SchedulesView } from './SchedulesView'
 import { PerformanceView } from './PerformanceView'
+import { LeaveManagementView } from './LeaveManagementView'
+import { TrainingView } from './TrainingView'
+import { ShiftExchangeView } from './ShiftExchangeView'
+import { RecruitmentView } from './RecruitmentView'
 
 export default function HrModule() {
   const { activeSubModule } = useNavigationStore()
@@ -24,6 +28,14 @@ export default function HrModule() {
       return <SchedulesView />
     case 'performance':
       return <PerformanceView />
+    case 'leave':
+      return <LeaveManagementView />
+    case 'training':
+      return <TrainingView />
+    case 'shift-exchange':
+      return <ShiftExchangeView />
+    case 'recruitment':
+      return <RecruitmentView />
     default:
       return <EmployeesView />
   }

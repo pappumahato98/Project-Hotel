@@ -1,13 +1,20 @@
 'use client'
 import { toast } from 'sonner'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -16,12 +23,14 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog'
-import { Plus, Search, X } from 'lucide-react'
+import { Plus, Search, X, Trash2 } from 'lucide-react'
 import { useState, Fragment } from 'react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatNPR } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { getTodayString } from '@/lib/format'
 
+// ── Types ────────────────────────────────────────────────────
 interface JournalLine {
   id: string
   account: { id: string; code: string; name: string; type: string }
@@ -40,19 +49,49 @@ interface JournalEntry {
   lines: JournalLine[]
 }
 
+interface LedgerAccount {
+  id: string
+  code: string
+  name: string
+  type: string
+}
+
+// ── Form line type ──────────────────────────────────────────
+interface NewLine {
+  tempId: string
+  accountId: string
+  debit: string
+  credit: string
+  narration: string
+}
+
+function createEmptyLine(): NewLine {
+  return { tempId: crypto.randomUUID(), accountId: '', debit: '', credit: '', narration: '' }
+}
+
+// ── Data fetching ────────────────────────────────────────────
 function fetchAccounting() {
   return apiFetch('/api/accounting')
 }
 
 export function JournalView() {
+  const queryClient = useQueryClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null)
   const [showNewEntry, setShowNewEntry] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  // Form state
+  const [formDate, setFormDate] = useState(getTodayString())
+  const [formDescription, setFormDescription] = useState('')
+  const [formReference, setFormReference] = useState('')
+  const [formLines, setFormLines] = useState<NewLine[]>([createEmptyLine(), createEmptyLine()])
+
+  const { data, isLoading } = useQuery<{ accounts: LedgerAccount[]; journalEntries: JournalEntry[] }>({
     queryKey: ['accounting'],
     queryFn: fetchAccounting,
   })
+
+  const accounts: LedgerAccount[] = data?.accounts ?? []
 
   const filteredEntries = data?.journalEntries?.filter((entry: JournalEntry) => {
     if (!searchQuery) return true
@@ -66,6 +105,84 @@ export function JournalView() {
   const getDebitTotal = (entry: JournalEntry) => entry.lines.reduce((s, l) => s + l.debit, 0)
   const getCreditTotal = (entry: JournalEntry) => entry.lines.reduce((s, l) => s + l.credit, 0)
 
+  // Computed totals for the new entry form
+  const totalDebit = formLines.reduce((s, l) => s + (parseFloat(l.debit) || 0), 0)
+  const totalCredit = formLines.reduce((s, l) => s + (parseFloat(l.credit) || 0), 0)
+  const balanceDiff = Math.abs(totalDebit - totalCredit)
+  const isBalanced = balanceDiff <= 0.01
+
+  // Line management
+  const addLine = () => setFormLines((prev) => [...prev, createEmptyLine()])
+  const removeLine = (tempId: string) => {
+    if (formLines.length <= 2) {
+      toast.error('Journal entry must have at least 2 lines')
+      return
+    }
+    setFormLines((prev) => prev.filter((l) => l.tempId !== tempId))
+  }
+  const updateLine = (tempId: string, field: keyof NewLine, value: string) => {
+    setFormLines((prev) =>
+      prev.map((l) => (l.tempId === tempId ? { ...l, [field]: value } : l)),
+    )
+  }
+
+  // Reset form
+  const resetForm = () => {
+    setFormDate(getTodayString())
+    setFormDescription('')
+    setFormReference('')
+    setFormLines([createEmptyLine(), createEmptyLine()])
+  }
+
+  // Create mutation
+  const createMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) =>
+      apiFetch('/api/accounting', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      toast.success('Journal entry created')
+      setShowNewEntry(false)
+      resetForm()
+      queryClient.invalidateQueries({ queryKey: ['accounting'] })
+    },
+    onError: () => toast.error('Failed to create journal entry'),
+  })
+
+  const handleSubmit = () => {
+    if (!formDescription.trim()) {
+      toast.error('Description is required')
+      return
+    }
+
+    const validLines = formLines.filter((l) => l.accountId && (parseFloat(l.debit) > 0 || parseFloat(l.credit) > 0))
+    if (validLines.length < 2) {
+      toast.error('At least 2 lines with account and amount are required')
+      return
+    }
+
+    if (!isBalanced) {
+      toast.error(`Debits and credits must balance (difference: ${formatNPR(balanceDiff)})`)
+      return
+    }
+
+    const lines = validLines.map((l) => ({
+      accountId: l.accountId,
+      debit: parseFloat(l.debit) || 0,
+      credit: parseFloat(l.credit) || 0,
+      narration: l.narration || null,
+    }))
+
+    createMutation.mutate({
+      date: formDate,
+      description: formDescription,
+      reference: formReference || null,
+      status: 'draft',
+      lines,
+    })
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
       <div className="flex items-center justify-between">
@@ -73,7 +190,7 @@ export function JournalView() {
           <h1 className="text-sm font-semibold text-gray-700 dark:text-gray-200 tracking-tight">Journal Entries</h1>
           <p className="text-xs text-muted-foreground">Double-entry bookkeeping journal</p>
         </div>
-        <Button size="sm" className="h-7 text-[11px] gap-1">
+        <Button size="sm" className="h-7 text-[11px] gap-1" onClick={() => setShowNewEntry(true)}>
           <Plus className="h-4 w-4" />
           New Entry
         </Button>
@@ -219,39 +336,106 @@ export function JournalView() {
       </Card>
 
       {/* New Entry Dialog */}
-      <Dialog open={showNewEntry} onOpenChange={setShowNewEntry}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showNewEntry} onOpenChange={(open) => { if (!open) { setShowNewEntry(false); resetForm() } }}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Journal Entry</DialogTitle>
             <DialogDescription>Create a new double-entry journal entry</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input type="date" />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Input placeholder="Enter description" />
+            {/* Header fields */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Date *</Label>
+                <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Description *</Label>
+                <Input placeholder="Enter description" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Reference</Label>
-              <Input placeholder="Optional reference" />
+              <Input placeholder="Optional reference (e.g. INV-001)" value={formReference} onChange={(e) => setFormReference(e.target.value)} />
             </div>
-            <div className="rounded-md border p-3 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Debit Lines</p>
-              <Input className="mt-2" placeholder="Account code" />
-              <Input className="mt-2" placeholder="Amount" type="number" />
-            </div>
-            <div className="rounded-md border p-3 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">Credit Lines</p>
-              <Input className="mt-2" placeholder="Account code" />
-              <Input className="mt-2" placeholder="Amount" type="number" />
+
+            {/* Lines */}
+            <div className="rounded-md border p-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold">Entry Lines</p>
+                <Button size="sm" variant="ghost" className="h-6 text-[11px] gap-1" onClick={addLine}>
+                  <Plus className="h-3 w-3" />
+                  Add Line
+                </Button>
+              </div>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {formLines.map((line, idx) => (
+                  <div key={line.tempId} className="grid grid-cols-[1fr_100px_100px_1fr_32px] gap-2 items-start">
+                    <Select value={line.accountId} onValueChange={(v) => updateLine(line.tempId, 'accountId', v)}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={acc.id}>
+                            {acc.code} - {acc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder="Debit"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={line.debit}
+                      onChange={(e) => updateLine(line.tempId, 'debit', e.target.value)}
+                    />
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder="Credit"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={line.credit}
+                      onChange={(e) => updateLine(line.tempId, 'credit', e.target.value)}
+                    />
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder="Narration"
+                      value={line.narration}
+                      onChange={(e) => updateLine(line.tempId, 'narration', e.target.value)}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+                      onClick={() => removeLine(line.tempId)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Balance validation */}
+              <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                <div className="flex items-center gap-3 text-xs">
+                  <span>Total Debit: <strong>{formatNPR(totalDebit)}</strong></span>
+                  <span>Total Credit: <strong>{formatNPR(totalCredit)}</strong></span>
+                </div>
+                <Badge variant={isBalanced ? 'outline' : 'destructive'} className="text-[11px]">
+                  {isBalanced ? '✓ Balanced' : `✗ Off by ${formatNPR(balanceDiff)}`}
+                </Badge>
+              </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewEntry(false)}>Cancel</Button>
-            <Button onClick={() => { toast.success('Journal entry saved as draft'); setShowNewEntry(false) }}>Save as Draft</Button>
+            <Button variant="outline" onClick={() => { setShowNewEntry(false); resetForm() }}>Cancel</Button>
+            <Button onClick={handleSubmit} disabled={createMutation.isPending}>
+              {createMutation.isPending ? 'Saving...' : 'Save as Draft'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import {
@@ -20,6 +20,14 @@ import {
   LayoutDashboard,
   Star,
   MessageSquare,
+  DollarSign,
+  TrendingUp,
+  BarChart3,
+  ArrowRight,
+  Sparkles,
+  SprayCan,
+  CheckCircle2,
+  CircleDot,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -37,7 +45,7 @@ import {
 } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { useNavigationStore, useFrontDeskContextStore } from '@/lib/store'
-import { formatDate, formatTime } from '@/lib/format'
+import { formatDate, formatTime, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -50,6 +58,15 @@ interface DashboardSnapshot {
   available: number
   occupancyPct: number
   overbookingCount: number
+  todayRevenue: number
+  adr: number
+  revpar: number
+  dueOutTomorrow: number
+  housekeepingStatus: {
+    vacant_dirty: number
+    cleaning: number
+    inspected: number
+  }
 }
 
 interface TimelineEntry {
@@ -133,6 +150,38 @@ const QUICK_ACTIONS = [
   },
 ] as const
 
+// ─── Helper: Data Freshness Indicator ──────────────────────────────
+
+function DataFreshnessIndicator({ dataUpdatedAt, isFetching }: { dataUpdatedAt: number; isFetching: boolean }) {
+  const [secondsAgo, setSecondsAgo] = useState(() => Math.floor((Date.now() - dataUpdatedAt) / 1000))
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - dataUpdatedAt) / 1000))
+    }, 5000)
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [dataUpdatedAt])
+
+  const label = secondsAgo < 5
+    ? 'Updated just now'
+    : secondsAgo < 60
+      ? `Updated ${secondsAgo}s ago`
+      : `Updated ${Math.floor(secondsAgo / 60)}m ago`
+
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 text-[10px] text-muted-foreground',
+      isFetching && 'text-primary'
+    )}>
+      <CircleDot className={cn('size-2.5', isFetching ? 'animate-pulse text-primary' : 'text-emerald-500')} />
+      {label}
+    </span>
+  )
+}
+
 // ─── Helper: Timeline Icon ──────────────────────────────────────────
 
 function TimelineIcon({ type }: { type: string }) {
@@ -194,8 +243,8 @@ function SourceBadge({ source }: { source: string | null }) {
 
 function SnapshotSkeleton() {
   return (
-    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+      {Array.from({ length: 10 }).map((_, i) => (
         <Card key={i}>
           <CardContent className="p-4 flex items-center gap-3">
             <Skeleton className="size-10 rounded-lg" />
@@ -272,6 +321,7 @@ export function FrontDeskDashboard() {
     error,
     refetch,
     isFetching,
+    dataUpdatedAt,
   } = useQuery<DashboardData>({
     queryKey: ['front-desk-dashboard'],
     queryFn: () => apiFetch('/api/front-desk/dashboard'),
@@ -368,6 +418,31 @@ export function FrontDeskDashboard() {
         iconColor: 'text-amber-600 dark:text-amber-400',
         subtext: `${snapshot.inHouse} / ${snapshot.totalRooms} rooms`,
       },
+      // New KPI cards
+      {
+        label: "Today's Revenue",
+        value: formatCurrency(snapshot.todayRevenue),
+        icon: DollarSign,
+        iconBg: 'bg-emerald-100 dark:bg-emerald-950',
+        iconColor: 'text-emerald-600 dark:text-emerald-400',
+        subtext: 'NPR',
+      },
+      {
+        label: 'ADR',
+        value: formatCurrency(snapshot.adr),
+        icon: TrendingUp,
+        iconBg: 'bg-violet-100 dark:bg-violet-950',
+        iconColor: 'text-violet-600 dark:text-violet-400',
+        subtext: 'Avg. Daily Rate',
+      },
+      {
+        label: 'RevPAR',
+        value: formatCurrency(snapshot.revpar),
+        icon: BarChart3,
+        iconBg: 'bg-orange-100 dark:bg-orange-950',
+        iconColor: 'text-orange-600 dark:text-orange-400',
+        subtext: 'Rev/Avail. Room',
+      },
     ]
 
     // Only show overbooking alert if there are overbookings
@@ -392,9 +467,14 @@ export function FrontDeskDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Front Desk Dashboard</h2>
-          <p className="text-xs text-muted-foreground">
-            Real-time operational snapshot — {formatDate(new Date())}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">
+              Real-time operational snapshot — {formatDate(new Date())}
+            </p>
+            {dataUpdatedAt > 0 && (
+              <DataFreshnessIndicator dataUpdatedAt={dataUpdatedAt} isFetching={isFetching} />
+            )}
+          </div>
         </div>
         <Button
           variant="outline"
@@ -422,12 +502,7 @@ export function FrontDeskDashboard() {
           </CardContent>
         </Card>
       ) : (
-        <div className={cn(
-          'grid gap-2',
-          showOverbookingAlert
-            ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6'
-            : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
-        )}>
+        <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
           {snapshotCards.map((card) => (
             <Card key={card.label} className={cn(
               card.label === 'Overbooking Alert' && 'border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20',
@@ -446,6 +521,66 @@ export function FrontDeskDashboard() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* ─── Due Out Tomorrow + Housekeeping Status Row ──────── */}
+      {!isLoading && snapshot && (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Due Out Tomorrow */}
+          <Card>
+            <CardContent className="p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-950">
+                  <LogOut className="size-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{snapshot.dueOutTomorrow}</p>
+                  <p className="text-xs text-muted-foreground">Due Out Tomorrow</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1 shrink-0"
+                onClick={() => {
+                  setActiveSubModule('departures')
+                  toast.success('Navigated to Departures', { description: 'Review tomorrow\'s expected check-outs.' })
+                }}
+              >
+                View <ArrowRight className="size-3" />
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Housekeeping Status Summary */}
+          <Card className="sm:col-span-2">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <SprayCan className="size-4 text-muted-foreground" />
+                <p className="text-xs font-semibold text-muted-foreground">Housekeeping Status</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="size-3 rounded-full bg-amber-500" />
+                  <span className="text-xs font-medium">Dirty:</span>
+                  <span className="text-xs font-bold text-amber-600 dark:text-amber-400">{snapshot.housekeepingStatus.vacant_dirty}</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-1.5">
+                  <div className="size-3 rounded-full bg-sky-500" />
+                  <span className="text-xs font-medium">Cleaning:</span>
+                  <span className="text-xs font-bold text-sky-600 dark:text-sky-400">{snapshot.housekeepingStatus.cleaning}</span>
+                </div>
+                <Separator orientation="vertical" className="h-4" />
+                <div className="flex items-center gap-1.5">
+                  <div className="size-3 rounded-full bg-emerald-500" />
+                  <span className="text-xs font-medium">Inspected:</span>
+                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{snapshot.housekeepingStatus.inspected}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
