@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Building2,
   Loader2,
@@ -27,7 +28,7 @@ type AuthView = 'signin' | 'signup' | 'forgot'
 export function LoginPage() {
   const { isAuthenticated } = useAuthStore()
   const { settings } = useSettingsStore()
-  const router = React.useRouter()
+  const router = useRouter()
 
   const [view, setView] = React.useState<AuthView>('signin')
   const [loading, setLoading] = React.useState(false)
