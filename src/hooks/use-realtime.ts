@@ -2,25 +2,22 @@
  * useRealtime — Supabase Realtime subscription hook
  *
  * Subscribes to all key Supabase Realtime channels when the user is
- * authenticated. Transforms postgres_changes events into UI notifications
- * and optionally fires toast alerts.
+ * authenticated. Fetches realtime config from the server on first mount,
+ * then initializes the Supabase client and subscribes to all tables.
  *
  * Usage:
- *   <RealtimeProvider>  // in Providers.tsx, wraps the app
+ *   <RealtimeProvider>  // in Providers.tsx or AppShell, wraps the app
  *     {children}
  *   </RealtimeProvider>
- *
- * Or in individual modules:
- *   useRealtimeSubscription('Room', { onUpdate: ... })
  */
 
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { getSupabaseClient, ensureSupabaseClient } from '@/lib/supabase/client'
 import { useNotificationStore } from '@/lib/realtime-notifications'
 import { useAuthStore } from '@/lib/store'
-import { subscribeToTable, type RealtimeChannel } from '@/lib/realtime'
+import { subscribeToTable, unsubscribeChannel, type RealtimeChannel } from '@/lib/realtime'
 import type { NotificationCategory, NotificationSeverity } from '@/lib/realtime-notifications'
 import { toast } from 'sonner'
 
@@ -202,7 +199,6 @@ const POS_ORDER_SUB: TableSubscription = {
 const INVENTORY_SUB: TableSubscription = {
   table: 'InventoryItem',
   onUpdate: ({ new: row, old: prev }) => {
-    // Only alert when stock drops to/below reorder point
     const oldStock = prev.currentStock as number
     const newStock = row.currentStock as number
     const reorderPoint = row.reorderPoint as number
@@ -248,8 +244,12 @@ const ALL_SUBSCRIPTIONS: TableSubscription[] = [
 // ─── Hook: useRealtimeProvider ────────────────────────────────────
 
 /**
- * Top-level hook that subscribes to all realtime channels when authenticated.
- * Should be used once in Providers.tsx.
+ * Top-level hook that:
+ * 1. Fetches realtime config from server
+ * 2. Initializes Supabase client
+ * 3. Subscribes to all configured tables
+ *
+ * Should be used once when the user is authenticated.
  */
 export function useRealtimeProvider(): {
   isConnected: boolean
@@ -261,12 +261,11 @@ export function useRealtimeProvider(): {
   const setChannelCount = useNotificationStore((s) => s.setChannelCount)
   const isConnected = useNotificationStore((s) => s.isConnected)
   const channelCount = useNotificationStore((s) => s.channelCount)
-  const channelsRef = useRef<RealtimeChannel[]>([])
+  const channelsRef = useRef<(RealtimeChannel | null)[]>([])
 
   const handleEvent = useCallback((event: NotificationEvent) => {
     addNotification(event)
 
-    // Show toast for important events
     if (event.showToast) {
       const toastOptions: Record<string, unknown> = {
         description: event.description,
@@ -290,73 +289,83 @@ export function useRealtimeProvider(): {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      // Clean up all channels when user logs out
-      channelsRef.current.forEach((ch) => ch.unsubscribe())
+      channelsRef.current.forEach((ch) => unsubscribeChannel(ch))
       channelsRef.current = []
       setChannelCount(0)
       setConnected(false)
       return
     }
 
-    // Check if Supabase is configured
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      return
-    }
+    // Initialize Supabase client and subscribe
+    let cancelled = false
 
-    const channels: RealtimeChannel[] = []
+    const initAndSubscribe = async () => {
+      // Ensure Supabase client is initialized
+      const client = await ensureSupabaseClient()
+      if (cancelled || !client) {
+        if (!cancelled) console.info('[Realtime] Supabase not configured — realtime disabled')
+        return
+      }
 
-    // Subscribe to each configured table
-    for (const sub of ALL_SUBSCRIPTIONS) {
-      try {
-        const channel = subscribeToTable(sub.table, {
-          onInsert: sub.onInsert
-            ? (payload) => {
-                const event = sub.onInsert!(payload.new as Record<string, unknown>)
-                if (event) handleEvent(event)
-              }
-            : undefined,
-          onUpdate: sub.onUpdate
-            ? (payload) => {
-                const event = sub.onUpdate!(
-                  payload.new as Record<string, unknown>,
-                  payload.old as Record<string, unknown>
-                )
-                if (event) handleEvent(event)
-              }
-            : undefined,
-          onDelete: sub.onDelete
-            ? (payload) => {
-                const event = sub.onDelete!(payload.old as Record<string, unknown>)
-                if (event) handleEvent(event)
-              }
-            : undefined,
-        })
+      const channels: (RealtimeChannel | null)[] = []
 
-        // Listen for subscription status on the returned channel
-        channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            setConnected(true)
+      for (const sub of ALL_SUBSCRIPTIONS) {
+        if (cancelled) break
+        try {
+          const channel = subscribeToTable(sub.table, {
+            onInsert: sub.onInsert
+              ? (payload) => {
+                  const event = sub.onInsert!(payload.new as Record<string, unknown>)
+                  if (event) handleEvent(event)
+                }
+              : undefined,
+            onUpdate: sub.onUpdate
+              ? (payload) => {
+                  const event = sub.onUpdate!(
+                    payload.new as Record<string, unknown>,
+                    payload.old as Record<string, unknown>
+                  )
+                  if (event) handleEvent(event)
+                }
+              : undefined,
+            onDelete: sub.onDelete
+              ? (payload) => {
+                  const event = sub.onDelete!(payload.old as Record<string, unknown>)
+                  if (event) handleEvent(event)
+                }
+              : undefined,
+          })
+
+          if (channel) {
+            channel.subscribe((status) => {
+              if (status === 'SUBSCRIBED' && !cancelled) {
+                setConnected(true)
+              }
+            })
           }
-        })
 
-        channels.push(channel)
-      } catch (err) {
-        console.error(`Failed to subscribe to ${sub.table}:`, err)
+          channels.push(channel)
+        } catch (err) {
+          console.error(`Failed to subscribe to ${sub.table}:`, err)
+        }
+      }
+
+      if (!cancelled) {
+        channelsRef.current = channels
+        const activeChannels = channels.filter(Boolean).length
+        setChannelCount(activeChannels)
+        setConnected(activeChannels > 0)
+        if (activeChannels > 0) {
+          console.info(`[Realtime] Connected — ${activeChannels} channels subscribed`)
+        }
       }
     }
 
-    channelsRef.current = channels
-    setChannelCount(channels.length)
-    setConnected(channels.length > 0)
+    initAndSubscribe()
 
     return () => {
-      channels.forEach((ch) => {
-        try {
-          ch.unsubscribe()
-        } catch {
-          // Channel may already be closed
-        }
-      })
+      cancelled = true
+      channelsRef.current.forEach((ch) => unsubscribeChannel(ch))
       channelsRef.current = []
       setChannelCount(0)
       setConnected(false)
@@ -373,14 +382,7 @@ export function useRealtimeProvider(): {
 
 /**
  * Subscribe to a single table's realtime changes.
- * Useful for per-module subscriptions that need custom logic.
- *
- * @example
- * useRealtimeSubscription('Room', {
- *   onUpdate: (payload) => {
- *     console.log('Room updated:', payload.new)
- *   }
- * })
+ * Waits for Supabase client to be initialized before subscribing.
  */
 export function useRealtimeSubscription(
   table: string,
@@ -395,38 +397,41 @@ export function useRealtimeSubscription(
   const channelRef = useRef<RealtimeChannel | null>(null)
 
   useEffect(() => {
-    if (!enabled || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return
+    if (!enabled) return
+
+    let cancelled = false
+
+    const subscribe = async () => {
+      // Wait for Supabase client
+      const client = await ensureSupabaseClient()
+      if (cancelled || !client) return
+
+      if (getSupabaseClient()) {
+        const channel = subscribeToTable(table, {
+          onInsert: callbacks.onInsert
+            ? (payload) => callbacks.onInsert!(payload.new as Record<string, unknown>)
+            : undefined,
+          onUpdate: callbacks.onUpdate
+            ? (payload) => callbacks.onUpdate!(
+                payload.new as Record<string, unknown>,
+                payload.old as Record<string, unknown>
+              )
+            : undefined,
+          onDelete: callbacks.onDelete
+            ? (payload) => callbacks.onDelete!(payload.old as Record<string, unknown>)
+            : undefined,
+        }, filter)
+
+        channelRef.current = channel
+      }
     }
 
-    try {
-      const channel = subscribeToTable(table, {
-        onInsert: callbacks.onInsert
-          ? (payload) => callbacks.onInsert!(payload.new as Record<string, unknown>)
-          : undefined,
-        onUpdate: callbacks.onUpdate
-          ? (payload) => callbacks.onUpdate!(
-              payload.new as Record<string, unknown>,
-              payload.old as Record<string, unknown>
-            )
-          : undefined,
-        onDelete: callbacks.onDelete
-          ? (payload) => callbacks.onDelete!(payload.old as Record<string, unknown>)
-          : undefined,
-      }, filter)
-
-      channelRef.current = channel
-    } catch (err) {
-      console.error(`Failed to subscribe to ${table}:`, err)
-    }
+    subscribe()
 
     return () => {
+      cancelled = true
       if (channelRef.current) {
-        try {
-          channelRef.current.unsubscribe()
-        } catch {
-          // Already closed
-        }
+        unsubscribeChannel(channelRef.current)
         channelRef.current = null
       }
     }
@@ -437,52 +442,70 @@ export function useRealtimeSubscription(
 
 /**
  * Track the current user's presence on a channel.
- * Other clients can see who's online.
  */
 export function usePresence(channelName: string = 'meridian-online'): void {
   const user = useAuthStore((s) => s.user)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   useEffect(() => {
-    if (!isAuthenticated || !user || !process.env.NEXT_PUBLIC_SUPABASE_URL) return
+    if (!isAuthenticated || !user) return
 
-    const supabase = createClient()
-    const channel = supabase.channel(`presence-${channelName}`, {
-      config: { presence: { key: user.id } },
-    })
+    let cancelled = false
 
-    channel.on('presence', { event: 'sync' }, () => {
-      // State synced — could read channel.presenceState() for online users
-    })
+    const initPresence = async () => {
+      const client = await ensureSupabaseClient()
+      if (cancelled || !client) return
 
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({
-          userId: user.id,
-          userName: `${user.firstName} ${user.lastName}`,
-          role: user.role,
-          onlineAt: new Date().toISOString(),
-        })
+      const supabase = getSupabaseClient()
+      if (!supabase) return
+
+      const channel = supabase.channel(`presence-${channelName}`, {
+        config: { presence: { key: user.id } },
+      })
+
+      channel.on('presence', { event: 'sync' }, () => {
+        // State synced
+      })
+
+      channel.subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && !cancelled) {
+          await channel.track({
+            userId: user.id,
+            userName: `${user.firstName} ${user.lastName}`,
+            role: user.role,
+            onlineAt: new Date().toISOString(),
+          })
+        }
+      })
+
+      // Heartbeat every 30 seconds
+      const heartbeat = setInterval(async () => {
+        if (cancelled) return
+        try {
+          await channel.track({
+            userId: user.id,
+            userName: `${user.firstName} ${user.lastName}`,
+            role: user.role,
+            onlineAt: new Date().toISOString(),
+          })
+        } catch {
+          // Channel may have closed
+        }
+      }, 30_000)
+
+      // Store ref for cleanup
+      return () => {
+        clearInterval(heartbeat)
+        channel.unsubscribe()
       }
-    })
+    }
 
-    // Heartbeat every 30 seconds
-    const heartbeat = setInterval(async () => {
-      try {
-        await channel.track({
-          userId: user.id,
-          userName: `${user.firstName} ${user.lastName}`,
-          role: user.role,
-          onlineAt: new Date().toISOString(),
-        })
-      } catch {
-        // Channel may have closed
-      }
-    }, 30_000)
+    let cleanup: (() => void) | undefined
+    initPresence().then((c) => { cleanup = c as unknown as (() => void) }).catch(() => {})
 
     return () => {
-      clearInterval(heartbeat)
-      channel.unsubscribe()
+      cancelled = true
+      cleanup?.()
     }
   }, [isAuthenticated, user, channelName])
 }

@@ -36,8 +36,9 @@ model AuthUser {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  activityLogs   ActivityLog[]
-  refreshTokens  RefreshToken[]
+  activityLogs    ActivityLog[]
+  refreshTokens   RefreshToken[]
+  passwordResets  PasswordReset[]
 }
 
 model RefreshToken {
@@ -47,6 +48,21 @@ model RefreshToken {
   userAgent String?
   ipAddress String?
   expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // SHA-256 of the raw reset token
+  userId    String
+  ipAddress String?
+  expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime @default(now())
 
   user      AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)

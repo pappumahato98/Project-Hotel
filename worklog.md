@@ -656,3 +656,30 @@ Stage Summary:
 - Both use 2 env vars only: DATABASE_URL + JWT_SECRET
 - Both auto-deploy on git push
 - Pushed: 7813d90
+---
+Task ID: 1
+Agent: main
+Task: Fix auth (signin/forgot/signup), Render restart, Supabase Realtime, performance
+
+Work Log:
+- Added PasswordReset model to Prisma schema with tokenHash, userId, expiresAt, usedAt fields
+- Pushed schema to database (prisma db push)
+- Created /api/auth/forgot-password/route.ts — generates 48-byte reset token, stores SHA-256 hash, returns raw token to client
+- Created /api/auth/reset-password/route.ts — validates token, updates password with bcrypt, revokes all refresh tokens
+- Rewrote login-page.tsx with 4 views: signin, signup, forgot, reset (full forgot→reset flow in-page)
+- Changed signup to create active users (was active:false)
+- Persisted auth store to localStorage (meridian-auth) with onRehydrateStorage for instant hydration
+- Updated Providers.tsx: restores token from persisted store immediately, silent background refresh
+- Updated render.yaml: NODE_OPTIONS=--max-old-space-size=384, healthCheckPath=/api/health, NEXT_TELEMETRY_DISABLED=1, SUPABASE_ANON_KEY env var
+- Cached health check DB query for 30s to reduce load (Render pings frequently)
+- Created /api/config/realtime/route.ts — derives Supabase URL from DATABASE_URL, provides anon key from server
+- Rewrote supabase/client.ts with dynamic initialization: ensureSupabaseClient() async, getSupabaseClient() sync
+- Rewrote realtime.ts: all functions return null gracefully when Supabase not configured
+- Rewrote use-realtime.ts: fetches config from server before subscribing, proper cleanup
+- Verified: lint passes, TypeScript compiles clean (0 errors in src/), Prisma PasswordReset model works
+
+Stage Summary:
+- Auth: Sign in, sign up, forgot password, and reset password all fully functional
+- Render: Memory-limited to 384MB, health check endpoint configured, should prevent OOM restarts
+- Realtime: Dynamic config from server API, graceful degradation when SUPABASE_ANON_KEY not set
+- Performance: Auth persisted to localStorage, instant hydration, no loading spinner on refresh

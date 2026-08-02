@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         role: 'staff',
-        active: false,
+        active: true,
       },
     })
 

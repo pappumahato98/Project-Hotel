@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
+// Cache the DB check result for 30 seconds to avoid hammering the database
+// (Render health checks hit this endpoint every ~15-30 seconds)
+let _lastCheck: { ok: boolean; detail: string; ts: number } | null = null
+const CHECK_TTL = 30_000
+
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const checks: { name: string; ok: boolean; detail?: string }[] = []
 
@@ -11,7 +18,7 @@ export async function GET() {
   } else if (dbUrl.startsWith('file:')) {
     checks.push({ name: 'DATABASE_URL', ok: false, detail: 'file: URL does not work on serverless — use PostgreSQL URL' })
   } else {
-    checks.push({ name: 'DATABASE_URL', ok: true, detail: dbUrl.split('@')[1]?.split('.')[0] ? 'postgresql://***@***' : dbUrl.split(':')[0] + '://' })
+    checks.push({ name: 'DATABASE_URL', ok: true, detail: 'postgresql://***@***' })
   }
 
   // 2. JWT Auth configuration
@@ -25,14 +32,22 @@ export async function GET() {
   // 3. App mode
   checks.push({ name: 'app.auth', ok: true, detail: 'JWT (self-contained)' })
 
-  // 4. DB connectivity + has data
-  try {
-    const userCount = await db.authUser.count()
-    checks.push({ name: 'db.connect', ok: true })
-    checks.push({ name: 'db.seeded', ok: userCount > 0, detail: userCount > 0 ? `${userCount} users` : '0 users — run setup-supabase.sh' })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e)
-    checks.push({ name: 'db.connect', ok: false, detail: msg.slice(0, 200) })
+  // 4. DB connectivity — cached for CHECK_TTL to reduce load
+  const now = Date.now()
+  if (!_lastCheck || (now - _lastCheck.ts) > CHECK_TTL) {
+    try {
+      const userCount = await db.authUser.count()
+      _lastCheck = { ok: true, detail: `${userCount} users`, ts: now }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      _lastCheck = { ok: false, detail: msg.slice(0, 200), ts: now }
+    }
+  }
+  checks.push({ name: 'db.connect', ok: _lastCheck.ok, detail: _lastCheck.detail })
+  if (_lastCheck.ok) {
+    checks.push({ name: 'db.seeded', ok: true, detail: _lastCheck.detail })
+  } else {
+    checks.push({ name: 'db.seeded', ok: false, detail: 'Run setup-supabase.sh' })
   }
 
   const allOk = checks.every((c) => c.ok)

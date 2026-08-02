@@ -28,6 +28,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
       () => getCsrfToken(),
     )
 
+    // Restore access token from persisted store into the client module
+    const persistedToken = useAuthStore.getState().token
+    if (persistedToken) {
+      setAccessToken(persistedToken)
+    }
+
     // Read CSRF token from cookie
     const csrfFromCookie = document.cookie
       .split('; ')
@@ -37,19 +43,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
       setCsrfToken(csrfFromCookie)
     }
 
-    // Try to restore session by refreshing the access token
-    // (if a valid refresh token cookie exists)
-    const restoreSession = async () => {
+    // If we have a persisted auth state, mark hydrated immediately
+    // (onRehydrateStorage handles this, but as a safety net):
+    if (persistedToken) {
+      useAuthStore.setState({ _hasHydrated: true })
+      // Sync settings immediately since we're already authenticated
+      useSettingsStore.getState().syncFromBackend(true)
+    }
+
+    // Silent background refresh — validates the session without blocking UI
+    const silentRefresh = async () => {
       try {
-        const headers: Record<string, string> = {
-          credentials: 'include' as any,
-        }
+        const headers: Record<string, string> = {}
         if (csrfFromCookie) {
           headers['X-CSRF-Token'] = csrfFromCookie
         }
 
         const res = await fetch('/api/auth/refresh', {
           method: 'POST',
+          credentials: 'same-origin',
           headers,
         })
 
@@ -62,18 +74,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
               useAuthStore.getState().login(data.user, data.accessToken)
             }
           }
+        } else {
+          // Refresh failed — clear persisted state
+          useAuthStore.getState().logout()
+          setAccessToken(null)
+          setCsrfToken(null)
         }
       } catch {
-        // No valid refresh token — user needs to log in
+        // Network error — keep persisted state, will retry later
       } finally {
+        // Always mark hydrated so the UI renders
         useAuthStore.setState({ _hasHydrated: true })
       }
     }
 
-    restoreSession()
+    // Always try to refresh in the background (even if persisted state exists)
+    silentRefresh()
   }, [])
 
-  // Sync settings when authenticated
+  // Sync settings when authenticated (state change)
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state, prev) => {
       if (!prev.isAuthenticated && state.isAuthenticated) {

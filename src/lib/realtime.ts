@@ -7,16 +7,25 @@
  *   - Presence: track online status of connected users
  *
  * All subscriptions are lazy-initialized and auto-cleanup on unmount.
+ * Requires Supabase client to be initialized via ensureSupabaseClient().
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { getSupabaseClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 export type { RealtimeChannel }
 
 /**
+ * Check if Supabase Realtime is available.
+ */
+export function isRealtimeAvailable(): boolean {
+  return getSupabaseClient() !== null
+}
+
+/**
  * Subscribe to Postgres Changes on a specific table.
  * Returns the channel so you can unsubscribe manually.
+ * Returns null if Supabase is not configured.
  */
 export function subscribeToTable<T extends Record<string, unknown>>(
   table: string,
@@ -26,8 +35,10 @@ export function subscribeToTable<T extends Record<string, unknown>>(
     onDelete?: (payload: { old: T; eventType: 'DELETE' }) => void
   },
   filter?: { column: string; value: string }
-): RealtimeChannel {
-  const supabase = createClient()
+): RealtimeChannel | null {
+  const supabase = getSupabaseClient()
+  if (!supabase) return null
+
   const channelName = `table-${table}-${Date.now()}`
 
   const channelConfig: Record<string, unknown> = {
@@ -67,14 +78,16 @@ export function subscribeToTable<T extends Record<string, unknown>>(
 
 /**
  * Subscribe to a Broadcast channel for custom messages between clients.
+ * Returns null if Supabase is not configured.
  */
 export function subscribeToBroadcast<T = unknown>(
   channelName: string,
   callbacks: {
     onMessage: (payload: { type: string; payload: T; timestamp?: string }) => void
   }
-): RealtimeChannel {
-  const supabase = createClient()
+): RealtimeChannel | null {
+  const supabase = getSupabaseClient()
+  if (!supabase) return null
 
   const channel = supabase
     .channel(`broadcast-${channelName}`)
@@ -88,13 +101,16 @@ export function subscribeToBroadcast<T = unknown>(
 
 /**
  * Send a message to a Broadcast channel.
+ * No-op if Supabase is not configured.
  */
 export function sendBroadcast<T = unknown>(
   channelName: string,
   type: string,
   payload: T
 ): void {
-  const supabase = createClient()
+  const supabase = getSupabaseClient()
+  if (!supabase) return
+
   supabase.channel(`broadcast-${channelName}`).send({
     type: 'broadcast',
     event: channelName,
@@ -104,13 +120,15 @@ export function sendBroadcast<T = unknown>(
 
 /**
  * Track user Presence on a channel.
+ * Returns null if Supabase is not configured.
  */
 export function trackPresence(
   channelName: string,
   user: { id: string; name: string; role?: string },
   state?: Record<string, unknown>
-): RealtimeChannel {
-  const supabase = createClient()
+): RealtimeChannel | null {
+  const supabase = getSupabaseClient()
+  if (!supabase) return null
 
   const channel = supabase.channel(`presence-${channelName}`, {
     config: { presence: { key: user.id } },
@@ -138,8 +156,12 @@ export function trackPresence(
 /**
  * Unsubscribe from a channel (cleanup).
  */
-export function unsubscribeChannel(channel: RealtimeChannel): void {
+export function unsubscribeChannel(channel: RealtimeChannel | null): void {
   if (channel) {
-    channel.unsubscribe()
+    try {
+      channel.unsubscribe()
+    } catch {
+      // Channel may already be closed
+    }
   }
 }

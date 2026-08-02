@@ -2,12 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { apiFetch } from '@/lib/api'
 
-// NOTE: Auth hydration is now handled by Supabase's onAuthStateChange
-// listener in Providers.tsx. The store is just a cache of the profile
-// data + a flag for SSR safety. Supabase manages the session (token)
-// in its own localStorage keys.
-
 // ─── Auth State ────────────────────────────────────────────────
+// Persisted in localStorage for instant restore on page load.
+// Token refresh happens silently in the background.
+
 interface AuthUser {
   id: string
   email: string
@@ -42,21 +40,39 @@ interface AuthState {
   _setHasHydrated: (v: boolean) => void
 }
 
-// Auth store always starts unauthenticated (safe for SSR).
-// Client-side hydration happens via Supabase onAuthStateChange in Providers.tsx.
-export const useAuthStore = create<AuthState>()((set) => ({
-  user: null,
-  isAuthenticated: false,
-  token: null,
-  _hasHydrated: false,
-  login: (user, token) => set({ user, isAuthenticated: true, token }),
-  logout: () => set({ user: null, isAuthenticated: false, token: null }),
-  updateUser: (updates) =>
-    set((state) => ({
-      user: state.user ? { ...state.user, ...updates } : null,
-    })),
-  _setHasHydrated: (v) => set({ _hasHydrated: v }),
-}))
+// Auth store — persisted to localStorage for instant restore.
+// _hasHydrated is excluded from persistence (always starts false on server).
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
+      token: null,
+      _hasHydrated: false,
+      login: (user, token) => set({ user, isAuthenticated: true, token }),
+      logout: () => set({ user: null, isAuthenticated: false, token: null }),
+      updateUser: (updates) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...updates } : null,
+        })),
+      _setHasHydrated: (v) => set({ _hasHydrated: v }),
+    }),
+    {
+      name: 'meridian-auth',
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+        token: state.token,
+      }),
+      onRehydrateStorage: () => (state) => {
+        // Mark as hydrated immediately when localStorage restores
+        if (state) {
+          state._setHasHydrated(true)
+        }
+      },
+    }
+  )
+)
 
 // ─── Property State ──────────────────────────────────────────────
 export interface Property {

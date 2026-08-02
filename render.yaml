@@ -43,9 +43,21 @@ services:
       # 64+ char random string for signing access tokens
       - key: JWT_SECRET
         sync: false
+      # ── Node.js Memory ─────────────────────────────────────────────
+      # Limit V8 heap to 384MB (starter plan has 512MB total)
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=384"
+      # ── Supabase Realtime (optional) ────────────────────────────────
+      # Get from: Supabase Dashboard → Settings → API → anon public
+      # If not set, realtime features are disabled (app works fine)
+      - key: SUPABASE_ANON_KEY
+        sync: false
       # ── Next.js ────────────────────────────────────────────────────
       - key: NODE_ENV
         value: production
       - key: HOSTNAME
         value: "0.0.0.0"
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+    healthCheckPath: /api/health
     region: singapore # Closest to Nepal — lowest latency

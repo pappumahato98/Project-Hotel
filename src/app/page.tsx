@@ -10,6 +10,8 @@ const LoginPage = React.lazy(() => import('@/components/auth/login-page').then(m
 export default function Home() {
   const { isAuthenticated, _hasHydrated } = useAuthStore()
 
+  // With persisted auth store, hydration is near-instant (localStorage read).
+  // This loading state is only shown for the brief moment before zustand rehydrates.
   if (!_hasHydrated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
