@@ -231,7 +231,7 @@ export function PerformanceView() {
     color: d.avgAttendance >= 95 ? 'bg-emerald-500' : d.avgAttendance >= 90 ? 'bg-teal-500' : 'bg-amber-500',
   }))
 
-  const overallComputed = (attendanceScore + taskScore + (guestSatScore * 20) + punctualityScore) / 4
+  const overallComputed = (formAttendance + formTasks + (formGuestSat * 20) + formPunctuality) / 4
 
   function resetForm() {
     setFormEmployeeId('')

@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
   try {
     const data = await getOrSet('accounting:summary', async () => {
       // Fetch accounts, journal entries, type breakdown, and settings in parallel
-      const [accounts, journalEntries, accountTypeBreakdown, s] = await Promise.all([
+      // Settings may fail — use defaults as fallback
+      const [accounts, journalEntries, accountTypeBreakdown, settingsResult] = await Promise.all([
         db.ledgerAccount.findMany({
           include: {
             journalLines: {
@@ -35,9 +36,10 @@ export async function GET(req: NextRequest) {
           by: ['type'],
           _count: { type: true },
         }),
-        getSettingsMap(),
+        getSettingsMap().catch(() => ({} as Record<string, unknown>)),
       ])
 
+      const s = settingsResult as Record<string, unknown>
       const typeMap: Record<string, number> = {}
       for (const item of accountTypeBreakdown) {
         typeMap[item.type] = item._count.type
@@ -55,8 +57,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(data)
   } catch (error) {
-    console.error('Accounting API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch accounting data' }, { status: 500 })
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Accounting API error:', msg)
+    return NextResponse.json({ error: 'Failed to fetch accounting data', detail: msg.substring(0, 200) }, { status: 500 })
   }
 }
 

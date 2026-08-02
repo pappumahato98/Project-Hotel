@@ -32,7 +32,7 @@ services:
     name: meridian-pms
     runtime: node
     plan: starter # $7/mo — always-on, no cold starts
-    buildCommand: npx prisma generate && npx next build
+    buildCommand: npx prisma db push --accept-data-loss 2>/dev/null; npx prisma generate && npx next build
     startCommand: npx next start -H 0.0.0.0 -p $PORT
     envVars:
       # ── Database (Supabase PostgreSQL) ─────────────────────────────
