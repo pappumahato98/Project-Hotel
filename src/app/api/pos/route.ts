@@ -253,6 +253,7 @@ export async function GET(request: NextRequest) {
     result.menuItems = menuItems
     result.orders = orders
     result.guestReservations = formattedGuestReservations
+    result.outlets = restaurantOutlets.map(o => ({ id: o.id, name: o.name, type: o.type }))
   }
 
   // ─── Bar section ───
@@ -803,6 +804,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(updated)
     }
 
+    if (action === 'update_item_qty') {
+      const { itemId: updateItemId, quantity: newQty } = body
+      if (!updateItemId || !newQty || newQty < 1) {
+        return NextResponse.json({ error: 'Valid itemId and quantity required' }, { status: 400 })
+      }
+      const existingItem = await db.orderItem.findUnique({
+        where: { id: updateItemId },
+        include: { order: true },
+      })
+      if (!existingItem) {
+        return NextResponse.json({ error: 'Order item not found' }, { status: 404 })
+      }
+      const itemTotal = existingItem.unitPrice * newQty
+      await db.orderItem.update({
+        where: { id: updateItemId },
+        data: { quantity: newQty, totalPrice: itemTotal },
+      })
+      // Recalculate order totals
+      const allItems = await db.orderItem.findMany({ where: { orderId: existingItem.orderId } })
+      const newTotal = allItems.reduce((s, i) => s + i.totalPrice, 0)
+      const updated = await db.posOrder.update({
+        where: { id: existingItem.orderId },
+        data: { totalAmount: newTotal, taxAmount: Math.round(newTotal * taxRateDecimal) },
+      })
+      broadcastEvent('order:item_updated', { itemId: updateItemId, quantity: newQty })
+      afterMutation('pos')
+      return NextResponse.json(updated)
+    }
+
     if (action === 'update_item_status') {
       const { itemId, status: itemStatus } = body
       const updated = await db.orderItem.update({
@@ -821,16 +851,6 @@ export async function POST(request: NextRequest) {
         data: { status },
       })
       broadcastEvent('pos:order_updated', updated)
-      return NextResponse.json(updated)
-    }
-
-    if (action === 'update_item_status') {
-      const { itemId, status: itemStatus } = body
-      const updated = await db.orderItem.update({
-        where: { id: itemId },
-        data: { status: itemStatus },
-      })
-      broadcastEvent('pos:item_updated', updated)
       return NextResponse.json(updated)
     }
 

@@ -5,7 +5,7 @@ import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth(req, ['admin', 'gm'])
+  const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
   try {
     const data = await getOrSet('accounting:summary', async () => {

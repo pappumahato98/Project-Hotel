@@ -886,10 +886,10 @@ export default function RestaurantView() {
 
   // Get the first restaurant outlet ID for creating orders
   const restaurantOutletId = useMemo(() => {
-    // We'll find it from tables — orders with tableId exist for restaurant outlets
-    if (orders.length > 0) return undefined // orders exist, we can infer the outlet
-    return undefined
-  }, [orders])
+    if (!data?.outlets) return ''
+    const restaurantOutlet = data.outlets.find((o: { type: string }) => o.type === 'restaurant')
+    return restaurantOutlet?.id || ''
+  }, [data])
 
   const handleSelectTable = (id: number) => {
     setSelectedTable(selectedTable === id ? null : id)
@@ -926,6 +926,7 @@ export default function RestaurantView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create_order',
+          outletId: restaurantOutletId,
           tableNumber: selectedTable!,
           guestCount: 1,
           items: [{ menuItemId: params.menuItemId, quantity: params.quantity }],
@@ -937,6 +938,26 @@ export default function RestaurantView() {
     },
     onError: () => {
       toast.error('Failed to create order')
+    },
+  })
+
+  const updateItemQtyMutation = useMutation({
+    mutationFn: async (params: { itemId: string; quantity: number }) => {
+      return apiFetch('/api/pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_item_qty',
+          itemId: params.itemId,
+          quantity: params.quantity,
+        }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos'] })
+    },
+    onError: () => {
+      toast.error('Failed to update quantity')
     },
   })
 
@@ -960,7 +981,7 @@ export default function RestaurantView() {
       handleRemoveItem(itemId)
       return
     }
-    addItemMutation.mutate({ menuItemId: existingItem.menuItemId, quantity: newQty })
+    updateItemQtyMutation.mutate({ itemId, quantity: newQty })
   }
 
   const handleRemoveItem = (itemId: string) => {
