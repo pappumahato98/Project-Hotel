@@ -546,13 +546,9 @@ export function CheckInProcess({ onBack }: { onBack: () => void }) {
         toast.error('Please select a room')
         return
       }
-      if (roomRate <= 0) {
-        toast.error('Please set a valid room rate')
-        return
-      }
     }
     setCurrentStep(prev => Math.min(prev + 1, 3))
-  }, [currentStep, isDirectWalkIn, guestFirstName, guestLastName, selectedRoomId, roomRate])
+  }, [currentStep, isDirectWalkIn, guestFirstName, guestLastName, selectedRoomId])
 
   const handleBack = useCallback(() => {
     if (currentStep === 1) {
@@ -1190,6 +1186,28 @@ export function CheckInProcess({ onBack }: { onBack: () => void }) {
             <h4 className="text-sm font-semibold">Rate Plan</h4>
           </div>
 
+          {/* No rate plans configured — show editable custom rate */}
+          {ratePlans.length === 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-400">No rate plans configured for this room type. Enter a custom rate below.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-xs whitespace-nowrap">Rate/night</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={roomRate || ''}
+                  onChange={e => setRoomRate(Math.max(0, parseFloat(e.target.value) || 0))}
+                  placeholder="Enter room rate"
+                  className="h-8 text-sm tabular-nums"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Rate plan comparison cards */}
           {ratePlans.length > 1 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
@@ -1228,7 +1246,7 @@ export function CheckInProcess({ onBack }: { onBack: () => void }) {
           )}
 
           {/* Single rate plan dropdown */}
-          {ratePlans.length <= 1 && ratePlans.length > 0 && (
+          {ratePlans.length === 1 && (
             <Select value={selectedRatePlanId} onValueChange={handleRatePlanChange}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder="Select rate plan" />
@@ -1244,10 +1262,26 @@ export function CheckInProcess({ onBack }: { onBack: () => void }) {
           )}
 
           {/* Inline subtotal */}
-          {roomRate > 0 && (
+          {(roomRate > 0 || ratePlans.length === 0) && (
             <div className="flex items-center justify-between mt-2 p-2 rounded-lg bg-muted/30">
               <span className="text-xs text-muted-foreground">Subtotal ({nights} nights)</span>
               <span className="font-semibold text-teal-600 dark:text-teal-400 tabular-nums">{formatCurrency(subtotal)}</span>
+            </div>
+          )}
+
+          {/* Custom rate override (always available) */}
+          {ratePlans.length > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <Label className="text-xs whitespace-nowrap">Custom rate</Label>
+              <Input
+                type="number"
+                min={0}
+                step={100}
+                value={roomRate || ''}
+                onChange={e => setRoomRate(Math.max(0, parseFloat(e.target.value) || 0))}
+                placeholder="Override rate"
+                className="h-8 text-xs tabular-nums"
+              />
             </div>
           )}
         </Card>
