@@ -593,7 +593,7 @@ function PageBreadcrumb({ activeModule, activeSubModule }: { activeModule: strin
 
   return (
     <nav aria-label="Page breadcrumb" className="flex items-center gap-1.5 text-sm min-w-0">
-      <navItem.icon className={cn('size-4 shrink-0', navItem.color)} />
+      {navItem.icon && <navItem.icon className={cn('size-4 shrink-0', navItem.color)} />}
       {hasChildren && subLabel ? (
         <>
           <button
