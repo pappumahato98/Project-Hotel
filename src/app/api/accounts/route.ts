@@ -1,0 +1,167 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { getOrSet, afterMutation } from '@/lib/cache'
+import { broadcastEvent } from '@/lib/broadcast'
+import { requireAuth } from '@/lib/security/auth-helpers'
+
+const VALID_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'] as const
+
+type AccountType = (typeof VALID_TYPES)[number]
+
+export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req)
+  if (auth instanceof NextResponse) return auth
+
+  try {
+    const { searchParams } = req.nextUrl
+    const type = searchParams.get('type') as AccountType | null
+    const search = searchParams.get('search')?.trim() || ''
+    const active = searchParams.get('active') // 'true' | 'false' | null (null = all)
+
+    const where: Record<string, unknown> = {}
+    if (type && VALID_TYPES.includes(type)) {
+      where.type = type
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { code: { contains: search } },
+        { description: { contains: search } },
+      ]
+    }
+    if (active !== null && active !== undefined && active !== '') {
+      where.active = active === 'true'
+    }
+
+    const accounts = await db.ledgerAccount.findMany({
+      where,
+      include: {
+        _count: { select: { journalLines: true } },
+      },
+      orderBy: [{ type: 'asc' }, { code: 'asc' }],
+    })
+
+    // Compute per-account balance from posted journal lines (single query)
+    const accountIds = accounts.map((a) => a.id)
+    const balanceMap: Record<string, { totalDebit: number; totalCredit: number; balance: number }> = {}
+    if (accountIds.length > 0) {
+      const balances = await db.journalEntryLine.groupBy({
+        by: ['accountId'],
+        where: {
+          accountId: { in: accountIds },
+          entry: { status: 'posted' },
+        },
+        _sum: { debit: true, credit: true },
+      })
+      for (const b of balances) {
+        const totalDebit = b._sum.debit ?? 0
+        const totalCredit = b._sum.credit ?? 0
+        balanceMap[b.accountId] = { totalDebit, totalCredit, balance: 0 }
+      }
+    }
+
+    // Group by type + compute typeBreakdown
+    const grouped: Record<string, typeof accounts> = {}
+    const typeBreakdown: Record<string, number> = { asset: 0, liability: 0, equity: 0, revenue: 0, expense: 0 }
+    for (const a of accounts) {
+      if (!grouped[a.type]) grouped[a.type] = []
+      grouped[a.type].push(a)
+      if (typeBreakdown[a.type] !== undefined) typeBreakdown[a.type]++
+    }
+
+    return NextResponse.json({
+      accounts,
+      grouped,
+      balanceMap,
+      typeBreakdown,
+      totalCount: accounts.length,
+    })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Accounts GET error:', msg)
+    return NextResponse.json({ error: 'Failed to fetch accounts', detail: msg.substring(0, 200) }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req, ['admin', 'gm', 'manager'])
+  if (auth instanceof NextResponse) return auth
+
+  try {
+    const body = await req.json()
+    const { id, name, description, active, department, subtype } = body
+
+    if (!id) {
+      return NextResponse.json({ error: 'Account id is required' }, { status: 400 })
+    }
+
+    const data: Record<string, unknown> = {}
+    if (name !== undefined) data.name = name
+    if (description !== undefined) data.description = description
+    if (active !== undefined) data.active = active
+    if (department !== undefined) data.department = department
+    if (subtype !== undefined) data.subtype = subtype
+
+    const account = await db.ledgerAccount.update({
+      where: { id },
+      data,
+      include: {
+        _count: { select: { journalLines: true } },
+      },
+    })
+
+    afterMutation('accounting')
+    broadcastEvent('account:updated', account)
+    return NextResponse.json(account)
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Accounts PATCH error:', msg)
+    return NextResponse.json({ error: 'Failed to update account', detail: msg.substring(0, 200) }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req, ['admin', 'gm', 'manager'])
+  if (auth instanceof NextResponse) return auth
+
+  try {
+    const body = await req.json()
+    const { code, name, type, description, department, subtype } = body
+
+    if (!code || !name || !type) {
+      return NextResponse.json({ error: 'code, name, and type are required' }, { status: 400 })
+    }
+
+    if (!VALID_TYPES.includes(type)) {
+      return NextResponse.json({ error: `Invalid account type. Must be one of: ${VALID_TYPES.join(', ')}` }, { status: 400 })
+    }
+
+    // Validate code uniqueness
+    const existing = await db.ledgerAccount.findUnique({ where: { code } })
+    if (existing) {
+      return NextResponse.json({ error: `Account with code '${code}' already exists` }, { status: 409 })
+    }
+
+    const account = await db.ledgerAccount.create({
+      data: {
+        code: code.trim(),
+        name: name.trim(),
+        type,
+        description: description?.trim() || null,
+        department: department?.trim() || null,
+        subtype: subtype?.trim() || null,
+      },
+      include: {
+        _count: { select: { journalLines: true } },
+      },
+    })
+
+    afterMutation('accounting')
+    broadcastEvent('account:created', account)
+    return NextResponse.json(account, { status: 201 })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error('Accounts POST error:', msg)
+    return NextResponse.json({ error: 'Failed to create account', detail: msg.substring(0, 200) }, { status: 500 })
+  }
+}

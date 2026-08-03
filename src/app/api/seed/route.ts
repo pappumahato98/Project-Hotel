@@ -1020,21 +1020,82 @@ export async function POST(req: NextRequest) {
       counts.supportTickets = tickets.length
     }
 
-    // ── r) Ledger Accounts (10) ────────────────────────────────────────────
+    // ── r) Ledger Accounts (40+ hospitality accounts) ───────────────
     const existingLedger = await db.ledgerAccount.count()
     let ledgerMap: Record<string, string> = {}
     if (existingLedger === 0) {
       const accounts = [
-        { code: '1000', name: 'Cash on Hand', type: 'asset', description: 'Physical cash at front desk and cashier' },
-        { code: '1100', name: 'Bank Account — Nabil', type: 'asset', description: 'Primary operating bank account' },
-        { code: '1200', name: 'Accounts Receivable', type: 'asset', description: 'Outstanding guest and city ledger balances' },
-        { code: '2000', name: 'Accounts Payable', type: 'liability', description: 'Amounts owed to vendors and suppliers' },
-        { code: '2100', name: 'Advance Deposits', type: 'liability', description: 'Prepayments received for future stays' },
-        { code: '3000', name: 'Owner Equity', type: 'equity', description: "Owner's capital investment" },
-        { code: '4000', name: 'Room Revenue', type: 'revenue', description: 'Revenue from room rentals' },
-        { code: '4100', name: 'F&B Revenue', type: 'revenue', description: 'Revenue from food and beverage outlets' },
-        { code: '5000', name: 'Salary & Wages', type: 'expense', description: 'Employee compensation' },
-        { code: '5100', name: 'Utilities Expense', type: 'expense', description: 'Electricity, water, gas, internet' },
+        // ASSETS (1xxx)
+        { code: '1000', name: 'Cash on Hand', type: 'asset', subtype: 'cash', description: 'Physical cash at front desk and cashier' },
+        { code: '1010', name: 'Cash in Safe', type: 'asset', subtype: 'cash', description: 'Cash stored in hotel safe' },
+        { code: '1100', name: 'Bank Account Nabil', type: 'asset', subtype: 'bank', description: 'Primary operating bank account — Nabil Bank' },
+        { code: '1101', name: 'Bank Account NIC Asia', type: 'asset', subtype: 'bank', description: 'Secondary bank account — NIC Asia Bank' },
+        { code: '1200', name: 'Accounts Receivable', type: 'asset', subtype: 'receivable', department: 'Front Office', description: 'Outstanding guest and city ledger balances' },
+        { code: '1201', name: 'City Ledger Receivable', type: 'asset', subtype: 'receivable', description: 'Corporate account receivables' },
+        { code: '1210', name: 'Credit Card Receivable', type: 'asset', subtype: 'receivable', description: 'Credit card settlements pending' },
+        { code: '1220', name: 'OTA Receivables', type: 'asset', subtype: 'receivable', description: 'Online Travel Agent receivables' },
+        { code: '1300', name: 'Advances to Staff', type: 'asset', subtype: 'receivable', department: 'HR', description: 'Employee salary advances' },
+        { code: '1310', name: 'Prepaid Expenses', type: 'asset', subtype: 'current', description: 'Prepaid insurance, rent, subscriptions' },
+        { code: '1400', name: 'Food & Beverage Inventory', type: 'asset', subtype: 'current', department: 'F&B', description: 'Raw food, beverages, and supplies inventory' },
+        { code: '1411', name: 'Laundry Supplies', type: 'asset', subtype: 'current', department: 'Laundry', description: 'Detergents, chemicals, linens for laundry' },
+        { code: '1420', name: 'Housekeeping Supplies', type: 'asset', subtype: 'current', department: 'Housekeeping', description: 'Cleaning agents, amenities, guest supplies' },
+        { code: '1430', name: 'Gift Shop Inventory', type: 'asset', subtype: 'current', description: 'Merchandise and goods for sale' },
+        { code: '1500', name: 'Furniture & Fixtures', type: 'asset', subtype: 'non_current', description: 'Hotel furniture and fixtures' },
+        { code: '1510', name: 'Equipment', type: 'asset', subtype: 'non_current', description: 'Kitchen, HVAC, and other equipment' },
+        { code: '1520', name: 'Buildings', type: 'asset', subtype: 'non_current', description: 'Hotel building and structures' },
+        { code: '1530', name: 'Land', type: 'asset', subtype: 'non_current', description: 'Land on which hotel is built' },
+        { code: '1540', name: 'Accumulated Depreciation', type: 'asset', subtype: 'non_current', description: 'Contra-asset: cumulative depreciation of fixed assets' },
+
+        // LIABILITIES (2xxx)
+        { code: '2000', name: 'Accounts Payable', type: 'liability', subtype: 'payable', description: 'Amounts owed to vendors and suppliers' },
+        { code: '2010', name: 'Accrued Expenses', type: 'liability', subtype: 'payable', description: 'Accrued but unpaid expenses' },
+        { code: '2020', name: 'Tax Payable (VAT)', type: 'liability', subtype: 'payable', description: 'VAT collected from guests, payable to IRD' },
+        { code: '2030', name: 'Tax Payable (Income Tax/TDS)', type: 'liability', subtype: 'payable', description: 'Income tax and TDS liabilities' },
+        { code: '2040', name: 'Staff Advances Payable', type: 'liability', subtype: 'payable', department: 'HR', description: 'Staff salary advance deductions payable' },
+        { code: '2050', name: 'Advance Deposits', type: 'liability', subtype: 'payable', description: 'Prepayments received for future stays' },
+        { code: '2060', name: 'Deferred Revenue', type: 'liability', subtype: 'payable', description: 'Revenue received in advance' },
+        { code: '2100', name: 'Long-term Loans', type: 'liability', subtype: 'non_current', description: 'Bank loans and long-term borrowings' },
+
+        // EQUITY (3xxx)
+        { code: '3000', name: 'Owner Capital', type: 'equity', subtype: 'equity_account', description: "Owner's capital investment" },
+        { code: '3010', name: 'Retained Earnings', type: 'equity', subtype: 'equity_account', description: 'Accumulated retained earnings' },
+
+        // REVENUE (4xxx)
+        { code: '4000', name: 'Room Revenue', type: 'revenue', subtype: 'revenue_account', department: 'Front Office', description: 'Revenue from room rentals' },
+        { code: '4010', name: 'Room Revenue — Corporate', type: 'revenue', subtype: 'revenue_account', department: 'Front Office', description: 'Corporate negotiated room rates revenue' },
+        { code: '4020', name: 'F&B Revenue — Restaurant', type: 'revenue', subtype: 'revenue_account', department: 'F&B', description: 'Restaurant food and beverage revenue' },
+        { code: '4030', name: 'F&B Revenue — Bar', type: 'revenue', subtype: 'revenue_account', department: 'F&B', description: 'Bar beverage and snack revenue' },
+        { code: '4040', name: 'F&B Revenue — Room Service', type: 'revenue', subtype: 'revenue_account', department: 'F&B', description: 'In-room dining revenue' },
+        { code: '4050', name: 'Banquet & Events Revenue', type: 'revenue', subtype: 'revenue_account', department: 'Events', description: 'Banquet hall and event hosting revenue' },
+        { code: '4060', name: 'Spa Revenue', type: 'revenue', subtype: 'revenue_account', department: 'Spa', description: 'Spa treatments and wellness revenue' },
+        { code: '4070', name: 'Laundry Revenue', type: 'revenue', subtype: 'revenue_account', department: 'Laundry', description: 'Guest and commercial laundry services' },
+        { code: '4080', name: 'Business Center Revenue', type: 'revenue', subtype: 'revenue_account', description: 'Business center services revenue' },
+        { code: '4090', name: 'Gift Shop Revenue', type: 'revenue', subtype: 'revenue_account', description: 'Gift shop merchandise sales' },
+        { code: '4100', name: 'Other Revenue', type: 'revenue', subtype: 'revenue_account', department: 'Miscellaneous', description: 'Miscellaneous operating revenue' },
+        { code: '4110', name: 'Commission Income', type: 'revenue', subtype: 'revenue_account', description: 'Commission earned from travel agents, tours' },
+        { code: '4120', name: 'Interest Income', type: 'revenue', subtype: 'revenue_account', description: 'Interest earned on bank deposits' },
+
+        // EXPENSES (5xxx)
+        { code: '5000', name: 'Salary & Wages', type: 'expense', subtype: 'expense_account', department: 'HR', description: 'Employee base compensation' },
+        { code: '5010', name: 'Overtime Pay', type: 'expense', subtype: 'expense_account', department: 'HR', description: 'Overtime compensation' },
+        { code: '5020', name: 'Employee Benefits', type: 'expense', subtype: 'expense_account', department: 'HR', description: 'Provident fund, insurance, allowances' },
+        { code: '5030', name: 'Training Expenses', type: 'expense', subtype: 'expense_account', department: 'HR', description: 'Staff training and development' },
+        { code: '5100', name: 'F&B Cost of Goods Sold', type: 'expense', subtype: 'expense_account', department: 'F&B', description: 'Cost of food and beverage ingredients' },
+        { code: '5110', name: 'Laundry Expenses', type: 'expense', subtype: 'expense_account', department: 'Laundry', description: 'Laundry supplies, outsourced laundry costs' },
+        { code: '5120', name: 'Purchase Cost — Gift Shop', type: 'expense', subtype: 'expense_account', description: 'Cost of goods sold for gift shop' },
+        { code: '5200', name: 'Utilities — Electricity', type: 'expense', subtype: 'expense_account', description: 'Electricity charges' },
+        { code: '5201', name: 'Utilities — Water', type: 'expense', subtype: 'expense_account', description: 'Water supply charges' },
+        { code: '5202', name: 'Utilities — Internet & Phone', type: 'expense', subtype: 'expense_account', description: 'Internet, telephone, and ISP charges' },
+        { code: '5203', name: 'Utilities — Gas', type: 'expense', subtype: 'expense_account', description: 'LPG and natural gas charges' },
+        { code: '5300', name: 'Repairs & Maintenance', type: 'expense', subtype: 'expense_account', department: 'Maintenance', description: 'Building and equipment repairs' },
+        { code: '5310', name: 'Housekeeping Supplies Expense', type: 'expense', subtype: 'expense_account', department: 'Housekeeping', description: 'Consumable housekeeping supplies' },
+        { code: '5400', name: 'Marketing & Advertising', type: 'expense', subtype: 'expense_account', description: 'Digital marketing, print, and promotions' },
+        { code: '5500', name: 'Depreciation Expense', type: 'expense', subtype: 'expense_account', description: 'Depreciation of fixed assets' },
+        { code: '5600', name: 'Insurance', type: 'expense', subtype: 'expense_account', description: 'Property, liability, and other insurance' },
+        { code: '5700', name: 'Office Supplies & Printing', type: 'expense', subtype: 'expense_account', description: 'Stationery, printing, and office supplies' },
+        { code: '5800', name: 'Travel & Entertainment', type: 'expense', subtype: 'expense_account', description: 'Business travel and guest entertainment' },
+        { code: '5900', name: 'Bank Charges & Interest', type: 'expense', subtype: 'expense_account', description: 'Bank fees, service charges, loan interest' },
+        { code: '5999', name: 'Miscellaneous Expenses', type: 'expense', subtype: 'expense_account', description: 'Other miscellaneous operating expenses' },
       ]
 
       for (const a of accounts) {
@@ -1047,21 +1108,27 @@ export async function POST(req: NextRequest) {
       for (const a of existing) ledgerMap[a.code] = a.id
     }
 
-    // ── s) Journal Entries (5) ────────────────────────────────────────────
+    // ── s) Journal Entries (5 existing + 4 new) ─────────────────────────
     const existingJournals = await db.journalEntry.count()
     if (existingJournals === 0) {
       // Need at least some ledger accounts
       if (Object.keys(ledgerMap).length > 0) {
         const cashId = ledgerMap['1000']
         const bankId = ledgerMap['1100']
-        const arId = ledgerMap['1200']
         const apId = ledgerMap['2000']
-        const depositId = ledgerMap['2100']
-        const equityId = ledgerMap['3000']
+        const depositId = ledgerMap['2050']
         const roomRevId = ledgerMap['4000']
-        const fbRevId = ledgerMap['4100']
+        const fbRestId = ledgerMap['4020']
+        const fbBarId = ledgerMap['4030']
+        const otaReceivableId = ledgerMap['1220']
+        const commissionId = ledgerMap['4110']
         const salaryId = ledgerMap['5000']
-        const utilityId = ledgerMap['5100']
+        const utilityElecId = ledgerMap['5200']
+        const utilityWaterId = ledgerMap['5201']
+        const utilityNetId = ledgerMap['5202']
+        const utilityGasId = ledgerMap['5203']
+        const depreciationId = ledgerMap['5500']
+        const spaId = ledgerMap['4060']
 
         const journalEntries: {
           date: Date
@@ -1081,14 +1148,14 @@ export async function POST(req: NextRequest) {
             status: 'posted',
             createdBy: 'Kamal Basnet',
             lines: [
-              { accountId: cashId, debit: 125000, credit: 0, narration: 'Room revenue collected' },
+              { accountId: cashId, debit: 125000, credit: 0, narration: 'Room revenue collected (cash)' },
               { accountId: roomRevId, debit: 0, credit: 125000, narration: 'Room revenue earned' },
             ],
           })
         }
 
         // JE2: F&B revenue
-        if (cashId && fbRevId) {
+        if (cashId && fbRestId) {
           journalEntries.push({
             date: addDays(today, -1),
             description: 'F&B revenue — restaurant and bar sales',
@@ -1097,7 +1164,8 @@ export async function POST(req: NextRequest) {
             createdBy: 'Kamal Basnet',
             lines: [
               { accountId: cashId, debit: 45000, credit: 0, narration: 'F&B cash sales' },
-              { accountId: fbRevId, debit: 0, credit: 45000, narration: 'F&B revenue earned' },
+              { accountId: fbRestId, debit: 0, credit: 32000, narration: 'Restaurant revenue' },
+              { accountId: fbBarId, debit: 0, credit: 13000, narration: 'Bar revenue' },
             ],
           })
         }
@@ -1145,6 +1213,75 @@ export async function POST(req: NextRequest) {
               { accountId: depositId, debit: 0, credit: 75000, narration: 'Advance deposit liability' },
             ],
           })
+        }
+
+        // ── New Journal Entries referencing new accounts ─────────────────
+
+        // JE6: Spa revenue — treatments and packages
+        if (bankId && spaId) {
+          journalEntries.push({
+            date: addDays(today, -1),
+            description: 'Spa revenue — massage treatments and wellness packages',
+            reference: 'JE-SPA-' + fmtDate(addDays(today, -1)),
+            status: 'posted',
+            createdBy: 'Srijana Khadka',
+            lines: [
+              { accountId: bankId, debit: 35000, credit: 0, narration: 'Spa payments via card/transfer' },
+              { accountId: spaId, debit: 0, credit: 35000, narration: 'Spa treatments and packages revenue' },
+            ],
+          })
+        }
+
+        // JE7: OTA commission expense and receivable settlement
+        if (otaReceivableId && commissionId && bankId) {
+          journalEntries.push({
+            date: addDays(today, -2),
+            description: 'OTA settlement — Booking.com net of 15% commission',
+            reference: 'JE-OTA-001',
+            status: 'posted',
+            createdBy: 'Kamal Basnet',
+            lines: [
+              { accountId: bankId, debit: 85000, credit: 0, narration: 'OTA payout received (net)' },
+              { accountId: commissionId, debit: 15000, credit: 0, narration: 'OTA commission expense (15%)' },
+              { accountId: otaReceivableId, debit: 0, credit: 100000, narration: 'OTA receivable settled' },
+            ],
+          })
+        }
+
+        // JE8: Utility payments — electricity, water, internet, gas
+        if (bankId && utilityElecId && utilityWaterId && utilityNetId && utilityGasId) {
+          journalEntries.push({
+            date: addDays(today, -5),
+            description: 'Monthly utility payments — NEA, NWSC, WorldLink, HP Gas',
+            reference: 'JE-UTIL-' + todayStr.slice(0, 7),
+            status: 'posted',
+            createdBy: 'Kamal Basnet',
+            lines: [
+              { accountId: utilityElecId, debit: 45000, credit: 0, narration: 'NEA electricity bill' },
+              { accountId: utilityWaterId, debit: 12000, credit: 0, narration: 'NWSC water supply' },
+              { accountId: utilityNetId, debit: 8500, credit: 0, narration: 'WorldLink internet service' },
+              { accountId: utilityGasId, debit: 6500, credit: 0, narration: 'HP Gas LPG supply' },
+              { accountId: bankId, debit: 0, credit: 72000, narration: 'Utility payments via bank transfer' },
+            ],
+          })
+        }
+
+        // JE9: Monthly depreciation — furniture, equipment, building
+        if (depreciationId) {
+          const accumDepId = ledgerMap['1540']
+          if (accumDepId) {
+            journalEntries.push({
+              date: addDays(today, -3),
+              description: 'Monthly depreciation — fixed assets',
+              reference: 'JE-DEPR-' + todayStr.slice(0, 7),
+              status: 'posted',
+              createdBy: 'Kamal Basnet',
+              lines: [
+                { accountId: depreciationId, debit: 75000, credit: 0, narration: 'Monthly depreciation expense' },
+                { accountId: accumDepId, debit: 0, credit: 75000, narration: 'Accumulated depreciation — contra asset' },
+              ],
+            })
+          }
         }
 
         for (const je of journalEntries) {

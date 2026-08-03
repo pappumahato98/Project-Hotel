@@ -4,10 +4,14 @@ import { useNavigationStore } from '@/lib/store'
 import { LedgerView } from './LedgerView'
 import { JournalView } from './JournalView'
 import { FinancialReportsView } from './FinancialReportsView'
-import { BudgetView } from './BudgetView'
 import { InvoicesView } from './InvoicesView'
+import { BudgetView } from './BudgetView'
 import { TrialBalanceView } from './TrialBalanceView'
 import { CashFlowView } from './CashFlowView'
+import { AccountsReceivableView } from './AccountsReceivableView'
+import { AccountsPayableView } from './AccountsPayableView'
+import { ReconciliationView } from './ReconciliationView'
+import { PeriodCloseView } from './PeriodCloseView'
 
 export default function AccountingModule() {
   const { activeSubModule } = useNavigationStore()
@@ -19,14 +23,22 @@ export default function AccountingModule() {
       return <JournalView />
     case 'reports':
       return <FinancialReportsView />
-    case 'budget':
-      return <BudgetView />
     case 'invoices':
       return <InvoicesView />
+    case 'budget':
+      return <BudgetView />
     case 'trial-balance':
       return <TrialBalanceView />
     case 'cash-flow':
       return <CashFlowView />
+    case 'accounts-receivable':
+      return <AccountsReceivableView />
+    case 'accounts-payable':
+      return <AccountsPayableView />
+    case 'reconciliation':
+      return <ReconciliationView />
+    case 'period-close':
+      return <PeriodCloseView />
     default:
       return <LedgerView />
   }

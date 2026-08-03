@@ -250,3 +250,264 @@ Stage Summary:
 - 1 file modified: src/components/modules/accounting/FinancialReportsView.tsx
 - Note: `prisma db push` already added to Vercel/Render build commands in commit 6ec89da to sync new schema tables (PerformanceReview, TrainingSession, etc.) to production DB
 - User should commit, push, and clear browser cache to resolve stale chunk issues
+
+---
+Task ID: 3-a
+Agent: Accounting API Builder
+Task: Build core accounting backend APIs (accounts CRUD, enhanced journal entries, auto-posting engine, account statements)
+
+Work Log:
+- Created /api/accounts/route.ts with GET (list with type/search/active filters, journalLines count, grouped by type), PATCH (update name/description/active/department/subtype), POST (create with code uniqueness validation, type validation against asset/liability/equity/revenue/expense)
+- Created /api/accounts/[id]/route.ts with GET (full details + last 50 journal lines), DELETE (soft-delete: active=false, 400 if already inactive)
+- Rewrote /api/accounting/route.ts: GET now supports filters (status, startDate, endDate, sourceModule, search), pagination (page/limit), includes lines with account info, computes totalDebit/totalCredit per entry. POST validates double-entry balance (0.01 tolerance), validates account existence/active, supports sourceModule/sourceId
+- Rewrote /api/accounting/[id]/route.ts: GET returns balanced flag. PATCH handles line replace/add/remove with re-validation, blocks posted/voided entries. New POST handler posts draft entries (status→posted, sets postedBy/postedAt), admin/gm/manager only. DELETE now voids (status→voided) instead of hard-deleting
+- Created /api/accounting/post/route.ts: Auto-posting engine accepting {module, action, data}. Supports 8 module types (room_revenue, pos_revenue, payroll, inventory_po, events, night_audit, invoice_payment, folio_settlement). Each generates proper DR/CR journal entries using account code constants (1000 Cash, 1200 AR, 1300 Card AR, 2000 AP, 2100 VAT, 4000 Room Rev, 4100 F&B Rev, 4400 Events Rev, 4500 Other Rev, 5000 Salary, 5300 Inventory). Supports reverse action (swaps DR↔CR). Auto-posts entries immediately.
+- Created /api/accounting/statement/route.ts: GET with accountId, startDate, endDate params. Computes opening balance (posted lines before startDate), running balance per line (account-type-aware), closing balance, total debits/credits. Uses Prisma.JournalEntryWhereInput for type-safe queries.
+
+Stage Summary:
+- 4 new files, 2 rewritten files
+- All endpoints use requireAuth, db, afterMutation('accounting'), broadcastEvent
+- Double-entry balance validation with 0.01 tolerance throughout
+- Proper HTTP status codes (200, 201, 400, 404, 409, 500)
+- Lint passes cleanly (0 errors, 0 warnings)
+
+---
+Task ID: 3-c
+Agent: Financial Reports API Builder
+Task: Build financial reporting API routes for the accounting module
+
+Work Log:
+- Created /api/reports/profit-loss/route.ts (P&L / Income Statement):
+  - GET with startDate, endDate, optional department filter
+  - Fetches posted journal entries in date range, groups revenue/expense by account
+  - Revenue sections: room (40xx/41xx), F&B (410xx/42xx), events (44xx), other
+  - Expense sections: salaries (50xx/51xx), utilities (52xx), F&B cost (53xx), marketing (54xx), maintenance (55xx), admin (56xx), depreciation (57xx), other
+  - Computes Total Revenue, Total Expenses, GOP, NOI
+  - Department filter scopes to accounts matching department field
+  - Cached 2 minutes with date+department key
+
+- Created /api/reports/balance-sheet/route.ts:
+  - GET with asOfDate param, fetches posted entries up to that date
+  - Assets: Current (cash 100x, bank 110x, receivables 120-131x, inventory 140-144x, prepayments 150-153x) and Non-Current (fixed 160-163x, equipment 170-173x, furniture 180-182x, depreciation 190-193x)
+  - Liabilities: Current (payables 200-203x, tax 210-213x, advances 220-222x, accrued 230-233x) and Non-Current (long-term loans 250-252x)
+  - Equity: all equity-type accounts
+  - Returns isBalanced flag, balanceDifference
+  - Cached 2 minutes with asOfDate key
+
+- Created /api/reports/night-audit/route.ts:
+  - GET with date param (YYYY-MM-DD)
+  - Room revenue from FolioTransactions (type=room), F&B from PosOrders (closed/served)
+  - Payments from FolioPayments grouped by method (cash, card, etc.)
+  - Outstanding folios: batch-fetched via groupBy (no N+1), computed charges - payments
+  - Total AR from JournalEntry lines for accounts with code starting '12'
+  - Cash on hand from accounts with code starting '100'
+  - Room occupancy from Room model status counts
+  - Parallel Promise.all for independent queries, 60s cache
+
+- Created /api/reports/ar-aging/route.ts:
+  - GET: fetches all open folios with balance > 0
+  - Ages from checkout date: Current (0-30d), 31-60, 61-90, 90+
+  - Also fetches unpaid/overdue invoices (sales type, Sent/Partially Paid/Overdue status)
+  - Groups folio items by guest with per-guest aging totals
+  - Returns separate unpaidInvoices array and agingSummary
+  - Batch-fetches folio transactions/payments via groupBy (no N+1)
+
+- Created /api/reports/ap-aging/route.ts:
+  - GET: fetches approved/delivered/partial PurchaseOrders and purchase-type unpaid invoices
+  - Ages from PO date or invoice due date into 4 buckets
+  - Groups by vendor, sorted by total balance descending
+  - Returns vendor groups with per-vendor aging, plus agingSummary
+
+- Created /api/reports/vat/route.ts:
+  - GET with startDate, endDate
+  - Identifies VAT accounts by code starting '21' or name containing VAT/Tax/GST
+  - Classifies as output (210/211, 'output'/'collected'/'payable') vs input (212/213, 'input'/'paid'/'receivable')
+  - Falls back to net balance direction for ambiguous accounts
+  - Cross-verifies with FolioTransactions.taxAmount + PosOrder.taxAmount vs journal output VAT
+  - Returns verification array with match/variance per source
+
+- Rewrote /api/trial-balance/route.ts:
+  - Added optional startDate/endDate query params (all-time if not provided)
+  - Only includes posted entries in date range
+  - Returns accounts grouped by type (asset, liability, equity, revenue, expense) in sections
+  - Each account shows debitTotal, creditTotal, netBalance (absolute), balanceNature (debit/credit/zero)
+  - Section-level totals (debit, credit, netBalance)
+  - isBalanced check (totalDebit vs totalCredit within 0.01)
+  - balanceDifference field
+  - Cached 2 minutes with date range key
+
+Stage Summary:
+- 7 files created/rewritten: 6 new report routes + 1 enhanced trial-balance
+- All endpoints use requireAuth, db, getOrSet cache
+- All use relative paths only, proper TypeScript interfaces
+- Balance calculations: asset/expense = debit-credit, liability/equity/revenue = credit-debit
+- Account classification uses code prefix matching + keyword matching with fallback
+- Optimized queries: batch groupBy instead of N+1, Promise.all for parallel independent queries
+- Lint passes cleanly (0 errors, 0 warnings)
+- No TypeScript errors in src/ files
+
+---
+Task ID: 3-d
+Agent: Operational Accounting API Builder
+Task: Build operational accounting APIs — invoices full CRUD, enhanced budget with variance, period close, reconciliation, and updated seed with 40+ accounts
+
+Work Log:
+- Rewrote /api/invoices/route.ts with full CRUD:
+  - GET: List invoices with filters (status, type, search, date range). Includes lineItems. Stats: totalOutstanding, totalOverdue, overdueCount, countsByType, countsByStatus.
+  - POST: Create invoice with line items. Auto-generates invoice number (INV-YYYYMMDD-NNN) if not provided, with uniqueness check. Calculates subtotal/tax/total from line items. Status defaults to 'Draft'. Validates type, line item fields.
+  - PATCH: Update invoice. Handles status transitions. When status → 'Paid', auto-creates journal entry: DR Bank/Cash CR AR (sales) or DR AP CR Bank (purchase). Uses sourceModule='invoice_payment', sourceId=invoice.id. Supports lineItems replacement.
+  - DELETE: Cancel invoice (status → 'Cancelled'). Blocks cancellation of paid invoices (suggests credit note).
+- Created /api/invoices/[id]/route.ts with GET/PATCH/DELETE for single invoice operations. Same status transition logic and auto journal entry creation on payment.
+- Rewrote /api/budget/route.ts with enhanced variance analysis:
+  - GET: Enriches each budget with actuals computed from journal entry lines (if accountId linked). Computes variance (actual - budgeted), variancePct, isOverBudget, isUnderRevenue. Groups by department and fiscal year with department-level variance %. Summary stats.
+  - POST: Validates fiscalYear (YYYY), period format (YYYY-MM, YYYY-QN, YYYY-HN, YYYY), non-negative amount.
+  - PATCH: Accepts { action: 'update_actuals' } to recalculate actualAmount from posted journal lines for the budget's account and period. Period-aware date range parsing for monthly/quarterly/half-year/full-year.
+- Created /api/periods/route.ts — Accounting Period Management:
+  - GET: List periods with posted/draft journal entry counts per period. Summary stats (open/closed counts).
+  - POST: Create period. Validates no overlapping open periods, no duplicate period identifiers, valid periodType (month/quarter/year), endDate > startDate.
+  - PATCH: Close period with { action: 'close' }. Verifies trial balance is balanced (computed from posted journal lines in date range). Stores openingTrialBalance as JSON. Auto-closes all open sub-periods when closing a year.
+- Created /api/reconciliation/route.ts — Bank Reconciliation:
+  - GET: List with filters (status, accountId). Includes account info. Stats: pending/reconciled/discrepancy counts, total discrepancy amount.
+  - POST: Create reconciliation. Auto-computes book balance from posted journal lines. Calculates difference (statement - book). Auto-marks as 'reconciled' if difference < 0.01.
+  - PATCH: Accepts { action: 'complete' } to finalize. Accepts adjustments array to record discrepancy items. Recalculates book balance with adjustments. Sets reconciledBy/reconciledAt.
+- Updated seed file /api/seed/route.ts:
+  - Replaced 10 ledger accounts with 62 hospitality-specific accounts across 5 categories: Assets (19: cash, bank, receivables, inventory, fixed assets, contra-asset), Liabilities (9: payables, tax, advances, loans), Equity (2), Revenue (13: room, F&B, spa, laundry, events, other), Expenses (19: salary, COGS, utilities, maintenance, depreciation, other). All with proper subtype and department fields.
+  - Updated existing 5 journal entries to use new account codes (F&B split into Restaurant 4020 + Bar 4030, deposit moved to 2050).
+  - Added 4 new journal entries: JE6 Spa Revenue (4060), JE7 OTA Commission Settlement (1220/4110), JE8 Utility Payments (5200/5201/5202/5203), JE9 Depreciation (5500/1540). Total: 9 journal entries, all balanced.
+
+Stage Summary:
+- 2 files rewritten (invoices/route.ts, budget/route.ts, seed/route.ts)
+- 3 files created (invoices/[id]/route.ts, periods/route.ts, reconciliation/route.ts)
+- All endpoints use requireAuth, db, getOrSet/afterMutation('accounting'), broadcastEvent
+- All use relative paths only, proper TypeScript types and error handling
+- Double-entry balance maintained in all auto-generated journal entries
+- Lint passes cleanly (0 errors, 0 warnings)
+
+---
+Task ID: 4-a
+Agent: LedgerView Rewriter
+Task: Complete rewrite of LedgerView.tsx — Chart of Accounts & Account Statements
+
+Work Log:
+- Enhanced /api/accounts GET endpoint to return:
+  - `balanceMap`: per-account totalDebit/totalCredit computed via single groupBy query on posted journal lines
+  - `typeBreakdown`: count per account type { asset, liability, equity, revenue, expense }
+  - `totalCount`: total account count
+  - Kept existing `grouped` and `total` for backward compatibility
+- Complete rewrite of LedgerView.tsx (949 lines) with two tabs:
+  **Tab 1 — Chart of Accounts:**
+  - 6 KPI cards: Total, Assets, Liabilities, Equity, Revenue, Expenses (with colored type badges)
+  - Filter bar: search by code/name, type dropdown (shadcn Select), department dropdown (derived from data), active/inactive status dropdown, clear-all button
+  - Table with columns: Code, Name, Type (colored badge), Subtype, Department, Balance (type-aware: asset/expense=DR-CR, liability/equity/revenue=CR-DR), Status badge, Line Count, Actions dropdown
+  - Group by account type with expandable/collapsible section headers (all expanded by default)
+  - Type badge colors: asset=blue, liability=amber, equity=green, revenue=emerald, expense=red
+  - "Add Account" button → dialog with: type dropdown (triggers auto-code suggestion), code, subtype dropdown (contextual per type), name, department, description
+  - Edit account dialog (code/type read-only, editable name/subtype/department/description)
+  - Deactivate/reactivate via dropdown actions (DELETE / PATCH active=true)
+  - Loading skeletons, error state with retry, empty state with CTA
+  **Tab 2 — Account Statements:**
+  - Account selector dropdown (active accounts from separate query)
+  - Date range picker (start/end date inputs, defaults to current month)
+  - Balance summary cards: Opening Balance, Total Debits, Total Credits, Closing Balance
+  - Transaction table: Date, Reference, Description (+ narration sub-line), Debit, Credit, running Balance
+  - Running balance color: green positive, red negative
+  - CSV export (downloads with account code, period, header rows)
+  - Print-friendly button (window.print)
+  - Empty state, loading skeletons, error state
+- All mutations use useMutation from @tanstack/react-query with toast notifications
+- Cache invalidation on create/update/deactivate/reactivate
+- Responsive: hides Subtype/Department/LineCount columns on small screens
+
+Stage Summary:
+- 2 files modified: /api/accounts/route.ts (enhanced GET), LedgerView.tsx (complete rewrite)
+- No files outside scope touched
+- Lint passes cleanly (0 errors, 0 warnings)
+- 949 lines, production-quality with proper TypeScript interfaces, loading/error/empty states
+- All currency display uses formatNPR from @/lib/utils
+
+---
+Task ID: 4-b
+Agent: Accounting Enhancer
+Task: Complete rewrite of JournalView.tsx with full double-entry bookkeeping features
+
+Work Log:
+- Rewrote /src/components/modules/accounting/JournalView.tsx (866 lines) as a complete replacement
+- Header section with title, count, and "New Journal Entry" button
+- Comprehensive filter bar: status (all/draft/posted/voided), date range (popover with start/end), source module (all/manual/front_desk/pos/payroll/inventory/events/night_audit/invoice_payment/folio_settlement), search by description/reference
+- Journal entries table with: Date, Reference, Description, Source Module badge, Status badge (draft=yellow, posted=green, voided=red), Total Amount, Created By, Actions (view/edit)
+- Expandable rows showing inline line preview (account code/name, narration, debit, credit)
+- Click row to open detail Sheet; expand arrow for inline preview
+- Pagination with page controls and showing X-Y of Z
+- Create/Edit Dialog with: Date, Description, Reference, Source Module dropdown, Status selector (Draft/Post Immediately)
+- Dynamic lines table with searchable account select, debit/credit inputs, narration, remove button
+- Real-time balance validation: green check when balanced, red badge when not, can't save if unbalanced
+- View Detail Sheet with full entry lines, balance indicator, posting audit info (postedBy, postedAt)
+- Sheet actions: Post (if draft), Void (if posted), Edit (if draft)
+- Auto-Posting Integration Panel: collapsible section showing module badges (Room Revenue, F&B, Payroll, Inventory, Events, Night Audit) with counts, click to filter
+- All mutations: create (POST /api/accounting), update (PATCH /api/accounting/{id}), post (POST /api/accounting/{id}), void (DELETE /api/accounting/{id})
+- Loading skeletons, error state with retry, empty state with clear-filters option
+- Responsive design with mobile-first approach
+- Uses all required shadcn/ui components: Card, Table, Badge, Dialog, Sheet, Popover, Collapsible, Tooltip, Separator, Skeleton, ScrollArea, Select, Input, Button, Label
+
+Stage Summary:
+- JournalView fully rewritten with all requested features
+- Lint passes cleanly
+- 866 lines, production quality with proper loading/error/empty states
+
+---
+Task ID: 4-c
+Agent: Financial Reports Rewriter
+Task: Complete rewrite of FinancialReportsView.tsx - Financial Reports hub with 5 report types
+
+Work Log:
+- Completely rewrote /src/components/modules/accounting/FinancialReportsView.tsx (1161 lines)
+- Removed old recharts-based P&L + Balance Sheet approach (computed client-side from /api/accounting)
+- Replaced with proper 5-report architecture calling dedicated API endpoints
+- Report type selector: Card grid layout with icon, label, and description for each report type
+- Filter area: Dynamic based on report type (date range vs single date, department select for P&L, account dropdown for statements)
+- Default to current month date range
+- Generate button triggers useQuery with proper query key per report type
+- 5 sub-components within file:
+  - ProfitLossReport: KPI cards (Revenue, Expenses, GOP, NOI) + detailed revenue/expense rows + highlighted bottom-line with margin percentages + variance indicators with arrows
+  - BalanceSheetReport: Two-column layout (Assets vs Liabilities+Equity), current/non-current sub-sections, balance verification badge (balanced/not balanced)
+  - NightAuditReport: Shift/date badges, 3 revenue cards, payment method breakdown, outstanding folios, AR total, cash on hand, occupancy progress bar
+  - VatReport: Output/Input/Net VAT summary cards, detail table with scrollable max-h-96, totals row
+  - AccountStatementReport: Opening/closing balance header, debit/credit summary cards, transaction table with running balance, color-coded positive/negative
+- All currency formatting uses formatNPR from @/lib/utils
+- TypeScript interfaces for all API response shapes (PLResponse, BalanceSheetResponse, NightAuditResponse, VatResponse, StatementResponse)
+- Loading skeleton, error state with retry, empty state, and no-account-selected state
+- Responsive: card grid adapts from 1 to 5 columns, table scrolls with max-h-96
+- Uses shadcn/ui: Card, Button, Badge, Skeleton, Separator, Input, Select, Table
+- Lint passes cleanly (0 errors, 0 warnings)
+
+Stage Summary:
+- FinancialReportsView completely rewritten as a multi-report hub
+- 5 distinct report types with dedicated sub-components
+- Production quality with proper loading/error/empty states
+- API-driven (no client-side computation) with useQuery + apiFetch
+
+---
+Task ID: 4-d through 4-h
+Agent: Accounting Views Builder
+Task: Rewrite/create 8 accounting view files (BudgetView, InvoicesView, TrialBalanceView, CashFlowView, AccountsReceivableView, AccountsPayableView, ReconciliationView, PeriodCloseView)
+
+Work Log:
+- Rewrote BudgetView.tsx (~310 lines): Added 4 KPI cards (Total Budgeted, Total Actual, Total Variance, Variance %), 3 filters (fiscalYear dropdown with current/next year, department dropdown from data, status dropdown), budget table with checkbox selection for bulk Update Actuals action, searchable account select from /api/accounts in create/edit dialog with period month picker (2025-01 through 2025-12), variance coloring (green favorable, red unfavorable), responsive column hiding
+- Rewrote InvoicesView.tsx (~340 lines): Added search filter, date range filters (start/end), Balance column, Invoice # click-to-view, Record Payment dialog (enters amount, auto-sets status to Paid/Partially Paid), Mark as Sent/Overdue action buttons, line item auto-totaling in create dialog, error/loading/empty states
+- Rewrote TrialBalanceView.tsx (~180 lines): Added date range filter (startDate, endDate) defaulting to current month, Generate button, table grouped by account type (Assets, Liabilities, Equity, Revenue, Expenses) with section headers and subtotals, Balance Nature column (Dr=blue, Cr=amber), grand total row with balanced/unbalanced badge, CSV export
+- Rewrote CashFlowView.tsx (~250 lines): Added 3 summary KPI cards (Beginning Cash, Net Cash Flow, Ending Cash), expandable category sections with chevron toggle, progress bar visual for inflows/outflows per category, waterfall summary with bar-width visualization using div widths, period selector
+- Created AccountsReceivableView.tsx (~230 lines): 5 KPI cards (Total AR, Current 0-30d, 31-60, 61-90, Over 90), expandable aging table by guest showing folio/invoice detail rows, overdue highlighting (red background), Send Reminder toast action, CSV export, unpaid invoices summary section
+- Created AccountsPayableView.tsx (~230 lines): 5 KPI cards (Total AP, Current, 31-60, 61-90, Over 90), expandable aging table by vendor showing PO/invoice detail rows, PO/Invoice count column, Process Payment toast action, CSV export, summary footer with PO/Invoice balance breakdown
+- Created ReconciliationView.tsx (~340 lines): 3 KPI cards (Reconciled/Pending/Discrepancy counts), reconciliation list with account/bank/statement date/balances/difference, Create dialog with account dropdown (bank-like accounts filtered), View/Edit dialog with balance summary cards, add adjustment items, mark as complete action, status badges (pending=amber, reconciled=green, discrepancy=red), audit info display
+- Created PeriodCloseView.tsx (~280 lines): 4 KPI cards (Total Periods, Open, Closed, Latest Open), period list with type/start/end/posted entries/draft entries/status, current period highlighting, Open New Period dialog with auto-suggest period name based on type and start date, Close Period confirmation dialog with unposted entries warning (amber) and trial balance verification info (blue), audit trail section showing closed period history
+- Fixed lint parsing errors: single-line if/else without braces caused parser errors in 4 files; ReconciliationView had missing closing paren in useMemo filter callback
+
+Stage Summary:
+- 4 files rewritten: BudgetView, InvoicesView, TrialBalanceView, CashFlowView
+- 4 files created: AccountsReceivableView, AccountsPayableView, ReconciliationView, PeriodCloseView
+- All views use shadcn/ui components (Card, Table, Badge, Dialog, Select, Input, Button, Skeleton, Label, Textarea, Separator)
+- All currency display uses formatNPR from @/lib/utils
+- All mutations use apiFetch, useMutation from @tanstack/react-query, toast from sonner
+- All have loading skeletons, error states with retry, empty states with CTA
+- Responsive design with column hiding on smaller screens
+- Lint passes cleanly (0 errors, 0 warnings)

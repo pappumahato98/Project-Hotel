@@ -5,6 +5,7 @@ import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
+// ─── GET: List invoices with filters and stats ─────────────────────────
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
@@ -12,11 +13,28 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const type = searchParams.get('type')
+    const search = searchParams.get('search')?.trim()
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
 
-    const data = await getOrSet(`invoices:list:${status || ''}:${type || ''}`, async () => {
+    const cacheKey = `invoices:list:${status || ''}:${type || ''}:${search || ''}:${startDate || ''}:${endDate || ''}`
+
+    const data = await getOrSet(cacheKey, async () => {
       const where: Prisma.InvoiceWhereInput = {}
       if (status) where.status = status
       if (type) where.type = type
+      if (search) {
+        where.OR = [
+          { invoiceNumber: { contains: search, mode: 'insensitive' } },
+          { customerName: { contains: search, mode: 'insensitive' } },
+          { vendorName: { contains: search, mode: 'insensitive' } },
+        ]
+      }
+      if (startDate || endDate) {
+        where.date = {}
+        if (startDate) where.date.gte = new Date(startDate)
+        if (endDate) where.date.lte = new Date(endDate)
+      }
 
       const invoices = await db.invoice.findMany({
         where,
@@ -30,28 +48,46 @@ export async function GET(request: NextRequest) {
       })
 
       // Compute stats from all invoices matching the filter
-      const allInvoices = await db.invoice.findMany({ where, take: 1000 })
+      const allInvoices = await db.invoice.findMany({ where, take: 5000 })
       const totalInvoices = allInvoices.length
       const totalAmount = allInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0)
       const totalPaid = allInvoices.reduce((sum, inv) => sum + inv.paidAmount, 0)
       const totalOutstanding = totalAmount - totalPaid
 
-      const byType: Record<string, { count: number; amount: number; paid: number }> = {}
+      // Total overdue: invoices past due date and not paid
+      const now = new Date()
+      const overdueInvoices = allInvoices.filter(
+        (inv) => inv.dueDate && new Date(inv.dueDate) < now && inv.status !== 'Paid' && inv.status !== 'Cancelled',
+      )
+      const totalOverdue = overdueInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.paidAmount), 0)
+      const overdueCount = overdueInvoices.length
+
+      // Counts by type
+      const countsByType: Record<string, number> = {}
       for (const inv of allInvoices) {
-        const t = inv.type
-        if (!byType[t]) {
-          byType[t] = { count: 0, amount: 0, paid: 0 }
-        }
-        byType[t].count++
-        byType[t].amount += inv.totalAmount
-        byType[t].paid += inv.paidAmount
+        countsByType[inv.type] = (countsByType[inv.type] || 0) + 1
+      }
+
+      // Counts by status
+      const countsByStatus: Record<string, number> = {}
+      for (const inv of allInvoices) {
+        countsByStatus[inv.status] = (countsByStatus[inv.status] || 0) + 1
       }
 
       return {
         invoices,
-        stats: { totalInvoices, totalAmount, totalPaid, totalOutstanding, byType },
+        stats: {
+          totalInvoices,
+          totalAmount,
+          totalPaid,
+          totalOutstanding,
+          totalOverdue,
+          overdueCount,
+          countsByType,
+          countsByStatus,
+        },
       }
-    }, 120000) // Cache for 120s
+    }, 120) // Cache for 120s
 
     return NextResponse.json(data)
   } catch (error) {
@@ -60,6 +96,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ─── POST: Create invoice with line items ──────────────────────────────
 export async function POST(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
@@ -67,9 +104,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { invoiceNumber, type, vendorName, customerName, date, dueDate, lineItems, notes, createdBy } = body
 
-    if (!invoiceNumber || !type || !lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
+    // Validate required fields
+    if (!type || !lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields: invoiceNumber, type, lineItems (non-empty array)' },
+        { error: 'Missing required fields: type, lineItems (non-empty array)' },
         { status: 400 },
       )
     }
@@ -81,47 +119,90 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate each line item
+    // Validate line items
     for (const item of lineItems) {
-      if (!item.description || item.quantity === undefined || item.unitPrice === undefined || item.totalAmount === undefined) {
+      if (!item.description || item.quantity === undefined || item.unitPrice === undefined) {
         return NextResponse.json(
-          { error: 'Each line item requires: description, quantity, unitPrice, totalAmount' },
+          { error: 'Each line item requires: description, quantity, unitPrice' },
+          { status: 400 },
+        )
+      }
+      if (item.quantity <= 0 || item.unitPrice < 0) {
+        return NextResponse.json(
+          { error: 'Line item quantity must be > 0 and unitPrice must be >= 0' },
           { status: 400 },
         )
       }
     }
 
-    // Compute subtotal, taxAmount, totalAmount
-    const subtotal = lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    const taxAmount = lineItems.reduce((sum, item) => {
-      const lineSubtotal = item.quantity * item.unitPrice
-      const lineTax = lineSubtotal * (item.taxRate || 0) / 100
-      return sum + lineTax
-    }, 0)
+    // Auto-generate invoice number if not provided: INV-YYYYMMDD-NNN
+    let finalInvoiceNumber = invoiceNumber
+    if (!finalInvoiceNumber) {
+      const today = new Date()
+      const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '')
+      const todayStart = new Date(today)
+      todayStart.setHours(0, 0, 0, 0)
+      const todayCount = await db.invoice.count({
+        where: {
+          createdAt: { gte: todayStart },
+        },
+      })
+      finalInvoiceNumber = `INV-${dateStr}-${String(todayCount + 1).padStart(3, '0')}`
+
+      // Check uniqueness
+      const exists = await db.invoice.findUnique({ where: { invoiceNumber: finalInvoiceNumber } })
+      if (exists) {
+        finalInvoiceNumber = `INV-${dateStr}-${String(todayCount + 2).padStart(3, '0')}`
+      }
+    } else {
+      // Verify uniqueness of provided number
+      const exists = await db.invoice.findUnique({ where: { invoiceNumber: finalInvoiceNumber } })
+      if (exists) {
+        return NextResponse.json({ error: 'Invoice number already exists' }, { status: 409 })
+      }
+    }
+
+    // Calculate subtotal, tax, total from line items
+    const processedLines = lineItems.map((item: { description: string; quantity: number; unitPrice: number; taxRate?: number }) => {
+      const qty = parseFloat(String(item.quantity))
+      const price = parseFloat(String(item.unitPrice))
+      const taxRate = parseFloat(String(item.taxRate || 0))
+      const lineSubtotal = qty * price
+      const lineTax = lineSubtotal * taxRate / 100
+      const lineTotal = lineSubtotal + lineTax
+      return {
+        description: item.description,
+        quantity: qty,
+        unitPrice: price,
+        taxRate,
+        totalAmount: Math.round(lineTotal * 100) / 100,
+      }
+    })
+
+    const subtotal = processedLines.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+    const taxAmount = processedLines.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice * item.taxRate / 100,
+      0,
+    )
     const totalAmount = subtotal + taxAmount
 
     const record = await db.invoice.create({
       data: {
-        invoiceNumber,
+        invoiceNumber: finalInvoiceNumber,
         type,
         vendorName: vendorName || null,
         customerName: customerName || null,
         date: date ? new Date(date) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : null,
-        subtotal,
-        taxAmount,
-        totalAmount,
+        subtotal: Math.round(subtotal * 100) / 100,
+        taxAmount: Math.round(taxAmount * 100) / 100,
+        totalAmount: Math.round(totalAmount * 100) / 100,
         paidAmount: 0,
+        status: 'Draft',
         notes: notes || null,
         createdBy: createdBy || null,
         lineItems: {
-          create: lineItems.map((item: { description: string; quantity: number; unitPrice: number; taxRate: number; totalAmount: number }) => ({
-            description: item.description,
-            quantity: parseFloat(item.quantity),
-            unitPrice: parseFloat(item.unitPrice),
-            taxRate: parseFloat(item.taxRate || 0),
-            totalAmount: parseFloat(item.totalAmount),
-          })),
+          create: processedLines,
         },
       },
       include: { lineItems: true },
@@ -136,28 +217,38 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ─── PATCH: Update invoice with status transitions ─────────────────────
 export async function PATCH(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
   try {
     const body = await request.json()
-    const { id, status, paidAmount, notes, dueDate, vendorName, customerName } = body
+    const { id, status, paidAmount, notes, dueDate, vendorName, customerName, lineItems } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    if (status && !['Draft', 'Sent', 'Paid', 'Partially Paid', 'Overdue', 'Cancelled'].includes(status)) {
+    const validStatuses = ['Draft', 'Sent', 'Paid', 'Partially Paid', 'Overdue', 'Cancelled']
+    if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
-        { error: 'Invalid status. Must be Draft, Sent, Paid, Partially Paid, Overdue, or Cancelled' },
+        { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
         { status: 400 },
       )
     }
 
-    // Fetch current invoice to handle status-based logic
-    const current = await db.invoice.findUnique({ where: { id } })
+    // Fetch current invoice
+    const current = await db.invoice.findUnique({
+      where: { id },
+      include: { lineItems: true },
+    })
     if (!current) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    // Block updates on cancelled invoices
+    if (current.status === 'Cancelled') {
+      return NextResponse.json({ error: 'Cannot update a cancelled invoice' }, { status: 400 })
     }
 
     const data: Prisma.InvoiceUpdateInput = {}
@@ -165,16 +256,54 @@ export async function PATCH(request: NextRequest) {
     if (dueDate !== undefined) data.dueDate = dueDate ? new Date(dueDate) : null
     if (vendorName !== undefined) data.vendorName = vendorName || null
     if (customerName !== undefined) data.customerName = customerName || null
-    if (status !== undefined) data.status = status
 
-    // Handle paidAmount based on status change
-    if (status === 'Paid') {
-      // When marking as paid, set paidAmount to totalAmount
-      data.paidAmount = current.totalAmount
-    } else if (status === 'Partially Paid' && paidAmount !== undefined) {
-      data.paidAmount = parseFloat(paidAmount)
-    } else if (paidAmount !== undefined) {
-      data.paidAmount = parseFloat(paidAmount)
+    // Handle line items update: replace all line items
+    if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {
+      const processedLines = lineItems.map((item: { description: string; quantity: number; unitPrice: number; taxRate?: number }) => {
+        const qty = parseFloat(String(item.quantity))
+        const price = parseFloat(String(item.unitPrice))
+        const taxRate = parseFloat(String(item.taxRate || 0))
+        const lineSubtotal = qty * price
+        const lineTax = lineSubtotal * taxRate / 100
+        return {
+          description: item.description,
+          quantity: qty,
+          unitPrice: price,
+          taxRate,
+          totalAmount: Math.round((lineSubtotal + lineTax) * 100) / 100,
+        }
+      })
+
+      const newSubtotal = processedLines.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+      const newTaxAmount = processedLines.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice * item.taxRate / 100,
+        0,
+      )
+      data.subtotal = Math.round(newSubtotal * 100) / 100
+      data.taxAmount = Math.round(newTaxAmount * 100) / 100
+      data.totalAmount = Math.round((newSubtotal + newTaxAmount) * 100) / 100
+
+      // Delete existing and create new
+      await db.invoiceLineItem.deleteMany({ where: { invoiceId: id } })
+      data.lineItems = { create: processedLines }
+    }
+
+    // Handle status transitions
+    if (status !== undefined) {
+      data.status = status
+
+      if (status === 'Paid') {
+        data.paidAmount = current.totalAmount
+        // Auto-create journal entry for payment
+        await createPaymentJournalEntry(current, auth as { name?: string })
+      } else if (status === 'Partially Paid' && paidAmount !== undefined) {
+        data.paidAmount = parseFloat(paidAmount)
+      } else if (status === 'Sent') {
+        // Transition from Draft to Sent
+        if (current.status !== 'Draft') {
+          return NextResponse.json({ error: 'Only Draft invoices can be sent' }, { status: 400 })
+        }
+      }
     }
 
     const record = await db.invoice.update({
@@ -189,5 +318,117 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error('Invoices API PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 })
+  }
+}
+
+// ─── DELETE: Cancel invoice (soft delete) ──────────────────────────────
+export async function DELETE(request: NextRequest) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ error: 'Invoice ID is required (query param)' }, { status: 400 })
+    }
+
+    const current = await db.invoice.findUnique({ where: { id } })
+    if (!current) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+    }
+
+    if (current.status === 'Cancelled') {
+      return NextResponse.json({ error: 'Invoice is already cancelled' }, { status: 400 })
+    }
+
+    if (current.status === 'Paid') {
+      return NextResponse.json({ error: 'Cannot cancel a paid invoice. Create a credit note instead.' }, { status: 400 })
+    }
+
+    const record = await db.invoice.update({
+      where: { id },
+      data: { status: 'Cancelled' },
+      include: { lineItems: true },
+    })
+
+    afterMutation('accounting')
+    broadcastEvent('invoice:cancelled', record)
+    return NextResponse.json(record)
+  } catch (error) {
+    console.error('Invoices API DELETE error:', error)
+    return NextResponse.json({ error: 'Failed to cancel invoice' }, { status: 500 })
+  }
+}
+
+// ─── Helper: Auto-create journal entry for invoice payment ─────────────
+async function createPaymentJournalEntry(
+  invoice: { id: string; type: string; totalAmount: number; invoiceNumber: string },
+  user: { name?: string } | NextResponse,
+) {
+  try {
+    // Find the appropriate accounts
+    const isSales = invoice.type === 'sales' || invoice.type === 'debit_note'
+    const cashAccount = await db.ledgerAccount.findFirst({
+      where: { code: '1100', active: true }, // Bank Account Nabil
+    })
+    const cashFallback = cashAccount || (await db.ledgerAccount.findFirst({
+      where: { code: '1000', active: true }, // Cash on Hand
+    }))
+
+    let drAccountId: string | null = null
+    let crAccountId: string | null = null
+    let drNarration = ''
+    let crNarration = ''
+
+    if (isSales) {
+      // Sales invoice payment: DR Cash/Bank, CR Accounts Receivable
+      drAccountId = cashFallback?.id || null
+      const arAccount = await db.ledgerAccount.findFirst({
+        where: { code: '1200', active: true },
+      })
+      crAccountId = arAccount?.id || null
+      drNarration = `Payment received for ${invoice.invoiceNumber}`
+      crNarration = `AR settled for ${invoice.invoiceNumber}`
+    } else {
+      // Purchase invoice payment: DR Accounts Payable, CR Cash/Bank
+      const apAccount = await db.ledgerAccount.findFirst({
+        where: { code: '2000', active: true },
+      })
+      drAccountId = apAccount?.id || null
+      crAccountId = cashFallback?.id || null
+      drNarration = `AP settled for ${invoice.invoiceNumber}`
+      crNarration = `Payment made for ${invoice.invoiceNumber}`
+    }
+
+    if (!drAccountId || !crAccountId) {
+      console.warn('Could not find accounts for auto journal entry on invoice payment')
+      return
+    }
+
+    const amount = Math.round(invoice.totalAmount * 100) / 100
+
+    await db.journalEntry.create({
+      data: {
+        date: new Date(),
+        description: `Invoice payment — ${invoice.invoiceNumber}`,
+        reference: `JE-INV-PAY-${invoice.invoiceNumber}`,
+        status: 'posted',
+        sourceModule: 'invoice_payment',
+        sourceId: invoice.id,
+        createdBy: user && 'name' in user ? user.name : null,
+        postedBy: user && 'name' in user ? user.name : null,
+        postedAt: new Date(),
+        lines: {
+          create: [
+            { accountId: drAccountId, debit: amount, credit: 0, narration: drNarration },
+            { accountId: crAccountId, debit: 0, credit: amount, narration: crNarration },
+          ],
+        },
+      },
+    })
+  } catch (err) {
+    console.error('Failed to auto-create payment journal entry:', err)
+    // Don't fail the invoice update if journal entry creation fails
   }
 }

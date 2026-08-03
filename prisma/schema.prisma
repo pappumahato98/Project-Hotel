@@ -611,7 +611,9 @@ model LedgerAccount {
   code          String   @unique
   name          String
   type          String   // asset, liability, equity, revenue, expense
+  subtype       String?  // current, non_current, bank, cash, receivable, payable, equity_account, revenue_account, expense_account
   description   String?
+  department    String?  // cost center / department for departmental accounting
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
 
@@ -623,8 +625,12 @@ model JournalEntry {
   date          DateTime
   description   String
   reference     String?
-  status        String   @default("draft") // draft, posted
+  status        String   @default("draft") // draft, posted, voided
+  sourceModule  String?  // front_desk, pos, payroll, inventory, events, manual, night_audit, accounts_payable, accounts_receivable
+  sourceId      String?  // foreign key to source record (e.g. FolioTransaction.id, PosOrder.id)
   createdBy     String?
+  postedBy      String?
+  postedAt      DateTime?
   createdAt     DateTime @default(now())
 
   lines         JournalEntryLine[]
@@ -640,6 +646,47 @@ model JournalEntryLine {
 
   entry         JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   account       LedgerAccount @relation(fields: [accountId], references: [id])
+}
+
+// ─── ACCOUNTING PERIODS (Month-end / Year-end close) ─────
+model AccountingPeriod {
+  id            String   @id @default(cuid())
+  period        String   @unique  // e.g. "2025-07", "2025-Q3", "2025"
+  periodType    String              // month, quarter, year
+  startDate     DateTime
+  endDate       DateTime
+  status        String   @default("open") // open, closing, closed
+  closedBy      String?
+  closedAt      DateTime?
+  openingTrialBalance String?  // JSON snapshot of trial balance at close
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ─── RECONCILIATION ─────────────────────────────────────
+model Reconciliation {
+  id            String   @id @default(cuid())
+  accountId     String
+  accountName   String?
+  accountCode   String?
+  bankName      String?
+  statementDate DateTime?
+  statementBalance Float
+  bookBalance   Float
+  difference    Float
+  status        String   @default("pending") // pending, reconciled, discrepancy
+  reconciledBy  String?
+  reconciledAt  DateTime?
+  adjustments   String?  // JSON array of reconciliation adjustments
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([accountId])
+  @@index([status])
 }
 
 // ─── ATTENDANCE ───────────────────────────────────────────────
