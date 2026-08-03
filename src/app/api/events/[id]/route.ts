@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { postEventsRevenue } from '@/lib/accounting/auto-post'
 
 export async function GET(
   request: NextRequest,
@@ -55,6 +56,20 @@ export async function PATCH(
       where: { id },
       data,
     })
+
+    // Auto-post journal entry when event revenue is set and status is completed
+    if (body.totalRevenue !== undefined && body.totalRevenue > 0 && (body.status === 'completed' || body.status === 'confirmed')) {
+      const taxAmount = body.totalRevenue * 0.13 // assume 13% VAT
+      const netAmount = body.totalRevenue - taxAmount
+      const postedBy = `${auth.user.firstName} ${auth.user.lastName}`
+      postEventsRevenue({
+        eventId: id,
+        eventName: event.name || 'Event',
+        amount: netAmount,
+        taxAmount,
+        postedBy,
+      }).catch(() => {})
+    }
 
     broadcastEvent('event:updated', event)
     return NextResponse.json(event)

@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { postPeriodCloseEntries } from '@/lib/accounting/auto-post'
 
 // ─── GET: List accounting periods with journal entry counts ────────────
 export async function GET(request: NextRequest) {
@@ -231,6 +232,17 @@ export async function PATCH(request: NextRequest) {
 
       afterMutation('accounting')
       broadcastEvent('period:closed', record)
+
+      // Auto-post income/expense closing entries to Retained Earnings
+      const closedByName = `${auth.user.firstName} ${auth.user.lastName}`
+      postPeriodCloseEntries({
+        periodId: id,
+        period: period.period,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        closedBy: closedByName,
+      }).catch(() => {})
+
       return NextResponse.json({
         period: record,
         trialBalance,

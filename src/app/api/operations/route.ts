@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { postNightAuditSummary } from '@/lib/accounting/auto-post'
 
 // ─── Nepal timezone helper (UTC+5:45) ───────────────────────────
 function getNepalNow(): Date {
@@ -546,6 +547,21 @@ export async function POST(request: NextRequest) {
           revpar: data?.revpar ?? calculatedRevpar,
         },
       })
+
+      // Auto-post night audit summary to journal (fire-and-forget)
+      const postedBy = data?.startedBy || `${auth.user.firstName} ${auth.user.lastName}`
+      const netRoom = (data?.roomRevenue ?? roomRevenue)
+      const netFb = (data?.fAndBRevenue ?? fbRevenue)
+      const netOther = (data?.otherRevenue ?? otherRevenue)
+      const tax = (data?.totalTax ?? totalTax)
+      postNightAuditSummary({
+        roomRevenue: netRoom,
+        fbRevenue: netFb,
+        otherRevenue: netOther,
+        taxCollected: tax,
+        postedBy,
+      }).catch(() => {})
+
       return NextResponse.json({ success: true, audit })
     }
 

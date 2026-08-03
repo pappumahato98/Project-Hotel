@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { postRoomRevenue, postFolioCharge, postFolioSettlement } from '@/lib/accounting/auto-post'
 
 // POST: Post a new charge or record a payment
 export async function POST(
@@ -20,7 +21,8 @@ export async function POST(
       include: {
         transactions: true,
         payments: true,
-        reservation: { select: { creditLimit: true } },
+        reservation: { select: { creditLimit: true, id: true } },
+        guest: { select: { firstName: true, lastName: true } },
       },
     })
 
@@ -72,6 +74,15 @@ export async function POST(
 
         afterMutation('folio')
 
+        // Auto-post journal entry (fire-and-forget)
+        const guestName = `${folio.guest?.firstName || ''} ${folio.guest?.lastName || ''}`.trim() || 'Guest'
+        const postedBy = `${auth.user.firstName} ${auth.user.lastName}`
+        if (transactionType === 'room') {
+          postRoomRevenue({ folioId: id, reservationId: folio.reservationId, guestName, amount, taxAmount: calculatedTax, description, postedBy }).catch(() => {})
+        } else {
+          postFolioCharge({ folioId: id, guestName, transactionType, amount, taxAmount: calculatedTax, description, outlet, postedBy }).catch(() => {})
+        }
+
       } else if (type === 'payment') {
         const { paymentMethod, amount, reference, cardType, receivedBy } = data
 
@@ -101,6 +112,11 @@ export async function POST(
         })
 
         afterMutation('folio')
+
+        // Auto-post folio settlement (fire-and-forget)
+        const guestName = `${folio.guest?.firstName || ''} ${folio.guest?.lastName || ''}`.trim() || 'Guest'
+        const postedBy = `${auth.user.firstName} ${auth.user.lastName}`
+        postFolioSettlement({ folioId: id, guestName, paymentMethod, amount, postedBy }).catch(() => {})
       }
 
       // Return updated folio

@@ -768,6 +768,22 @@ export async function POST(request: NextRequest) {
       })
       broadcastEvent('order:closed', { orderId: closeOrderId, paymentMethod, finalAmount })
       afterMutation('pos')
+
+      // Auto-post POS revenue to journal (fire-and-forget)
+      const { postPosRevenue } = await import('@/lib/accounting/auto-post')
+      const outlet = await db.outlet.findUnique({ where: { id: existingOrder.outletId }, select: { name: true, code: true } })
+      const taxAmt = existingOrder.taxAmount || 0
+      const netAmt = (finalAmount || existingOrder.totalAmount) - taxAmt
+      const postedBy = auth ? `${auth.user.firstName} ${auth.user.lastName}` : 'System'
+      postPosRevenue({
+        orderId: closeOrderId,
+        outletName: outlet?.name || 'Unknown',
+        outletCode: outlet?.code || undefined,
+        amount: netAmt,
+        taxAmount: taxAmt,
+        postedBy,
+      }).catch(() => {})
+
       return NextResponse.json(updated)
     }
 

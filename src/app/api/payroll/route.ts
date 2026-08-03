@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { postPayroll } from '@/lib/accounting/auto-post'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, ['admin', 'gm'])
@@ -109,6 +110,21 @@ export async function PATCH(request: NextRequest) {
         processedAt: data.processedAt ? new Date(data.processedAt) : undefined,
       },
     })
+
+    // Auto-post journal entry when payroll is processed
+    if (data.status === 'processed' && record.netPay > 0) {
+      const grossPay = (record.baseSalary || 0) + (record.variablePay || 0) + (record.overtime || 0)
+      const postedBy = data.processedBy || `${auth.user.firstName} ${auth.user.lastName}`
+      postPayroll({
+        employeeName: record.employeeName,
+        department: record.department,
+        grossPay,
+        deductions: record.deductions,
+        netPay: record.netPay,
+        month: record.month,
+        postedBy,
+      }).catch(() => {})
+    }
 
     broadcastEvent('payroll:updated', record)
     afterMutation('hr')
