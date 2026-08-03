@@ -16,6 +16,9 @@ export default function Error({
   }, [error])
 
   const isAuthError = error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('Authentication')
+  const errorDetail = error.stack
+    ? error.stack.split('\n').slice(1, 4).map((s: string) => s.trim()).join('\n')
+    : null
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -33,9 +36,12 @@ export default function Error({
               : 'An unexpected error occurred. Please try refreshing the page.'}
           </p>
           {error.message && !isAuthError && (
-            <p className="text-xs font-mono text-muted-foreground/70 bg-muted/50 rounded-md p-2 mt-2 break-all">
-              {error.message}
-            </p>
+            <div className="text-xs font-mono text-muted-foreground/70 bg-muted/50 rounded-md p-2 mt-2 break-all">
+              <p>{error.message}</p>
+              {errorDetail && (
+                <pre className="mt-1.5 pt-1.5 border-t border-muted-foreground/20 text-[10px] whitespace-pre-wrap opacity-60">{errorDetail}</pre>
+              )}
+            </div>
           )}
         </div>
         <div className="flex gap-2">

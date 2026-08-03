@@ -105,7 +105,7 @@ function QuickSearchDialog() {
                   setQuery('')
                 }}
               >
-                <item.icon className="mr-2 size-4 text-muted-foreground" />
+                {item.icon && <item.icon className="mr-2 size-4 text-muted-foreground" />}
                 <span>{item.label}</span>
               </CommandItem>
               {item.children?.map((child) => (

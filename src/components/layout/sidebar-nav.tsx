@@ -64,7 +64,7 @@ function NavGroup({ item }: { item: NavItem }) {
           isActive={isActive}
           onClick={() => navigateTo(item.id)}
         >
-          <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />
+          {item.icon && <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />}
           <span>{item.label}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -87,7 +87,7 @@ function NavGroup({ item }: { item: NavItem }) {
             isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
           )}
         >
-          <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />
+          {item.icon && <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />}
           <span>{item.label}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -119,7 +119,7 @@ function NavGroup({ item }: { item: NavItem }) {
               isActive && 'bg-sidebar-accent text-sidebar-accent-foreground'
             )}
           >
-            <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />
+            {item.icon && <item.icon className={cn('size-4', isActive ? item.color : 'text-muted-foreground')} />}
             <span>{item.label}</span>
             <ChevronRight
               className={cn(
