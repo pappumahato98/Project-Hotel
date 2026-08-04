@@ -147,3 +147,26 @@ Work Log:
 Stage Summary:
 - All 11 accounting views now use shared AccountingError component
 - Auto-detection of table-missing errors with one-click setup
+
+---
+Task ID: 5
+Agent: Main Orchestrator
+Task: Fix accounting module tab pages "Failed to load" errors
+
+Work Log:
+- Investigated all 8 failing accounting pages: AR Aging, Invoices, Budgets, Trial Balance, Cash Flow, AP Aging, Reconciliation, Periods
+- Identified root cause: DATABASE_URL in .env was set to SQLite format (file:...db/custom.db) but Prisma schema declared provider="postgresql"
+- This caused Prisma Client to fail on every database query with: "Error validating datasource db: the URL must start with the protocol postgresql:// or postgresql://"
+- Financial Reports page appeared to work because it requires manual "Generate" click (doesn't auto-fetch)
+- Fixed Prisma schema: changed provider from "postgresql" to "sqlite" for local sandbox
+- Fixed 2 API routes using `mode: 'insensitive'` (not supported in SQLite): /api/invoices/route.ts, /api/pos/route.ts
+- Ran `prisma db push` to create SQLite database with all 54+ tables
+- Seeded database: admin user (admin@meridian.com), 55 chart of accounts, 1 accounting period, 1 sample budget
+- Verified ALL 8 API endpoints return valid JSON via curl with auth token
+- Verified `next build` compiles successfully
+- Verified `bun run lint` passes clean
+
+Stage Summary:
+- Root cause: DATABASE_URL / Prisma provider mismatch
+- All 8 accounting pages now load successfully
+- Changes: schema.prisma (provider), invoices/route.ts (removed insensitive), pos/route.ts (removed insensitive)

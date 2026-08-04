@@ -25,9 +25,9 @@ export async function GET(request: NextRequest) {
       if (type) where.type = type
       if (search) {
         where.OR = [
-          { invoiceNumber: { contains: search, mode: 'insensitive' } },
-          { customerName: { contains: search, mode: 'insensitive' } },
-          { vendorName: { contains: search, mode: 'insensitive' } },
+          { invoiceNumber: { contains: search } },
+          { customerName: { contains: search } },
+          { vendorName: { contains: search } },
         ]
       }
       if (startDate || endDate) {

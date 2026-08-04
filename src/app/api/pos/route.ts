@@ -360,7 +360,7 @@ export async function GET(request: NextRequest) {
 
     // Therapists from Employee records in Spa department
     const therapists = await db.employee.findMany({
-      where: { department: { contains: 'Spa', mode: 'insensitive' }, status: 'active' },
+      where: { department: { contains: 'Spa' }, status: 'active' },
       orderBy: { firstName: 'asc' },
     })
     const formattedTherapists: Therapist[] = therapists.map((e) => ({
