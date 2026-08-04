@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { AccountingError } from './AccountingErrorBoundary'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -135,10 +136,7 @@ export function TrialBalanceView() {
       {isLoading ? (
         <Skeleton className="h-10 w-full" />
       ) : error ? (
-        <Card className="p-4 flex items-center justify-between">
-          <p className="text-xs text-red-500">Failed to generate trial balance</p>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>Retry</Button>
-        </Card>
+        <AccountingError error={error} onRetry={() => refetch()} title="Failed to generate trial balance" />
       ) : data && (
         <div className={cn(
           'flex items-center gap-3 rounded-md border p-3',

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { formatNPR, cn } from '@/lib/utils'
+import { AccountingError } from './AccountingErrorBoundary'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -1135,12 +1136,7 @@ export function FinancialReportsView() {
       ) : isLoading ? (
         <ReportSkeleton />
       ) : isError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 p-6 text-center">
-          <XCircle className="h-8 w-8 mx-auto text-red-500 mb-2" />
-          <p className="text-sm font-medium text-red-600">Failed to load report</p>
-          <p className="text-xs text-red-500/70 mt-1">{error?.message || 'Unknown error occurred'}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={handleGenerate}>Retry</Button>
-        </div>
+        <AccountingError error={error} onRetry={handleGenerate} title="Failed to load report" />
       ) : !reportData ? (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
           <FileText className="h-10 w-10 mb-3 opacity-40" />

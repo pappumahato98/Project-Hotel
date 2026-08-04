@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { formatNPR, cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { AccountingError } from './AccountingErrorBoundary'
 import {
   Card, CardContent, CardHeader, CardTitle,
 } from '@/components/ui/card'
@@ -201,7 +202,7 @@ export function LedgerView() {
     staleTime: 60_000,
   })
 
-  const { data: statementData, isLoading: statementLoading, error: statementError } = useQuery<StatementResponse>({
+  const { data: statementData, isLoading: statementLoading, error: statementError, refetch: statementRefetch } = useQuery<StatementResponse>({
     queryKey: ['account-statement', statementAccountId, startDate, endDate],
     queryFn: () => {
       const params = new URLSearchParams({ accountId: statementAccountId, startDate, endDate })
@@ -496,10 +497,7 @@ export function LedgerView() {
 
           {/* Error state */}
           {error && (
-            <Card className="p-6 text-center">
-              <p className="text-sm text-red-600 dark:text-red-400">Failed to load accounts</p>
-              <Button variant="outline" size="sm" className="mt-2" onClick={() => refetch()}>Retry</Button>
-            </Card>
+            <AccountingError error={error} onRetry={() => refetch()} title="Failed to load accounts" />
           )}
 
           {/* Accounts Table — grouped by type */}
@@ -712,10 +710,7 @@ export function LedgerView() {
               )
               : statementError
                 ? (
-                  <Card className="p-6 text-center">
-                    <p className="text-sm text-red-600 dark:text-red-400">Failed to load statement</p>
-                    <p className="text-xs text-muted-foreground mt-1">Check that the account and date range are valid</p>
-                  </Card>
+                  <AccountingError error={statementError} onRetry={() => statementRefetch()} title="Failed to load statement" />
                 )
                 : statementData && (
                   <Card className="print:shadow-none print:border-none">

@@ -14,6 +14,7 @@ import {
   ChevronDown, ChevronUp, Loader2,
 } from 'lucide-react'
 
+import { AccountingError } from './AccountingErrorBoundary'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -183,7 +184,7 @@ export function JournalView() {
     return p.toString()
   }, [statusFilter, startDate, endDate, sourceModule, search, page])
 
-  const { data, isLoading, isError } = useQuery<{ entries: JournalEntry[]; pagination: Pagination }>({
+  const { data, isLoading, isError, error } = useQuery<{ entries: JournalEntry[]; pagination: Pagination }>({
     queryKey: ['journal-entries', queryParams],
     queryFn: () => apiFetch(`/api/accounting?${queryParams}`),
   })
@@ -488,11 +489,8 @@ export function JournalView() {
                   ))
                 ) : isError ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-32 text-center">
-                      <p className="text-sm text-destructive">Failed to load journal entries</p>
-                      <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={() => queryClient.invalidateQueries({ queryKey: ['journal-entries'] })}>
-                        Retry
-                      </Button>
+                    <TableCell colSpan={9}>
+                      <AccountingError error={error} onRetry={() => queryClient.invalidateQueries({ queryKey: ['journal-entries'] })} title="Failed to load journal entries" />
                     </TableCell>
                   </TableRow>
                 ) : entries.length === 0 ? (

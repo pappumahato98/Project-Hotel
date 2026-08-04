@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { AccountingError } from './AccountingErrorBoundary'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -239,10 +240,7 @@ export function ReconciliationView() {
           {Array.from({ length: 3 }).map((_, i) => <Card key={i} className="p-3"><Skeleton className="h-14 w-full" /></Card>)}
         </div>
       ) : error ? (
-        <Card className="p-4 flex items-center justify-between">
-          <p className="text-xs text-red-500">Failed to load reconciliations</p>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>Retry</Button>
-        </Card>
+        <AccountingError error={error} onRetry={() => refetch()} title="Failed to load reconciliations" />
       ) : (
         <div className="grid grid-cols-3 gap-2">
           <Card className="p-3">

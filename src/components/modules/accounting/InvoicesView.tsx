@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { AccountingError } from './AccountingErrorBoundary'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -276,10 +277,7 @@ export function InvoicesView() {
           ))}
         </div>
       ) : error ? (
-        <Card className="p-4 flex items-center justify-between">
-          <p className="text-xs text-red-500">Failed to load invoices</p>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => refetch()}>Retry</Button>
-        </Card>
+        <AccountingError error={error} onRetry={() => refetch()} title="Failed to load invoices" />
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <Card className="p-3">

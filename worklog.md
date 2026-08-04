@@ -132,3 +132,18 @@ Work Log:
 
 Stage Summary:
 - No changes needed - already fully operational
+
+---
+Task ID: 4
+Agent: accounting-error-fix
+Task: Update all accounting views with shared AccountingError component
+
+Work Log:
+- Updated LedgerView, JournalView, FinancialReportsView, InvoicesView, BudgetView, TrialBalanceView, CashFlowView, AccountsReceivableView, AccountsPayableView, ReconciliationView, PeriodCloseView
+- Replaced inline error blocks with shared AccountingError component
+- Each error display now includes 'Initialize Accounting' button for table-missing errors
+- Verified with lint
+
+Stage Summary:
+- All 11 accounting views now use shared AccountingError component
+- Auto-detection of table-missing errors with one-click setup

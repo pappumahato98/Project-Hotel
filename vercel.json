@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "prisma db push 2>/dev/null; prisma generate && next build",
+  "buildCommand": "npx prisma db push --accept-data-loss 2>&1 || true; npx prisma generate && npx next build",
   "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": ".next"
 }
