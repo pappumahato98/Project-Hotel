@@ -224,7 +224,7 @@ export async function postFolioCharge(params: {
 
   try {
     // Map transaction type to revenue account code
-    let revenueCode = ACCT.OTHER_REVENUE
+    let revenueCode: string = ACCT.OTHER_REVENUE
     if (transactionType === 'f_and_b') {
       // Try to determine specific F&B account based on outlet
       const outletLower = (outlet || '').toLowerCase()
@@ -282,7 +282,7 @@ export async function postFolioSettlement(params: {
 
   try {
     // Determine debit account based on payment method
-    let debitAccountCode = ACCT.CASH
+    let debitAccountCode: string = ACCT.CASH
     if (['visa', 'mastercard', 'amex'].includes(paymentMethod.toLowerCase())) {
       debitAccountCode = ACCT.CARD_RECEIVABLE
     } else if (paymentMethod === 'bank_transfer') {
@@ -333,7 +333,7 @@ export async function postPosRevenue(params: {
 
   try {
     // Determine revenue account based on outlet code
-    let revenueCode = ACCT.FB_RESTAURANT
+    let revenueCode: string = ACCT.FB_RESTAURANT
     const code = (outletCode || outletName || '').toLowerCase()
     if (code.includes('bar') || code.includes('lounge')) revenueCode = ACCT.FB_BAR
     else if (code.includes('spa')) revenueCode = ACCT.SPA_REVENUE

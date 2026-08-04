@@ -109,7 +109,7 @@ export async function PATCH(
 
       if (status === 'Paid') {
         data.paidAmount = current.totalAmount
-        await createPaymentJournalEntry(current, auth)
+        await createPaymentJournalEntry(current, auth.firstName ? `${auth.firstName} ${auth.lastName || ''}`.trim() : 'System')
       } else if (status === 'Partially Paid' && paidAmount !== undefined) {
         data.paidAmount = parseFloat(paidAmount)
       } else if (status === 'Sent' && current.status !== 'Draft') {
@@ -176,7 +176,7 @@ export async function DELETE(
 // ─── Helper: Auto-create journal entry for invoice payment ─────────────
 async function createPaymentJournalEntry(
   invoice: { id: string; type: string; totalAmount: number; invoiceNumber: string },
-  user: { name?: string } | NextResponse,
+  userName: string,
 ) {
   try {
     const isSales = invoice.type === 'sales' || invoice.type === 'debit_note'
@@ -225,8 +225,8 @@ async function createPaymentJournalEntry(
         status: 'posted',
         sourceModule: 'invoice_payment',
         sourceId: invoice.id,
-        createdBy: user && 'name' in user ? user.name : null,
-        postedBy: user && 'name' in user ? user.name : null,
+        createdBy: userName,
+        postedBy: userName,
         postedAt: new Date(),
         lines: {
           create: [

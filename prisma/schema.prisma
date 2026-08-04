@@ -1206,6 +1206,8 @@ model Invoice {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  lineItems       InvoiceLineItem[]
+
   @@index([status])
   @@index([type])
   @@index([date])
@@ -1221,6 +1223,8 @@ model InvoiceLineItem {
   totalAmount   Float
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  invoice       Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
 }

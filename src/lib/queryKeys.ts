@@ -119,8 +119,8 @@ export function invalidateAfterFolioChange(qc: QueryClient, guestId?: string | n
     qk.dashboard(), qk.frontDeskDashboard(),
   ])
   if (guestId) {
-    qc.invalidateQueries({ queryKey: qk.guestLedger(guestId) as unknown[], refetchType: 'active' })
-    qc.invalidateQueries({ queryKey: qk.guestFolios(guestId) as unknown[], refetchType: 'active' })
+    qc.invalidateQueries({ queryKey: [...qk.guestLedger(guestId)], refetchType: 'active' })
+    qc.invalidateQueries({ queryKey: [...qk.guestFolios(guestId)], refetchType: 'active' })
   }
   activeRefetch(qc, [qk.folios(), qk.frontDeskDashboard()])
 }
