@@ -69,8 +69,9 @@ const natureColors: Record<string, string> = {
 
 export function TrialBalanceView() {
   const now = new Date()
-  const [startDate, setStartDate] = useState(toDateOnly(new Date(now.getFullYear(), now.getMonth(), 1)))
-  const [endDate, setEndDate] = useState(toDateOnly(now))
+  // Default to all-time (empty strings) so the API returns all posted entries
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [generated, setGenerated] = useState(true)
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<TrialData>({

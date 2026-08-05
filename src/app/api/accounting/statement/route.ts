@@ -48,8 +48,12 @@ export async function GET(req: NextRequest) {
         },
         select: { debit: true, credit: true },
       })
+      // For asset/expense: DR increases balance. For liability/equity/revenue: CR increases.
+      const isDebitNature = account.type === 'asset' || account.type === 'expense'
       for (const line of priorLines) {
-        openingBalance += line.debit - line.credit
+        openingBalance += isDebitNature
+          ? line.debit - line.credit
+          : line.credit - line.debit
       }
     }
 

@@ -64,8 +64,18 @@ export async function GET(request: NextRequest) {
 
       // Counts by type
       const countsByType: Record<string, number> = {}
+      const byType: Record<string, { count: number; amount: number; paid: number }> = {}
       for (const inv of allInvoices) {
         countsByType[inv.type] = (countsByType[inv.type] || 0) + 1
+        if (!byType[inv.type]) byType[inv.type] = { count: 0, amount: 0, paid: 0 }
+        byType[inv.type].count++
+        byType[inv.type].amount += inv.totalAmount
+        byType[inv.type].paid += inv.paidAmount
+      }
+      // Round byType amounts
+      for (const bt of Object.values(byType)) {
+        bt.amount = Math.round(bt.amount * 100) / 100
+        bt.paid = Math.round(bt.paid * 100) / 100
       }
 
       // Counts by status
@@ -85,6 +95,7 @@ export async function GET(request: NextRequest) {
           overdueCount,
           countsByType,
           countsByStatus,
+          byType,
         },
       }
     }, 120) // Cache for 120s

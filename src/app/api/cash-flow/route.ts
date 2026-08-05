@@ -162,25 +162,41 @@ export async function GET(request: NextRequest) {
 
       const netCashFlow = operating.net + investing.net + financing.net
 
-      // Calculate beginning cash balance (from cash account before period start)
+      // Calculate beginning cash balance (aggregate ALL cash/bank accounts before period start)
       let beginningCash = 0
       if (dateRange) {
-        const cashAccount = await db.ledgerAccount.findFirst({
-          where: { code: { startsWith: '1' }, active: true },
+        const cashAccounts = await db.ledgerAccount.findMany({
+          where: {
+            code: { startsWith: '1' },
+            active: true,
+            subtype: { in: ['cash', 'bank'] },
+          },
           include: {
             journalLines: {
-              include: { entry: true },
+              include: { entry: { select: { status: true, date: true } } },
             },
           },
         })
 
-        if (cashAccount) {
-          const priorLines = cashAccount.journalLines.filter(
+        // Fallback: if no accounts with cash/bank subtype, use all asset accounts starting with 1
+        const accountsToSum = cashAccounts.length > 0
+          ? cashAccounts
+          : await db.ledgerAccount.findMany({
+              where: { code: { startsWith: '1' }, active: true },
+              include: {
+                journalLines: {
+                  include: { entry: { select: { status: true, date: true } } },
+                },
+              },
+            })
+
+        for (const acct of accountsToSum) {
+          const priorLines = acct.journalLines.filter(
             (line) => line.entry.status === 'posted' && line.entry.date < dateRange.start,
           )
           const priorDebit = priorLines.reduce((sum, l) => sum + l.debit, 0)
           const priorCredit = priorLines.reduce((sum, l) => sum + l.credit, 0)
-          beginningCash = priorDebit - priorCredit
+          beginningCash += priorDebit - priorCredit
         }
       }
 
