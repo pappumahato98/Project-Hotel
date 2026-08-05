@@ -63,3 +63,8 @@ export const db = new Proxy({} as PrismaClient, {
     return value
   },
 })
+
+/** Retry wrapper — no-op for SQLite (no connection pool), kept for API compatibility */
+export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  return fn()
+}
