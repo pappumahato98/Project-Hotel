@@ -170,3 +170,33 @@ Stage Summary:
 - Root cause: DATABASE_URL / Prisma provider mismatch
 - All 8 accounting pages now load successfully
 - Changes: schema.prisma (provider), invoices/route.ts (removed insensitive), pos/route.ts (removed insensitive)
+
+---
+Task ID: 6
+Agent: Main Orchestrator
+Task: Re-seed accounting data and fix remaining API bugs after db reset
+
+Work Log:
+- Database was force-reset, wiping all accounting data
+- Created comprehensive accounting seed script at prisma/seed-accounting.ts
+- Seeded: 61 chart of accounts (15 assets, 8 liabilities, 4 equity, 10 revenue, 24 expenses)
+- Seeded: 7 accounting periods (Jan-Jul 2025, 6 closed, 1 open)
+- Seeded: 12 budgets across departments with variance analysis
+- Seeded: 10 invoices with 23 line items (mix of sales/purchase, various statuses)
+- Seeded: 18 posted journal entries with 55 lines (balanced double-entry)
+- Seeded: 2 bank reconciliations (1 reconciled, 1 pending)
+- Fixed GL statement opening balance: now accounts for credit-nature accounts (liability/equity/revenue)
+- Fixed cash-flow beginning cash: aggregates ALL cash/bank accounts instead of first asset only
+- Fixed invoices API: added byType stats field matching frontend contract ({count, amount, paid})
+- Fixed trial balance default: changed from current month to all-time for immediate data visibility
+- Set admin user password (was empty after re-seed)
+- Verified all 8 API endpoints return valid JSON via curl
+- Verified all 8 pages render correctly via agent-browser testing
+- Verified `bun run lint` passes clean
+- Pushed to GitHub (commit 93b4ca0)
+
+Stage Summary:
+- All 8 previously failing accounting pages now load with real data
+- Browser-verified: AR Aging, Invoices, Budgets, Trial Balance (balanced NPR 5.4M), Cash Flow, AP Aging, Reconciliation, Period Close
+- No console errors in browser
+- Commit pushed to main branch
