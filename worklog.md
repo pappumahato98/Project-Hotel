@@ -226,3 +226,28 @@ Stage Summary:
 - Auth login now works out-of-the-box after seeding
 - Password hashes are permanent part of base seed data
 - No more "Invalid email or password" or "No password set" errors
+
+---
+Task ID: 8
+Agent: Main Orchestrator
+Task: Fix auth page visual errors - forms clipped on small viewports
+
+Work Log:
+- User reported auth login, signup, forgot password errors
+- Used agent-browser to navigate all auth pages, checked console errors
+- VLM analysis of screenshots revealed login and signup forms had bottom content clipped
+- Root cause: `min-h-screen flex justify-center` centers content, clips both top/bottom when form overflows
+- Sub-agent introduced my-auto fix but caused stale SWC parsing error (resolved by dev server restart)
+- Fix: Added `overflow-y-auto` to outer wrapper + `my-auto` on inner content divs (7 views)
+- Verified zero console errors, zero parsing errors after clean restart
+- Verified login works: admin@meridian.com / admin123 → dashboard
+- Verified signup works: shows proper error for duplicate email
+- Verified forgot password works: generates reset token, shows new password form
+- All pages scrollable on small viewports (375x500, 390x844, 1280x720, 1280x800)
+- Lint passes clean
+- Pushed to GitHub (commit f74ccc7)
+
+Stage Summary:
+- Auth forms no longer clip on any viewport size
+- All auth flows verified: login, signup, forgot password, reset password
+- Zero console/runtime/parsing errors
