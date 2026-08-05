@@ -268,8 +268,8 @@ export function LoginPage() {
   // ─── Sign In View ───────────────────────────────────────────
   if (view === 'signin') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-        <div className="w-full max-w-md space-y-6">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="my-auto w-full max-w-md space-y-6">
           {/* Branding */}
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
@@ -391,35 +391,37 @@ export function LoginPage() {
   if (view === 'signup') {
     if (signUpSuccess) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-          <Card className="w-full max-w-md border-0 shadow-xl shadow-black/5">
-            <CardContent className="pt-8 pb-8 text-center space-y-4">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Account created!</h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Your account has been created successfully. You can now sign in with your credentials.
-                </p>
-              </div>
-              <Button
-                onClick={() => { setView('signin'); setSignUpSuccess(false); setError('') }}
-                className="mt-4"
-                variant="outline"
-              >
-                <ArrowLeft className="size-4 mr-2" />
-                Back to sign in
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+          <div className="my-auto w-full max-w-md">
+            <Card className="border-0 shadow-xl shadow-black/5">
+              <CardContent className="pt-8 pb-8 text-center space-y-4">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Account created!</h2>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Your account has been created successfully. You can now sign in with your credentials.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => { setView('signin'); setSignUpSuccess(false); setError('') }}
+                  className="mt-4"
+                  variant="outline"
+                >
+                  <ArrowLeft className="size-4 mr-2" />
+                  Back to sign in
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-        <div className="w-full max-w-md space-y-6">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="my-auto w-full max-w-md space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
               <Building2 className="size-8" />
@@ -565,35 +567,37 @@ export function LoginPage() {
   if (view === 'forgot') {
     if (forgotSuccess) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-          <Card className="w-full max-w-md border-0 shadow-xl shadow-black/5">
-            <CardContent className="pt-8 pb-8 text-center space-y-4">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Check your email</h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  If an account exists with <strong className="text-foreground">{forgotEmail}</strong>, a password reset link has been sent.
-                </p>
-              </div>
-              <Button
-                onClick={goBackToSignIn}
-                className="mt-4"
-                variant="outline"
-              >
-                <ArrowLeft className="size-4 mr-2" />
-                Back to sign in
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+          <div className="my-auto w-full max-w-md">
+            <Card className="border-0 shadow-xl shadow-black/5">
+              <CardContent className="pt-8 pb-8 text-center space-y-4">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Check your email</h2>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    If an account exists with <strong className="text-foreground">{forgotEmail}</strong>, a password reset link has been sent.
+                  </p>
+                </div>
+                <Button
+                  onClick={goBackToSignIn}
+                  className="mt-4"
+                  variant="outline"
+                >
+                  <ArrowLeft className="size-4 mr-2" />
+                  Back to sign in
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-        <div className="w-full max-w-md space-y-6">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="my-auto w-full max-w-md space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
               <Building2 className="size-8" />
@@ -670,35 +674,37 @@ export function LoginPage() {
   if (view === 'reset') {
     if (resetSuccess) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-          <Card className="w-full max-w-md border-0 shadow-xl shadow-black/5">
-            <CardContent className="pt-8 pb-8 text-center space-y-4">
-              <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold">Password reset!</h2>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Your password has been changed successfully. You can now sign in with your new password.
-                </p>
-              </div>
-              <Button
-                onClick={goBackToSignIn}
-                className="mt-4"
-                variant="outline"
-              >
-                <ArrowLeft className="size-4 mr-2" />
-                Back to sign in
-              </Button>
-            </CardContent>
-          </Card>
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+          <div className="my-auto w-full max-w-md">
+            <Card className="border-0 shadow-xl shadow-black/5">
+              <CardContent className="pt-8 pb-8 text-center space-y-4">
+                <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                  <CheckCircle2 className="size-8 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold">Password reset!</h2>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Your password has been changed successfully. You can now sign in with your new password.
+                  </p>
+                </div>
+                <Button
+                  onClick={goBackToSignIn}
+                  className="mt-4"
+                  variant="outline"
+                >
+                  <ArrowLeft className="size-4 mr-2" />
+                  Back to sign in
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4">
-        <div className="w-full max-w-md space-y-6">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="my-auto w-full max-w-md space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
               <Building2 className="size-8" />
