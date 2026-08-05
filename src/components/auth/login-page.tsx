@@ -372,7 +372,7 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              {/* Demo credentials hint & quick login */
+              {/* Demo credentials hint & quick login */}
               <div className="mt-4 rounded-lg bg-muted/50 border p-3 space-y-2">
                 <p className="text-xs text-muted-foreground text-center">
                   <span className="font-medium text-foreground/70">Demo:</span>{' '}
