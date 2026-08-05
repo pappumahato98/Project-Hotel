@@ -1,5 +1,6 @@
 import { db } from '../src/lib/db'
 import { randomBytes } from 'crypto'
+import { hash } from 'bcryptjs'
 
 const today = new Date()
 function daysFromNow(n: number): Date { const d = new Date(today); d.setDate(d.getDate() + n); d.setHours(12,0,0,0); return d }
@@ -24,9 +25,13 @@ async function main() {
   const gmId = 'gm-001'
   const staffId = 'staff-001'
 
+  // Hash admin password so login works immediately after seed
+  const adminPasswordHash = await hash('admin123', 10)
+  const gmPasswordHash = await hash('gm123', 10)
+
   await db.authUser.createMany({ data: [
-    { id: adminId, email: 'admin@meridian.com', firstName: 'Rajesh', lastName: 'Sharma', role: 'admin', department: 'Management', position: 'General Manager', active: true, lastLoginAt: new Date() },
-    { id: gmId, email: 'gm@meridian.com', firstName: 'Sita', lastName: 'Thapa', role: 'gm', department: 'Management', position: 'Deputy GM', active: true },
+    { id: adminId, email: 'admin@meridian.com', passwordHash: adminPasswordHash, firstName: 'Rajesh', lastName: 'Sharma', role: 'admin', department: 'Management', position: 'General Manager', active: true, lastLoginAt: new Date() },
+    { id: gmId, email: 'gm@meridian.com', passwordHash: gmPasswordHash, firstName: 'Sita', lastName: 'Thapa', role: 'gm', department: 'Management', position: 'Deputy GM', active: true },
     { id: staffId, email: 'staff@meridian.com', firstName: 'Hari', lastName: 'Bahadur', role: 'staff', department: 'Front Desk', position: 'Receptionist', active: true },
     { id: 'staff-002', email: 'ram@meridian.com', firstName: 'Ram', lastName: 'Kumar', role: 'staff', department: 'Housekeeping', position: 'HK Supervisor', active: true },
     { id: 'staff-003', email: 'anita@meridian.com', firstName: 'Anita', lastName: 'Gurung', role: 'manager', department: 'F&B', position: 'F&B Manager', active: true },
