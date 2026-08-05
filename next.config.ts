@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
     'localhost',
   ],
   experimental: {
-    // cpus: 1, // Uncomment if build runs out of memory
+    cpus: 1, // Limit to 1 CPU to reduce memory usage (prevents OOM in 4GB env)
   },
 };
 

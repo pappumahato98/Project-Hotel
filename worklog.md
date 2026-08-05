@@ -251,3 +251,24 @@ Stage Summary:
 - Auth forms no longer clip on any viewport size
 - All auth flows verified: login, signup, forgot password, reset password
 - Zero console/runtime/parsing errors
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix login failure - diagnose and resolve root causes
+
+Work Log:
+- Diagnosed that dev server kept OOM-killing due to Turbopack memory usage (1.9GB+ RSS in 3.9GB env)
+- Switched dev mode from Turbopack to webpack (`--webpack` flag) to prevent OOM kills
+- Enabled `experimental.cpus = 1` in next.config.ts to further reduce memory
+- Found that `node_modules/` directory was missing - reinstalled via `npm install` and `npx prisma generate`
+- Optimized page.tsx to use useEffect-based dynamic imports instead of React.lazy at module scope
+- Verified login API returns HTTP 200 with valid JWT, CSRF token, and user data
+- Verified full browser-based login flow: login page renders, form submission works, dashboard loads
+
+Stage Summary:
+- Login is fully functional end-to-end
+- Root causes: (1) Missing node_modules, (2) Turbopack OOM kills
+- Fixes applied: npm install, webpack dev mode, cpus:1 config, optimized dynamic imports
+- Credentials: admin@meridian.com / admin123
+- Server: Next.js 16.1.3 (webpack) on port 3000

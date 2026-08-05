@@ -1,39 +1,31 @@
 'use client'
 
-import React, { Suspense, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuthStore } from '@/lib/store'
 import { Building2, Loader2 } from 'lucide-react'
 
-// Only import LoginPage statically — it's lightweight (~800 lines, few deps)
-const LoginPage = React.lazy(() => import('@/components/auth/login-page').then(m => ({ default: m.LoginPage })))
-
-// AppShell is imported dynamically ONLY when authenticated, to avoid
-// Turbopack analyzing its massive dependency tree (15+ modules) at compile time.
-function DynamicAppShell() {
-  const [AppShell, setAppShell] = React.useState<React.ComponentType | null>(null)
-
-  useEffect(() => {
-    import('@/components/layout/app-shell').then(m => {
-      setAppShell(() => m.AppShell)
-    })
-  }, [])
-
-  if (!AppShell) {
-    return (
-      <div className="h-svh flex items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  return <AppShell />
-}
+// All module imports are deferred to useEffect to minimize Turbopack's
+// initial compilation scope and prevent OOM in memory-constrained environments.
 
 export default function Home() {
   const { isAuthenticated, _hasHydrated } = useAuthStore()
+  const [loginModule, setLoginModule] = useState<React.ComponentType | null>(null)
+  const [appShellModule, setAppShellModule] = useState<React.ComponentType | null>(null)
 
-  // With persisted auth store, hydration is near-instant (localStorage read).
-  // This loading state is only shown for the brief moment before zustand rehydrates.
+  // Load modules on demand based on auth state
+  useEffect(() => {
+    if (_hasHydrated && !isAuthenticated && !loginModule) {
+      import('@/components/auth/login-page').then(m => setLoginModule(() => m.LoginPage))
+    }
+  }, [_hasHydrated, isAuthenticated, loginModule])
+
+  useEffect(() => {
+    if (_hasHydrated && isAuthenticated && !appShellModule) {
+      import('@/components/layout/app-shell').then(m => setAppShellModule(() => m.AppShell))
+    }
+  }, [_hasHydrated, isAuthenticated, appShellModule])
+
+  // Hydration loading state
   if (!_hasHydrated) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -50,19 +42,28 @@ export default function Home() {
     )
   }
 
-  if (!isAuthenticated) {
+  // Loading state while modules are being imported
+  if (!isAuthenticated && !loginModule) {
     return (
-      <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center">
-            <Loader2 className="size-8 animate-spin text-muted-foreground" />
-          </div>
-        }
-      >
-        <LoginPage />
-      </Suspense>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
     )
   }
 
-  return <DynamicAppShell />
+  if (isAuthenticated && !appShellModule) {
+    return (
+      <div className="h-svh flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    const LoginPage = loginModule!
+    return <LoginPage />
+  }
+
+  const AppShell = appShellModule!
+  return <AppShell />
 }
