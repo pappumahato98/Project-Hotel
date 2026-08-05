@@ -1,6 +1,6 @@
 'use client'
 
-import React, { Suspense } from 'react'
+import React, { Suspense, useState, useEffect, ComponentType } from 'react'
 import { LayoutDashboard, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useNavigationStore } from '@/lib/store'
@@ -9,24 +9,31 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/sidebar-nav'
 import { AppHeader } from '@/components/layout/header'
 
-// ─── All modules lazy loaded to keep initial bundle small ──
-const DashboardModule = React.lazy(() => import('@/components/modules/dashboard/DashboardModule').then(m => ({ default: m.DashboardModule })))
-const FrontDeskModule = React.lazy(() => import('@/components/modules/front-desk/FrontDeskModule').then(m => ({ default: m.FrontDeskModule })))
-const SettingsModule = React.lazy(() => import('@/components/modules/settings/SettingsModule').then(m => ({ default: m.SettingsModule })))
-const ProfileModule = React.lazy(() => import('@/components/modules/profile/ProfileModule').then(m => ({ default: m.ProfileModule })))
-const HousekeepingModule = React.lazy(() => import('@/components/modules/housekeeping/HousekeepingModule').then(m => ({ default: m.HousekeepingModule })))
-const CrmModule = React.lazy(() => import('@/components/modules/crm/CrmModule').then(m => ({ default: m.CrmModule })))
-const HelpModule = React.lazy(() => import('@/components/modules/help/HelpModule').then(m => ({ default: m.HelpModule })))
-const HrModule = React.lazy(() => import('@/components/modules/hr/HrModule'))
-const RoomManagementModule = React.lazy(() => import('@/components/modules/rooms/RoomManagementModule'))
-const PosModule = React.lazy(() => import('@/components/modules/pos/PosModule'))
-const OperationsModule = React.lazy(() => import('@/components/modules/operations/OperationsModule'))
-const EventsModule = React.lazy(() => import('@/components/modules/events/EventsModule'))
-const AccountingModule = React.lazy(() => import('@/components/modules/accounting/AccountingModule'))
-const InventoryModule = React.lazy(() => import('@/components/modules/inventory/InventoryModule'))
-const MaintenanceModule = React.lazy(() => import('@/components/modules/maintenance/MaintenanceModule'))
-const RevenueModule = React.lazy(() => import('@/components/modules/revenue/RevenueModule'))
-const ChannelManagerModule = React.lazy(() => import('@/components/modules/channel-manager/ChannelManagerModule'))
+// ─── Module import map — each module is loaded ON DEMAND when selected ──
+type ModuleImportFn = () => Promise<{ default: ComponentType<any> }>
+
+const MODULE_IMPORTS: Record<string, ModuleImportFn> = {
+  'dashboard': () => import('@/components/modules/dashboard/DashboardModule').then(m => ({ default: m.DashboardModule })),
+  'front-desk': () => import('@/components/modules/front-desk/FrontDeskModule').then(m => ({ default: m.FrontDeskModule })),
+  'settings': () => import('@/components/modules/settings/SettingsModule').then(m => ({ default: m.SettingsModule })),
+  'profile': () => import('@/components/modules/profile/ProfileModule').then(m => ({ default: m.ProfileModule })),
+  'housekeeping': () => import('@/components/modules/housekeeping/HousekeepingModule').then(m => ({ default: m.HousekeepingModule })),
+  'crm': () => import('@/components/modules/crm/CrmModule').then(m => ({ default: m.CrmModule })),
+  'help': () => import('@/components/modules/help/HelpModule').then(m => ({ default: m.HelpModule })),
+  'hr': () => import('@/components/modules/hr/HrModule'),
+  'rooms': () => import('@/components/modules/rooms/RoomManagementModule'),
+  'pos': () => import('@/components/modules/pos/PosModule'),
+  'operations': () => import('@/components/modules/operations/OperationsModule'),
+  'events': () => import('@/components/modules/events/EventsModule'),
+  'accounting': () => import('@/components/modules/accounting/AccountingModule'),
+  'inventory': () => import('@/components/modules/inventory/InventoryModule'),
+  'maintenance': () => import('@/components/modules/maintenance/MaintenanceModule'),
+  'revenue': () => import('@/components/modules/revenue/RevenueModule'),
+  'channel-manager': () => import('@/components/modules/channel-manager/ChannelManagerModule'),
+}
+
+// Module cache to avoid re-importing
+const moduleCache = new Map<string, ComponentType<any>>()
 
 // ─── Module Loading Spinner ──
 function ModuleLoader() {
@@ -72,38 +79,41 @@ function ModulePlaceholder({ moduleId, subModuleId }: { moduleId: string; subMod
   )
 }
 
+// ─── Dynamic Module Loader — loads modules on demand ──
+function DynamicModule({ moduleId }: { moduleId: string }) {
+  const [Mod, setMod] = useState<ComponentType<any> | null>(null)
+
+  useEffect(() => {
+    // Check cache first
+    const cached = moduleCache.get(moduleId)
+    if (cached) {
+      setMod(() => cached)
+      return
+    }
+
+    const importFn = MODULE_IMPORTS[moduleId]
+    if (!importFn) return
+
+    importFn().then(mod => {
+      const Component = mod.default
+      moduleCache.set(moduleId, Component)
+      setMod(() => Component)
+    }).catch(() => {
+      // Import failed — will show placeholder
+    })
+  }, [moduleId])
+
+  if (!Mod) return <ModuleLoader />
+
+  return <Mod />
+}
+
 // ─── Main Content Router ──
 function MainContent() {
   const { activeModule, activeSubModule } = useNavigationStore()
 
-  // All modules lazy loaded
-  const LazyModules: Record<string, React.LazyExoticComponent<any>> = {
-    'dashboard': DashboardModule,
-    'front-desk': FrontDeskModule,
-    'settings': SettingsModule,
-    'profile': ProfileModule,
-    'housekeeping': HousekeepingModule,
-    'crm': CrmModule,
-    'help': HelpModule,
-    'hr': HrModule,
-    'rooms': RoomManagementModule,
-    'pos': PosModule,
-    'operations': OperationsModule,
-    'events': EventsModule,
-    'accounting': AccountingModule,
-    'inventory': InventoryModule,
-    'maintenance': MaintenanceModule,
-    'revenue': RevenueModule,
-    'channel-manager': ChannelManagerModule,
-  }
-
-  const LazyComponent = LazyModules[activeModule]
-  if (LazyComponent) {
-    return (
-      <Suspense fallback={<ModuleLoader />}>
-        <LazyComponent />
-      </Suspense>
-    )
+  if (MODULE_IMPORTS[activeModule]) {
+    return <DynamicModule moduleId={activeModule} />
   }
 
   return <ModulePlaceholder moduleId={activeModule} subModuleId={activeSubModule} />

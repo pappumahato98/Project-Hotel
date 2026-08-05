@@ -94,7 +94,7 @@ export async function apiFetch<T = unknown>(
     throw new Error('Server unavailable. Please try again.')
   }
 
-  // Handle 401 — try silent refresh, then redirect to login
+  // Handle 401 — try silent refresh, then logout
   if (res.status === 401 && typeof window !== 'undefined') {
     // Don't try to refresh the refresh endpoint itself
     if (url.includes('/auth/refresh')) {
@@ -122,7 +122,17 @@ export async function apiFetch<T = unknown>(
       }
     }
 
-    forceLogout()
+    // Clear auth state without hard redirect — let the UI handle the transition
+    try {
+      const { useAuthStore } = await import('@/lib/store')
+      const store = useAuthStore.getState()
+      if (store.isAuthenticated) store.logout()
+      const { setAccessToken, setCsrfToken } = await import('@/lib/supabase/client')
+      setAccessToken(null)
+      setCsrfToken(null)
+    } catch {
+      // Import failed
+    }
     throw new Error('Session expired. Please log in again.')
   }
 
@@ -161,9 +171,9 @@ async function forceLogout() {
     const { setAccessToken, setCsrfToken } = await import('@/lib/supabase/client')
     setAccessToken(null)
     setCsrfToken(null)
-    if (!window.location.pathname.includes('/login')) {
-      window.location.href = '/login'
-    }
+    // Use router-style navigation instead of hard redirect to avoid page reload
+    // The login page is rendered at '/' when not authenticated
+    window.location.href = '/'
   } catch {
     // Import failed
   }

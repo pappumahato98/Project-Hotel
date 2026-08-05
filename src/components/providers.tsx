@@ -75,10 +75,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
-          // Refresh failed — clear persisted state
+          // Refresh failed — clear persisted state silently (no redirect)
           useAuthStore.getState().logout()
           setAccessToken(null)
           setCsrfToken(null)
+          // Clear stale cookies
+          document.cookie = '__meridian_rt=; Path=/; Max-Age=0'
+          document.cookie = '__meridian_csrf=; Path=/; Max-Age=0'
         }
       } catch {
         // Network error — keep persisted state, will retry later

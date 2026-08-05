@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
     `Max-Age=${cookieOptions.maxAge}`,
   ].filter(Boolean).join('; ')
 
-  return NextResponse.json(
+  const response = NextResponse.json(
     {
       accessToken,
       csrfToken: csrf.token,
@@ -167,10 +167,11 @@ export async function POST(req: NextRequest) {
         role: user.role,
       },
     },
-    {
-      headers: {
-        'Set-Cookie': [refreshCookie, csrf.setCookieHeader].join(', '),
-      },
-    },
   )
+
+  // Each Set-Cookie must be a separate header (HTTP spec)
+  response.headers.append('Set-Cookie', refreshCookie)
+  response.headers.append('Set-Cookie', csrf.setCookieHeader)
+
+  return response
 }

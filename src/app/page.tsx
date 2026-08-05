@@ -1,11 +1,33 @@
 'use client'
 
-import React, { Suspense } from 'react'
+import React, { Suspense, useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '@/lib/store'
 import { Building2, Loader2 } from 'lucide-react'
 
-const AppShell = React.lazy(() => import('@/components/layout/app-shell').then(m => ({ default: m.AppShell })))
+// Only import LoginPage statically — it's lightweight (~800 lines, few deps)
 const LoginPage = React.lazy(() => import('@/components/auth/login-page').then(m => ({ default: m.LoginPage })))
+
+// AppShell is imported dynamically ONLY when authenticated, to avoid
+// Turbopack analyzing its massive dependency tree (15+ modules) at compile time.
+function DynamicAppShell() {
+  const [AppShell, setAppShell] = React.useState<React.ComponentType | null>(null)
+
+  useEffect(() => {
+    import('@/components/layout/app-shell').then(m => {
+      setAppShell(() => m.AppShell)
+    })
+  }, [])
+
+  if (!AppShell) {
+    return (
+      <div className="h-svh flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  return <AppShell />
+}
 
 export default function Home() {
   const { isAuthenticated, _hasHydrated } = useAuthStore()
@@ -42,15 +64,5 @@ export default function Home() {
     )
   }
 
-  return (
-    <Suspense
-      fallback={
-        <div className="h-svh flex items-center justify-center">
-          <Loader2 className="size-8 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
-      <AppShell />
-    </Suspense>
-  )
+  return <DynamicAppShell />
 }

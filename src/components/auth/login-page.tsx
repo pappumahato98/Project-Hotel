@@ -81,7 +81,10 @@ export function LoginPage() {
     setLoading(true)
     setError('')
 
+    // Use AbortController for proper cancellation
+    const controller = new AbortController()
     const timeoutId = setTimeout(() => {
+      controller.abort()
       setLoading(false)
       setError('Login timed out. Please check your connection and try again.')
     }, LOGIN_TIMEOUT_MS)
@@ -91,6 +94,7 @@ export function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        signal: controller.signal,
       })
 
       clearTimeout(timeoutId)
@@ -117,6 +121,10 @@ export function LoginPage() {
       router.push('/')
     } catch (err) {
       clearTimeout(timeoutId)
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Timeout already handled above
+        return
+      }
       setError(err instanceof Error ? err.message : 'Login failed')
       setLoading(false)
     }

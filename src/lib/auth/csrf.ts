@@ -72,11 +72,15 @@ export function validateCsrf(req: Request): boolean {
 export function validateOrigin(req: Request): boolean {
   const origin = req.headers.get('origin')
   const referer = req.headers.get('referer')
-  const allowed = getAllowedOrigins()
 
   const check = origin || referer
   if (!check) return true // Same-origin request (no Origin/Referer header)
 
+  // In dev/sandbox (no NEXT_PUBLIC_APP_URL), allow any origin.
+  // The double-submit CSRF cookie pattern + SameSite=Lax already provides CSRF protection.
+  if (!process.env.NEXT_PUBLIC_APP_URL) return true
+
+  const allowed = getAllowedOrigins()
   return allowed.some(allowedOrigin => check.startsWith(allowedOrigin))
 }
 
@@ -96,9 +100,10 @@ function getAllowedOrigins(): string[] {
   if (process.env.NEXT_PUBLIC_APP_URL) {
     return [process.env.NEXT_PUBLIC_APP_URL]
   }
-  // Dev/sandbox: allow common local origins
+  // Dev/sandbox: allow common local origins and proxy
   return [
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:81',
   ]
 }

@@ -42,12 +42,11 @@ export async function POST(req: NextRequest) {
   // Clear all caches
   invalidateAllCache()
 
-  return NextResponse.json(
-    { message: 'Logged out' },
-    {
-      headers: {
-        'Set-Cookie': [getClearRefreshCookie(), getClearCsrfCookie()].join(', '),
-      },
-    },
-  )
+  const response = NextResponse.json({ message: 'Logged out' })
+
+  // Each Set-Cookie must be a separate header (HTTP spec)
+  response.headers.append('Set-Cookie', getClearRefreshCookie())
+  response.headers.append('Set-Cookie', getClearCsrfCookie())
+
+  return response
 }
