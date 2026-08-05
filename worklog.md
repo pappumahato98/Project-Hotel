@@ -200,3 +200,29 @@ Stage Summary:
 - Browser-verified: AR Aging, Invoices, Budgets, Trial Balance (balanced NPR 5.4M), Cash Flow, AP Aging, Reconciliation, Period Close
 - No console errors in browser
 - Commit pushed to main branch
+
+---
+Task ID: 7
+Agent: Main Orchestrator
+Task: Fix Auth Page Error - login failing with "Invalid email or password"
+
+Work Log:
+- Investigated: database was completely empty (60 tables, 0 data in all)
+- Root cause: database was wiped after force-reset and seeds needed re-running
+- Base seed (prisma/seed.ts) created admin user without passwordHash (empty string)
+- Added bcryptjs import and password hashing to base seed
+- Admin password: admin123 (bcrypt hash, rounds=10)
+- GM password: gm123 (bcrypt hash, rounds=10)
+- Re-ran both seeds: base (full PMS data) + accounting (61 accounts, 18 journals, etc.)
+- Verified login via curl: returns valid JWT token
+- Verified login via browser: redirects to dashboard with "Rajesh Sharma General Manager"
+- Verified signup page renders correctly
+- Verified forgot password page renders correctly
+- Cleaned up temporary check files
+- Lint passes clean
+- Pushed to GitHub (commit f5b34b3)
+
+Stage Summary:
+- Auth login now works out-of-the-box after seeding
+- Password hashes are permanent part of base seed data
+- No more "Invalid email or password" or "No password set" errors
