@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   KeyRound,
+  LogIn,
 } from 'lucide-react'
 import { useAuthStore, useSettingsStore } from '@/lib/store'
 import { setAccessToken, setCsrfToken } from '@/lib/supabase/client'
@@ -371,12 +372,20 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              {/* Demo credentials hint */}
-              <div className="mt-4 rounded-lg bg-muted/50 border p-3">
+              {/* Demo credentials hint & quick login */
+              <div className="mt-4 rounded-lg bg-muted/50 border p-3 space-y-2">
                 <p className="text-xs text-muted-foreground text-center">
-                  <span className="font-medium text-foreground/70">Demo credentials:</span>{' '}
+                  <span className="font-medium text-foreground/70">Demo:</span>{' '}
                   <span className="font-mono">admin@meridian.com</span> / <span className="font-mono">admin123</span>
                 </p>
+                <button
+                  type="button"
+                  onClick={() => { setEmail('admin@meridian.com'); setPassword('admin123'); setError('') }}
+                  className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-950/70 rounded-md py-1.5 px-3 transition-colors"
+                >
+                  <LogIn className="size-3" />
+                  Auto-fill credentials
+                </button>
               </div>
 
               <div className="mt-4 text-center">
