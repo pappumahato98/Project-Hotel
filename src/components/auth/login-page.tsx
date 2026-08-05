@@ -371,7 +371,15 @@ export function LoginPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 text-center">
+              {/* Demo credentials hint */}
+              <div className="mt-4 rounded-lg bg-muted/50 border p-3">
+                <p className="text-xs text-muted-foreground text-center">
+                  <span className="font-medium text-foreground/70">Demo credentials:</span>{' '}
+                  <span className="font-mono">admin@meridian.com</span> / <span className="font-mono">admin123</span>
+                </p>
+              </div>
+
+              <div className="mt-4 text-center">
                 <p className="text-sm text-muted-foreground">
                   Don&apos;t have an account?{' '}
                   <button
