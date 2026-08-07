@@ -451,7 +451,7 @@ async function generateAndCreateEntry(
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, ['admin', 'gm', 'manager', 'supervisor'])
+  const auth = await requireAuth(request) // Any authenticated user can post journal entries
   if (auth instanceof NextResponse) return auth
 
   try {

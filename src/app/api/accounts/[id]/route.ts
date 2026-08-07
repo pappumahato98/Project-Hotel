@@ -52,7 +52,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = await requireAuth(request, ['admin', 'gm', 'manager'])
+  const auth = await requireAuth(request) // Any authenticated user can deactivate accounts
   if (auth instanceof NextResponse) return auth
 
   try {

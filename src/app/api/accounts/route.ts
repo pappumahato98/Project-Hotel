@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requireAuth(req, ['admin', 'gm', 'manager'])
+  const auth = await requireAuth(req) // Any authenticated user can edit accounts
   if (auth instanceof NextResponse) return auth
 
   try {
@@ -121,7 +121,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['admin', 'gm', 'manager'])
+  const auth = await requireAuth(req) // Any authenticated user can create accounts
   if (auth instanceof NextResponse) return auth
 
   try {

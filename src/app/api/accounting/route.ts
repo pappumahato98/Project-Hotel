@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuth(request, ['admin', 'gm', 'manager'])
+  const auth = await requireAuth(request) // Any authenticated user can create journal entries
   if (auth instanceof NextResponse) return auth
 
   try {
