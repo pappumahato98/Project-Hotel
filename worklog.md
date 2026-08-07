@@ -272,3 +272,22 @@ Stage Summary:
 - Fixes applied: npm install, webpack dev mode, cpus:1 config, optimized dynamic imports
 - Credentials: admin@meridian.com / admin123
 - Server: Next.js 16.1.3 (webpack) on port 3000
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Fix "LedgerAccount.subtype column does not exist" on Render PostgreSQL
+
+Work Log:
+- Diagnosed: Render PostgreSQL database schema was out of date — `subtype` column missing from LedgerAccount table
+- Root cause: `package.json` build script only ran `prisma generate` (no schema push), and the Render service was created with this default build command
+- Created `/api/db-setup` endpoint (POST + GET) that runs `prisma db push` at runtime as a fallback
+- Updated `render.yaml` build command to be provider-agnostic (works for both Render PG and Supabase)
+- Updated `scripts/deploy.sh` to include `prisma db push` in the build command
+- Updated `package.json` build script to auto-push schema when DATABASE_URL is set
+- Pushed to GitHub (commit 953f76e)
+
+Stage Summary:
+- New `/api/db-setup` endpoint allows runtime schema sync without redeployment
+- Build commands now include `prisma db push` for all deployment methods
+- User can: (1) wait for Render auto-redeploy, or (2) POST /api/db-setup with JWT_SECRET to sync immediately
