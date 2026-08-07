@@ -208,7 +208,8 @@ export async function POST(req: NextRequest) {
         // Create current period as open
         await db.accountingPeriod.create({
           data: {
-            name: `${monthNames[month]} ${year}`,
+            period: `${monthNames[month]} ${year}`,
+            periodType: 'month',
             startDate: new Date(year, month, 1),
             endDate: new Date(year, month + 1, 0, 23, 59, 59, 999),
             status: 'open',
