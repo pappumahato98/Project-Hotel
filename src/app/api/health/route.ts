@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 
 // Cache the DB check result for 30 seconds to avoid hammering the database
 // (Render health checks hit this endpoint every ~15-30 seconds)
-let _lastCheck: { ok: boolean; detail: string; ts: number } | null = null
+let _lastCheck: { ok: boolean; detail: string; ts: number; accountingOk?: boolean; accountingDetail?: string } | null = null
 const CHECK_TTL = 30_000
 
 export const dynamic = 'force-dynamic'
@@ -32,7 +32,7 @@ export async function GET() {
   // 3. App mode
   checks.push({ name: 'app.auth', ok: true, detail: 'JWT (self-contained)' })
 
-  // 4. DB connectivity — cached for CHECK_TTL to reduce load
+  // 4. DB connectivity + accounting table check — cached for CHECK_TTL to reduce load
   const now = Date.now()
   if (!_lastCheck || (now - _lastCheck.ts) > CHECK_TTL) {
     try {
@@ -42,12 +42,29 @@ export async function GET() {
       const msg = e instanceof Error ? e.message : String(e)
       _lastCheck = { ok: false, detail: msg.slice(0, 200), ts: now }
     }
+
+    // Also check if accounting tables exist (LedgerAccount)
+    if (_lastCheck.ok) {
+      try {
+        const acctCount = await db.ledgerAccount.count()
+        _lastCheck.accountingOk = true
+        _lastCheck.accountingDetail = `${acctCount} accounts`
+      } catch {
+        _lastCheck.accountingOk = false
+        _lastCheck.accountingDetail = 'LedgerAccount table missing — run prisma db push'
+      }
+    }
   }
   checks.push({ name: 'db.connect', ok: _lastCheck.ok, detail: _lastCheck.detail })
   if (_lastCheck.ok) {
     checks.push({ name: 'db.seeded', ok: true, detail: _lastCheck.detail })
   } else {
     checks.push({ name: 'db.seeded', ok: false, detail: 'Run setup-supabase.sh' })
+  }
+
+  // 5. Accounting table readiness
+  if (_lastCheck.accountingOk !== undefined) {
+    checks.push({ name: 'db.accounting', ok: _lastCheck.accountingOk, detail: _lastCheck.accountingDetail })
   }
 
   const allOk = checks.every((c) => c.ok)

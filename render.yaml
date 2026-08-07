@@ -7,24 +7,28 @@
 #   2. Click "New Blueprint Instance"
 #   3. Connect repo: pappumahato98/Project-Neo
 #   4. Render reads this file automatically
-#   5. Add your 2 environment variables (see below)
+#   5. Add your environment variables (see below)
 #   6. Click "Apply" — done!
 #
 # Option B — Manual:
 #   1. Go to https://dashboard.render.com → New → Web Service
 #   2. Connect repo: pappumahato98/Project-Neo
-#   3. Build Command: npx prisma generate && npx next build
+#   3. Build Command: (see buildCommand below)
 #   4. Start Command: npx next start -H 0.0.0.0 -p $PORT
 #   5. Add env vars → Deploy
 #
 # REQUIRED ENV VARIABLES (set in Render dashboard):
 #
-#   DATABASE_URL = postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=7&connect_timeout=15&pool_timeout=15
-#   JWT_SECRET  = <64+ char random string>
+#   DATABASE_URL  = Transaction-pooler URL (pgbouncer, port 5432)
+#                   postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=7&connect_timeout=15&pool_timeout=15
+#   JWT_SECRET    = <64+ char random string>
 #
 #   Generate JWT_SECRET:
 #     node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 #
+# NOTE: The build command auto-converts DATABASE_URL to session-mode (port 6543)
+#       for schema migrations, because PgBouncer transaction-mode (port 5432)
+#       cannot run DDL statements like CREATE TABLE.
 # ─────────────────────────────────────────────────────────────────────
 
 services:
@@ -32,11 +36,16 @@ services:
     name: meridian-pms
     runtime: node
     plan: starter # $7/mo — always-on, no cold starts
-    buildCommand: npx prisma db push --accept-data-loss 2>/dev/null; npx prisma generate && npx next build
+    buildCommand: |-
+      # PgBouncer transaction-mode (port 5432) cannot run DDL.
+      # Convert to session-mode (port 6543) for prisma db push, then restore.
+      MIGRATE_URL=$(echo "$DATABASE_URL" | sed 's|pooler\.supabase\.com:5432|pooler.supabase.com:6543|' | sed 's|[?&]pgbouncer=true||g' | sed 's|&|?|1' | sed 's|?$||')
+      DATABASE_URL="$MIGRATE_URL" npx prisma db push --accept-data-loss 2>&1
+      npx prisma generate && npx next build
     startCommand: npx next start -H 0.0.0.0 -p $PORT
     envVars:
       # ── Database (Supabase PostgreSQL) ─────────────────────────────
-      # Transaction pooler URL with PgBouncer params
+      # Transaction pooler URL with PgBouncer params (port 5432)
       - key: DATABASE_URL
         sync: false
       # ── JWT Auth ────────────────────────────────────────────────────

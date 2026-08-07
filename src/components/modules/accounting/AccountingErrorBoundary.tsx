@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { apiFetch } from '@/lib/api'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Database, RefreshCw, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Database, RefreshCw, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react'
 
 interface Props {
   error: Error | null
@@ -22,12 +22,19 @@ export function AccountingError({ error, onRetry, title = 'Failed to load data' 
   const [setupResult, setSetupResult] = useState<string | null>(null)
 
   const errorMsg = error?.message || 'Unknown error'
+
+  // Precise detection: only match Prisma/Postgres relation-not-found errors,
+  // not generic messages like "Insufficient permissions" or "not found" in unrelated contexts.
   const isTableMissing =
-    errorMsg.includes('does not exist') ||
-    errorMsg.includes('not found') ||
-    errorMsg.includes('relation') ||
-    errorMsg.includes('table') ||
+    (errorMsg.includes('does not exist') && errorMsg.includes('relation')) ||
+    errorMsg.includes('relation "') ||
+    errorMsg.includes('table "') ||
     errorMsg.includes('503')
+
+  // Check if the original API error was a permissions issue (not a table issue)
+  const isPermissionError =
+    errorMsg.includes('Insufficient permissions') ||
+    errorMsg.includes('403')
 
   async function handleSetup() {
     setSettingUp(true)
@@ -38,13 +45,23 @@ export function AccountingError({ error, onRetry, title = 'Failed to load data' 
         headers: { 'Content-Type': 'application/json' },
       })
       if (res.error) {
-        setSetupResult(res.hint || res.error)
+        // Provide a user-friendly message for common errors
+        if (res.error === 'Insufficient permissions' || res.error === 'Authentication required') {
+          setSetupResult('Permission denied — ask an Admin or GM to initialize accounting.')
+        } else {
+          setSetupResult(res.hint || res.error)
+        }
       } else {
         setSetupResult(res.message || 'Setup complete!')
         onRetry()
       }
     } catch (err) {
-      setSetupResult(err instanceof Error ? err.message : 'Setup failed')
+      const msg = err instanceof Error ? err.message : 'Setup failed'
+      if (msg.includes('Insufficient permissions') || msg.includes('403')) {
+        setSetupResult('Permission denied — ask an Admin or GM to initialize accounting.')
+      } else {
+        setSetupResult(msg)
+      }
     } finally {
       setSettingUp(false)
     }
@@ -54,14 +71,18 @@ export function AccountingError({ error, onRetry, title = 'Failed to load data' 
     <Card className="p-6">
       <CardContent className="flex flex-col items-center justify-center text-center py-8 gap-4">
         <div className="flex size-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-950">
-          <AlertTriangle className="size-6 text-red-600 dark:text-red-400" />
+          {isPermissionError
+            ? <ShieldAlert className="size-6 text-amber-600 dark:text-amber-400" />
+            : <AlertTriangle className="size-6 text-red-600 dark:text-red-400" />}
         </div>
         <div>
           <p className="text-sm font-medium text-foreground">{title}</p>
           <p className="text-xs text-muted-foreground mt-1 max-w-md">
             {isTableMissing
               ? 'Accounting tables may not be initialized in the database yet.'
-              : errorMsg}
+              : isPermissionError
+                ? 'You do not have permission to view this data. Contact an administrator.'
+                : errorMsg}
           </p>
         </div>
 
