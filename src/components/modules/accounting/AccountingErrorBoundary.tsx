@@ -52,9 +52,9 @@ export function AccountingError({ error, onRetry, title = 'Failed to load data' 
           body: JSON.stringify({ token: '' }), // token empty — allowed when no users or schema is broken
         })
         if (res.error) {
-          setSetupResult(`Schema sync failed: ${res.error}`)
+          setSetupResult(`Setup failed: ${res.error}`)
         } else if (res.success) {
-          setSetupResult('Schema synced! Retrying...')
+          setSetupResult(`Synced! ${res.accountsSeeded ?? 0} accounts ready. Retrying...`)
           onRetry()
         } else {
           setSetupResult(res.message || 'Schema sync completed.')
@@ -105,11 +105,11 @@ export function AccountingError({ error, onRetry, title = 'Failed to load data' 
         </div>
 
         {setupResult ? (
-          <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md ${setupResult.includes('complete') || setupResult.includes('initialized') || setupResult.includes('synced')
+          <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-md ${setupResult.includes('complete') || setupResult.includes('initialized') || setupResult.includes('synced') || setupResult.includes('ready')
               ? 'bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
               : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
             }`}>
-            {(setupResult.includes('complete') || setupResult.includes('initialized') || setupResult.includes('synced'))
+            {(setupResult.includes('complete') || setupResult.includes('initialized') || setupResult.includes('synced') || setupResult.includes('ready'))
               ? <CheckCircle2 className="size-3.5" />
               : <AlertTriangle className="size-3.5" />}
             {setupResult}
