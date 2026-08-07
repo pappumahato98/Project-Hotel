@@ -13,7 +13,7 @@ export const maxDuration = 60
  * This is a lightweight alternative to the full /api/seed for accounting setup.
  */
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req, ['admin', 'gm', 'manager'])
+  const auth = await requireAuth(req) // Any authenticated user can initialize accounting
   if (auth instanceof NextResponse) return auth
 
   try {
