@@ -54,140 +54,148 @@ function recordFailedAttempt(ip: string) {
 export async function POST(req: NextRequest) {
   const clientIp = getClientIp(req)
 
-  // Rate limit check
-  const rateCheck = checkRateLimit(clientIp)
-  if (!rateCheck.allowed) {
-    logSecurityEvent({
-      type: 'rate_limit_exceeded',
-      level: 'warning',
-      ipAddress: clientIp,
-      userAgent: getClientUA(req),
-      path: '/api/auth/login',
-      method: 'POST',
-      details: `Login rate limit exceeded for IP. retryAfter=${rateCheck.retryAfter}s`,
-    })
-    return NextResponse.json(
-      { error: 'Too many login attempts. Please try again later.', retryAfter: rateCheck.retryAfter },
-      { status: 429 },
-    )
-  }
-
-  // Parse body
-  let email: string | undefined
-  let password: string | undefined
   try {
-    const body = await req.json()
-    email = body.email
-    password = body.password
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
-  }
+    // Rate limit check
+    const rateCheck = checkRateLimit(clientIp)
+    if (!rateCheck.allowed) {
+      logSecurityEvent({
+        type: 'rate_limit_exceeded',
+        level: 'warning',
+        ipAddress: clientIp,
+        userAgent: getClientUA(req),
+        path: '/api/auth/login',
+        method: 'POST',
+        details: `Login rate limit exceeded for IP. retryAfter=${rateCheck.retryAfter}s`,
+      })
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.', retryAfter: rateCheck.retryAfter },
+        { status: 429 },
+      )
+    }
 
-  if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
-  }
+    // Parse body
+    let email: string | undefined
+    let password: string | undefined
+    try {
+      const body = await req.json()
+      email = body.email
+      password = body.password
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
+    }
 
-  // Find user
-  const user = await db.authUser.findUnique({
-    where: { email: email.toLowerCase() },
-  })
+    if (!email || !password) {
+      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
+    }
 
-  if (!user || !user.active) {
-    recordFailedAttempt(clientIp)
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-  }
+    // Find user
+    const user = await db.authUser.findUnique({
+      where: { email: email.toLowerCase() },
+    })
 
-  if (!user.passwordHash) {
-    return NextResponse.json(
-      { error: 'No password set for this account. Contact administrator.' },
-      { status: 401 },
-    )
-  }
+    if (!user || !user.active) {
+      recordFailedAttempt(clientIp)
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    }
 
-  // Verify password
-  const valid = await bcrypt.compare(password, user.passwordHash)
-  if (!valid) {
-    recordFailedAttempt(clientIp)
+    if (!user.passwordHash) {
+      return NextResponse.json(
+        { error: 'No password set for this account. Contact administrator.' },
+        { status: 401 },
+      )
+    }
+
+    // Verify password
+    const valid = await bcrypt.compare(password, user.passwordHash)
+    if (!valid) {
+      recordFailedAttempt(clientIp)
+      logSecurityEvent({
+        type: 'auth_failure',
+        level: 'warning',
+        userId: user.id,
+        email: user.email,
+        ipAddress: clientIp,
+        userAgent: getClientUA(req),
+        path: '/api/auth/login',
+        method: 'POST',
+        details: 'Invalid password attempt',
+      })
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    }
+
+    // Generate tokens
+    const accessToken = await signAccessToken(user)
+    const { raw: refreshTokenRaw, hash: refreshTokenHash } = generateRefreshToken()
+    const csrf = generateCsrfToken()
+
+    // Store refresh token in DB
+    await db.refreshToken.create({
+      data: {
+        tokenHash: refreshTokenHash,
+        userId: user.id,
+        userAgent: getClientUA(req),
+        ipAddress: clientIp,
+        expiresAt: getRefreshTokenExpiry(),
+      },
+    })
+
+    // Update last login
+    await db.authUser.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    })
+
+    // Log success
     logSecurityEvent({
-      type: 'auth_failure',
-      level: 'warning',
+      type: 'auth_success',
+      level: 'info',
       userId: user.id,
       email: user.email,
       ipAddress: clientIp,
       userAgent: getClientUA(req),
       path: '/api/auth/login',
       method: 'POST',
-      details: 'Invalid password attempt',
     })
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-  }
 
-  // Generate tokens
-  const accessToken = await signAccessToken(user)
-  const { raw: refreshTokenRaw, hash: refreshTokenHash } = generateRefreshToken()
-  const csrf = generateCsrfToken()
+    // Build response with cookies
+    const cookieOptions = getRefreshCookieOptions()
+    const refreshCookie = [
+      `${REFRESH_COOKIE_NAME}=${refreshTokenRaw}`,
+      `HttpOnly=${cookieOptions.httpOnly}`,
+      cookieOptions.secure ? 'Secure' : '',
+      `SameSite=${cookieOptions.sameSite.charAt(0).toUpperCase() + cookieOptions.sameSite.slice(1)}`,
+      `Path=${cookieOptions.path}`,
+      `Max-Age=${cookieOptions.maxAge}`,
+    ].filter(Boolean).join('; ')
 
-  // Store refresh token in DB
-  await db.refreshToken.create({
-    data: {
-      tokenHash: refreshTokenHash,
-      userId: user.id,
-      userAgent: getClientUA(req),
-      ipAddress: clientIp,
-      expiresAt: getRefreshTokenExpiry(),
-    },
-  })
-
-  // Update last login
-  await db.authUser.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
-  })
-
-  // Log success
-  logSecurityEvent({
-    type: 'auth_success',
-    level: 'info',
-    userId: user.id,
-    email: user.email,
-    ipAddress: clientIp,
-    userAgent: getClientUA(req),
-    path: '/api/auth/login',
-    method: 'POST',
-  })
-
-  // Build response with cookies
-  const cookieOptions = getRefreshCookieOptions()
-  const refreshCookie = [
-    `${REFRESH_COOKIE_NAME}=${refreshTokenRaw}`,
-    `HttpOnly=${cookieOptions.httpOnly}`,
-    cookieOptions.secure ? 'Secure' : '',
-    `SameSite=${cookieOptions.sameSite.charAt(0).toUpperCase() + cookieOptions.sameSite.slice(1)}`,
-    `Path=${cookieOptions.path}`,
-    `Max-Age=${cookieOptions.maxAge}`,
-  ].filter(Boolean).join('; ')
-
-  const response = NextResponse.json(
-    {
-      accessToken,
-      csrfToken: csrf.token,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        department: user.department,
-        position: user.position,
-        avatarUrl: user.avatarUrl,
-        phone: user.phone,
+    const response = NextResponse.json(
+      {
+        accessToken,
+        csrfToken: csrf.token,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          department: user.department,
+          position: user.position,
+          avatarUrl: user.avatarUrl,
+          phone: user.phone,
+        },
       },
-    },
-  )
+    )
 
-  // Each Set-Cookie must be a separate header (HTTP spec)
-  response.headers.append('Set-Cookie', refreshCookie)
-  response.headers.append('Set-Cookie', csrf.setCookieHeader)
+    // Each Set-Cookie must be a separate header (HTTP spec)
+    response.headers.append('Set-Cookie', refreshCookie)
+    response.headers.append('Set-Cookie', csrf.setCookieHeader)
 
-  return response
+    return response
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json(
+      { error: 'An internal error occurred. Please try again later.' },
+      { status: 500 },
+    )
+  }
 }
