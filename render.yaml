@@ -13,55 +13,44 @@
 # Option B — Manual:
 #   1. Go to https://dashboard.render.com → New → Web Service
 #   2. Connect repo: pappumahato98/Project-Neo
-#   3. Build Command: (see buildCommand below)
+#   3. Build Command (copy from below)
 #   4. Start Command: npx next start -H 0.0.0.0 -p $PORT
 #   5. Add env vars → Deploy
 #
 # REQUIRED ENV VARIABLES (set in Render dashboard):
 #
-#   DATABASE_URL  = Transaction-pooler URL (pgbouncer, port 5432)
-#                   postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:5432/postgres?pgbouncer=true&connection_limit=7&connect_timeout=15&pool_timeout=15
+#   DATABASE_URL  = PostgreSQL connection string
 #   JWT_SECRET    = <64+ char random string>
 #
-#   Generate JWT_SECRET:
-#     node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
-#
-# NOTE: The build command auto-converts DATABASE_URL to session-mode (port 6543)
-#       for schema migrations, because PgBouncer transaction-mode (port 5432)
-#       cannot run DDL statements like CREATE TABLE.
+# FALLBACK: If schema gets out of date after deployment, visit:
+#   POST /api/db-setup  (with {"token":"your-jwt-secret"}) to sync schema
 # ─────────────────────────────────────────────────────────────────────
 
 services:
   - type: web
     name: meridian-pms
     runtime: node
-    plan: starter # $7/mo — always-on, no cold starts
-    buildCommand: |-
-      # PgBouncer transaction-mode (port 5432) cannot run DDL.
-      # Convert to session-mode (port 6543) for prisma db push, then restore.
-      MIGRATE_URL=$(echo "$DATABASE_URL" | sed 's|pooler\.supabase\.com:5432|pooler.supabase.com:6543|' | sed 's|[?&]pgbouncer=true||g' | sed 's|&|?|1' | sed 's|?$||')
+    plan: starter
+    buildCommand: |
+      # For Supabase PgBouncer: convert transaction-mode (5432) → session-mode (6543) for DDL
+      # For Render/standard PostgreSQL: this is a no-op (URL unchanged)
+      MIGRATE_URL="${DATABASE_URL}"
+      if echo "$MIGRATE_URL" | grep -q 'pooler\.supabase\.com:5432'; then
+        MIGRATE_URL=$(echo "$MIGRATE_URL" | sed 's|pooler\.supabase\.com:5432|pooler.supabase.com:6543|' | sed 's|[?&]pgbouncer=true||g' | sed 's|&|?|1' | sed 's|?$||')
+        echo "[build] Detected Supabase PgBouncer — using session-mode URL for migrations"
+      fi
       DATABASE_URL="$MIGRATE_URL" npx prisma db push --accept-data-loss 2>&1
       npx prisma generate && npx next build
     startCommand: npx next start -H 0.0.0.0 -p $PORT
     envVars:
-      # ── Database (Supabase PostgreSQL) ─────────────────────────────
-      # Transaction pooler URL with PgBouncer params (port 5432)
       - key: DATABASE_URL
         sync: false
-      # ── JWT Auth ────────────────────────────────────────────────────
-      # 64+ char random string for signing access tokens
       - key: JWT_SECRET
         sync: false
-      # ── Node.js Memory ─────────────────────────────────────────────
-      # Limit V8 heap to 384MB (starter plan has 512MB total)
       - key: NODE_OPTIONS
         value: "--max-old-space-size=384"
-      # ── Supabase Realtime (optional) ────────────────────────────────
-      # Get from: Supabase Dashboard → Settings → API → anon public
-      # If not set, realtime features are disabled (app works fine)
       - key: SUPABASE_ANON_KEY
         sync: false
-      # ── Next.js ────────────────────────────────────────────────────
       - key: NODE_ENV
         value: production
       - key: HOSTNAME
@@ -69,4 +58,4 @@ services:
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
     healthCheckPath: /api/health
-    region: singapore # Closest to Nepal — lowest latency
+    region: singapore

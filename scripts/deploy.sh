@@ -25,7 +25,7 @@ RESET='\033[0m'
 
 REPO_URL="https://github.com/pappumahato98/Project-Neo"
 SERVICE_NAME="meridian-pms"
-BUILD_CMD="npx prisma generate && npx next build"
+BUILD_CMD="npx prisma db push --accept-data-loss 2>&1 && npx prisma generate && npx next build"
 START_CMD="npx next start -H 0.0.0.0 -p \$PORT"
 BRANCH="main"
 REGION="singapore"
