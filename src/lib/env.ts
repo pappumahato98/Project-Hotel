@@ -33,6 +33,19 @@ const ENV_SCHEMA = {
   },
 
   // ─── Required in production only ──────────────────────────────
+  REDIS_URL: {
+    required: false, // Optional — falls back to in-memory store
+    validate: (v: string) => {
+      if (!v.startsWith('redis://') && !v.startsWith('rediss://')) {
+        return 'REDIS_URL must start with redis:// or rediss://'
+      }
+      // rediss:// = TLS (recommended for production)
+      if (process.env.NODE_ENV === 'production' && v.startsWith('redis://')) {
+        return 'REDIS_URL should use rediss:// (TLS) in production for security'
+      }
+      return null
+    },
+  },
   NEXTAUTH_SECRET: {
     required: false, // Only needed if NextAuth is enabled
     validate: () => null,

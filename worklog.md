@@ -596,3 +596,55 @@ Stage Summary:
 - Token cleanup daemon runs every 5 minutes (expired + revoked >24h)
 - Zero new dependencies — all in-memory using built-in Node.js APIs
 - Supabase migration ready: 20260801000000_refresh_token_family.sql
+---
+Task ID: 7
+Agent: Main Agent
+Task: Phase 3 — Redis + Multi-Instance Production Readiness
+
+Work Log:
+- Installed ioredis (v6.0.0) for Redis client support
+- Created src/lib/redis.ts: KVStore interface with two implementations:
+  - RedisStore: uses ioredis with ZSET-based sliding window, separate pub/sub connection, auto-reconnect
+  - MemoryStore: in-memory Map-based fallback (zero deps, works in sandbox)
+  - Auto-detection: REDIS_URL set → Redis, not set → in-memory
+  - Includes: get/set/del/incr/expire/ttl/exists/hset/hget/hdel/hgetall/zrangebyscore/zadd/zrem/zremrangebyscore/publish/subscribe/ping/quit
+  - Key namespace helpers: rateLimitKey(), authCacheKey(), sessionKey()
+  - Pub/Sub channels: SESSION_INVALIDATE, PERMISSION_CHANGE, CACHE_CLEAR
+  - Event types: SessionInvalidateEvent, PermissionChangeEvent, CacheClearEvent
+- Rewrote src/lib/security/rate-limiter.ts:
+  - rateLimit() now async (returns Promise<RateLimitResult>)
+  - Redis mode: ZSET-based sliding window (ZADD + ZREMRANGEBYSCORE + ZCARD + EXPIRE)
+  - In-memory mode: unchanged array-based sliding window (backward compatible)
+  - Graceful fallback: Redis error → in-memory for that request
+- Upgraded src/lib/security/auth-helpers.ts:
+  - L1 (local Map) + L2 (Redis) two-tier auth cache
+  - Pub/Sub listener for cross-instance session invalidation
+  - broadcastSessionInvalidation() function for admin force-logout
+  - checkRateLimit() now async (returns Promise<NextResponse | null>)
+  - requireAuth() already async — no changes needed there
+- Updated 6 auth route files to add await to checkRateLimit calls:
+  - login, signup, refresh, reset-password, forgot-password, password
+- Updated src/instrumentation.ts:
+  - Pre-warms store connection at startup
+  - Logs whether Redis (distributed) or in-memory (single-instance)
+  - SIGTERM/SIGINT graceful shutdown: closes Redis connections
+- Updated src/lib/env.ts:
+  - Added REDIS_URL validation (optional, must be redis:// or rediss://)
+  - Production warning if redis:// instead of rediss:// (no TLS)
+- Updated src/app/api/health/route.ts:
+  - Added store health check (Redis ping or in-memory status)
+  - Reports mode: 'Redis (distributed)' or 'in-memory (single-instance)'
+- Updated render.yaml:
+  - Added REDIS_URL env var (sync: false)
+  - Added scaling guide in comments (1 instance vs 2+ vs 3+ with Redis)
+  - Added REDIS_URL format documentation
+- Lint: 0 errors, 74 warnings (all pre-existing)
+
+Stage Summary:
+- Phase 3 complete: Redis distributed store with seamless in-memory fallback
+- Rate limiting: Redis ZSET sliding window (O(log N)) with in-memory fallback
+- Auth cache: L1 (local Map) + L2 (Redis) two-tier, 120s TTL
+- Pub/Sub: cross-instance session invalidation, permission changes, cache clear
+- Graceful shutdown: Redis connections closed on SIGTERM/SIGINT
+- Zero breaking changes: without REDIS_URL, behavior identical to Phase 2
+- To enable Redis: set REDIS_URL env var to rediss://... on Render

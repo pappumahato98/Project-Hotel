@@ -23,6 +23,17 @@
 #                  postgresql://postgres.[ref]:[pass]@pooler.supabase.com:5432/postgres?pgbouncer=true
 #                  (Build command auto-switches to session-mode for migrations)
 #   JWT_SECRET    = <64+ char random string>
+#   REDIS_URL     = Redis connection string (OPTIONAL — falls back to in-memory)
+#                  Without Redis: rate limiting & auth cache are per-instance only
+#                  With Redis: distributed rate limiting, shared auth cache, pub/sub
+#                  Get one from: Render Redis, Upstash, AWS ElastiCache
+#                  Format: rediss://default:pass@redis-host:port (TLS in prod)
+#
+# SCALING GUIDE:
+#   - 1 instance, no Redis:   Works fine up to ~500 concurrent users
+#   - 2+ instances, no Redis:  Rate limiting is per-instance (less accurate)
+#   - 1+ instances, Redis:    Full distributed rate limiting, shared auth cache
+#   - 3+ instances, Redis:    Recommended for 1000+ concurrent users
 #
 # MIGRATION STRATEGY:
 #   Schema changes are managed via `prisma migrate` (version-controlled SQL files).
@@ -80,6 +91,8 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
+        sync: false
+      - key: REDIS_URL
         sync: false
       - key: NODE_OPTIONS
         value: "--max-old-space-size=384"

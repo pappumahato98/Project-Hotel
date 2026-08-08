@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hasPostgresConfigured } from '@/lib/env'
+import { getStore, isDistributedStore } from '@/lib/redis'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
@@ -45,7 +46,18 @@ export async function GET() {
   // 4. App mode
   checks.push({ name: 'app.auth', ok: true, detail: 'JWT (self-contained)' })
 
-  // 5. DB connectivity + accounting table check — cached for CHECK_TTL
+  // 5. Store (Redis/in-memory)
+  try {
+    const store = await getStore()
+    const distributed = store.isDistributed
+    const pingOk = await store.ping()
+    checks.push({ name: 'store', ok: pingOk, detail: distributed ? 'Redis (distributed)' : 'in-memory (single-instance)' })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    checks.push({ name: 'store', ok: false, detail: msg.slice(0, 200) })
+  }
+
+  // 6. DB connectivity + accounting table check — cached for CHECK_TTL
   if (hasPostgresConfigured()) {
     const now = Date.now()
     if (!_lastCheck || (now - _lastCheck.ts) > CHECK_TTL) {

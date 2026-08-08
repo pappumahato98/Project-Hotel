@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest) {
 
   // Strict per-user rate limiting for password changes (3/15min)
   const ip = getClientIp(req)
-  const rateErr = checkRateLimit(req, 'auth:password', `auth:password:${auth.user.userId}`)
+  const rateErr = await checkRateLimit(req, 'auth:password', `auth:password:${auth.user.userId}`)
   if (rateErr) {
     logSecurityEvent({
       type: 'rate_limit_exceeded', level: 'warning',

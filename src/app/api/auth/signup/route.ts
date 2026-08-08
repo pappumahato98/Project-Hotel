@@ -8,7 +8,7 @@ import { isDatabaseError } from '@/lib/auth/fallback-users'
 export async function POST(req: NextRequest) {
   try {
     // Rate limit: 3 signups per minute per IP
-    const rateErr = checkRateLimit(req, 'auth:signup')
+    const rateErr = await checkRateLimit(req, 'auth:signup')
     if (rateErr) return rateErr
 
     const { email, password, firstName, lastName } = await req.json()

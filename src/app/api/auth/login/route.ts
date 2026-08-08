@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit check (per-IP + per-email) using shared sliding-window limiter
-    const ipRateErr = checkRateLimit(req, 'auth:login')
+    const ipRateErr = await checkRateLimit(req, 'auth:login')
     if (ipRateErr) {
       logSecurityEvent({
         type: 'rate_limit_exceeded', level: 'warning',
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       return ipRateErr
     }
 
-    const emailRateErr = checkRateLimit(req, 'auth:login:email', `auth:login:email:${email.toLowerCase()}`)
+    const emailRateErr = await checkRateLimit(req, 'auth:login:email', `auth:login:email:${email.toLowerCase()}`)
     if (emailRateErr) {
       logSecurityEvent({
         type: 'rate_limit_exceeded', level: 'warning',

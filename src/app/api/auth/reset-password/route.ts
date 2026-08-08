@@ -9,7 +9,7 @@ import { isDatabaseError } from '@/lib/auth/fallback-users'
 export async function POST(req: NextRequest) {
   try {
     // Rate limit: 3 resets per 15 minutes per IP
-    const rateErr = checkRateLimit(req, 'auth:reset-password')
+    const rateErr = await checkRateLimit(req, 'auth:reset-password')
     if (rateErr) return rateErr
 
     const { token, newPassword } = await req.json()

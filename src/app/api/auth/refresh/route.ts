@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Rate limit
-    const rateErr = checkRateLimit(req, 'auth:refresh')
+    const rateErr = await checkRateLimit(req, 'auth:refresh')
     if (rateErr) return rateErr
 
     // 4. Read refresh token from cookie

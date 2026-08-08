@@ -1,9 +1,10 @@
 /**
  * Next.js Instrumentation — runs once at server startup.
  *
- * Validates environment variables before any request is processed.
- * In production: blocks startup if critical vars are missing.
- * In development: logs warnings but allows startup (fallback users work).
+ * 1. Validates environment variables before any request is processed.
+ * 2. Starts background daemons (token cleanup).
+ * 3. Pre-warms the Redis/store connection.
+ * 4. Registers graceful shutdown handlers.
  */
 
 export async function register() {
@@ -31,4 +32,38 @@ export async function register() {
   } catch (err) {
     console.warn('[startup] Could not start token cleanup:', err)
   }
+
+  // Pre-warm the store connection (Redis or in-memory)
+  try {
+    const { getStore, isDistributedStore } = await import('@/lib/redis')
+    const store = await getStore()
+    const distributed = await isDistributedStore()
+    console.log(`[startup] Store initialized — ${distributed ? 'Redis (distributed)' : 'in-memory (single-instance)'}`)
+  } catch (err) {
+    console.warn('[startup] Store initialization warning:', err)
+  }
+
+  // Register graceful shutdown handlers
+  registerShutdownHooks()
+}
+
+function registerShutdownHooks(): void {
+  const shutdown = async (signal: string) => {
+    console.log(`[shutdown] Received ${signal}, starting graceful shutdown...`)
+
+    try {
+      const { closeStore } = await import('@/lib/redis')
+      await closeStore()
+      console.log('[shutdown] Store connection closed')
+    } catch {
+      // Best effort
+    }
+
+    console.log('[shutdown] Graceful shutdown complete')
+    // Give the event loop a moment to flush pending writes
+    setTimeout(() => process.exit(0), 500)
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 }
