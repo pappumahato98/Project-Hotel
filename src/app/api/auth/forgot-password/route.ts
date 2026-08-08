@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHash, randomBytes } from 'crypto'
 import { db } from '@/lib/db'
 import { logSecurityEvent } from '@/lib/security/audit'
-import { getClientIp } from '@/lib/security/auth-helpers'
+import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
+import { isDatabaseError } from '@/lib/auth/fallback-users'
 
 // ─── POST /api/auth/forgot-password ─────────────────────────────
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 3 requests per 15 minutes per IP
+    const rateErr = checkRateLimit(req, 'auth:forgot-password')
+    if (rateErr) return rateErr
+
     // Parse body
     let email: string | undefined
     try {
@@ -18,28 +23,24 @@ export async function POST(req: NextRequest) {
     }
 
     if (!email || typeof email !== 'string') {
-      return NextResponse.json(
-        { error: 'Email is required' },
-        { status: 400 },
-      )
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
     const normalizedEmail = email.trim().toLowerCase()
     const clientIp = getClientIp(req)
 
-    // Find user (case-insensitive via lowercase normalization)
     const user = await db.authUser.findUnique({
       where: { email: normalizedEmail },
     })
 
     // Always return the same generic response regardless of whether user exists
-    // This prevents user enumeration (security best practice)
     if (!user || !user.active) {
       logSecurityEvent({
-        type: 'password_change_failure' as any,
+        type: 'password_change_failure',
         level: 'info',
         email: normalizedEmail,
         ipAddress: clientIp,
+        userAgent: getClientUA(req),
         path: '/api/auth/forgot-password',
         method: 'POST',
         details: 'Password reset requested for non-existent or inactive account',
@@ -49,46 +50,45 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    // Generate a 48-byte random token → hex = 96 chars
     const rawToken = randomBytes(48).toString('hex')
     const tokenHash = createHash('sha256').update(rawToken).digest('hex')
 
-    // Delete any previous unused resets for this user
     await db.passwordReset.deleteMany({
-      where: {
-        userId: user.id,
-        usedAt: null,
-      },
+      where: { userId: user.id, usedAt: null },
     })
 
-    // Store the hashed token with 1-hour expiry
     await db.passwordReset.create({
       data: {
         tokenHash,
         userId: user.id,
         ipAddress: clientIp,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
       },
     })
 
-    // Log security event
     logSecurityEvent({
-      type: 'password_change' as any,
+      type: 'password_change',
       level: 'info',
       userId: user.id,
       email: user.email,
       ipAddress: clientIp,
+      userAgent: getClientUA(req),
       path: '/api/auth/forgot-password',
       method: 'POST',
       details: 'Password reset token generated',
     })
 
-    // Return the raw token in the response (no email service — frontend uses it directly)
     return NextResponse.json({
       message: 'Reset token generated successfully.',
       token: rawToken,
     })
-  } catch (error) {
+  } catch (error: unknown) {
+    if (isDatabaseError(error)) {
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable. Please try again in a few seconds.' },
+        { status: 503, headers: { 'Retry-After': '10' } },
+      )
+    }
     console.error('Forgot password error:', error)
     return NextResponse.json(
       { error: 'Failed to process password reset request' },

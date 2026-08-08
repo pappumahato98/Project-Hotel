@@ -22,4 +22,13 @@ export async function register() {
     const ok = result.errors.length === 0 ? '✅' : '⚠️'
     console.log(`[startup] Environment validation ${ok} — ${result.errors.length} errors, ${result.warnings.length} warnings`)
   }
+
+  // Start periodic cleanup of expired refresh tokens (every 5 min)
+  try {
+    const { startTokenCleanup } = await import('@/lib/auth/cleanup')
+    startTokenCleanup()
+    console.log('[startup] Token cleanup daemon started (5-min interval)')
+  } catch (err) {
+    console.warn('[startup] Could not start token cleanup:', err)
+  }
 }

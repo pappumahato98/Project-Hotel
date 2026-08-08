@@ -42,18 +42,22 @@ model AuthUser {
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique // SHA-256 of the raw refresh token
-  userId    String
-  userAgent String?
-  ipAddress String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  tokenHash     String    @unique // SHA-256 of the raw refresh token
+  userId        String
+  tokenFamilyId String    // groups all rotations from one login session
+  userAgent     String?
+  ipAddress     String?
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  replacedBy    String?   // tokenHash of the token that replaced this one
+  revokedAt     DateTime? // set when token is revoked due to family compromise
 
   user      AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([tokenFamilyId])
 }
 
 model PasswordReset {

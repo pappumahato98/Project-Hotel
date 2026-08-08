@@ -1,28 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
-import { requireAuth, getClientIp, getClientUA } from '@/lib/security/auth-helpers'
-import { passwordChangeLimiter, logSecurityEvent } from '@/lib/security'
+import { requireAuth, getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
+import { logSecurityEvent } from '@/lib/security'
 
 export async function PUT(req: NextRequest) {
   // Require authenticated session
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
 
-  // Rate limiting by IP
+  // Strict per-user rate limiting for password changes (3/15min)
   const ip = getClientIp(req)
-  const rateResult = passwordChangeLimiter(ip)
-  if (!rateResult.success) {
+  const rateErr = checkRateLimit(req, 'auth:password', `auth:password:${auth.user.userId}`)
+  if (rateErr) {
     logSecurityEvent({
       type: 'rate_limit_exceeded', level: 'warning',
       userId: auth.user.userId, email: auth.user.email,
       ipAddress: ip, path: '/api/auth/password', method: 'PUT',
       details: `Password change rate limit exceeded for user ${auth.user.email}`,
     })
-    return NextResponse.json(
-      { error: 'Too many password change attempts. Try again later.', retryAfter: Math.ceil((rateResult.resetAt - Date.now()) / 1000) },
-      { status: 429 }
-    )
+    return rateErr
   }
 
   try {

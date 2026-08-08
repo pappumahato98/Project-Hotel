@@ -3,6 +3,7 @@ import { verifyAccessToken } from '@/lib/auth/token'
 import { db } from '@/lib/db'
 import { logSecurityEvent } from './audit'
 import { findFallbackUser, isDatabaseError } from '@/lib/auth/fallback-users'
+import { rateLimit, RATE_LIMITS, type RateLimitConfig } from './rate-limiter'
 
 export type AuthUser = {
   userId: string
@@ -83,7 +84,10 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
       return user
     }
     const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
-    return NextResponse.json({ error: 'Database connection failed', detail: msg.substring(0, 300) }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Service temporarily unavailable. Please try again in a few seconds.' },
+      { status: 503, headers: { 'Retry-After': '10' } },
+    )
   }
 
   if (!profile || !profile.active) {
@@ -123,6 +127,13 @@ export function requireRole(...roles: string[]) {
 export async function requireAuth(req: NextRequest, requiredRoles?: string[]): Promise<{ user: AuthUser } | NextResponse> {
   const sessionOrError = await getAuthSession(req)
   if (sessionOrError instanceof NextResponse) return sessionOrError
+
+  // Per-user rate limiting for authenticated endpoints
+  const isWrite = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)
+  const routeGroup = isWrite ? 'api:write' : 'api:read'
+  const rateErr = checkRateLimit(req, routeGroup, `${routeGroup}:${sessionOrError.userId}`)
+  if (rateErr) return rateErr
+
   if (requiredRoles && requiredRoles.length > 0) {
     const roleCheck = await requireRole(...requiredRoles)(req, sessionOrError)
     if (roleCheck) return roleCheck
@@ -138,4 +149,39 @@ export function getClientIp(req: NextRequest): string {
 
 export function getClientUA(req: NextRequest): string {
   return req.headers.get('user-agent') ?? 'unknown'
+}
+
+/**
+ * Check rate limit for an API request.
+ * - Public endpoints: pass routeGroup like 'auth:login', key is IP
+ * - Authenticated endpoints: pass routeGroup like 'api:write', key is userId
+ * Returns NextResponse(429) if rate limited, or null if allowed.
+ */
+export function checkRateLimit(
+  req: NextRequest,
+  routeGroup: string,
+  key?: string,
+): NextResponse | null {
+  const config = RATE_LIMITS[routeGroup]
+  if (!config) return null // No rate limit configured for this route group
+
+  const rateKey = key ?? `${routeGroup}:${getClientIp(req)}`
+  const result = rateLimit(rateKey, config)
+
+  if (!result.success) {
+    const retryAfterSec = Math.ceil((result.retryAfterMs ?? 60_000) / 1000)
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.', retryAfter: retryAfterSec },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(retryAfterSec),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(Math.ceil(result.resetAt / 1000)),
+        },
+      },
+    )
+  }
+
+  return null
 }

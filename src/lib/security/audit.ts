@@ -9,6 +9,7 @@ export type SecurityEventType =
   | 'password_change' | 'password_change_failure'
   | 'settings_modified' | 'data_export'
   | 'permission_denied'
+  | 'token_replay_detected' | 'token_family_revoked'
 
 export type SecurityLevel = 'info' | 'warning' | 'critical'
 

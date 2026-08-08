@@ -522,3 +522,52 @@ Stage Summary:
 - Sandbox works with fallback auth (no PostgreSQL needed for UI testing)
 - App stable: login, dashboard, all accounting modules functional on production (Render)
 - Credentials: admin@meridian.com/admin123, gm@meridian.com/gm123, staff@meridian.com/staff123
+
+---
+Task ID: 3
+Agent: schema-migration
+Task: Add tokenFamilyId, replacedBy, revokedAt to RefreshToken
+
+Work Log:
+- Added tokenFamilyId, replacedBy, revokedAt to RefreshToken model in schema.prisma
+- Created migration 1_refresh_token_family/migration.sql
+- Added @@index([tokenFamilyId])
+
+Stage Summary:
+- RefreshToken model now supports token family-based replay detection
+- Migration file ready for Supabase SQL Editor
+
+---
+Task ID: 4
+Agent: rate-limiter-rewrite
+Task: Rewrite rate-limiter.ts with sliding window + checkRateLimit in auth-helpers
+
+Work Log:
+- Rewrote rate-limiter.ts: sliding window algorithm, route group presets, proper cleanup
+- Added checkRateLimit() to auth-helpers.ts with 429 headers (Retry-After, X-RateLimit-Remaining, X-RateLimit-Reset)
+- Integrated per-user rate limiting into requireAuth() for all authenticated endpoints
+- Changed DB unreachable response from 500 to 503 with Retry-After header
+- Updated security/index.ts exports
+- Migrated password/route.ts from old passwordChangeLimiter to new checkRateLimit('auth:password')
+- Verified: 0 TypeScript errors in src/, 0 ESLint errors (76 warnings unchanged)
+
+Stage Summary:
+- All 94+ authenticated routes now have automatic per-user rate limiting
+- Public routes can use checkRateLimit(req, 'auth:login') for one-liner rate limiting
+- Sliding window prevents burst-exploit at window boundaries
+
+---
+Task ID: 5
+Agent: auth-rotation-cleanup
+Task: Create rotation.ts, cleanup.ts, update instrumentation and audit types
+
+Work Log:
+- Created src/lib/auth/rotation.ts with rotateRefreshToken() and replay detection
+- Created src/lib/auth/cleanup.ts with startTokenCleanup() (5-min interval)
+- Updated src/instrumentation.ts to register token cleanup on startup
+- Added token_replay_detected and token_family_revoked to SecurityEventType
+
+Stage Summary:
+- Token rotation now detects replay attacks and revokes entire token family
+- Expired tokens auto-cleaned every 5 minutes
+- Cleanup is idempotent across multiple instances

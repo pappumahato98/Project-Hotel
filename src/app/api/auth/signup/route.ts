@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import bcrypt from 'bcryptjs'
 import { logSecurityEvent } from '@/lib/security/audit'
-import { getClientIp } from '@/lib/security/auth-helpers'
+import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
+import { isDatabaseError } from '@/lib/auth/fallback-users'
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 3 signups per minute per IP
+    const rateErr = checkRateLimit(req, 'auth:signup')
+    if (rateErr) return rateErr
+
     const { email, password, firstName, lastName } = await req.json()
 
     if (!email || !password || !firstName || !lastName) {
@@ -41,12 +46,19 @@ export async function POST(req: NextRequest) {
       type: 'signup', level: 'info',
       email: normalizedEmail,
       ipAddress: getClientIp(req),
+      userAgent: getClientUA(req),
       path: '/api/auth/signup', method: 'POST',
       details: 'New account created (pending activation)',
     })
 
     return NextResponse.json({ message: 'Account created. An administrator will activate your account.' }, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
+    if (isDatabaseError(error)) {
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable. Please try again in a few seconds.' },
+        { status: 503, headers: { 'Retry-After': '10' } },
+      )
+    }
     console.error('Signup error:', error)
     return NextResponse.json({ error: 'Failed to create account' }, { status: 500 })
   }
