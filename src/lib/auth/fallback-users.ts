@@ -97,6 +97,10 @@ export function isDatabaseError(error: unknown): boolean {
     msg.includes('getaddrinfo')
   ) return true
 
+  // Prisma validation error: wrong DATABASE_URL protocol (e.g. SQLite URL in
+  // postgresql-only schema — common in sandbox/dev without a real DB)
+  if (msg.includes('URL must start with the protocol')) return true
+
   // TCP / connection refused patterns
   if (
     msg.includes('Connection refused') ||

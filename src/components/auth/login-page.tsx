@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
 import {
   Building2,
   Loader2,
@@ -37,7 +36,6 @@ type AuthView = 'signin' | 'signup' | 'forgot' | 'reset'
 export function LoginPage() {
   const { isAuthenticated } = useAuthStore()
   const { settings } = useSettingsStore()
-  const router = useRouter()
 
   const [view, setView] = React.useState<AuthView>('signin')
   const [loading, setLoading] = React.useState(false)
@@ -94,13 +92,10 @@ export function LoginPage() {
 
   React.useEffect(() => () => setLoading(false), [])
 
-  React.useEffect(() => {
-    if (isAuthenticated) {
-      setLoading(false)
-      setError('')
-      router.push('/')
-    }
-  }, [isAuthenticated, router])
+  // No router.push needed here — page.tsx watches isAuthenticated via zustand
+  // and will re-render to show AppShell when it flips to true.
+  // Calling router.push('/') while already on '/' can cause a soft re-mount
+  // that resets dynamic-import state (loginModule / appShellModule).
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -165,8 +160,9 @@ export function LoginPage() {
         useAuthStore.getState().login(data.user, data.accessToken)
       }
 
-      // Navigate to dashboard
-      router.push('/')
+      // Do NOT call router.push('/') — we're already on '/' (the only route).
+      // The zustand isAuthenticated change will trigger page.tsx to re-render
+      // and swap from LoginPage to AppShell automatically.
     } catch (err) {
       clearTimeout(timeoutId)
       if (err instanceof DOMException && err.name === 'AbortError') {
