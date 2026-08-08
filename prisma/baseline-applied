@@ -1,0 +1,10 @@
+# This file indicates that the 0_baseline migration has already been applied to the
+# production Supabase database. Do not delete this file.
+#
+# The 0_baseline migration represents the full schema that was previously managed
+# via `prisma db push` and Supabase SQL migrations.
+#
+# Future schema changes should use: npx prisma migrate dev --name description
+# This will create numbered migrations (1_xxx, 2_xxx, etc.) that can be deployed
+# with: npx prisma migrate deploy (safe, idempotent, no data loss).
+APPLIED=0_baseline

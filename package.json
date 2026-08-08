@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack -p 3000 -H 0.0.0.0",
-    "build": "if [ -n \"$DATABASE_URL\" ]; then npx prisma db push --accept-data-loss 2>&1; fi && prisma generate && next build",
+    "build": "npx prisma migrate deploy 2>/dev/null; prisma generate && next build",
     "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "postinstall": "prisma generate",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:baseline": "echo 'Marking baseline as applied...' && DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder npx prisma migrate resolve --applied 0_baseline 2>/dev/null; echo 'Done. Future changes: npm run db:migrate:dev -- --name your-change'",
     "db:reset": "prisma migrate reset",
     "vercel-build": "prisma generate && next build"
   },

@@ -8,6 +8,7 @@ import { NAV_ITEMS } from '@/lib/navigation'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/sidebar-nav'
 import { AppHeader } from '@/components/layout/header'
+import { ModuleErrorBoundary } from '@/components/error-boundary'
 
 // ─── Module import map — each module is loaded ON DEMAND when selected ──
 type ModuleImportFn = () => Promise<{ default: ComponentType<any> }>
@@ -113,7 +114,14 @@ function DynamicModule({ moduleId }: { moduleId: string }) {
 
   if (!modState.component) return <ModuleLoader />
 
-  return <modState.component />
+  const navItem = NAV_ITEMS.find((item) => item.id === moduleId)
+  const label = navItem?.label ?? moduleId
+
+  return (
+    <ModuleErrorBoundary moduleId={moduleId} moduleLabel={label}>
+      <modState.component />
+    </ModuleErrorBoundary>
+  )
 }
 
 // ─── Main Content Router ──
