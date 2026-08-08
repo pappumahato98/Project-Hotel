@@ -571,3 +571,28 @@ Stage Summary:
 - Token rotation now detects replay attacks and revokes entire token family
 - Expired tokens auto-cleaned every 5 minutes
 - Cleanup is idempotent across multiple instances
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Phase 2 — Rate Limiting, Token Rotation, Graceful Degradation (commit 1094a69)
+
+Work Log:
+- Refactored login route: removed 60-line inline rate limiter, replaced with 2-line checkRateLimit() calls
+- Login now generates tokenFamilyId (UUID) per session for rotation tracking
+- Upgraded refresh route: integrated rotateRefreshToken() with replay detection + 503 fallback
+- Added rate limiting to signup (3/min), forgot-password (3/15min), reset-password (3/15min)
+- Password route migrated from old passwordChangeLimiter to new checkRateLimit
+- All 94+ authenticated routes get automatic per-user rate limiting via requireAuth()
+- Created supabase/migrations/20260801000000_refresh_token_family.sql for Supabase deployment
+- Lint: 0 errors, 74 warnings (unchanged)
+- Pushed to GitHub (commit 1094a69)
+
+Stage Summary:
+- Phase 2 complete: sliding-window rate limiting, token family rotation, 503 graceful degradation
+- Public endpoints: login 10/5min, signup 3/min, forgot/reset 3/15min, refresh 10/min
+- Authenticated endpoints: 120 reads/min, 30 writes/min per user
+- Replay attack detection: reused refresh tokens trigger family-wide revocation
+- Token cleanup daemon runs every 5 minutes (expired + revoked >24h)
+- Zero new dependencies — all in-memory using built-in Node.js APIs
+- Supabase migration ready: 20260801000000_refresh_token_family.sql
