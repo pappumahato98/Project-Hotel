@@ -29,13 +29,6 @@ const nextConfig: NextConfig = {
               priority: 40,
               enforce: true,
             },
-            socketio: {
-              name: 'socketio',
-              chunks: 'all' as const,
-              test: /[\\/]node_modules[\\/](socket\.io-client|engine\.io-client)[\\/]/,
-              priority: 30,
-              enforce: true,
-            },
           },
         },
       }

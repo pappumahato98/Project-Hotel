@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 
 export type SecurityEventType =
   | 'auth_success' | 'auth_failure' | 'auth_locked'
+  | 'signup'
   | 'rate_limit_exceeded' | 'suspicious_request'
   | 'session_created' | 'session_destroyed' | 'session_expired'
   | 'privilege_escalation_attempt' | 'invalid_token'

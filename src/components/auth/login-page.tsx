@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   KeyRound,
   LogIn,
+  Timer,
+  Database,
 } from 'lucide-react'
 import { useAuthStore, useSettingsStore } from '@/lib/store'
 import { setAccessToken, setCsrfToken } from '@/lib/supabase/client'
@@ -23,6 +25,12 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
 const LOGIN_TIMEOUT_MS = 15_000
+
+function formatSeconds(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return m > 0 ? `${m}m ${s}s` : `${s}s`
+}
 
 type AuthView = 'signin' | 'signup' | 'forgot' | 'reset'
 
@@ -64,6 +72,26 @@ export function LoginPage() {
   const [resetSuccess, setResetSuccess] = React.useState(false)
   const [resetError, setResetError] = React.useState('')
 
+  // Rate limit countdown
+  const [rateLimitSeconds, setRateLimitSeconds] = React.useState(0)
+  const [dbEmptyHint, setDbEmptyHint] = React.useState('')
+
+  // Countdown timer for rate-limited logins
+  React.useEffect(() => {
+    if (rateLimitSeconds <= 0) return
+    const timer = setInterval(() => {
+      setRateLimitSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          setError('')
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [rateLimitSeconds])
+
   React.useEffect(() => () => setLoading(false), [])
 
   React.useEffect(() => {
@@ -81,6 +109,8 @@ export function LoginPage() {
 
     setLoading(true)
     setError('')
+    setRateLimitSeconds(0)
+    setDbEmptyHint('')
 
     // Use AbortController for proper cancellation
     const controller = new AbortController()
@@ -102,6 +132,23 @@ export function LoginPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
+
+        // Rate limited (429) — start countdown
+        if (res.status === 429 && data.retryAfter) {
+          setRateLimitSeconds(data.retryAfter)
+          setError(`Too many login attempts. Try again in ${formatSeconds(data.retryAfter)}.`)
+          setLoading(false)
+          return
+        }
+
+        // DB empty (first-time setup)
+        if (data.code === 'DB_EMPTY') {
+          setDbEmptyHint(data.hint || 'Run POST /api/db-setup to seed users.')
+          setError(data.error || 'No user accounts found.')
+          setLoading(false)
+          return
+        }
+
         setError(data.error || 'Login failed')
         setLoading(false)
         return
@@ -305,7 +352,14 @@ export function LoginPage() {
               <form onSubmit={handleSignIn} className="space-y-4">
                 {error && (
                   <div className="rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300">
-                    {error}
+                    <div className="flex items-start gap-2">
+                      {rateLimitSeconds > 0 && <Timer className="size-4 mt-0.5 shrink-0" />}
+                      {dbEmptyHint ? <Database className="size-4 mt-0.5 shrink-0" /> : null}
+                      <div className="flex-1">
+                        <p>{rateLimitSeconds > 0 ? `Too many attempts. Try again in ${formatSeconds(rateLimitSeconds)}.` : error}</p>
+                        {dbEmptyHint && <p className="mt-1 text-xs opacity-80">{dbEmptyHint}</p>}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -362,10 +416,12 @@ export function LoginPage() {
                 <Button
                   type="submit"
                   className="w-full h-11 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-medium"
-                  disabled={loading}
+                  disabled={loading || rateLimitSeconds > 0}
                 >
                   {loading ? (
                     <><Loader2 className="size-4 animate-spin mr-2" /> Signing in...</>
+                  ) : rateLimitSeconds > 0 ? (
+                    <><Timer className="size-4 mr-2" /> Wait {formatSeconds(rateLimitSeconds)}...</>
                   ) : (
                     'Sign in'
                   )}

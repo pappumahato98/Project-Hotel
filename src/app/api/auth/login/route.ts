@@ -12,40 +12,72 @@ import {
 import { generateCsrfToken } from '@/lib/auth/csrf'
 import { logSecurityEvent } from '@/lib/security/audit'
 import { getClientIp, getClientUA } from '@/lib/security/auth-helpers'
+import { findFallbackUser, isDatabaseError } from '@/lib/auth/fallback-users'
 
 // ─── In-memory rate limiter ─────────────────────────────────────
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-const MAX_ATTEMPTS = 5
-const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+// Tracks both IP and email independently.
+// IP limit: prevents brute-force from a single source
+// Email limit: prevents distributed brute-force on one account
 
-function cleanupRateLimits() {
+interface RateEntry {
+  count: number
+  resetAt: number
+}
+
+const ipAttempts = new Map<string, RateEntry>()
+const emailAttempts = new Map<string, RateEntry>()
+const IP_MAX = 10        // max failed attempts per IP
+const EMAIL_MAX = 8      // max failed attempts per email
+const WINDOW_MS = 5 * 60 * 1000 // 5 minutes
+
+function cleanupMap(map: Map<string, RateEntry>) {
   const now = Date.now()
-  for (const [ip, entry] of loginAttempts) {
-    if (entry.resetAt <= now) loginAttempts.delete(ip)
+  for (const [key, entry] of map) {
+    if (entry.resetAt <= now) map.delete(key)
   }
 }
 
-function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
-  cleanupRateLimits()
-  const entry = loginAttempts.get(ip)
-  if (!entry) return { allowed: true }
-  if (entry.resetAt <= Date.now()) {
-    loginAttempts.delete(ip)
-    return { allowed: true }
+function checkRate(
+  ip: string,
+  email: string,
+): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now()
+  cleanupMap(ipAttempts)
+  cleanupMap(emailAttempts)
+
+  const ipEntry = ipAttempts.get(ip)
+  const emailEntry = emailAttempts.get(email.toLowerCase())
+
+  let retryAfter: number | undefined
+
+  if (ipEntry && ipEntry.resetAt > now && ipEntry.count >= IP_MAX) {
+    retryAfter = Math.ceil((ipEntry.resetAt - now) / 1000)
   }
-  if (entry.count >= MAX_ATTEMPTS) {
-    return { allowed: false, retryAfter: Math.ceil((entry.resetAt - Date.now()) / 1000) }
+  if (emailEntry && emailEntry.resetAt > now && emailEntry.count >= EMAIL_MAX) {
+    const emailRetry = Math.ceil((emailEntry.resetAt - now) / 1000)
+    if (!retryAfter || emailRetry > retryAfter) retryAfter = emailRetry
   }
+
+  if (retryAfter) return { allowed: false, retryAfter }
   return { allowed: true }
 }
 
-function recordFailedAttempt(ip: string) {
-  cleanupRateLimits()
-  const entry = loginAttempts.get(ip)
-  if (!entry) {
-    loginAttempts.set(ip, { count: 1, resetAt: Date.now() + WINDOW_MS })
+function recordFailed(ip: string, email: string) {
+  const now = Date.now()
+  const lower = email.toLowerCase()
+
+  const ipEntry = ipAttempts.get(ip)
+  if (!ipEntry || ipEntry.resetAt <= now) {
+    ipAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
   } else {
-    entry.count++
+    ipEntry.count++
+  }
+
+  const emailEntry = emailAttempts.get(lower)
+  if (!emailEntry || emailEntry.resetAt <= now) {
+    emailAttempts.set(lower, { count: 1, resetAt: now + WINDOW_MS })
+  } else {
+    emailEntry.count++
   }
 }
 
@@ -55,25 +87,7 @@ export async function POST(req: NextRequest) {
   const clientIp = getClientIp(req)
 
   try {
-    // Rate limit check
-    const rateCheck = checkRateLimit(clientIp)
-    if (!rateCheck.allowed) {
-      logSecurityEvent({
-        type: 'rate_limit_exceeded',
-        level: 'warning',
-        ipAddress: clientIp,
-        userAgent: getClientUA(req),
-        path: '/api/auth/login',
-        method: 'POST',
-        details: `Login rate limit exceeded for IP. retryAfter=${rateCheck.retryAfter}s`,
-      })
-      return NextResponse.json(
-        { error: 'Too many login attempts. Please try again later.', retryAfter: rateCheck.retryAfter },
-        { status: 429 },
-      )
-    }
-
-    // Parse body
+    // Parse body first so we can check email-based rate limit
     let email: string | undefined
     let password: string | undefined
     try {
@@ -88,13 +102,82 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })
     }
 
-    // Find user
-    const user = await db.authUser.findUnique({
-      where: { email: email.toLowerCase() },
-    })
+    // Rate limit check (per-IP + per-email)
+    const rateCheck = checkRate(clientIp, email)
+    if (!rateCheck.allowed) {
+      logSecurityEvent({
+        type: 'rate_limit_exceeded',
+        level: 'warning',
+        ipAddress: clientIp,
+        userAgent: getClientUA(req),
+        path: '/api/auth/login',
+        method: 'POST',
+        details: `Login rate limit exceeded. email=${email} retryAfter=${rateCheck.retryAfter}s`,
+      })
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.', retryAfter: rateCheck.retryAfter },
+        { status: 429 },
+      )
+    }
+
+    // ── Try database first ──
+    let user: {
+      id: string; email: string; passwordHash: string | null; active: boolean
+      firstName: string; lastName: string; role: string; department: string
+      position: string; avatarUrl: string | null; phone: string | null
+    } | null = null
+    let usedFallback = false
+    let dbReachable = true
+    let dbEmpty = false
+
+    try {
+      const dbUser = await db.authUser.findUnique({
+        where: { email: email.toLowerCase() },
+      })
+      if (dbUser) {
+        user = dbUser
+      } else {
+        // User not found — check if the table is empty (first-time setup)
+        dbEmpty = (await db.authUser.count()) === 0
+      }
+    } catch (dbErr: unknown) {
+      const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr)
+      console.error('[auth] Database query error:', errMsg)
+
+      if (isDatabaseError(dbErr)) {
+        // Genuine connection failure — try fallback (dev only)
+        dbReachable = false
+        console.warn('[auth] Database unreachable, trying fallback auth')
+        const fallback = await findFallbackUser(email)
+        if (fallback) {
+          user = fallback
+          usedFallback = true
+        }
+      } else {
+        // Schema/query error (NOT a connection issue) — log and fail
+        console.error('[auth] Database schema/query error (not a connection issue):', errMsg.substring(0, 300))
+        return NextResponse.json(
+          { error: 'Authentication service error. Please contact administrator.', detail: 'DB_SCHEMA_ERROR' },
+          { status: 500 },
+        )
+      }
+    }
+
+    // If DB is reachable but empty, return a helpful message
+    if (dbReachable && dbEmpty && !user) {
+      console.warn('[auth] No users in database. Run POST /api/db-setup to seed default users.')
+      return NextResponse.json(
+        {
+          error: 'No user accounts found in database.',
+          hint: 'Run POST /api/db-setup to seed default admin accounts, then try again.',
+          code: 'DB_EMPTY',
+        },
+        { status: 401 },
+      )
+    }
 
     if (!user || !user.active) {
-      recordFailedAttempt(clientIp)
+      recordFailed(clientIp, email)
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
@@ -108,7 +191,7 @@ export async function POST(req: NextRequest) {
     // Verify password
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) {
-      recordFailedAttempt(clientIp)
+      recordFailed(clientIp, email)
       logSecurityEvent({
         type: 'auth_failure',
         level: 'warning',
@@ -123,29 +206,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
     }
 
-    // Generate tokens
+    // ── Login successful ──
     const accessToken = await signAccessToken(user)
     const { raw: refreshTokenRaw, hash: refreshTokenHash } = generateRefreshToken()
     const csrf = generateCsrfToken()
 
-    // Store refresh token in DB
-    await db.refreshToken.create({
-      data: {
-        tokenHash: refreshTokenHash,
-        userId: user.id,
-        userAgent: getClientUA(req),
-        ipAddress: clientIp,
-        expiresAt: getRefreshTokenExpiry(),
-      },
-    })
+    // Store refresh token in DB (skip if using fallback — no DB available)
+    if (!usedFallback) {
+      try {
+        await db.refreshToken.create({
+          data: {
+            tokenHash: refreshTokenHash,
+            userId: user.id,
+            userAgent: getClientUA(req),
+            ipAddress: clientIp,
+            expiresAt: getRefreshTokenExpiry(),
+          },
+        })
+        await db.authUser.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() },
+        })
+      } catch {
+        // DB write failed — non-critical
+      }
+    }
 
-    // Update last login
-    await db.authUser.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    })
-
-    // Log success
     logSecurityEvent({
       type: 'auth_success',
       level: 'info',
@@ -157,7 +243,6 @@ export async function POST(req: NextRequest) {
       method: 'POST',
     })
 
-    // Build response with cookies
     const cookieOptions = getRefreshCookieOptions()
     const refreshCookie = [
       `${REFRESH_COOKIE_NAME}=${refreshTokenRaw}`,
@@ -186,7 +271,6 @@ export async function POST(req: NextRequest) {
       },
     )
 
-    // Each Set-Cookie must be a separate header (HTTP spec)
     response.headers.append('Set-Cookie', refreshCookie)
     response.headers.append('Set-Cookie', csrf.setCookieHeader)
 

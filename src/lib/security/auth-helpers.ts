@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth/token'
 import { db } from '@/lib/db'
 import { logSecurityEvent } from './audit'
+import { findFallbackUser, isDatabaseError } from '@/lib/auth/fallback-users'
 
 export type AuthUser = {
   userId: string
@@ -61,13 +62,26 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
   }
 
   // Verify user still exists and is active
-  let profile
+  let profile: { id: string; email: string; role: string; firstName: string; lastName: string; active: boolean } | null = null
   try {
     profile = await db.authUser.findUnique({
       where: { id: payload.sub },
       select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
     })
-  } catch (dbErr) {
+  } catch (dbErr: unknown) {
+    // Database unreachable — in dev/sandbox, trust the JWT payload
+    if (isDatabaseError(dbErr) && process.env.NODE_ENV !== 'production') {
+      console.warn('[auth] DB unreachable for session check, using JWT payload')
+      const user: AuthUser = {
+        userId: payload.sub,
+        email: payload.email,
+        role: payload.role,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+      }
+      _authCache.set(cacheKey, { user, expiresAt: Date.now() + AUTH_TTL })
+      return user
+    }
     const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
     return NextResponse.json({ error: 'Database connection failed', detail: msg.substring(0, 300) }, { status: 500 })
   }

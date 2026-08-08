@@ -327,3 +327,79 @@ Stage Summary:
 - The schema sync (prisma db push) from previous commits was already applied
 - Chart of accounts and period were missing (never seeded on Render) — now seeded
 - Fixed period creation in db-setup for future deployments
+
+---
+Task ID: 11
+Agent: main
+Task: Fix all Supabase database linter security warnings
+
+Work Log:
+- Analyzed 22 security warnings from Supabase database linter
+- Created new migration: supabase/migrations/20260730000000_security_linter_fixes.sql
+- Fixed 16 Function Search Path Mutable warnings: added SET search_path = '' to all functions (16 flagged + 12 additional from realtime migration)
+- Fixed 2 RLS Policy Always True warnings:
+  - ActivityLog INSERT: changed from WITH CHECK (true) to WITH CHECK ("userId" = auth.uid()::text)
+  - SecurityEvent INSERT: changed from WITH CHECK (true) to WITH CHECK (public.is_admin_or_gm())
+- Fixed 2 Anon SECURITY DEFINER warnings: REVOKE EXECUTE from anon on current_user_role() and rls_auto_enable()
+- Fixed 2 Authenticated SECURITY DEFINER warnings: REVOKE EXECUTE from authenticated on rls_auto_enable()
+- Updated original migration files (000001, 000002, 000003) to be consistent for fresh deployments
+- Documented Leaked Password Protection as a Supabase Dashboard config change (not fixable via SQL)
+
+Stage Summary:
+- 21 of 22 warnings fixed via SQL migration (the 22nd — leaked password protection — requires Supabase Dashboard config)
+- New migration file: supabase/migrations/20260730000000_security_linter_fixes.sql
+- All 3 original migration files updated with consistent search_path and RLS fixes
+- Total functions fixed: 28 (16 flagged + 12 additional from realtime)
+- Key security improvements:
+  - Search path hijacking prevention on all functions
+  - Users can only insert ActivityLog entries with their own userId
+  - Only admin/GM can insert SecurityEvent entries directly (triggers bypass RLS)
+  - Anon role cannot call SECURITY DEFINER functions
+
+---
+Task ID: 12
+Agent: main
+Task: Fix auth + full codebase quality sweep
+
+Work Log:
+- Fixed "Invalid email or password" auth error for sandbox (no DB available)
+- Created src/lib/auth/fallback-users.ts with pre-hashed dev credentials
+- Updated login route: DB-first with fallback to in-memory users (dev only)
+- Updated auth-helpers: trust JWT payload when DB unreachable in non-production
+- Updated profile route: resilient employee lookup (graceful on DB failure)
+- Updated db-setup: now seeds 3 default users (admin/gm/staff) on empty databases
+- CRITICAL: Fixed setState-in-useEffect lint error in app-shell.tsx
+- HIGH: Added missing 'signup' to SecurityEventType union
+- HIGH: Fixed readonly array incompatibility with Prisma createMany
+- HIGH: Removed dead proxy.ts file
+- MEDIUM: Created src/lib/timezone.ts (replaces manual UTC+5:45 offset math)
+- MEDIUM: Replaced catch(err: any) with catch(err: unknown) in db-setup
+- MEDIUM: Re-enabled key ESLint rules (prefer-const, no-explicit-any, exhaustive-deps, no-redeclare, no-unreachable)
+- LOW: Removed dead socketio webpack cache group
+- Lint: 0 errors, 76 warnings (all warnings, no errors)
+
+Stage Summary:
+- Auth works in sandbox without DB (fallback users), and production with DB
+- db-setup endpoint auto-seeds users for fresh deployments
+- Login credentials: admin@meridian.com/admin123, gm@meridian.com/gm123, staff@meridian.com/staff123
+- All code quality issues from comprehensive scan addressed
+- Commit 57ffd1f pushed to main
+---
+Task ID: 3
+Agent: main
+Task: Fix Render port scan timeout - no open ports detected
+
+Work Log:
+- Diagnosed 3 root causes: missing PORT in start script, fragile build command, memory concerns
+- Fixed package.json start script: added -p ${PORT:-3000} to next start command
+- Rewrote render.yaml buildCommand: prisma db push failure is now non-fatal, added echo logging
+- Changed render.yaml startCommand from inline npx command to npm start (delegates to fixed package.json)
+- Clarified DATABASE_URL guidance: transaction-mode pooler (5432) for runtime, auto-switches to session-mode (6543) for migrations
+- Verified NODE_OPTIONS --max-old-space-size=384 is correct for 512MB RAM Starter plan
+- Amended auto-commit with descriptive message, pushed to GitHub as d4fbafe
+
+Stage Summary:
+- Commit d4fbafe pushed to main on GitHub
+- Render should auto-deploy and successfully bind to PORT
+- Key fix: package.json start script now explicitly uses Render PORT env var
+

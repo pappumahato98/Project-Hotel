@@ -3,23 +3,15 @@ import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postNightAuditSummary } from '@/lib/accounting/auto-post'
+import { getHotelNow, getHotelToday, DEFAULT_TIMEZONE } from '@/lib/timezone'
 
-// ─── Nepal timezone helper (UTC+5:45) ───────────────────────────
-function getNepalNow(): Date {
-  const now = new Date()
-  // Nepal is UTC+5:45 = 20700000 ms
-  const utc = now.getTime() + now.getTimezoneOffset() * 60000
-  return new Date(utc + 20700000)
-}
-
-function getNepalToday(): Date {
-  const nepal = getNepalNow()
-  return new Date(nepal.getFullYear(), nepal.getMonth(), nepal.getDate())
-}
+// ─── Hotel timezone helpers (replaces manual offset math) ──────
+function getNepalNow(): Date { return getHotelNow() }
+function getNepalToday(): Date { return getHotelToday() }
 
 function getNepalTomorrow(): Date {
-  const nepal = getNepalNow()
-  return new Date(nepal.getFullYear(), nepal.getMonth(), nepal.getDate() + 1)
+  const d = getHotelNow()
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
 }
 
 // ─── Friendly label for transaction types ───────────────────────

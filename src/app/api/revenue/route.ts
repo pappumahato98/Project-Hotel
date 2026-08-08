@@ -3,12 +3,13 @@ import { db, withRetry } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { getHotelNow } from '@/lib/timezone'
 
-// Nepal timezone offset: UTC+5:45
+// Hotel timezone helper (replaces manual offset math)
 function getNepalToday(): Date {
-  const now = new Date()
-  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000
-  return new Date(utcMs + 5 * 3600000 + 45 * 60000)
+  const d = getHotelNow()
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
 // Generate demand calendar from real reservation data for the next 30 days

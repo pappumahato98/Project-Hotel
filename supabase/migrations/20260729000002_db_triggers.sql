@@ -25,6 +25,7 @@
 CREATE OR REPLACE FUNCTION fn_sync_room_on_reservation()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_room_id TEXT;
@@ -83,6 +84,7 @@ CREATE TRIGGER trg_reservation_room_status
 CREATE OR REPLACE FUNCTION fn_recalc_folio_balance()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_folio_id TEXT;
@@ -135,6 +137,7 @@ CREATE TRIGGER trg_folio_payment_balance
 CREATE OR REPLACE FUNCTION fn_log_reservation_status_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_action TEXT;
@@ -188,6 +191,7 @@ CREATE TRIGGER trg_reservation_status_log
 CREATE OR REPLACE FUNCTION fn_update_guest_stats_on_checkout()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF NEW.status = 'checked_out' AND OLD.status != 'checked_out' AND NEW."guestId" IS NOT NULL THEN
@@ -236,6 +240,7 @@ CREATE TRIGGER trg_guest_stats_checkout
 CREATE OR REPLACE FUNCTION fn_recalc_pos_order_total()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_order_id TEXT;
@@ -277,6 +282,7 @@ CREATE TRIGGER trg_pos_order_total
 CREATE OR REPLACE FUNCTION fn_alert_low_stock()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF NEW."currentStock" <= NEW."reorderPoint" AND OLD."currentStock" > NEW."reorderPoint" THEN
@@ -309,6 +315,7 @@ CREATE TRIGGER trg_inventory_low_stock
 CREATE OR REPLACE FUNCTION fn_sync_reservation_paid()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_folio RECORD;
@@ -364,6 +371,7 @@ CREATE TRIGGER trg_payment_sync_reservation
 CREATE OR REPLACE FUNCTION fn_work_order_room_status()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF NEW."roomId" IS NOT NULL THEN
@@ -399,6 +407,7 @@ CREATE TRIGGER trg_work_order_room
 CREATE OR REPLACE FUNCTION fn_validate_journal_balance()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_total_debit  NUMERIC;
@@ -440,6 +449,7 @@ CREATE TRIGGER trg_journal_balance_check
 CREATE OR REPLACE FUNCTION fn_room_rate_to_folio_transaction()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_room_number TEXT;
@@ -492,6 +502,7 @@ CREATE TRIGGER trg_room_rate_posting_folio
 CREATE OR REPLACE FUNCTION fn_auto_close_folio_on_checkout()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF NEW.status = 'checked_out' AND OLD.status != 'checked_out' THEN
@@ -520,6 +531,7 @@ CREATE TRIGGER trg_auto_close_folio
 CREATE OR REPLACE FUNCTION fn_night_audit_close_shifts()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
@@ -548,6 +560,7 @@ CREATE TRIGGER trg_night_audit_close_shifts
 CREATE OR REPLACE FUNCTION fn_hk_task_room_status()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF NEW."roomId" IS NOT NULL AND OLD.status IS DISTINCT FROM NEW.status THEN
@@ -578,6 +591,7 @@ CREATE TRIGGER trg_hk_task_room_status
 CREATE OR REPLACE FUNCTION fn_prevent_double_booking()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_conflict INTEGER;

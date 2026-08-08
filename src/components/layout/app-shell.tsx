@@ -81,31 +81,34 @@ function ModulePlaceholder({ moduleId, subModuleId }: { moduleId: string; subMod
 
 // ─── Dynamic Module Loader — loads modules on demand ──
 function DynamicModule({ moduleId }: { moduleId: string }) {
-  const [Mod, setMod] = useState<ComponentType<any> | null>(null)
+  const [modState, setModState] = useState<{ status: 'loading' | 'loaded'; component: ComponentType<any> | null }>(() => {
+    const cached = moduleCache.get(moduleId)
+    return cached ? { status: 'loaded', component: cached } : { status: 'loading', component: null }
+  })
 
   useEffect(() => {
-    // Check cache first
-    const cached = moduleCache.get(moduleId)
-    if (cached) {
-      setMod(() => cached)
-      return
-    }
+    if (modState.status === 'loaded') return
 
     const importFn = MODULE_IMPORTS[moduleId]
     if (!importFn) return
 
+    let cancelled = false
     importFn().then(mod => {
+      if (cancelled) return
       const Component = mod.default
       moduleCache.set(moduleId, Component)
-      setMod(() => Component)
+      setModState({ status: 'loaded', component: Component })
     }).catch(() => {
-      // Import failed — will show placeholder
+      if (cancelled) return
+      setModState({ status: 'loading', component: null })
     })
-  }, [moduleId])
 
-  if (!Mod) return <ModuleLoader />
+    return () => { cancelled = true }
+  }, [moduleId, modState.status])
 
-  return <Mod />
+  if (!modState.component) return <ModuleLoader />
+
+  return <modState.component />
 }
 
 // ─── Main Content Router ──

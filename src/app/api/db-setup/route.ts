@@ -89,6 +89,9 @@ const CHART_OF_ACCOUNTS = [
   { code: '5900', name: 'Travel & Entertainment', type: 'expense', subtype: 'admin', description: 'Staff travel and business entertainment' },
 ] as const
 
+// Type assertion for Prisma createMany (readonly arrays aren't compatible)
+const CHART_OF_ACCOUNTS_DATA = CHART_OF_ACCOUNTS as unknown as Array<{ code: string; name: string; type: string; subtype: string; description: string; department?: string }>
+
 export async function POST(req: NextRequest) {
   const logs: string[] = []
   const log = (msg: string) => {
@@ -142,8 +145,9 @@ export async function POST(req: NextRequest) {
       })
       log('Schema push completed')
       if (pushOutput) log(pushOutput.trim().substring(0, 500))
-    } catch (err: any) {
-      const stderr = err.stderr || err.stdout || err.message || String(err)
+    } catch (err: unknown) {
+      const execErr = err as { stderr?: string; stdout?: string; message?: string }
+      const stderr = execErr.stderr || execErr.stdout || execErr.message || String(err)
       log(`Schema push output: ${stderr.substring(0, 500)}`)
       if (stderr.includes('already in sync') || stderr.includes('Everything is already')) {
         log('Schema is already up to date')
@@ -164,8 +168,9 @@ export async function POST(req: NextRequest) {
         encoding: 'utf-8',
       })
       log('Prisma client regenerated')
-    } catch (err: any) {
-      log(`Prisma generate note: ${(err.stdout || err.message || '').substring(0, 200)}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log(`Prisma generate note: ${msg.substring(0, 200)}`)
     }
 
     // ── Step 3: Seed chart of accounts if empty ──
@@ -179,7 +184,7 @@ export async function POST(req: NextRequest) {
       if (existingAccounts === 0) {
         log('Seeding chart of accounts (50 accounts)...')
         const result = await db.ledgerAccount.createMany({
-          data: CHART_OF_ACCOUNTS,
+          data: CHART_OF_ACCOUNTS_DATA,
           skipDuplicates: true,
         })
         accountsSeeded = result.count
@@ -188,14 +193,14 @@ export async function POST(req: NextRequest) {
         log('Chart of accounts already exists — skipping seed')
         accountsSeeded = existingAccounts
       }
-    } catch (err: any) {
-      const msg = err.message || String(err)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
       log(`Account seed error: ${msg.substring(0, 300)}`)
       // Don't fail — schema might still be syncing
     }
 
     // ── Step 4: Create initial accounting period if missing ──
-    log('Step 4/4: Checking accounting periods...')
+    log('Step 4/5: Checking accounting periods...')
     try {
       const { db } = await import('@/lib/db')
       const periodCount = await db.accountingPeriod.count()
@@ -219,15 +224,45 @@ export async function POST(req: NextRequest) {
       } else {
         log(`Found ${periodCount} existing accounting periods`)
       }
-    } catch (err: any) {
-      log(`Period check note: ${(err.message || '').substring(0, 200)}`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log(`Period check note: ${msg.substring(0, 200)}`)
+    }
+
+    // ── Step 5: Seed default users if none exist ──
+    log('Step 5/5: Checking default users...')
+    let usersSeeded = 0
+    try {
+      const { db } = await import('@/lib/db')
+      const userCount = await db.authUser.count()
+      log(`Found ${userCount} existing users`)
+
+      if (userCount === 0) {
+        const { hash } = await import('bcryptjs')
+        const defaultUsers = [
+          { id: 'admin-001', email: 'admin@meridian.com', password: 'admin123', firstName: 'Rajesh', lastName: 'Sharma', role: 'admin', department: 'Management', position: 'General Manager' },
+          { id: 'gm-001', email: 'gm@meridian.com', password: 'gm123', firstName: 'Sita', lastName: 'Adhikari', role: 'gm', department: 'Management', position: 'General Manager' },
+          { id: 'staff-001', email: 'staff@meridian.com', password: 'staff123', firstName: 'Hari', lastName: 'Thapa', role: 'staff', department: 'Front Office', position: 'Receptionist' },
+        ]
+        for (const u of defaultUsers) {
+          const passwordHash = await hash(u.password, 10)
+          await db.authUser.create({ data: { ...u, passwordHash, active: true } })
+          usersSeeded++
+          log(`Created user: ${u.email} (${u.role})`)
+        }
+        log(`Seeded ${usersSeeded} default users`)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log(`User seed note: ${msg.substring(0, 200)}`)
     }
 
     return NextResponse.json({
       success: true,
-      message: `Setup complete: schema synced, ${accountsSeeded} chart of accounts ready`,
-      steps: ['schema-push', 'prisma-generate', 'seed-accounts', 'check-periods'],
+      message: `Setup complete: schema synced, ${accountsSeeded} chart of accounts, ${usersSeeded} users seeded`,
+      steps: ['schema-push', 'prisma-generate', 'seed-accounts', 'check-periods', 'seed-users'],
       accountsSeeded,
+      usersSeeded,
       logs,
     })
   } catch (error) {
@@ -258,16 +293,18 @@ export async function GET() {
     try {
       userCount = await db.authUser.count()
       dbConnected = true
-    } catch (e: any) {
+    } catch (e: unknown) {
       dbConnected = false
-      schemaError = e.message?.substring(0, 200) || 'Connection failed'
+      const msg = e instanceof Error ? e.message : 'Connection failed'
+      schemaError = msg.substring(0, 200)
     }
 
     try {
       accountCount = await db.ledgerAccount.count()
-    } catch (e: any) {
+    } catch (e: unknown) {
       accountCount = -1
-      schemaError = e.message?.substring(0, 300) || 'LedgerAccount query failed'
+      const msg = e instanceof Error ? e.message : 'LedgerAccount query failed'
+      schemaError = msg.substring(0, 300)
     }
 
     try {

@@ -51,6 +51,7 @@ CREATE OR REPLACE FUNCTION fn_realtime_broadcast(
 )
 RETURNS VOID
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   PERFORM pg_notify(
@@ -75,6 +76,7 @@ $$;
 CREATE OR REPLACE FUNCTION fn_broadcast_room_status()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
@@ -120,6 +122,7 @@ CREATE TRIGGER trg_broadcast_room_status
 CREATE OR REPLACE FUNCTION fn_broadcast_reservation_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
@@ -179,6 +182,7 @@ CREATE TRIGGER trg_broadcast_reservation_events
 CREATE OR REPLACE FUNCTION fn_broadcast_payment_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_guest_name TEXT;
@@ -219,6 +223,7 @@ CREATE TRIGGER trg_broadcast_payment_events
 CREATE OR REPLACE FUNCTION fn_broadcast_hk_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_room_number TEXT;
@@ -270,6 +275,7 @@ CREATE TRIGGER trg_broadcast_hk_events
 CREATE OR REPLACE FUNCTION fn_broadcast_work_order_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_room_number TEXT;
@@ -323,6 +329,7 @@ CREATE TRIGGER trg_broadcast_work_order_events
 CREATE OR REPLACE FUNCTION fn_broadcast_security_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
@@ -352,6 +359,7 @@ CREATE TRIGGER trg_broadcast_security_events
 CREATE OR REPLACE FUNCTION fn_broadcast_pos_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_outlet_name TEXT;
@@ -402,6 +410,7 @@ CREATE TRIGGER trg_broadcast_pos_events
 CREATE OR REPLACE FUNCTION fn_broadcast_activity_log()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
@@ -433,6 +442,7 @@ CREATE TRIGGER trg_broadcast_activity_log
 CREATE OR REPLACE FUNCTION fn_broadcast_folio_transaction()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 DECLARE
   v_guest_name TEXT;
@@ -472,6 +482,7 @@ CREATE TRIGGER trg_broadcast_folio_transaction
 CREATE OR REPLACE FUNCTION fn_broadcast_inventory_events()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   IF TG_OP = 'UPDATE'
@@ -525,6 +536,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public."UserPresence";
 CREATE OR REPLACE FUNCTION fn_cleanup_stale_presence()
 RETURNS VOID
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
   UPDATE public."UserPresence"

@@ -12,12 +12,18 @@ export async function GET(req: NextRequest) {
     const data = await getOrSet(`auth:profile:${auth.user.userId}`, async () => {
       // requireAuth() already fetched authUser and returned auth.user — don't re-fetch.
       // Only fetch the employee record (hireDate) which requireAuth doesn't provide.
-      const employee = await db.employee.findFirst({
-        where: { email: auth.user.email },
-        select: { hireDate: true },
-      })
+      let hireDate: string | null = null
+      try {
+        const employee = await db.employee.findFirst({
+          where: { email: auth.user.email },
+          select: { hireDate: true },
+        })
+        hireDate = employee?.hireDate ?? null
+      } catch {
+        // DB unavailable — continue without hireDate
+      }
 
-      return { user: { ...auth.user, hireDate: employee?.hireDate ?? null } }
+      return { user: { ...auth.user, hireDate } }
     }, 60000)
 
     return NextResponse.json(data)
