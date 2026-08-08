@@ -428,3 +428,24 @@ Stage Summary:
 - Fix: db-setup now always updates default user passwords (upsert pattern)
 - Commits: 4052c63 (upsert fix), c455380 (remove diagnostic)
 - Login verified working on Render production
+
+---
+Task ID: 5
+Agent: main
+Task: Fix sidebar navigation not switching modules after login
+
+Work Log:
+- Logged in via browser, confirmed dashboard loads
+- Clicked Front Desk > Reservations — breadcrumb updated but content stayed on Dashboard
+- Clicked Accounting — same issue, content stuck on Dashboard
+- Diagnosed: DynamicModule missing key={activeModule} prop
+- React was reusing the same component instance when moduleId changed
+- useState initializer never re-ran, so old module stayed mounted
+- Also found infinite retry bug in .catch handler (reset to 'loading' re-triggers effect)
+- Fixed: added key={activeModule}, changed .catch to set 'loaded' + null, added fallback placeholder
+- Verified on Render: Dashboard→Reservations→Accounting→Dashboard all switch correctly
+
+Stage Summary:
+- Root cause: Missing React key prop on DynamicModule
+- Fix: 3 lines changed in app-shell.tsx
+- Commit 841e8ec pushed and verified on production
