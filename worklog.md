@@ -473,3 +473,31 @@ Stage Summary:
 - Supabase migration: 14 tables + 2 columns added, ready to apply in Supabase Dashboard
 - No Edge Functions exist in this project — auth is self-contained JWT via Next.js API routes
 - Credentials: admin@meridian.com/admin123, gm@meridian.com/gm123, staff@meridian.com/staff123
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Phase 1 — Foundation Stability (env validation, error boundaries, migrations, connection pooling)
+
+Work Log:
+- Created src/lib/env.ts: validates DATABASE_URL format, JWT_SECRET length, insecure values
+- Created src/instrumentation.ts: Next.js register() hook, blocks production startup on invalid env
+- Created src/components/error-boundary.tsx: GlobalErrorBoundary + ModuleErrorBoundary
+- Wrapped providers.tsx with GlobalErrorBoundary (catches app-level crashes)
+- Wrapped DynamicModule in app-shell.tsx with ModuleErrorBoundary (module isolation)
+- Updated src/lib/db.ts: auto-appends connection_limit=10&pool_timeout=10 to DATABASE_URL
+- Generated prisma/migrations/0_baseline/migration.sql from current 60-model schema
+- Created prisma/migration_lock.toml and prisma/baseline-applied marker
+- Updated package.json: build uses 'prisma migrate deploy' instead of 'prisma db push'
+- Added db:migrate:dev, db:migrate:deploy, db:migrate:baseline npm scripts
+- Updated render.yaml: migrate deploy with fallback to db push
+- Updated health endpoint to report migration status
+- Lint: 0 errors, 76 warnings (unchanged)
+- Pushed to GitHub (commit 86915ea)
+
+Stage Summary:
+- Phase 1 complete: env validation, error boundaries, prisma migrate, connection pooling
+- Production will refuse to start with invalid DATABASE_URL or JWT_SECRET
+- One module crash no longer crashes the whole app
+- Database schema changes now tracked via prisma migrate (version-controlled, reversible)
+- Connection pool limited to 10 per instance (safe for Supabase 200 pooler limit)
