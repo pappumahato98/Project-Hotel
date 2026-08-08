@@ -229,29 +229,40 @@ export async function POST(req: NextRequest) {
       log(`Period check note: ${msg.substring(0, 200)}`)
     }
 
-    // ── Step 5: Seed default users if none exist ──
+    // ── Step 5: Seed/reset default users ──
     log('Step 5/5: Checking default users...')
     let usersSeeded = 0
+    let usersUpdated = 0
     try {
       const { db } = await import('@/lib/db')
+      const { hash } = await import('bcryptjs')
       const userCount = await db.authUser.count()
       log(`Found ${userCount} existing users`)
 
-      if (userCount === 0) {
-        const { hash } = await import('bcryptjs')
-        const defaultUsers = [
-          { id: 'admin-001', email: 'admin@meridian.com', password: 'admin123', firstName: 'Rajesh', lastName: 'Sharma', role: 'admin', department: 'Management', position: 'General Manager' },
-          { id: 'gm-001', email: 'gm@meridian.com', password: 'gm123', firstName: 'Sita', lastName: 'Adhikari', role: 'gm', department: 'Management', position: 'General Manager' },
-          { id: 'staff-001', email: 'staff@meridian.com', password: 'staff123', firstName: 'Hari', lastName: 'Thapa', role: 'staff', department: 'Front Office', position: 'Receptionist' },
-        ]
-        for (const u of defaultUsers) {
-          const passwordHash = await hash(u.password, 10)
+      const defaultUsers = [
+        { id: 'admin-001', email: 'admin@meridian.com', password: 'admin123', firstName: 'Rajesh', lastName: 'Sharma', role: 'admin', department: 'Management', position: 'General Manager' },
+        { id: 'gm-001', email: 'gm@meridian.com', password: 'gm123', firstName: 'Sita', lastName: 'Adhikari', role: 'gm', department: 'Management', position: 'General Manager' },
+        { id: 'staff-001', email: 'staff@meridian.com', password: 'staff123', firstName: 'Hari', lastName: 'Thapa', role: 'staff', department: 'Front Office', position: 'Receptionist' },
+      ]
+
+      for (const u of defaultUsers) {
+        const passwordHash = await hash(u.password, 10)
+        const existing = await db.authUser.findUnique({ where: { email: u.email } }).catch(() => null)
+        if (!existing) {
           await db.authUser.create({ data: { ...u, passwordHash, active: true } })
           usersSeeded++
           log(`Created user: ${u.email} (${u.role})`)
+        } else {
+          // Always update password + role to ensure defaults are correct
+          await db.authUser.update({
+            where: { email: u.email },
+            data: { passwordHash, role: u.role, active: true, firstName: u.firstName, lastName: u.lastName, department: u.department, position: u.position },
+          })
+          usersUpdated++
+          log(`Updated user: ${u.email} (${u.role})`)
         }
-        log(`Seeded ${usersSeeded} default users`)
       }
+      log(`Seeded ${usersSeeded} new, updated ${usersUpdated} existing users`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       log(`User seed note: ${msg.substring(0, 200)}`)
@@ -259,10 +270,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Setup complete: schema synced, ${accountsSeeded} chart of accounts, ${usersSeeded} users seeded`,
+      message: `Setup complete: schema synced, ${accountsSeeded} chart of accounts, ${usersSeeded} created, ${usersUpdated} updated`,
       steps: ['schema-push', 'prisma-generate', 'seed-accounts', 'check-periods', 'seed-users'],
       accountsSeeded,
       usersSeeded,
+      usersUpdated,
       logs,
     })
   } catch (error) {
