@@ -449,3 +449,27 @@ Stage Summary:
 - Root cause: Missing React key prop on DynamicModule
 - Fix: 3 lines changed in app-shell.tsx
 - Commit 841e8ec pushed and verified on production
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix post-login redirect + Supabase migration gaps
+
+Work Log:
+- Diagnosed post-login redirect: router.push('/') while on '/' caused Next.js 16 soft re-mount that reset dynamic-import state in page.tsx
+- Removed router.push('/') from login success handler and isAuthenticated useEffect in login-page.tsx
+- Removed unused useRouter import
+- Compared Prisma schema (60 models) vs Supabase init migration (46 tables) — found 14 missing tables
+- Found AuthUser.passwordHash column missing from Supabase (CRITICAL for auth)
+- Found LedgerAccount.subtype column missing from Supabase (needed by accounting)
+- Created migration 20260731000000_add_missing_tables.sql with all 14 tables + 2 missing columns
+- Fixed isDatabaseError() to catch Prisma protocol validation error (for sandbox fallback)
+- Verified login API returns 200 with valid JWT via curl
+- Lint passes: 0 errors, 76 warnings
+- Pushed to GitHub (commit 32abe07)
+
+Stage Summary:
+- Post-login redirect: Removed router.push('/'), zustand state change handles view swap
+- Supabase migration: 14 tables + 2 columns added, ready to apply in Supabase Dashboard
+- No Edge Functions exist in this project — auth is self-contained JWT via Next.js API routes
+- Credentials: admin@meridian.com/admin123, gm@meridian.com/gm123, staff@meridian.com/staff123
