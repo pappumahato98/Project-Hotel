@@ -98,13 +98,18 @@ function DynamicModule({ moduleId }: { moduleId: string }) {
       const Component = mod.default
       moduleCache.set(moduleId, Component)
       setModState({ status: 'loaded', component: Component })
-    }).catch(() => {
+    }).catch((err) => {
       if (cancelled) return
-      setModState({ status: 'loading', component: null })
+      console.error(`[module] Failed to load module: ${moduleId}`, err)
+      setModState({ status: 'loaded', component: null })
     })
 
     return () => { cancelled = true }
   }, [moduleId, modState.status])
+
+  if (modState.status === 'loaded' && !modState.component) {
+    return <ModulePlaceholder moduleId={moduleId} subModuleId={null} />
+  }
 
   if (!modState.component) return <ModuleLoader />
 
@@ -116,7 +121,7 @@ function MainContent() {
   const { activeModule, activeSubModule } = useNavigationStore()
 
   if (MODULE_IMPORTS[activeModule]) {
-    return <DynamicModule moduleId={activeModule} />
+    return <DynamicModule key={activeModule} moduleId={activeModule} />
   }
 
   return <ModulePlaceholder moduleId={activeModule} subModuleId={activeSubModule} />
