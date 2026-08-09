@@ -4,6 +4,7 @@
  * Features:
  *   - Lazy initialization (avoids Turbopack/Webpack env-loading race conditions)
  *   - Environment validation on first connection
+ *   - Automatic SSL enforcement (sslmode=require) for all PostgreSQL connections
  *   - Connection pool limits for PgBouncer compatibility
  *   - Global singleton (prevents multiple clients in dev hot-reload)
  */
@@ -51,11 +52,29 @@ function validateDbConfig() {
     return false
   }
 
-  // Add connection_limit to DATABASE_URL if not already present
+  // ── Enforce SSL + pool params on PostgreSQL URL ───────────────
   const url = process.env.DATABASE_URL!
+  const hasQuery = url.includes('?')
+  const separator = hasQuery ? '&' : '?'
+  const params: string[] = []
+
+  // 1. Reject non-SSL connections — inject sslmode=require unless explicitly set
+  if (!url.includes('sslmode=')) {
+    params.push('sslmode=require')
+    console.warn('[db] SSL enforced: sslmode=require injected into DATABASE_URL. '
+      + 'To use a different mode, set sslmode= explicitly in your DATABASE_URL.')
+  } else if (url.includes('sslmode=disable') || url.includes('sslmode=allow') || url.includes('sslmode=prefer')) {
+    console.warn(`[db] ⚠️  Weak SSL mode detected (sslmode=disable/allow/prefer). `
+      + `Insecure connections may be intercepted. Use sslmode=require or sslmode=verify-full for production.`)
+  }
+
+  // 2. Connection pool limits (PgBouncer / Supabase / Render compatible)
   if (!url.includes('connection_limit=')) {
-    const separator = url.includes('?') ? '&' : '?'
-    process.env.DATABASE_URL = `${url}${separator}connection_limit=10&pool_timeout=10`
+    params.push('connection_limit=10', 'pool_timeout=10')
+  }
+
+  if (params.length > 0) {
+    process.env.DATABASE_URL = `${url}${separator}${params.join('&')}`
   }
 
   return true

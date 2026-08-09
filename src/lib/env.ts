@@ -13,10 +13,14 @@ const ENV_SCHEMA = {
     validate: (v: string) => {
       if (v.startsWith('file:')) return 'SQLite file: URL detected. PostgreSQL URL required (postgresql://...). Check your .env file.'
       if (!v.startsWith('postgresql://') && !v.startsWith('postgres://')) return 'Must start with postgresql:// or postgres://'
-      // Warn about direct connections (port 5432 without pgbouncer=true) in production
-      if (process.env.NODE_ENV === 'production' && !v.includes('pgbouncer=true')) {
-        // Not a hard error — Supabase pooler works fine without the param
-        // but we log a hint
+      // Production: reject non-SSL connections to the database
+      if (process.env.NODE_ENV === 'production') {
+        if (!v.includes('sslmode=')) {
+          return 'sslmode is not set. Production requires sslmode=require or sslmode=verify-full to reject non-SSL connections. Add ?sslmode=require to your DATABASE_URL.'
+        }
+        if (v.includes('sslmode=disable') || v.includes('sslmode=allow') || v.includes('sslmode=prefer')) {
+          return `Insecure sslmode detected (${v.match(/sslmode=\w+/)?.[0]}). Production requires sslmode=require or sslmode=verify-full. Non-SSL connections will be rejected.`
+        }
       }
       return null
     },
