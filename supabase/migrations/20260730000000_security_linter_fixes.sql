@@ -872,9 +872,10 @@ $$;
 
 -- 2a. ActivityLog INSERT: users can only insert with their own userId
 DROP POLICY IF EXISTS "all_insert_activity" ON public."ActivityLog";
+DROP POLICY IF EXISTS "user_insert_own_activity" ON public."ActivityLog";
 CREATE POLICY "user_insert_own_activity" ON public."ActivityLog"
   FOR INSERT TO authenticated
-  WITH CHECK ("userId" = auth.uid()::text);
+  WITH CHECK ("userId" = (SELECT auth.uid())::text);
 
 -- 2b. SecurityEvent INSERT: only admin/GM can insert directly via client
 --    (trigger-generated inserts bypass RLS and are unaffected)
