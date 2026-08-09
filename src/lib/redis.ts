@@ -15,8 +15,21 @@
  *   const val = await store.get('key')
  */
 
-import Redis from 'ioredis'
-type RedisClient = InstanceType<typeof Redis>
+// Dynamic import to avoid bundling ioredis in sandbox/dev where 'stream' module is unavailable
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let RedisCtor: any = null
+async function getRedisClass() {
+  if (!RedisCtor) {
+    try {
+      const mod = await import('ioredis')
+      RedisCtor = mod.default
+    } catch {
+      RedisCtor = null
+    }
+  }
+  return RedisCtor
+}
+type RedisClient = any
 
 // ─── Key-Value Store Interface ─────────────────────────────────
 
@@ -255,15 +268,23 @@ class MemoryStore implements KVStore {
 
 class RedisStore implements KVStore {
   readonly isDistributed = true
-  private client: RedisClient
-  private subscriber: RedisClient
+  private client!: RedisClient
+  private subscriber!: RedisClient
   private subscriberReady = false
+  private redisUrl: string
 
-  constructor(redisUrl: string) {
+  private constructor(redisUrl: string) {
+    this.redisUrl = redisUrl
+  }
+
+  static async create(redisUrl: string): Promise<RedisStore> {
+    const RC = await getRedisClass()
+    if (!RC) throw new Error('ioredis not available')
+    const instance = new RedisStore(redisUrl)
     // Main client for commands
-    this.client = new Redis(redisUrl, {
+    instance.client = new RC(redisUrl, {
       maxRetriesPerRequest: 3,
-      retryStrategy(times) {
+      retryStrategy(times: number) {
         const delay = Math.min(times * 200, 5000)
         return delay
       },
@@ -272,28 +293,30 @@ class RedisStore implements KVStore {
     })
 
     // Separate connection for pub/sub (Redis requires dedicated connection)
-    this.subscriber = new Redis(redisUrl, {
+    instance.subscriber = new RC(redisUrl, {
       maxRetriesPerRequest: 3,
-      retryStrategy(times) {
+      retryStrategy(times: number) {
         const delay = Math.min(times * 200, 5000)
         return delay
       },
       lazyConnect: true,
     })
 
-    this.subscriber.on('ready', () => {
-      this.subscriberReady = true
+    instance.subscriber.on('ready', () => {
+      instance.subscriberReady = true
       console.log('[redis] Subscriber connected')
     })
 
-    this.subscriber.on('error', (err) => {
+    instance.subscriber.on('error', (err: Error) => {
       console.warn('[redis] Subscriber error:', err.message)
     })
 
     // Reconnect subscriber on close
-    this.subscriber.on('close', () => {
-      this.subscriberReady = false
+    instance.subscriber.on('close', () => {
+      instance.subscriberReady = false
     })
+
+    return instance
   }
 
   async connect(): Promise<void> {
@@ -447,7 +470,7 @@ async function createStore(): Promise<KVStore> {
   }
 
   try {
-    const store = new RedisStore(redisUrl)
+    const store = await RedisStore.create(redisUrl)
     await store.connect()
     const healthy = await store.ping()
     if (!healthy) {

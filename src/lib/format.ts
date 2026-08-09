@@ -6,11 +6,16 @@ import {
   formatDateShort as _formatDateShort,
   formatDateDual as _formatDateDual,
   formatDateDualLong as _formatDateDualLong,
+  formatDateAD as _formatDateAD,
+  formatDateBS as _formatDateBS,
+  formatDateADBS as _formatDateADBS,
   formatTime as _formatTime,
   formatTimeDevanagari as _formatTimeDevanagari,
   formatDateTime as _formatDateTime,
   formatDateTimeShort as _formatDateTimeShort,
+  formatDateTimeADBS as _formatDateTimeADBS,
   formatDateISO as _formatDateISO,
+  formatNPRStyled as _formatNPRStyled,
   formatNumber,
   formatCurrencyCompact,
 } from '@/lib/nepal-standards'
@@ -19,7 +24,7 @@ import {
 // Re-export Nepal standards formatters
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export { formatNumber, formatCurrencyCompact, formatNPRDevanagari, formatTimeDevanagari, formatDateDual, formatDateDualLong }
+export { formatNumber, formatCurrencyCompact, formatNPRDevanagari, formatTimeDevanagari, formatDateDual, formatDateDualLong, formatDateAD, formatDateBS, formatDateADBS, formatDateTimeADBS, formatNPRStyled }
 
 /**
  * Format currency as Rs. with Indian/Nepali lakh/crore grouping.

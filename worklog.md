@@ -791,4 +791,34 @@ Work Log:
 Stage Summary:
 - File created: `src/lib/nepal-address.ts` (~230 lines)
 - 7 provinces, 77 districts with Nepali names, 3 utility functions exported
-- Zero compilation errors, full runtime verification passed
+- Zero compilation errors, full runtime verification passed---
+Task ID: 9
+Agent: Main Agent
+Task: Build comprehensive Nepal Standards settings page with all Nepal-related functions
+
+Work Log:
+- Extended NepaliStandards interface in store.ts with datePrefixStyle and currencyFormat preferences
+- Added formatDateAD, formatDateBS, formatDateADBS, formatDateTimeADBS to nepal-standards.ts (AD/BS prefixed date formats)
+- Added formatNPRStyled to nepal-standards.ts (supports rs_only, npr_only, ru_matra styles)
+- Updated format.ts to re-export all new functions
+- Created comprehensive NepalStandardsTab.tsx (1000+ lines) as separate component with 11 sections
+- Updated SettingsModule.tsx to import new NepalStandardsTab from separate file
+- Fixed ioredis static import to dynamic import in redis.ts for sandbox compatibility
+- Added webpack alias for ioredis in next.config.ts
+
+Stage Summary:
+- Nepal Standards settings tab now has 11 comprehensive sections:
+  1. Current Date & Time (AD, BS, Nepali, Fiscal Year)
+  2. Date & Calendar Settings (dual calendar toggle, date prefix style, live previews)
+  3. Currency & Number Formatting (3 style options, live previews with custom amount)
+  4. Tax & Fiscal Rules (VAT, TDS reference table, tourism fee, local body tax, live tax calculator)
+  5. Nepali Holiday Calendar (21 holidays, BS month lengths, leap year detection)
+  6. AD ↔ BS Date Converter (bidirectional, shows Nepali/English/Devanagari)
+  7. Phone Validator (Nepal mobile/landline validation and formatting)
+  8. Area Converter (sq ft ↔ sq m)
+  9. Provinces & Districts (7 provinces, 77 districts with lookup)
+  10. Foreign Guest Registration (NTB compliance info)
+  11. System Info (timezone, calendar range, TDS categories, Nepali month reference)
+- All formatting functions support AD/BS prefix and Rs./रू/NPR currency variants
+- 0 lint errors, 0 new TypeScript errors
+- Files modified: store.ts, nepal-standards.ts, format.ts, SettingsModule.tsx, NepalStandardsTab.tsx (new), redis.ts, next.config.ts

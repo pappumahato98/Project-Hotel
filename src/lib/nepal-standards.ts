@@ -133,6 +133,24 @@ export function formatCurrencyCompact(amount: number): string {
   return formatNPR(amount, { noSuffix: true })
 }
 
+/**
+ * Format currency based on style preference.
+ * - 'rs_only': Rs. 1,50,000 Only
+ * - 'npr_only': NPR 1,50,000 Only
+ * - 'ru_matra': रू १,५०,००० मात्र
+ */
+export function formatNPRStyled(amount: number, style: 'rs_only' | 'npr_only' | 'ru_matra'): string {
+  switch (style) {
+    case 'npr_only':
+      return formatNPR(amount, { showCode: true })
+    case 'ru_matra':
+      return formatNPRDevanagari(amount)
+    case 'rs_only':
+    default:
+      return formatNPR(amount)
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // DATE/TIME FORMATTING
 // ═══════════════════════════════════════════════════════════════════════
@@ -235,12 +253,70 @@ export function formatDateDualLong(date: string | Date): string {
 }
 
 /**
+ * Format date as AD YYYY/MM/DD with explicit AD prefix.
+ * Example: AD 2025/05/28
+ */
+export function formatDateAD(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  return `AD ${formatDate(d)}`
+}
+
+/**
+ * Format date as BS YYYY/MM/DD BS with explicit BS suffix.
+ * Example: 2082/02/15 BS
+ */
+export function formatDateBS(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  try {
+    const bs = adToBS(d)
+    return `${bs.year}/${String(bs.month).padStart(2, '0')}/${String(bs.day).padStart(2, '0')} BS`
+  } catch {
+    return '—'
+  }
+}
+
+/**
+ * Format date with both AD and BS prefixed explicitly.
+ * Example: AD 2025/05/28 | BS 2082/02/15
+ */
+export function formatDateADBS(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  const ad = formatDate(d)
+  try {
+    const bs = adToBS(d)
+    return `AD ${ad} | BS ${bs.year}/${String(bs.month).padStart(2, '0')}/${String(bs.day).padStart(2, '0')}`
+  } catch {
+    return `AD ${ad}`
+  }
+}
+
+/**
  * Format date + time as YYYY/MM/DD, hh:mm AM/PM
  */
 export function formatDateTime(date: string | Date): string {
   const d = new Date(date)
   if (isNaN(d.getTime())) return '—'
   return `${formatDate(d)}, ${formatTime(d)}`
+}
+
+/**
+ * Format date + time with AD/BS dual prefix.
+ * Example: AD 2025/05/28, 02:30 PM | BS 2082/02/15
+ */
+export function formatDateTimeADBS(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  const time = formatTime(d)
+  const ad = formatDate(d)
+  try {
+    const bs = adToBS(d)
+    return `AD ${ad}, ${time} | BS ${bs.year}/${String(bs.month).padStart(2, '0')}/${String(bs.day).padStart(2, '0')}`
+  } catch {
+    return `AD ${ad}, ${time}`
+  }
 }
 
 /**

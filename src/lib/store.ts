@@ -122,6 +122,8 @@ interface NepaliStandards {
   foreignGuestRegistration: boolean
   tourismFee: number
   localBodyTaxRate: number
+  datePrefixStyle: 'ad_only' | 'bs_only' | 'ad_bs' | 'none'
+  currencyFormat: 'rs_only' | 'npr_only' | 'ru_matra'
 }
 
 interface UserPreferences {
@@ -162,6 +164,8 @@ export const usePreferencesStore = create<PreferencesState>()(
           foreignGuestRegistration: true,
           tourismFee: 500,
           localBodyTaxRate: 0,
+          datePrefixStyle: 'ad_bs',
+          currencyFormat: 'rs_only',
         },
       },
       updatePreferences: (updates) =>

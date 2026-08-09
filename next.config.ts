@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
   turbopack: {},
   // Webpack fallback config
   webpack: (config, { isServer }) => {
+    // Don't bundle ioredis — use dynamic import in redis.ts
+    // This avoids the 'stream' module resolution error in sandbox/dev
+    config.resolve = config.resolve || {}
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      ioredis: false,
+    }
     if (!isServer) {
       config.optimization = {
         ...config.optimization,
