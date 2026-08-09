@@ -32,6 +32,7 @@
 
 DROP POLICY IF EXISTS "admin_gm_read_all_profiles" ON public."AuthUser";
 DROP POLICY IF EXISTS "users_read_own_profile" ON public."AuthUser";
+DROP POLICY IF EXISTS "auth_user_select_merged" ON public."AuthUser";
 
 CREATE POLICY "auth_user_select_merged" ON public."AuthUser"
   FOR SELECT
@@ -50,6 +51,7 @@ CREATE POLICY "auth_user_select_merged" ON public."AuthUser"
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 DROP POLICY IF EXISTS "admin_read_activity" ON public."ActivityLog";
+DROP POLICY IF EXISTS "activity_log_select_admin" ON public."ActivityLog";
 
 CREATE POLICY "admin_read_activity" ON public."ActivityLog"
   FOR SELECT
@@ -69,6 +71,7 @@ CREATE POLICY "admin_read_activity" ON public."ActivityLog"
 
 DROP POLICY IF EXISTS "admin_gm_write_settings" ON public."SystemSetting";
 DROP POLICY IF EXISTS "authenticated_read_settings" ON public."SystemSetting";
+DROP POLICY IF EXISTS "system_setting_select_merged" ON public."SystemSetting";
 
 CREATE POLICY "system_setting_select_merged" ON public."SystemSetting"
   FOR SELECT
