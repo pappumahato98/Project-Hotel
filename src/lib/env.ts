@@ -13,14 +13,10 @@ const ENV_SCHEMA = {
     validate: (v: string) => {
       if (v.startsWith('file:')) return 'SQLite file: URL detected. PostgreSQL URL required (postgresql://...). Check your .env file.'
       if (!v.startsWith('postgresql://') && !v.startsWith('postgres://')) return 'Must start with postgresql:// or postgres://'
-      // Production: reject non-SSL connections to the database
-      if (process.env.NODE_ENV === 'production') {
-        if (!v.includes('sslmode=')) {
-          return 'sslmode is not set. Production requires sslmode=require or sslmode=verify-full to reject non-SSL connections. Add ?sslmode=require to your DATABASE_URL.'
-        }
-        if (v.includes('sslmode=disable') || v.includes('sslmode=allow') || v.includes('sslmode=prefer')) {
-          return `Insecure sslmode detected (${v.match(/sslmode=\w+/)?.[0]}). Production requires sslmode=require or sslmode=verify-full. Non-SSL connections will be rejected.`
-        }
+      // Only hard-block explicitly insecure sslmode (disable/allow/prefer).
+      // Missing sslmode is OK — db.ts auto-injects sslmode=verify-full with the Supabase CA cert.
+      if (v.includes('sslmode=disable') || v.includes('sslmode=allow') || v.includes('sslmode=prefer')) {
+        return `Insecure sslmode detected (${v.match(/sslmode=[a-z-]+/)?.[0]}). Change to sslmode=require or sslmode=verify-full. Non-SSL connections will be rejected.`
       }
       return null
     },
@@ -118,9 +114,14 @@ export function validateEnv(): ValidationResult {
   const dbUrl = process.env.DATABASE_URL
   if (dbUrl?.startsWith('file:')) {
     // Already caught above as an error
-  } else if (dbUrl?.startsWith('postgresql://') && process.env.NODE_ENV !== 'production') {
-    // In dev, postgresql URL is fine — but warn if we can't detect pgbouncer
-    // (not an error, just informational)
+  } else if (dbUrl?.startsWith('postgresql://')) {
+    // Soft warning: sslmode not explicitly set (db.ts auto-injects it, this is just informational)
+    if (!dbUrl.includes('sslmode=')) {
+      warnings.push({
+        key: 'DATABASE_URL',
+        message: 'sslmode not explicitly set in DATABASE_URL. db.ts will auto-inject sslmode=verify-full with Supabase CA cert. No action needed.',
+      })
+    }
   }
 
   const valid = errors.length === 0
