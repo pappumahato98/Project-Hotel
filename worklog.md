@@ -974,3 +974,46 @@ Stage Summary:
 - Desktop (xl): 4-column bento with varied spans
 - Fixed db.ts node:fs webpack resolution issue
 - Switched to turbopack for faster, more reliable dev compilation
+
+---
+Task ID: 3
+Agent: Avatar System Builder
+Task: Build a complete avatar icon pack system
+
+Work Log:
+- Created `/src/lib/avatar-utils.ts` with DEFAULT_AVATARS array, getDefaultAvatar(), getAvatarUrl(), and isDefaultAvatar() helpers
+- Created `/src/components/shared/avatar-picker.tsx` — reusable AvatarPicker component with:
+  - Props: value, onChange, label
+  - 2x2/5-column responsive grid of default avatar options (Boy, Girl, Pet, Nature)
+  - Selected state: green ring border (ring-2 ring-emerald-500) + checkmark Badge
+  - Unselected state: subtle border-2 border-muted with hover:border-emerald-300
+  - 5th "Upload" option with Camera icon and dashed border, triggers hidden file input (max 2MB, image/*)
+  - Current avatar preview (larger, above the grid) when value is set
+- Updated `/src/app/api/auth/signup/route.ts`:
+  - Destructured avatarUrl and gender from request body
+  - Added avatar URL whitelist: only `/avatars/` prefix allowed
+  - Added avatarUrl and gender to db.authUser.create data
+- Updated `/src/components/auth/login-page.tsx`:
+  - Imported AvatarPicker
+  - Added selectedAvatar state (default: /avatars/boy.png)
+  - Added AvatarPicker in signup form after name fields, before email
+  - Added avatarUrl to signup request body
+  - Reset selectedAvatar when switching back to signin view
+- Updated `/src/components/modules/profile/ProfileModule.tsx`:
+  - Imported AvatarPicker
+  - Added AvatarPicker below the upload button in Photo Card section
+  - Connected onChange to profileMutation for instant saving
+- Updated `/src/components/layout/header.tsx`:
+  - Imported getAvatarUrl from avatar-utils
+  - Replaced 2 instances of `user?.avatarUrl || "/avatar-3d.png"` with getAvatarUrl(user?.avatarUrl, user?.gender)
+- Updated `/src/components/layout/sidebar-nav.tsx`:
+  - Imported getAvatarUrl from avatar-utils
+  - Replaced 1 instance of `user?.avatarUrl || "/avatar-3d.png"` with getAvatarUrl(user?.avatarUrl, user?.gender)
+- Ran lint: 0 errors, 77 warnings (all pre-existing)
+
+Stage Summary:
+- Complete avatar icon pack system built and integrated across the app
+- Default avatars (Boy, Girl, Pet, Nature) available at signup and in profile
+- Custom upload support via file input (max 2MB)
+- Gender-aware default avatar fallback in header and sidebar
+- Secure whitelist validation on signup API for avatar URLs

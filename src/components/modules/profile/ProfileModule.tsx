@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AvatarPicker } from '@/components/shared/avatar-picker'
 
 // ─── Helpers ────────────────────────────────────────────────────
 // Local date formatters (en-GB / DD-MM-YYYY)
@@ -324,6 +325,13 @@ function PersonalInfoTab() {
                 JPG, PNG or GIF. Max 2MB. Recommended 200×200px.
               </p>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <AvatarPicker
+              value={user?.avatarUrl || ''}
+              onChange={(url) => profileMutation.mutate({ avatarUrl: url })}
+            />
           </div>
         </CardContent>
       </Card>

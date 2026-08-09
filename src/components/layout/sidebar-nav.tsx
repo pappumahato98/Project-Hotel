@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { getAvatarUrl } from '@/lib/avatar-utils'
 import { useNavigationStore, useAuthStore, usePropertyStore } from '@/lib/store'
 import { NAV_ITEMS, type NavItem } from '@/lib/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -202,7 +203,7 @@ function UserProfileFooter() {
           className="group/user flex w-full items-center gap-2 rounded-md px-2 py-0.5 text-left transition-colors hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
           <Avatar className="size-7 rounded-full shrink-0">
-            <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
+            <AvatarImage src={getAvatarUrl(user?.avatarUrl, user?.gender)} alt="User" />
             <AvatarFallback className="bg-amber-100 text-amber-700 text-[10px] font-semibold">
               {initials}
             </AvatarFallback>

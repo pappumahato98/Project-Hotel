@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const rateErr = await checkRateLimit(req, 'auth:signup')
     if (rateErr) return rateErr
 
-    const { email, password, firstName, lastName } = await req.json()
+    const { email, password, firstName, lastName, avatarUrl, gender } = await req.json()
 
     if (!email || !password || !firstName || !lastName) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 12)
 
+    // Whitelist avatar URL — only allow default avatars or empty/null
+    const safeAvatarUrl = (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.startsWith('/avatars/'))
+      ? avatarUrl
+      : null
+
     await db.authUser.create({
       data: {
         email: normalizedEmail,
@@ -39,6 +44,8 @@ export async function POST(req: NextRequest) {
         lastName: lastName.trim(),
         role: 'staff',
         active: true,
+        ...(safeAvatarUrl ? { avatarUrl: safeAvatarUrl } : {}),
+        ...(gender ? { gender: String(gender).trim() } : {}),
       },
     })
 

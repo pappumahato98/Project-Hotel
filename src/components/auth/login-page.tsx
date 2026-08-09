@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { AvatarPicker } from '@/components/shared/avatar-picker'
 
 const LOGIN_TIMEOUT_MS = 15_000
 
@@ -54,6 +55,7 @@ export function LoginPage() {
   const [confirmPassword, setConfirmPassword] = React.useState('')
   const [showSignUpPassword, setShowSignUpPassword] = React.useState(false)
   const [signUpSuccess, setSignUpSuccess] = React.useState(false)
+  const [selectedAvatar, setSelectedAvatar] = React.useState('/avatars/boy.png')
 
   // Forgot Password
   const [forgotEmail, setForgotEmail] = React.useState('')
@@ -205,6 +207,7 @@ export function LoginPage() {
           lastName: lastName.trim(),
           email: signUpEmail.trim().toLowerCase(),
           password: signUpPassword,
+          avatarUrl: selectedAvatar,
         }),
       })
 
@@ -550,6 +553,12 @@ export function LoginPage() {
                   </div>
                 </div>
 
+                <AvatarPicker
+                  value={selectedAvatar}
+                  onChange={setSelectedAvatar}
+                  label="Choose your avatar"
+                />
+
                 <div className="space-y-2">
                   <Label htmlFor="signupEmail" className="text-sm font-medium">Email</Label>
                   <div className="relative">
@@ -626,7 +635,7 @@ export function LoginPage() {
                   Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => { setView('signin'); setError('') }}
+                    onClick={() => { setView('signin'); setError(''); setSelectedAvatar('/avatars/boy.png') }}
                     className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium"
                   >
                     Sign in

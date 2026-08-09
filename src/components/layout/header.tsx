@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { getAvatarUrl } from '@/lib/avatar-utils'
 import { useNavigationStore, useAuthStore, usePropertyStore, useSettingsStore, usePreferencesStore } from '@/lib/store'
 import { DualCalendarDisplay } from '@/components/shared/dual-calendar'
 import { NotificationBell } from '@/components/shared/notification-bell'
@@ -188,7 +189,7 @@ function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
           {/* Avatar & Role */}
           <div className="flex items-center gap-4">
             <Avatar className="size-16">
-              <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
+              <AvatarImage src={getAvatarUrl(user?.avatarUrl, user?.gender)} alt="User" />
               <AvatarFallback className="bg-amber-100 text-amber-700 text-lg font-semibold">
                 {initials}
               </AvatarFallback>
@@ -446,7 +447,7 @@ function UserMenu() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="relative h-8 gap-2 rounded-full pl-2 pr-3">
             <Avatar className="size-7">
-              <AvatarImage src={user?.avatarUrl || "/avatar-3d.png"} alt="User" />
+              <AvatarImage src={getAvatarUrl(user?.avatarUrl, user?.gender)} alt="User" />
               <AvatarFallback className="bg-amber-100 text-amber-700 text-xs font-semibold">
                 {initials}
               </AvatarFallback>
