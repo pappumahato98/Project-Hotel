@@ -1,10 +1,15 @@
 import { usePreferencesStore } from '@/lib/store'
 import {
   formatNPR as _formatNPR,
+  formatNPRDevanagari as _formatNPRDevanagari,
   formatDate as _formatDate,
   formatDateShort as _formatDateShort,
+  formatDateDual as _formatDateDual,
+  formatDateDualLong as _formatDateDualLong,
   formatTime as _formatTime,
+  formatTimeDevanagari as _formatTimeDevanagari,
   formatDateTime as _formatDateTime,
+  formatDateTimeShort as _formatDateTimeShort,
   formatDateISO as _formatDateISO,
   formatNumber,
   formatCurrencyCompact,
@@ -14,25 +19,25 @@ import {
 // Re-export Nepal standards formatters
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export { formatNumber, formatCurrencyCompact }
+export { formatNumber, formatCurrencyCompact, formatNPRDevanagari, formatTimeDevanagari, formatDateDual, formatDateDualLong }
 
 /**
  * Format currency as Rs. with Indian/Nepali lakh/crore grouping.
- * Example: Rs. 1,50,000 | Rs. 1,00,00,000
+ * Example: Rs. 1,50,000 Only | Rs. 1,00,00,000 Only
  */
 export function formatCurrency(amount: number): string {
   return _formatNPR(amount)
 }
 
 /**
- * Format date as DD/MM/YYYY (Nepal/British standard)
+ * Format date as YYYY/MM/DD (Nepal standard)
  */
 export function formatDate(date: string | Date): string {
   return _formatDate(date)
 }
 
 /**
- * Format date as DD-Mon-YYYY (e.g., 15-Jul-2025)
+ * Format date as YYYY-Mon-DD (e.g., 2025-Jul-15)
  */
 export function formatDateShort(date: string | Date): string {
   return _formatDateShort(date)
@@ -46,7 +51,7 @@ export function formatTime(date: string | Date): string {
 }
 
 /**
- * Format date + time as DD/MM/YYYY, hh:mm AM/PM
+ * Format date + time as YYYY/MM/DD, hh:mm AM/PM
  */
 export function formatDateTime(date: string | Date): string {
   return _formatDateTime(date)

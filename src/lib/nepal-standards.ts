@@ -6,12 +6,14 @@
  * 
  * Standards:
  *   Currency: NPR (Nepalese Rupee) with Indian/Nepali grouping (lakhs/crores)
- *   Dates: YYYY/MM/DD (Nepal standard), YYYY-Mon-DD short, BS optional via dual calendar
+ *   Dates: YYYY/MM/DD AD + BS (dual calendar always on), YYYY-Mon-DD short
  *   Time: 12-hour with AM/PM, Asia/Katmandu (UTC+5:45)
  *   Phone: +977 format
  *   Tax: 13% VAT (Nepal standard), TDS rates
  *   Fiscal Year: Shrawan–Ashadh (mid-Jul to mid-Jul) in BS
  */
+
+import { adToBS, formatBSDateShort, formatBSDateEnglish } from '@/lib/nepali-calendar'
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -50,6 +52,18 @@ export const CURRENCY = {
 export const NEPAL_TIMEZONE = 'Asia/Katmandu'
 
 // ═══════════════════════════════════════════════════════════════════════
+// DEVANAGARI DIGITS
+// ═══════════════════════════════════════════════════════════════════════
+
+/** Devanagari digit map: 0-9 → ०-९ */
+const DEVANAGARI_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'] as const
+
+/** Convert a number string to Devanagari digits: 1,50,000 → १,५०,००० */
+function toDevanagariStr(str: string): string {
+  return str.replace(/[0-9]/g, (d) => DEVANAGARI_DIGITS[parseInt(d)] ?? d)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // NUMBER FORMATTING — Indian/Nepali Grouping (##,##,###)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -73,20 +87,38 @@ export function formatNumber(value: number, options?: {
 
 /**
  * Format an amount as NPR with Indian/Nepali number grouping.
- * Examples: Rs. 1,000 | Rs. 1,50,000 | Rs. 1,00,00,000
+ * Default: Rs. 1,50,000 Only
+ * Examples: Rs. 1,000 Only | Rs. 1,50,000 Only | Rs. 1,00,00,000 Only
  */
 export function formatNPR(amount: number, options?: {
   minimumFractionDigits?: number
   maximumFractionDigits?: number
   showCode?: boolean
+  noSuffix?: boolean
 }): string {
   const formatted = formatNumber(amount, options)
-  if (options?.showCode) return `NPR ${formatted}`
-  return `Rs. ${formatted}`
+  const suffix = options?.noSuffix ? '' : ' Only'
+  if (options?.showCode) return `NPR ${formatted}${suffix}`
+  return `Rs. ${formatted}${suffix}`
 }
 
 /** Alias for consistency */
 export const formatCurrency = formatNPR
+
+/**
+ * Format an amount in Devanagari script with रू prefix and मात्र suffix.
+ * Example: रू १,५०,००० मात्र
+ */
+export function formatNPRDevanagari(amount: number, options?: {
+  minimumFractionDigits?: number
+  maximumFractionDigits?: number
+  noSuffix?: boolean
+}): string {
+  const formatted = formatNumber(amount, options)
+  const devanagari = toDevanagariStr(formatted)
+  const suffix = options?.noSuffix ? '' : ' मात्र'
+  return `रू ${devanagari}${suffix}`
+}
 
 /**
  * Format currency compact for tables: Rs. 1.5L (1.5 lakh), Rs. 2.3Cr (2.3 crore)
@@ -98,7 +130,7 @@ export function formatCurrencyCompact(amount: number): string {
   if (amount >= 1_00_000) {
     return `Rs. ${(amount / 1_00_000).toFixed(1)}L`
   }
-  return formatNPR(amount)
+  return formatNPR(amount, { noSuffix: true })
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -156,9 +188,6 @@ export function formatTime(date: string | Date): string {
   return `${h12}:${minutes} ${ampm}`
 }
 
-/** Devanagari digit map: 0-9 → ०-९ */
-const DEVANAGARI_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'] as const
-
 /**
  * Format time in Devanagari script (e.g., ११:३० अपराह्न / ०८:१५ पूर्वाह्न)
  */
@@ -170,10 +199,39 @@ export function formatTimeDevanagari(date: string | Date): string {
   const ampm = hours >= 12 ? 'अपराह्न' : 'पूर्वाह्न'
   const h12 = hours % 12 || 12
 
-  const toDevanagari = (n: number | string) =>
-    String(n).split('').map(ch => DEVANAGARI_DIGITS[parseInt(ch)] ?? ch).join('')
+  return `${toDevanagariStr(String(h12).padStart(2, '0'))}:${toDevanagariStr(minutes)} ${ampm}`
+}
 
-  return `${toDevanagari(String(h12).padStart(2, '0'))}:${toDevanagari(minutes)} ${ampm}`
+/**
+ * Format date with both AD and BS (dual calendar — always shown by default in Nepal)
+ * Example: 2025/05/28 (2082/02/15 BS)
+ */
+export function formatDateDual(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  const ad = formatDate(d)
+  try {
+    const bs = formatBSDateShort(adToBS(d))
+    return `${ad} (${bs})`
+  } catch {
+    return ad
+  }
+}
+
+/**
+ * Format date with both AD short and BS English long
+ * Example: 2025-May-28 (2082 Jestha 15)
+ */
+export function formatDateDualLong(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  const ad = formatDateShort(d)
+  try {
+    const bs = formatBSDateEnglish(adToBS(d))
+    return `${ad} (${bs})`
+  } catch {
+    return ad
+  }
 }
 
 /**
