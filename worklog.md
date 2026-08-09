@@ -822,3 +822,39 @@ Stage Summary:
 - All formatting functions support AD/BS prefix and Rs./रू/NPR currency variants
 - 0 lint errors, 0 new TypeScript errors
 - Files modified: store.ts, nepal-standards.ts, format.ts, SettingsModule.tsx, NepalStandardsTab.tsx (new), redis.ts, next.config.ts
+---
+Task ID: 2
+Agent: Dashboard Redesign Agent
+Task: Redesign DashboardModule.tsx with Fixoria-inspired design (temporary test)
+
+Work Log:
+- Read and analyzed the original DashboardModule.tsx.backup (1080 lines)
+- Identified all data interfaces (KpisData, AlertsData, ActivityData, DashboardData) and API calls
+- Verified existing shadcn/ui components available (Card, Badge, Button, Avatar, Tabs, Select, DropdownMenu, etc.)
+- Designed and wrote new 1208-line DashboardModule.tsx with Fixoria-inspired layout:
+  1. 3 KPI Cards Row: Total Booking, Check In, Check Out with trend arrows
+  2. Stacked Bar Chart: Occupancy with Available/Occupied/Not Ready segments
+  3. Revenue Overview: Big total number, offline/platform split, channel breakdown bars
+  4. Recent Arrivals Table: Room pill badges, guest avatars, relative time, action menus
+  5. Calendar Widget: Mini calendar, room filter tabs, room timeline cards with progress indicators
+  6. Operational Alerts: Redesigned with left-border color coding and card style
+  7. Activity Feed: Clean list with icons and timeago
+  8. Quick Actions: Compact grid with colored icon buttons
+  9. Room Status Summary: Compact pill badges with color dots
+  10. Realtime Status: Connection indicator
+  11. Live Activity Feed: Preserved LiveActivityFeed component
+- Fixed em-dash character in JSX text that caused TypeScript parsing error (TS1005)
+- Fixed hooks ordering (useState/useEffect before conditional returns)
+- All lint checks pass with zero errors
+- Preserved exact same data fetching: apiFetch('/api/dashboard') with useQuery
+- Preserved all store hooks (useAuthStore, useSettingsStore, useNavigationStore, useNotificationStore)
+- Preserved LiveActivityFeed component integration
+- Color scheme matches spec: #F9FAFB bg, #FFFFFF cards, #22C55E green, #EF4444 red, #111827 text, #6B7280 secondary text, #E5E7EB borders
+- Card shadow: 0 4px 6px -1px rgba(0,0,0,0.05), border-radius: 12px
+- Responsive layout with Tailwind breakpoints
+
+Stage Summary:
+- New Fixoria-inspired dashboard is TEMPORARY and can be reverted from .backup file
+- Original backup preserved at DashboardModule.tsx.backup
+- User should say 'this dashboard to go' to finalize, or revert
+- File: src/components/modules/dashboard/DashboardModule.tsx (1208 lines)
