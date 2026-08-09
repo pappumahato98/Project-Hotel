@@ -1017,3 +1017,114 @@ Stage Summary:
 - Custom upload support via file input (max 2MB)
 - Gender-aware default avatar fallback in header and sidebar
 - Secure whitelist validation on signup API for avatar URLs
+---
+Task ID: 2-a
+Agent: Nepal Compliance Builder
+Task: Create comprehensive Nepal Compliance library for HR, Payroll & Accounting
+
+Work Log:
+- Read existing nepal-standards.ts (NEPAL_VAT_RATE=13%, TDS rates, fiscal year helpers, formatting utils)
+- Read existing nepali-calendar.ts (adToBS, bsToAD, getNepaliHolidays, BS calendar data)
+- Read existing Prisma schema: Employee model (id, salary, department, status), Invoice model (invoiceNumber, type, subtotal, taxAmount, totalAmount, status, notes), ActivityLog model (userId, userName, action, module, details, ipAddress), LeaveRequest model (leaveType, status, startDate, endDate, duration), SystemSetting model (category, key, value)
+- Read existing security/audit.ts (fire-and-forget pattern for db.securityEvent.create)
+- Created /src/lib/nepal-compliance/ directory with 8 files:
+
+  1. tax-engine.ts — Income Tax Calculation Engine (Income Tax Act 2058 BS)
+     - TaxSlab, SlabComputation, IncomeTaxResult, TaxBracketInfo interfaces
+     - Married slabs: 1%→10%→20%→30%→36%→39% (600K/800K/1.1M/2M/5M boundaries)
+     - Unmarried slabs: 1%→10%→20%→30%→36%→39% (500K/700K/1M/2M/5M boundaries)
+     - getTaxSlabs(maritalStatus), calculateIncomeTax(annualIncome, maritalStatus), getTaxBracketInfo()
+     - Returns slab-by-slab computation, total tax, effective rate, monthly TDS
+
+  2. payroll-engine.ts — Payroll Compliance Engine (EPF, SSF, Gratuity, CIT, Insurance)
+     - EPF: 10% employee + 10% employer (both to employee account)
+     - SSF: 20% employee + 20%/10% employer (contribution/non-contribution based)
+     - Gratuity: (basic ÷ 30) × 15 × years, 3+ years eligibility per Labor Act 2074 §74
+     - Insurance deduction: Life max 40K/yr, Health max 20K/yr
+     - CIT: configurable rate (default 10%), 10% tax rebate
+     - Minimum basic salary: NPR 17,320/month
+     - calculateEPF(), calculateSSF(), calculateGratuity(), calculateInsuranceDeduction(), calculateCIT(), validateMinimumSalary(), getSalaryBreakdown(), calculatePayroll()
+
+  3. leave-engine.ts — Leave Compliance Engine (Labor Act 2074 BS)
+     - Sick: 1 day/BS month (12/year), carry-forward to 45 days
+     - Home/Casual: 1 day/BS month (10/year), NOT carry-forward
+     - Maternity: 98 days (14 prenatal + 84 postnatal)
+     - Paternity: 15 days
+     - Bereavement: 13 days
+     - Special Women: 1 day/BS month (menstrual leave)
+     - Annual leave by employment type: permanent 15, contract 12, temp/probation 10
+     - Uses getNepaliHolidays() and bsToAD() from nepali-calendar.ts
+
+  4. cbms.ts — CBMS Integration for IRD
+     - prepareCBMSPayload() transforms Invoice model to CBMS API format
+     - sendToCBMS() submits to IRD with error handling
+     - parseCBMSResponse() maps response codes (200/100-105) to messages
+     - validateCBMSSettings() checks SystemSetting table for cbms_* keys
+     - syncFailedInvoices() batch-resubmits unsent invoices
+
+  5. vat-engine.ts — VAT Register & Return Report Engine
+     - Uses NEPAL_VAT_RATE (13%) from nepal-standards.ts
+     - calculateVAT(), generateSalesVATRegister(), generatePurchaseVATRegister()
+     - generateVATReturnReport() produces monthly breakdown for IRD filing
+     - calculateVATPayable() computes net VAT payable/refundable
+
+  6. audit-trail.ts — Audit Trail System
+     - Uses existing ActivityLog Prisma model (fire-and-forget writes)
+     - logActivity() with docType, docId, oldValue, newValue, IP, user agent
+     - getAuditLog() with filters (userId, action, module, date range)
+     - getAuditTrailForDoc() for full document change history
+     - getSQLQueryAuditLogs() placeholder for Prisma middleware
+
+  7. invoice-rules.ts — Invoice Compliance Rules
+     - Invoice cancellation (NO deletion — only cancel with reason)
+     - Copy tracking: recordInvoicePrint() with copy count in notes
+     - Invoice number format: {FY}-{SEQUENCE} (e.g. 2082/2083-00001)
+     - getNextInvoiceSequence() queries DB for next sequence
+     - getInvoiceCopyStatus() parses print/cancel metadata from notes
+     - formatFiscalYearForInvoice() uses getNepalFiscalYearLong()
+
+  8. index.ts — Barrel export of all 7 modules
+
+- Fixed lint: changed `let added` to `const added` in leave-engine.ts
+- Final lint: 0 errors in nepal-compliance files
+- Dev server compiles clean
+
+Stage Summary:
+- Complete Nepal compliance library with 7 modules covering:
+  Income Tax, Payroll (EPF/SSF/Gratuity/CIT/Insurance),
+  Leave (Labor Act 2074 BS), CBMS/IRD integration,
+  VAT registers & returns, Audit trail, Invoice rules
+- All amounts in NPR, all dates support BS via nepali-calendar.ts
+- Reuses existing: NEPAL_VAT_RATE, TDS rates, fiscal year helpers,
+  getNepaliHolidays, bsToAD, adToBS, ActivityLog model
+- Server-side only (no 'use client'), TypeScript strict typing
+- JSDoc on all exported functions
+
+---
+Task ID: 2-b
+Agent: API Route Builder
+Task: Create 7 Nepal compliance API routes
+
+Work Log:
+- Read all 7 nepal-compliance engine files to understand exact function signatures and return types
+- Read auth-helpers.ts to understand the project's JWT auth pattern (requireAuth, getAuthSession)
+- Read Invoice and ActivityLog Prisma models to understand DB schema
+- Created /api/nepal-compliance/tax-calculate/route.ts (POST: calculateIncomeTax with slabs breakdown; GET: getTaxSlabs by maritalStatus)
+- Created /api/nepal-compliance/payroll-preview/route.ts (POST: getSalaryBreakdown + calculateGratuity + insurance + CIT + min salary check)
+- Created /api/nepal-compliance/leave-entitlement/route.ts (GET: all leave types including sick, home, annual, maternity, paternity, bereavement, special_women, public holidays)
+- Created /api/nepal-compliance/cbms-status/route.ts (GET: validateCBMSSettings status; POST: syncFailedInvoices with auth)
+- Created /api/nepal-compliance/vat-register/route.ts (GET: sales/purchase/sales_return/purchase_return registers + type=return VAT return report)
+- Created /api/nepal-compliance/audit-log/route.ts (GET: paginated getAuditLog with entityType, entityId, userId, date range filters)
+- Created /api/nepal-compliance/invoice-cancel/route.ts (POST: cancelInvoice with auth, IP tracking, audit trail)
+- All routes use NextRequest/NextResponse from next/server, import db from @/lib/db where needed
+- Auth-protected routes (cbms-status POST, invoice-cancel POST) use requireAuth from @/lib/security/auth-helpers
+- All routes validate inputs, handle errors gracefully with try/catch, return proper HTTP status codes (200, 400, 401, 500)
+- Removed unused import (calculateVATPayable) from vat-register route
+- Lint passes with 0 errors (77 pre-existing warnings unchanged)
+
+Stage Summary:
+- 7 API routes created under /api/nepal-compliance/
+- All routes call the correct compliance engine functions with exact parameter names
+- Auth pattern matches existing project convention (requireAuth, not getServerSession)
+- No 'use client' directives — all server routes
+- Error handling: try/catch with console.error, proper status codes, user-friendly messages
