@@ -86,6 +86,8 @@ export async function POST(req: NextRequest) {
           select: {
             id: true, email: true, role: true,
             firstName: true, lastName: true, active: true,
+            department: true, position: true,
+            avatarUrl: true, phone: true, gender: true,
           },
         },
       },
@@ -150,6 +152,11 @@ export async function POST(req: NextRequest) {
           id: user.id, email: user.email,
           firstName: user.firstName, lastName: user.lastName,
           role: user.role,
+          department: user.department,
+          position: user.position,
+          avatarUrl: user.avatarUrl,
+          phone: user.phone,
+          gender: user.gender,
         },
       },
     )

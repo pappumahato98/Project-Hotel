@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     let user: {
       id: string; email: string; passwordHash: string | null; active: boolean
       firstName: string; lastName: string; role: string; department: string
-      position: string; avatarUrl: string | null; phone: string | null
+      position: string; avatarUrl: string | null; phone: string | null; gender: string | null
     } | null = null
     let usedFallback = false
     let dbReachable = true
@@ -185,6 +185,7 @@ export async function POST(req: NextRequest) {
           firstName: user.firstName, lastName: user.lastName,
           role: user.role, department: user.department,
           position: user.position, avatarUrl: user.avatarUrl, phone: user.phone,
+          gender: user.gender,
         },
       },
     )

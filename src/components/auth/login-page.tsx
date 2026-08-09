@@ -55,6 +55,7 @@ export function LoginPage() {
   const [confirmPassword, setConfirmPassword] = React.useState('')
   const [showSignUpPassword, setShowSignUpPassword] = React.useState(false)
   const [signUpSuccess, setSignUpSuccess] = React.useState(false)
+  const [selectedGender, setSelectedGender] = React.useState<'male' | 'female'>('male')
   const [selectedAvatar, setSelectedAvatar] = React.useState('/avatars/boy.png')
 
   // Forgot Password
@@ -208,6 +209,7 @@ export function LoginPage() {
           email: signUpEmail.trim().toLowerCase(),
           password: signUpPassword,
           avatarUrl: selectedAvatar,
+          gender: selectedGender,
         }),
       })
 
@@ -553,6 +555,38 @@ export function LoginPage() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Gender</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedGender('male'); setSelectedAvatar('/avatars/boy.png') }}
+                      className={
+                        'flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-medium transition-all '
+                        + (selectedGender === 'male'
+                          ? 'border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+                          : 'border-muted hover:border-amber-300 text-muted-foreground hover:text-foreground')
+                      }
+                    >
+                      <img src="/avatars/boy.png" alt="" className="size-6 rounded-full" />
+                      Male
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedGender('female'); setSelectedAvatar('/avatars/girl.png') }}
+                      className={
+                        'flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-medium transition-all '
+                        + (selectedGender === 'female'
+                          ? 'border-pink-500 bg-pink-50 text-pink-700 dark:bg-pink-950/30 dark:text-pink-300'
+                          : 'border-muted hover:border-pink-300 text-muted-foreground hover:text-foreground')
+                      }
+                    >
+                      <img src="/avatars/girl.png" alt="" className="size-6 rounded-full" />
+                      Female
+                    </button>
+                  </div>
+                </div>
+
                 <AvatarPicker
                   value={selectedAvatar}
                   onChange={setSelectedAvatar}
@@ -635,7 +669,7 @@ export function LoginPage() {
                   Already have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => { setView('signin'); setError(''); setSelectedAvatar('/avatars/boy.png') }}
+                    onClick={() => { setView('signin'); setError(''); setSelectedAvatar('/avatars/boy.png'); setSelectedGender('male') }}
                     className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium"
                   >
                     Sign in
