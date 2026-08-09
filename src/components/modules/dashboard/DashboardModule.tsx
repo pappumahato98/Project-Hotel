@@ -245,80 +245,81 @@ const scrollbarStyles = `
 // ─── Skeleton Loaders ──────────────────────────────────────────────────
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-6">
-      {/* Header skeleton */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Skeleton className="mb-2 h-7 w-40" />
-          <Skeleton className="h-4 w-64" />
+    <div className="min-h-screen" style={{ backgroundColor: '#F3F4F6' }}>
+      <div className="p-3 sm:p-4 md:p-6">
+        {/* Header skeleton */}
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <Skeleton className="mb-2 h-7 w-40" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-20 rounded-full" />
+            <Skeleton className="h-8 w-20 rounded-full" />
+            <Skeleton className="h-8 w-20 rounded-full" />
+            <Skeleton className="h-8 w-20 rounded-full" />
+            <Skeleton className="h-8 w-9 rounded-full" />
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-20 rounded-full" />
-          <Skeleton className="h-8 w-20 rounded-full" />
-          <Skeleton className="h-8 w-20 rounded-full" />
-          <Skeleton className="h-8 w-9 rounded-full" />
-        </div>
-      </div>
 
-      {/* KPI cards skeleton */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <Skeleton className="size-10 rounded-xl" />
-              <Skeleton className="h-4 w-16" />
+        {/* Action cards skeleton */}
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="rounded-xl bg-white p-3 sm:p-4 shadow-sm">
+              <Skeleton className="mb-3 size-10 rounded-full" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-1 h-3 w-32" />
             </div>
-            <Skeleton className="mt-4 h-8 w-24" />
-            <Skeleton className="mt-1 h-4 w-32" />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* Action cards skeleton */}
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-xl bg-white p-3 sm:p-4 shadow-sm">
-            <Skeleton className="mb-3 size-10 rounded-full" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="mt-1 h-3 w-32" />
+        {/* Bento grid skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4" style={{ gridAutoFlow: 'dense' }}>
+          {/* Occupancy hero tile - 2x2 */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-2 md:row-span-2">
+            <Skeleton className="h-full w-full rounded-2xl" style={{ minHeight: '220px' }} />
           </div>
-        ))}
-      </div>
-
-      {/* ═══ Bento skeleton ═══ */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5">
-        <div className="space-y-5 md:col-span-1 lg:col-span-7">
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="mb-4 h-5 w-48" />
-            <Skeleton className="h-56 w-full" />
+          {/* 4 single KPI tiles */}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={`kpi-${i}`}>
+              <Skeleton className="h-28 w-full rounded-2xl" />
+            </div>
+          ))}
+          {/* Occupancy Chart - 2 col */}
+          <div className="md:col-span-2 lg:col-span-2 xl:col-span-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="mb-4 h-5 w-40" />
-            <Skeleton className="h-48 w-full" />
+          {/* Room Type Donut - 1 col */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
-        </div>
-        <div className="md:col-span-1 lg:col-span-5">
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="mb-4 h-5 w-40" />
-            <Skeleton className="mb-6 h-20 w-full" />
-            <Skeleton className="h-48 w-full" />
+          {/* Revenue Overview */}
+          <div className="md:col-span-1 lg:col-span-2 xl:col-span-1">
+            <Skeleton className="h-80 w-full rounded-2xl" />
           </div>
-        </div>
-        <div className="md:col-span-2 lg:col-span-7">
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="mb-4 h-5 w-48" />
-            <Skeleton className="h-48 w-full" />
+          {/* Activity Timeline */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-2">
+            <Skeleton className="h-64 w-full rounded-2xl" />
           </div>
-        </div>
-        <div className="space-y-5 md:col-span-2 lg:col-span-5">
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="h-32 w-full" />
+          {/* Reservations Table */}
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-2">
+            <Skeleton className="h-80 w-full rounded-2xl" />
           </div>
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="h-48 w-full" />
+          {/* Quick Stats Grid */}
+          <div className="md:col-span-1 lg:col-span-2 xl:col-span-2">
+            <Skeleton className="h-40 w-full rounded-2xl" />
           </div>
-          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
-            <Skeleton className="h-28 w-full" />
+          {/* Room Status Bars */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <Skeleton className="h-48 w-full rounded-2xl" />
+          </div>
+          {/* Realtime Status */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <Skeleton className="h-48 w-full rounded-2xl" />
+          </div>
+          {/* Live Activity Feed - full width */}
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+            <Skeleton className="h-48 w-full rounded-2xl" />
           </div>
         </div>
       </div>
@@ -375,32 +376,108 @@ function DashboardHeader({ onRefresh }: { onRefresh: () => void }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 2: KPI Cards (5 cards in a row)
+// SECTION 2: KPI Tile (individual bento grid tile)
 // ═══════════════════════════════════════════════════════════════════════════
-function KpiCardsRow({ data }: { data: DashboardData }) {
-  const { kpis, roomStatusBreakdown } = data
+function KpiTile({ type, data }: { type: string; data: DashboardData }) {
+  const { kpis } = data
 
-  const totalBookings = kpis.arrivals + kpis.occupiedRooms + kpis.departures
-  const confirmedCount = kpis.arrivals
+  if (type === 'occupancy') {
+    const occupancyPercent = kpis.occupancy || 0
+    const radius = 44
+    const circumference = 2 * Math.PI * radius
+    const strokeDashoffset = circumference - (occupancyPercent / 100) * circumference
+    const vacantRooms = kpis.totalRooms - kpis.occupiedRooms
 
-  // SVG Circular Progress for occupancy
-  const occupancyPercent = kpis.occupancy || 0
-  const radius = 36
-  const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference - (occupancyPercent / 100) * circumference
+    return (
+      <div
+        className="rounded-2xl bg-white p-4 sm:p-5 lg:p-6 transition-all duration-300 h-full flex flex-col"
+        style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}
+      >
+        <div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs sm:text-sm font-medium" style={{ color: '#6B7280' }}>
+                Occupancy Rate
+              </p>
+              <p className="mt-1 text-xs" style={{ color: '#9CA3AF' }}>
+                {kpis.occupiedRooms}/{kpis.totalRooms} rooms
+              </p>
+            </div>
+            {kpis.occupancyTrend !== 0 && (
+              <span
+                className="inline-flex items-center gap-0.5 text-xs font-medium"
+                style={{ color: kpis.occupancyTrend > 0 ? '#10B981' : '#EF4444' }}
+              >
+                {kpis.occupancyTrend > 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                {kpis.occupancyTrend > 0 ? '+' : ''}{kpis.occupancyTrend}%
+              </span>
+            )}
+          </div>
+          <div className="mt-3">
+            <span
+              className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ backgroundColor: '#ECFDF5', color: '#065F46' }}
+            >
+              {vacantRooms} vacant rooms
+            </span>
+          </div>
+        </div>
+        <div className="mt-auto flex flex-1 items-center justify-center py-4">
+          <div className="relative">
+            <svg width="140" height="140" className="-rotate-90">
+              <circle
+                cx="70"
+                cy="70"
+                r={radius}
+                fill="none"
+                stroke="#E5E7EB"
+                strokeWidth="8"
+              />
+              <circle
+                cx="70"
+                cy="70"
+                r={radius}
+                fill="none"
+                stroke="#10B981"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                className="transition-all duration-700"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-2xl sm:text-3xl font-bold" style={{ color: '#111827' }}>
+                {occupancyPercent}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
-  const cards = [
-    {
+  const config: Record<string, {
+    title: string
+    value: string
+    subtitle: string
+    icon: React.ElementType
+    iconBg: string
+    iconColor: string
+    trend: string | null
+    trendColor: string
+  }> = {
+    bookings: {
       title: 'Total Bookings',
-      value: String(totalBookings),
+      value: String(kpis.arrivals + kpis.occupiedRooms + kpis.departures),
       subtitle: 'All reservations',
       icon: CalendarCheck,
       iconBg: '#ECFDF5',
       iconColor: '#10B981',
-      trend: confirmedCount > 0 ? `+${confirmedCount} confirmed` : null,
+      trend: kpis.arrivals > 0 ? `+${kpis.arrivals} confirmed` : null,
       trendColor: '#10B981',
     },
-    {
+    checkin: {
       title: 'Check-In Today',
       value: String(kpis.arrivals),
       subtitle: "Today's arrivals",
@@ -408,8 +485,9 @@ function KpiCardsRow({ data }: { data: DashboardData }) {
       iconBg: '#FEF2F2',
       iconColor: '#EF4444',
       trend: null,
+      trendColor: '#6B7280',
     },
-    {
+    checkout: {
       title: 'Check-Out Today',
       value: String(kpis.departures),
       subtitle: "Today's departures",
@@ -417,8 +495,9 @@ function KpiCardsRow({ data }: { data: DashboardData }) {
       iconBg: '#F0FDFA',
       iconColor: '#14B8A6',
       trend: null,
+      trendColor: '#6B7280',
     },
-    {
+    revenue: {
       title: 'Revenue',
       value: formatCompactNPR(kpis.totalRevenue),
       subtitle: 'Total revenue',
@@ -428,100 +507,36 @@ function KpiCardsRow({ data }: { data: DashboardData }) {
       trend: kpis.revenueTrend > 0 ? `+${kpis.revenueTrend}%` : kpis.revenueTrend < 0 ? `${kpis.revenueTrend}%` : null,
       trendColor: kpis.revenueTrend >= 0 ? '#10B981' : '#EF4444',
     },
-    {
-      title: 'Occupancy Rate',
-      value: `${occupancyPercent}%`,
-      subtitle: `${kpis.occupiedRooms}/${kpis.totalRooms} rooms`,
-      isCircular: true,
-    },
-  ]
+  }
+
+  const c = config[type]
+  if (!c) return null
+  const Icon = c.icon
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 transition-all duration-300">
-      {cards.map((card) => {
-        if (card.isCircular) {
-          return (
-            <div
-              key={card.title}
-              className="rounded-2xl bg-white p-4 sm:p-5 lg:p-6 transition-all duration-300"
-              style={{
-                boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs sm:text-sm font-medium" style={{ color: '#6B7280' }}>
-                    {card.title}
-                  </p>
-                  <p className="mt-1 text-xs" style={{ color: '#9CA3AF' }}>
-                    {card.subtitle}
-                  </p>
-                </div>
-                <div className="relative">
-                  <svg width="80" height="80" className="-rotate-90">
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r={radius}
-                      fill="none"
-                      stroke="#E5E7EB"
-                      strokeWidth="6"
-                    />
-                    <circle
-                      cx="40"
-                      cy="40"
-                      r={radius}
-                      fill="none"
-                      stroke="#10B981"
-                      strokeWidth="6"
-                      strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={strokeDashoffset}
-                      className="transition-all duration-700"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-base font-bold" style={{ color: '#111827' }}>
-                      {occupancyPercent}%
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        }
-
-        const Icon = card.icon!
-        return (
-          <div
-            key={card.title}
-            className="rounded-2xl bg-white p-4 sm:p-5 lg:p-6 transition-all duration-300"
-            style={{
-              boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div
-                className="flex size-8 sm:size-10 items-center justify-center rounded-xl"
-                style={{ backgroundColor: card.iconBg }}
-              >
-                <Icon className="size-5" style={{ color: card.iconColor }} />
-              </div>
-              {card.trend && (
-                <span className="text-xs font-medium" style={{ color: card.trendColor }}>
-                  {card.trend}
-                </span>
-              )}
-            </div>
-            <p className="mt-3 sm:mt-4 text-xl sm:text-2xl lg:text-3xl font-bold" style={{ color: '#111827' }}>
-              {card.value}
-            </p>
-            <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm" style={{ color: '#6B7280' }}>
-              {card.subtitle}
-            </p>
-          </div>
-        )
-      })}
+    <div
+      className="rounded-2xl bg-white p-4 sm:p-5 lg:p-6 transition-all duration-300 h-full"
+      style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}
+    >
+      <div className="flex items-center justify-between">
+        <div
+          className="flex size-8 sm:size-10 items-center justify-center rounded-xl"
+          style={{ backgroundColor: c.iconBg }}
+        >
+          <Icon className="size-5" style={{ color: c.iconColor }} />
+        </div>
+        {c.trend && (
+          <span className="text-xs font-medium" style={{ color: c.trendColor }}>
+            {c.trend}
+          </span>
+        )}
+      </div>
+      <p className="mt-3 sm:mt-4 text-xl sm:text-2xl lg:text-3xl font-bold" style={{ color: '#111827' }}>
+        {c.value}
+      </p>
+      <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm" style={{ color: '#6B7280' }}>
+        {c.subtitle}
+      </p>
     </div>
   )
 }
@@ -702,7 +717,7 @@ function RoomTypeDonut({ data }: { data: DashboardData }) {
   const total = roomTypes.reduce((sum, r) => sum + r.value, 0)
 
   return (
-    <div className="mt-6 rounded-2xl bg-white p-6" style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
+    <div className="rounded-2xl bg-white p-6" style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
       <div className="mb-4">
         <h3 className="text-sm font-semibold" style={{ color: '#111827' }}>Room Type Distribution</h3>
       </div>
@@ -1407,45 +1422,82 @@ export function DashboardModule() {
         {/* Section 1: Welcome Header */}
         <DashboardHeader onRefresh={handleRefresh} />
 
-        {/* Section 2: 5 KPI Cards */}
-        <KpiCardsRow data={safeData} />
-
         {/* Section 3: 5 Action Cards */}
         <ActionCardsRow data={safeData} />
 
-        {/* ═══ BENTO: Charts + Revenue ═══ */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5 transition-all duration-300">
-          <div className="space-y-5 md:col-span-1 lg:col-span-7">
+        {/* ═══ BENTO GRID ═══ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4" style={{ gridAutoFlow: 'dense' }}>
+          {/* 1. Occupancy KPI - Hero tile (2col 2row on xl) */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-2 md:row-span-2">
+            <KpiTile type="occupancy" data={safeData} />
+          </div>
+
+          {/* 2. Total Bookings */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <KpiTile type="bookings" data={safeData} />
+          </div>
+
+          {/* 3. Check-In Today */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <KpiTile type="checkin" data={safeData} />
+          </div>
+
+          {/* 4. Revenue */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <KpiTile type="revenue" data={safeData} />
+          </div>
+
+          {/* 5. Check-Out Today */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <KpiTile type="checkout" data={safeData} />
+          </div>
+
+          {/* 6. Occupancy Chart */}
+          <div className="md:col-span-2 lg:col-span-2 xl:col-span-2">
             <OccupancyChart data={safeData} />
+          </div>
+
+          {/* 7. Room Type Donut */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
             <RoomTypeDonut data={safeData} />
           </div>
-          <div className="md:col-span-1 lg:col-span-5">
+
+          {/* 8. Revenue Overview */}
+          <div className="md:col-span-1 lg:col-span-2 xl:col-span-1">
             <RevenueOverview data={safeData} />
           </div>
-        </div>
 
-        {/* ═══ BENTO: Table + Stats + Activity ═══ */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5 transition-all duration-300">
-          <div className="md:col-span-2 lg:col-span-7">
+          {/* 9. Activity Timeline */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-2">
+            <ActivityTimeline data={safeData} />
+          </div>
+
+          {/* 10. Reservations Table */}
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-2">
             <ReservationsTable data={safeData} />
           </div>
-          <div className="space-y-5 md:col-span-2 lg:col-span-5">
+
+          {/* 11. Quick Stats Grid */}
+          <div className="md:col-span-1 lg:col-span-2 xl:col-span-2">
             <QuickStatsGrid data={safeData} />
-            <ActivityTimeline data={safeData} />
+          </div>
+
+          {/* 12. Room Status Bars */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
             <RoomStatusBars data={safeData} />
           </div>
-        </div>
 
-        {/* ═══ BENTO: Live Feed + Realtime ═══ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5 transition-all duration-300">
-          <div className="md:col-span-1 lg:col-span-7">
+          {/* 13. Realtime Status Card */}
+          <div className="md:col-span-1 lg:col-span-1 xl:col-span-1">
+            <RealtimeStatusCard />
+          </div>
+
+          {/* 14. Live Activity Feed - full width */}
+          <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
             <div className="rounded-2xl bg-white p-4 sm:p-6" style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
               <h3 className="mb-4 text-sm font-semibold" style={{ color: '#111827' }}>Live Activity Feed</h3>
               <LiveActivityFeed maxHeight="max-h-64" />
             </div>
-          </div>
-          <div className="md:col-span-1 lg:col-span-5">
-            <RealtimeStatusCard />
           </div>
         </div>
       </div>

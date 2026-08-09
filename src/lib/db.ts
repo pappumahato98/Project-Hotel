@@ -39,13 +39,14 @@ function validateDbConfig() {
   // ── SSL enforcement ──────────────────────────────────────────
   // Check for Supabase CA cert inside function body (not top-level import)
   // to avoid webpack bundler "Can't resolve 'fs'" errors.
+  // Use __non_webpack_require__ to bypass webpack's static module resolution.
   let hasCert = false
   let certPath = ''
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nodeFs = require('node:fs')
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const nodePath = require('node:path')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+    const req = (typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require) as any
+    const nodeFs = req('node:fs')
+    const nodePath = req('node:path')
     certPath = nodePath.resolve(process.cwd(), 'certs', 'prod-ca-2021.crt')
     hasCert = nodeFs.existsSync(certPath)
   } catch {
