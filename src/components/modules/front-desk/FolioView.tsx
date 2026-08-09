@@ -238,7 +238,7 @@ function exportTransactionsCsv(folio: Folio, transactions: FolioTransaction[]) {
   const csvContent = [
     `Folio Statement - ${guestName}`,
     `Room: ${roomNum} | Confirmation: ${confNo}`,
-    `Generated: ${new Date().toLocaleString()}`,
+    `Generated: ${formatDateTime(new Date())}`,
     '',
     headers.join(','),
     ...rows.map(r => r.map(c => `"${c}"`).join(',')),
@@ -673,7 +673,7 @@ export function FolioView() {
     <div class="line"></div>
     <div class="row"><span class="bold">Balance:</span><span class="bold ${balance > 0 ? 'red' : 'green'}">${formatCurrency(balance)}</span></div>
     <div class="line"></div>
-    <div class="center" style="margin-top:12px;font-size:9px;color:#999">Generated: ${new Date().toLocaleString()}</div>
+    <div class="center" style="margin-top:12px;font-size:9px;color:#999">Generated: ${formatDateTime(new Date())}</div>
     <script>window.print();window.close();</script>
     </body></html>
   `)

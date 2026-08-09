@@ -20,6 +20,7 @@ import { useAuthStore } from '@/lib/store'
 import { subscribeToTable, unsubscribeChannel, type RealtimeChannel } from '@/lib/realtime'
 import type { NotificationCategory, NotificationSeverity } from '@/lib/realtime-notifications'
 import { toast } from 'sonner'
+import { formatNPR } from '@/lib/nepal-standards'
 
 // ─── Config: Which tables to subscribe to and how to map events ───
 
@@ -105,7 +106,7 @@ const PAYMENT_SUB: TableSubscription = {
   onInsert: (row) => ({
     category: 'payment',
     severity: 'success',
-    title: `Payment Received: NPR ${(row.amount as number)?.toLocaleString() || '0'}`,
+    title: `Payment Received: ${formatNPR((row.amount as number) ?? 0)}`,
     description: `${row.guestName || 'Guest'} — ${row.method || 'Payment'}`,
     showToast: true,
     action: { module: 'front-desk', subModule: 'settlement' },

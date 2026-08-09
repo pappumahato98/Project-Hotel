@@ -37,7 +37,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { formatCurrency, formatDate, getTodayString, nightsBetween } from '@/lib/format'
+import { formatCurrency, formatDate, formatDateShort, formatDateTime, getTodayString, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useNavigationStore, useSettingsStore, useFrontDeskContextStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
@@ -228,12 +228,6 @@ function toDateString(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function formatShortDate(dateStr: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
@@ -681,7 +675,7 @@ export function ReservationsView() {
       toast.error('Please allow pop-ups to print')
       return
     }
-    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const dateStr = formatDateShort(new Date())
     const nights = nightsBetween(r.checkIn, r.checkOut)
     printWindow.document.write(`<!DOCTYPE html>
 <html>
@@ -739,7 +733,7 @@ export function ReservationsView() {
     ${r.specialRequests ? `<div class="info-row"><span class="info-label">Special Requests:</span><span class="info-value">${r.specialRequests}</span></div>` : ''}
     ${r.notes ? `<div class="info-row"><span class="info-label">Notes:</span><span class="info-value">${r.notes}</span></div>` : ''}
   </div>
-  <div class="footer">Generated: ${new Date().toLocaleString()}</div>
+  <div class="footer">Generated: ${formatDateTime(new Date())}</div>
   <div class="no-print" style="text-align:center;margin-top:12px;">
     <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;border:2px solid #000;background:#f5f5f5;border-radius:4px;">Print Reservation</button>
   </div>
@@ -1024,9 +1018,9 @@ export function ReservationsView() {
                 >
                   <CalendarIcon className="size-3.5 shrink-0" />
                   {dateFrom && dateTo ? (
-                    <span>{formatShortDate(dateFrom)} — {formatShortDate(dateTo)}</span>
+                    <span>{formatDateShort(dateFrom)} — {formatDateShort(dateTo)}</span>
                   ) : dateFrom ? (
-                    <span>{formatShortDate(dateFrom)} — ...</span>
+                    <span>{formatDateShort(dateFrom)} — ...</span>
                   ) : (
                     <span>Check-in date range</span>
                   )}
@@ -1085,7 +1079,7 @@ export function ReservationsView() {
                     />
                     <div className="mt-2 px-1 flex items-center gap-1.5 text-[10px] text-muted-foreground">
                       <div className="size-2 rounded-sm bg-primary/20 border border-primary/40" />
-                      <span>{dateFrom && dateTo ? `${formatShortDate(dateFrom)} — ${formatShortDate(dateTo)}` : 'Click to select start, then end date'}</span>
+                      <span>{dateFrom && dateTo ? `${formatDateShort(dateFrom)} — ${formatDateShort(dateTo)}` : 'Click to select start, then end date'}</span>
                     </div>
                   </div>
                 </div>

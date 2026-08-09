@@ -4,6 +4,7 @@ import { useState, useMemo, Fragment } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { formatNPR, cn } from '@/lib/utils'
+import { formatDateShort } from '@/lib/format'
 import { toast } from 'sonner'
 import { AccountingError } from './AccountingErrorBoundary'
 import {
@@ -144,12 +145,6 @@ function computeNextCode(accounts: Account[], type: string): string {
   const maxCode = Math.max(...typeAccounts.map((a) => parseInt(a.code, 10) || 0))
   return String(maxCode + 1)
 }
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
 // ─── Component ───────────────────────────────────────────────────
 export function LedgerView() {
   const queryClient = useQueryClient()
@@ -365,7 +360,7 @@ export function LedgerView() {
     const rows = statementData.lines.map((l) => {
       const desc = (l.description || '').replace(/,/g, ';')
       const narration = (l.narration || '').replace(/,/g, ';')
-      return `${formatDate(l.date)},${l.reference || ''},"${desc}","${narration}",${l.debit || ''},${l.credit || ''},${l.runningBalance}`
+      return `${formatDateShort(l.date)},${l.reference || ''},"${desc}","${narration}",${l.debit || ''},${l.credit || ''},${l.runningBalance}`
     }).join('\n')
     const csv = `Account: ${a.code} - ${a.name}\nPeriod: ${statementData.period.startDate || 'All'} to ${statementData.period.endDate || 'All'}\nOpening Balance: ${statementData.openingBalance}\n\n${header}${rows}\n\nClosing Balance: ${statementData.closingBalance}`
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -774,7 +769,7 @@ export function LedgerView() {
                               <TableBody>
                                 {statementData.lines.map((line) => (
                                   <TableRow key={line.id}>
-                                    <TableCell className="text-xs whitespace-nowrap">{formatDate(line.date)}</TableCell>
+                                    <TableCell className="text-xs whitespace-nowrap">{formatDateShort(line.date)}</TableCell>
                                     <TableCell className="text-xs font-mono whitespace-nowrap">{line.reference || '—'}</TableCell>
                                     <TableCell className="text-xs">
                                       <div>{line.description}</div>

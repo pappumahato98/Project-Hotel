@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { formatDateTime } from '@/lib/format'
 import {
   useAuthStore, usePropertyStore, usePreferencesStore,
   useSettingsStore,
@@ -1737,7 +1738,7 @@ function SecurityTab() {
           <SectionHeader icon={Timer} title="Session" description="Information about your current session" />
         </CardHeader>
         <CardContent className="space-y-3">
-          <InfoRow label="Last Login" value={loginTime.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} />
+          <InfoRow label="Last Login" value={formatDateTime(loginTime)} />
           <Separator />
           <InfoRow label="Session Duration" value={sessionDuration} />
           <Separator />
@@ -1811,10 +1812,7 @@ function BackupTab() {
 
   const lastBackupFormatted = React.useMemo(() => {
     try {
-      return new Date(settings.lastBackupDate).toLocaleString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
+      return formatDateTime(new Date(settings.lastBackupDate))
     } catch {
       return 'Never'
     }

@@ -157,10 +157,8 @@ export interface PosData {
   stats: PosStats
 }
 
-// ─── NPR Currency Formatter ──────────────────────────────────────────
-export function formatNPR(amount: number): string {
-  return `NPR ${amount.toLocaleString('en-NP')}`
-}
+// ─── NPR Currency Formatter (re-export from centralized lib) ──────────
+export { formatNPR } from '@/lib/nepal-standards'
 
 // ─── Time ago helper ─────────────────────────────────────────────────
 export function timeAgo(dateStr: string): string {

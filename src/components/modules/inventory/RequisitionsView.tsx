@@ -30,6 +30,7 @@ import {
   ThumbsUp, ThumbsDown, PackageCheck, Trash2, Search, X, MinusCircle, PlusCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatDateShort, formatDateTime } from '@/lib/format'
 
 // ── Types ────────────────────────────────────────────────────
 interface RequisitionItem {
@@ -377,7 +378,7 @@ export function RequisitionsView() {
                     <TableRow key={req.id}>
                       <TableCell className="font-mono text-xs">{req.id.slice(-8)}</TableCell>
                       <TableCell className="text-xs">
-                        {new Date(req.requestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                        {formatDateShort(req.requestDate)}
                       </TableCell>
                       <TableCell className="text-xs">{req.department}</TableCell>
                       <TableCell className="text-xs">{req.requestor}</TableCell>
@@ -644,7 +645,7 @@ export function RequisitionsView() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Date:</span>{' '}
-                  <span>{new Date(selectedReq.requestDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  <span>{formatDateShort(selectedReq.requestDate)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Department:</span>{' '}
@@ -711,7 +712,7 @@ export function RequisitionsView() {
                       <p><span className="text-muted-foreground">Approved By:</span> {selectedReq.approvedBy}</p>
                     )}
                     {selectedReq.approvedAt && (
-                      <p><span className="text-muted-foreground">Approved At:</span> {new Date(selectedReq.approvedAt).toLocaleString()}</p>
+                      <p><span className="text-muted-foreground">Approved At:</span> {formatDateTime(selectedReq.approvedAt)}</p>
                     )}
                   </div>
                 </>

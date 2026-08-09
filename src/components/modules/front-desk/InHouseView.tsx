@@ -41,7 +41,7 @@ import {
 // ScrollArea removed — nested scrolling contexts break row click events
 import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
-import { formatDate, formatCurrency, toDateOnly } from '@/lib/format'
+import { formatDate, formatCurrency, formatDateTime, toDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useSettingsStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
 
@@ -495,8 +495,8 @@ export function InHouseView() {
     if (!selectedReservation || !noteText.trim()) return
     const existingNotes = selectedReservation.notes || ''
     const newNotes = existingNotes
-      ? `${existingNotes}\n[${new Date().toLocaleString()}] ${noteText.trim()}`
-      : `[${new Date().toLocaleString()}] ${noteText.trim()}`
+      ? `${existingNotes}\n[${formatDateTime(new Date())}] ${noteText.trim()}`
+      : `[${formatDateTime(new Date())}] ${noteText.trim()}`
     addNoteMutation.mutate({
       reservationId: selectedReservation.id,
       notes: newNotes,

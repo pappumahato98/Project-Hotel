@@ -14,7 +14,6 @@ export const DEFAULT_TIMEZONE = 'Asia/Katmandu'
  */
 export function getHotelNow(tz?: string): Date {
   const timezone = tz || DEFAULT_TIMEZONE
-  // Get the current time parts in the target timezone
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',
@@ -45,7 +44,7 @@ export function getHotelNow(tz?: string): Date {
  */
 export function getHotelToday(tz?: string): string {
   const d = getHotelNow(tz)
-  return d.toISOString().split('T')[0]
+  return formatHotelDateISO(d, tz)
 }
 
 /**
@@ -78,11 +77,16 @@ export function formatHotelDate(date: Date, options?: Intl.DateTimeFormatOptions
 
 /**
  * Format a date as YYYY-MM-DD in the hotel's timezone.
+ * Uses formatToParts to avoid the split('/').reverse() bug.
  */
 export function formatHotelDateISO(date: Date, tz?: string): string {
-  return formatHotelDate(date, {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz || DEFAULT_TIMEZONE,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }, tz).split('/').reverse().join('-')
+  })
+  const parts = formatter.formatToParts(date)
+  const get = (type: string) => parts.find(p => p.type === type)?.value || ''
+  return `${get('year')}-${get('month')}-${get('day')}`
 }

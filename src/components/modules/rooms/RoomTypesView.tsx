@@ -4,6 +4,7 @@ import React from 'react'
 import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
+import { formatNPR } from '@/lib/nepal-standards'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -76,10 +77,6 @@ const TIER_BADGES: Record<string, { icon: React.ComponentType<{ className?: stri
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
-function formatNpr(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-NP')}`
-}
-
 // Bed icons imported at top: BedDouble, Bed, Sofa
 
 // ─── Rate Tag ──────────────────────────────────────────────────
@@ -93,7 +90,7 @@ function RateTag({ name, rate, channel }: { name: string; rate: number; channel:
         )}
       </div>
       <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 shrink-0 ml-2">
-        {formatNpr(rate)}
+        {formatNPR(rate)}
       </p>
     </div>
   )
@@ -213,7 +210,7 @@ function RoomTypeCard({ roomType }: { roomType: RoomTypeData }) {
                     BAR Rate (Best Available)
                   </p>
                   <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                    {formatNpr(barRate.baseRate)}<span className="text-[10px] font-normal">/night</span>
+                    {formatNPR(barRate.baseRate)}<span className="text-[10px] font-normal">/night</span>
                   </p>
                 </div>
               )}

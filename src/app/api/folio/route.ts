@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getOrSet, afterMutation, getSettingsMap } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -65,7 +66,7 @@ export async function GET(request: NextRequest) {
 
       // Read relevant settings
       const s = await getSettingsMap()
-      const taxRate = (s.taxRate as number) ?? 13
+      const taxRate = (s.taxRate as number) ?? NEPAL_VAT_RATE
       const serviceCharge = (s.serviceCharge as number) ?? 0
 
       // Only compute stats for full list view

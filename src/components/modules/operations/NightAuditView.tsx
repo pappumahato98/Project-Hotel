@@ -10,6 +10,7 @@ import {
   TrendingUp, Percent, Building2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatNPR } from '@/lib/nepal-standards'
 import { format } from 'date-fns'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -74,10 +75,6 @@ interface NightAuditData {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
-function formatNPR(amount: number): string {
-  return `NPR ${amount.toLocaleString('en-NP')}`
-}
-
 function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
 }

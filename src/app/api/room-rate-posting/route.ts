@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { NEPAL_VAT_RATE, formatDateShort } from '@/lib/nepal-standards'
 
 // ─── Date helpers ─────────────────────────────────────────
 function toDateOnly(d: Date): string {
@@ -15,10 +16,6 @@ function addDays(d: Date, days: number): Date {
   const result = new Date(d)
   result.setDate(result.getDate() + days)
   return result
-}
-
-function formatDateShort(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 // ─── Recalculate folio balance ────────────────────────────
@@ -185,7 +182,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Read tax and service charge from system settings
     const s = await getSettingsMap()
-    const taxRate = (s.taxRate as number) ?? 13
+    const taxRate = (s.taxRate as number) ?? NEPAL_VAT_RATE
     const serviceChargeRate = (s.serviceCharge as number) ?? 0
 
     // 3. Calculate posting dates

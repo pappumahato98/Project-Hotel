@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 
 // ─── Default tax rate ────────────────────────────────────
-const DEFAULT_TAX_RATE = 13
+const DEFAULT_TAX_RATE = NEPAL_VAT_RATE
 
 // ─── GET: Aggregate guest ledger across all folios ───────
 export async function GET(request: NextRequest) {

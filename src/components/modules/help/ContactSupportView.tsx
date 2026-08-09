@@ -50,6 +50,7 @@ import {
   Inbox,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatDateShort } from '@/lib/format'
 import { useAuthStore } from '@/lib/store'
 
 // ── Types ──────────────────────────────────────────────────
@@ -280,13 +281,6 @@ export function ContactSupportView() {
   const isAdmin =
     user?.role === 'admin' || user?.role === 'manager'
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    })
-
   return (
     <div className="space-y-4">
       {/* ── New Ticket Form ──────────────────────────────── */}
@@ -482,7 +476,7 @@ export function ContactSupportView() {
                               <StatusBadge status={ticket.status} />
                             </TableCell>
                             <TableCell className="hidden sm:table-cell text-xs text-muted-foreground">
-                              {formatDate(ticket.createdAt)}
+                              {formatDateShort(ticket.createdAt)}
                             </TableCell>
                             {isAdmin &&
                               (ticket.status === 'open' ||
@@ -542,11 +536,11 @@ export function ContactSupportView() {
                                         Dates
                                       </span>
                                       <p className="font-medium">
-                                        Created: {formatDate(ticket.createdAt)}
+                                        Created: {formatDateShort(ticket.createdAt)}
                                       </p>
                                       {ticket.resolvedAt && (
                                         <p className="font-medium">
-                                          Resolved: {formatDate(ticket.resolvedAt)}
+                                          Resolved: {formatDateShort(ticket.resolvedAt)}
                                         </p>
                                       )}
                                     </div>

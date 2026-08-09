@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { invalidate } from '@/lib/queryKeys'
+import { formatNPR } from '@/lib/nepal-standards'
 import {
   Banknote, Clock, User, ArrowDownRight, ArrowUpRight, FileText,
   Loader2, AlertTriangle, CreditCard, Building, Wallet,
@@ -66,10 +67,6 @@ interface CashierData {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
-function formatNPR(amount: number): string {
-  return `NPR ${amount.toLocaleString('en-NP')}`
-}
-
 function formatTime(date: string): string {
   return format(new Date(date), 'hh:mm a')
 }

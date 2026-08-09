@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { invalidate } from '@/lib/queryKeys'
+import { formatNPR } from '@/lib/nepal-standards'
 import {
   CalendarClock, CheckCircle2, Circle, Lock, Loader2,
   BedDouble, Users, ArrowRightLeft, DollarSign, AlertTriangle, TrendingUp,
@@ -58,11 +59,6 @@ interface DayCloseData {
   checklist: DayCloseChecklistItem[]
   kpis: DayKPI
   revenueBreakdown: RevenueBreakdownItem[]
-}
-
-// ─── Helpers ────────────────────────────────────────────────────
-function formatNPR(amount: number): string {
-  return `NPR ${amount.toLocaleString('en-NP')}`
 }
 
 // ─── Skeleton Loader ───────────────────────────────────────────

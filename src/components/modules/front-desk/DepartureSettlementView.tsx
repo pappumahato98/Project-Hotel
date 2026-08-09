@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MoreHorizontal } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatDate, formatTime, formatCurrency, getTodayString, toDateOnly } from '@/lib/format'
+import { formatDate, formatTime, formatDateTime, formatCurrency, getTodayString, toDateOnly } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useSettingsStore, usePreferencesStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
 import { invalidate } from '@/lib/queryKeys'
@@ -601,8 +601,8 @@ export function DepartureSettlementView() {
     if (!selectedDeparture || !noteText.trim()) return
     const existingNotes = selectedDeparture.notes || ''
     const newNotes = existingNotes
-      ? `${existingNotes}\n[${new Date().toLocaleString()}] ${noteText.trim()}`
-      : `[${new Date().toLocaleString()}] ${noteText.trim()}`
+      ? `${existingNotes}\n[${formatDateTime(new Date())}] ${noteText.trim()}`
+      : `[${formatDateTime(new Date())}] ${noteText.trim()}`
     addNoteMutation.mutate({ reservationId: selectedDeparture.id, notes: newNotes })
   }
 

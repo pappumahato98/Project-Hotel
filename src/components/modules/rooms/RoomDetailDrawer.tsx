@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { formatNPR } from '@/lib/nepal-standards'
 import { apiFetch } from '@/lib/api'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -167,10 +168,6 @@ const STATUS_TRANSITIONS: Record<string, Array<{ to: string; label: string; icon
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
-function formatNpr(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-NP')}`
-}
-
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return '—'
@@ -423,7 +420,7 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground font-medium">Rate</p>
-                        <p className="font-medium">{formatNpr(room.reservation.roomRate)}/night</p>
+                        <p className="font-medium">{formatNPR(room.reservation.roomRate)}/night</p>
                       </div>
                       <div>
                         <p className="text-[10px] text-muted-foreground font-medium">Check-in</p>

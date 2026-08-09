@@ -285,11 +285,6 @@ function isWeekend(date: Date): boolean {
   return day === 0 || day === 6
 }
 
-function formatDateShort(dateStr: string): string {
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 // Determine the display category for a reservation block
 function getReservationCategory(res: CalendarReservation, todayStr: string): string {
   const checkInStr = dateToKey(toDateOnly(res.checkIn))

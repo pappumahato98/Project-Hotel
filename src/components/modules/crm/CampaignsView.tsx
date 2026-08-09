@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn } from '@/lib/utils'
+import { formatNPR } from '@/lib/nepal-standards'
 import { toast } from 'sonner'
 
 // ── Types ────────────────────────────────────────────────────
@@ -345,7 +346,7 @@ export function CampaignsView() {
                         )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell text-xs">
-                        NPR {campaign.budget.toLocaleString()}
+                        {formatNPR(campaign.budget)}
                       </TableCell>
                     </TableRow>
                   ))

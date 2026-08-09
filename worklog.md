@@ -648,3 +648,147 @@ Stage Summary:
 - Graceful shutdown: Redis connections closed on SIGTERM/SIGINT
 - Zero breaking changes: without REDIS_URL, behavior identical to Phase 2
 - To enable Redis: set REDIS_URL env var to rediss://... on Render
+
+---
+Task ID: 3-a
+Agent: Sub-agent (Vibe Coder)
+Task: Replace hardcoded VAT rate 13/13.0 with NEPAL_VAT_RATE constant in 7 API route files
+
+Work Log:
+- Read all 7 API route files to identify exact hardcoded VAT rate locations
+- Verified NEPAL_VAT_RATE exists in @/lib/nepal-standards
+- Applied surgical edits to each file using Edit tool (import + replacement)
+- Files edited:
+  1. src/app/api/guest-ledger/route.ts — added import, changed `const DEFAULT_TAX_RATE = 13` → `= NEPAL_VAT_RATE`
+  2. src/app/api/room-rate-posting/route.ts — added import, changed `?? 13` → `?? NEPAL_VAT_RATE` (line 188)
+  3. src/app/api/room-rate-posting/bulk-post/route.ts — added import, changed `?? 13` → `?? NEPAL_VAT_RATE` (line 108)
+  4. src/app/api/pos/route.ts — added import, changed `|| 13` → `|| NEPAL_VAT_RATE` (line 688)
+  5. src/app/api/folio/route.ts — added import, changed `?? 13` → `?? NEPAL_VAT_RATE` (line 68)
+  6. src/app/api/reservations/route.ts — added import, changed both `?? 13` occurrences → `?? NEPAL_VAT_RATE` (lines 157, 224)
+  7. src/app/api/settings/route.ts — added import, changed `taxRate: 13.0` → `taxRate: NEPAL_VAT_RATE` in DEFAULT_SETTINGS
+- Verified no remaining hardcoded 13 VAT references in any of the 7 files
+- No other logic was changed
+
+Stage Summary:
+- All 7 API route files now use NEPAL_VAT_RATE from @/lib/nepal-standards instead of hardcoded 13
+- 8 total occurrences replaced (reservations had 2)
+- 7 new import lines added (one per file)
+- Next: Type-check to confirm no regressions
+
+---
+Task ID: 4-a
+Agent: Sub-Agent (general-purpose)
+Task: Unify currency formatting in components to use centralized formatNPR from @/lib/nepal-standards
+
+Work Log:
+- Read centralized formatNPR from @/lib/nepal-standards (signature: formatNPR(amount, options?) → 'Rs. {formatted}')
+- Read all 14 target files to identify ad-hoc currency patterns
+- Replaced local formatNPR/formatNpr functions in 8 files with import from @/lib/nepal-standards
+- Replaced inline `NPR ${...toLocaleString()}` / `Rs. ${...toLocaleString('en-NP')}` patterns in 6 files
+- Changed pos-types.ts duplicate formatNPR to a re-export from @/lib/nepal-standards
+- Changed DailySalesReportView.tsx import from ./pos-types to @/lib/nepal-standards
+- Replaced 11 additional ad-hoc patterns in DailySalesReportView.tsx (CSV export + print HTML helper)
+- Replaced 'NPR 0' string fallbacks in RoomRatePostingPage.tsx with formatNPR(0)
+- Replaced payment notification string in use-realtime.ts with formatNPR((row.amount as number) ?? 0)
+- Removed dead unused formatNpr function from RoomBoard.tsx (no usages in file)
+- Verified zero remaining ad-hoc patterns across all 14 files
+- Ran tsc --noEmit: no new errors introduced (all errors are pre-existing)
+
+Files Modified (14):
+1. src/components/modules/operations/CashierView.tsx — removed local formatNPR, added import
+2. src/components/modules/operations/DayCloseView.tsx — removed local formatNPR, added import
+3. src/components/modules/operations/NightAuditView.tsx — removed local formatNPR, added import
+4. src/components/modules/operations/ShiftHandoverView.tsx — removed local formatNPR, added import
+5. src/components/modules/crm/GuestProfilesView.tsx — removed exported local formatNPR, added import
+6. src/components/modules/crm/CampaignsView.tsx — added import, replaced NPR ${budget.toLocaleString()}
+7. src/components/modules/revenue/RateIntelligenceView.tsx — added import, replaced 3x NPR ${rate.toLocaleString()}
+8. src/components/modules/front-desk/RoomRatePostingPage.tsx — added import, replaced 4x 'NPR 0' fallbacks
+9. src/components/modules/rooms/RoomDetailDrawer.tsx — removed local formatNpr, added import, renamed call
+10. src/components/modules/rooms/RoomBoard.tsx — removed dead formatNpr function
+11. src/components/modules/rooms/RoomTypesView.tsx — removed local formatNpr, added import, renamed 2 calls
+12. src/components/modules/pos/pos-types.ts — replaced duplicate function with re-export from nepal-standards
+13. src/components/modules/pos/DailySalesReportView.tsx — changed import source, replaced 11x inline patterns
+14. src/hooks/use-realtime.ts — added import, replaced manual NPR formatting in payment notification
+
+Behavioral Note:
+- Previous ad-hoc formatters used `NPR` prefix or `en-NP` locale; centralized formatNPR uses `Rs.` prefix with `en-IN` locale (Indian/Nepali lakh/crore grouping)
+- This unifies all currency display to the standard format (e.g., 'Rs. 1,50,000' instead of 'NPR 150,000')
+
+Stage Summary:
+- All 14 files now use centralized formatNPR from @/lib/nepal-standards
+- 5 duplicate local formatNPR/formatNpr function definitions removed
+- 1 duplicate replaced with re-export (pos-types.ts) preserving backward compatibility
+- ~30 total ad-hoc currency formatting patterns replaced
+- Zero compilation regressions introduced
+
+---
+Task ID: 5-a
+Agent: Sub-Agent (general-purpose)
+Task: Unify date formatting in components — replace raw `toLocaleDateString`/`toLocaleString` calls with centralized formatters
+
+Work Log:
+- Audited 21 target files for `toLocaleDateString` and `toLocaleString` usage
+- Classified each call as: date display (replace), component extraction (skip), or number formatting (skip)
+- Skipped non-date calls: weekday-only extraction (operations/route.ts, revenue/route.ts, NewReservationPage formatDayOfWeek), month-only extraction (CalendarView calendar cells), number toLocaleString (roomRate in NewReservationPage)
+- Skipped file #6 (folio/[id]/email/route.ts) — confirmed no date formatting calls present
+
+**API Routes (server-side — used @/lib/nepal-standards):**
+- `src/app/api/room-rate-posting/bulk-post/route.ts` — Removed local `formatDateShort` wrapper, imported `formatDateShort` from nepal-standards
+- `src/app/api/room-rate-posting/route.ts` — Same pattern: removed local `formatDateShort`, imported from nepal-standards
+- `src/app/api/departures/[id]/email-receipt/route.ts` — Replaced `.toLocaleDateString()` with `formatDateShort()` from nepal-standards
+
+**Client Components (used @/lib/format):**
+- `ReservationsView.tsx` — Removed local `formatShortDate`, imported `formatDateShort`+`formatDateTime`; replaced print header date + print footer timestamp + date range filter labels
+- `NewReservationPage.tsx` — Replaced `formatDayOfWeek` to use weekday array instead of `toLocaleDateString`; replaced `formatDateWithDay` to use array + `formatDateShort`; imported `formatDateShort`
+- `CalendarView.tsx` — Removed dead local `formatDateShort` function (was defined but never called)
+- `SettlementView.tsx` — Imported `formatDateShort`+`formatDateTime`; replaced last-payment date, print header date, print footer timestamp
+- `GuestLedgerView.tsx` — Imported `formatDateShort`+`formatDateTime`; replaced print header date, print footer timestamp
+- `InHouseView.tsx` — Imported `formatDateTime`; replaced note timestamps (2 calls)
+- `FolioView.tsx` — Replaced CSV export timestamp + print footer timestamp with `formatDateTime` (already imported)
+- `DepartureSettlementView.tsx` — Imported `formatDateTime`; replaced note timestamps (2 calls)
+- `FinancialReportsView.tsx` — Imported `formatDateShort`; rewrote local `formatDateDisplay` to delegate to `formatDateShort`
+- `LedgerView.tsx` — Removed local `formatDate` function (shadowed import), imported `formatDateShort`, replaced 2 call sites (table cell + CSV export)
+- `SettingsModule.tsx` — Imported `formatDateTime`; replaced login time display + backup date display
+- `ContactSupportView.tsx` — Imported `formatDateShort`, removed local `formatDate` arrow function, replaced 3 call sites
+- `SchedulesView.tsx` — Imported `formatDateShort`; replaced week label range + 7 grid column header dates
+- `PurchaseOrdersView.tsx` — Imported `formatDateShort`+`formatDateTime`; replaced 5 date display calls + 1 approved-at timestamp
+- `RequisitionsView.tsx` — Imported `formatDateShort`+`formatDateTime`; replaced 2 date display calls + 1 approved-at timestamp
+
+Stage Summary:
+- 18 files updated, 3 files skipped (operations/route.ts weekday extraction, revenue/route.ts component extraction, folio email route — no date calls)
+- 6 local date formatting functions removed (2 duplicate `formatDateShort`, 1 `formatShortDate`, 1 `formatDateDisplay`, 1 local `formatDate` in LedgerView, 1 local `formatDate` arrow in ContactSupport)
+- 1 dead code function removed (CalendarView `formatDateShort` — defined but never called)
+- ~35 raw `toLocaleDateString`/`toLocaleString` calls replaced with centralized `formatDateShort`, `formatDateTime`, or `formatDate`
+- All server-side routes use `@/lib/nepal-standards` (no zustand dependency); all client components use `@/lib/format`
+- Zero TypeScript compilation regressions
+
+---
+Task ID: 7-a
+Agent: General-Purpose Sub-Agent
+Task: Create comprehensive Nepal provinces and districts data file
+
+Work Log:
+- Created `/home/z/my-project/src/lib/nepal-address.ts` with complete Nepal administrative data
+- Defined TypeScript interfaces: `NepalProvince` (id, name, nameNe, capital, districts) and `NepalDistrict` (name, nameNe)
+- Populated all 7 provinces with English and Nepali (Devanagari) names:
+  - Province 1 (14 districts, capital Dhankuta)
+  - Madhesh Province (8 districts, capital Janakpur)
+  - Bagmati Province (13 districts, capital Hetauda)
+  - Gandaki Province (11 districts, capital Pokhara)
+  - Lumbini Province (12 districts, capital Butwal)
+  - Karnali Province (10 districts, capital Birendranagar)
+  - Sudurpashchim Province (9 districts, capital Dhangadhi)
+- All 77 districts mapped correctly, including split districts: Rukum (East/West), Parasi/Nawalpur
+- Saptari, Siraha, Dhanusa placed in Madhesh Province per instruction
+- All districts include Devanagari names (nameNe)
+- Exported utility functions:
+  - `getDistrictsByProvince(provinceName)` — partial/fuzzy match by province name
+  - `getAllDistricts()` — flat array of all 77 district name strings
+  - `getProvinceByDistrict(districtName)` — lookup province by district name
+- Verified TypeScript compilation: zero errors
+- Verified runtime: all counts correct (14+8+13+11+12+10+9 = 77), all functions return expected results
+
+Stage Summary:
+- File created: `src/lib/nepal-address.ts` (~230 lines)
+- 7 provinces, 77 districts with Nepali names, 3 utility functions exported
+- Zero compilation errors, full runtime verification passed

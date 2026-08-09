@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client'
 import { adToBS } from '@/lib/nepali-calendar'
 import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 
 // ─── Nepali Fiscal Year Helpers ─────────────────────────────
 // FY starts Shrawan (BS month 4). Short form: "82/83" = FY 2082/2083
@@ -154,7 +155,7 @@ export async function GET(request: NextRequest) {
 
     // Read relevant settings from DB
     const s = await getSettingsMap()
-    const taxRate = (s.taxRate as number) ?? 13
+    const taxRate = (s.taxRate as number) ?? NEPAL_VAT_RATE
     const serviceCharge = (s.serviceCharge as number) ?? 0
     const cancellationPolicy = (s.cancellationPolicy as string) ?? ''
     const defaultCheckIn = (s.defaultCheckIn as string) ?? '14:00'
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
 
     // Read settings from DB
     const s = await getSettingsMap()
-    const taxRate = (s.taxRate as number) ?? 13
+    const taxRate = (s.taxRate as number) ?? NEPAL_VAT_RATE
     const defaultCheckInTime = (s.defaultCheckIn as string) ?? '14:00'
     const defaultCheckOutTime = (s.defaultCheckOut as string) ?? '11:00'
 

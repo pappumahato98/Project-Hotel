@@ -31,6 +31,7 @@ import {
   MinusCircle, PlusCircle, CalendarDays,
 } from 'lucide-react'
 import { cn, formatNPR } from '@/lib/utils'
+import { formatDateShort, formatDateTime } from '@/lib/format'
 
 // ── Types ────────────────────────────────────────────────────
 interface Vendor {
@@ -454,7 +455,7 @@ export function PurchaseOrdersView() {
                       <TableCell className="font-mono text-xs font-medium">{po.poNumber}</TableCell>
                       <TableCell className="text-xs font-medium">{po.vendor}</TableCell>
                       <TableCell className="hidden md:table-cell text-xs">
-                        {new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {formatDateShort(po.date)}
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -475,7 +476,7 @@ export function PurchaseOrdersView() {
                       </TableCell>
                       <TableCell className="hidden lg:table-cell text-xs">
                         {po.expectedDelivery
-                          ? new Date(po.expectedDelivery).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                          ? formatDateShort(po.expectedDelivery)
                           : '—'}
                       </TableCell>
                       <TableCell>
@@ -659,7 +660,7 @@ export function PurchaseOrdersView() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Date:</span>{' '}
-                  <span>{new Date(selectedPO.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  <span>{formatDateShort(selectedPO.date)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Vendor:</span>{' '}
@@ -682,7 +683,7 @@ export function PurchaseOrdersView() {
                   <span className="flex items-center gap-1">
                     <CalendarDays className="h-3 w-3 text-muted-foreground" />
                     {selectedPO.expectedDelivery
-                      ? new Date(selectedPO.expectedDelivery).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                      ? formatDateShort(selectedPO.expectedDelivery)
                       : 'Not set'}
                   </span>
                 </div>
@@ -748,7 +749,7 @@ export function PurchaseOrdersView() {
                       <p><span className="text-muted-foreground">Approved By:</span> {selectedPO.approvedBy}</p>
                     )}
                     {selectedPO.approvedAt && (
-                      <p><span className="text-muted-foreground">Approved At:</span> {new Date(selectedPO.approvedAt).toLocaleString()}</p>
+                      <p><span className="text-muted-foreground">Approved At:</span> {formatDateTime(selectedPO.approvedAt)}</p>
                     )}
                   </div>
                 </>

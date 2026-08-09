@@ -1,3 +1,4 @@
+import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { apiFetch } from '@/lib/api'
@@ -286,7 +287,7 @@ interface SettingsState {
 }
 
 const DEFAULT_SETTINGS: SystemSettings = {
-  taxRate: 13.0,
+  taxRate: NEPAL_VAT_RATE,
   serviceCharge: 10.0,
   tourismTax: 0,
   gstEnabled: false,

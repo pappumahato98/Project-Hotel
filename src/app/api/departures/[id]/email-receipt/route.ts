@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { formatDateShort } from '@/lib/nepal-standards'
 
 // POST /api/departures/[id]/email-receipt — Send checkout receipt to guest email
 export async function POST(
@@ -77,8 +78,8 @@ export async function POST(
     const guestName = `${reservation.guest.firstName} ${reservation.guest.lastName}`
     const roomNumber = reservation.room?.number || '—'
     const roomType = reservation.room?.type?.name || ''
-    const checkIn = reservation.checkIn.toLocaleDateString()
-    const checkOut = reservation.checkOut.toLocaleDateString()
+    const checkIn = formatDateShort(reservation.checkIn)
+    const checkOut = formatDateShort(reservation.checkOut)
 
     const emailSubject = `Checkout Receipt — ${guestName} — Room ${roomNumber} — ${reservation.confirmationNo}`
 

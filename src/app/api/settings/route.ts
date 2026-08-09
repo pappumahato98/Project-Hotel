@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 
 // ─── Default Settings ───────────────────────────────────────────
 const DEFAULT_SETTINGS: Record<string, unknown> = {
   // Tax & Fees
-  taxRate: 13.0,
+  taxRate: NEPAL_VAT_RATE,
   serviceCharge: 10.0,
   tourismTax: 0,
   gstEnabled: false,

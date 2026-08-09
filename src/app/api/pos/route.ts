@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getSettingsMap, getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 
 // ─── Types ──────────────────────────────────────────────────────
 export interface TableItem {
@@ -685,7 +686,7 @@ export async function POST(request: NextRequest) {
   try {
     // ─── Fetch system settings ─────────────────────────────
     const sMap = await getSettingsMap()
-    const taxRateDecimal = ((sMap.taxRate as number) || 13) / 100
+    const taxRateDecimal = ((sMap.taxRate as number) || NEPAL_VAT_RATE) / 100
 
     const body = await request.json()
     const { action, outletId, tableNumber, items, guestCount, serverName, guestName, rush, specialInstructions } = body

@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { BarChart3, Globe, Building2, TrendingUp } from 'lucide-react'
+import { formatNPR } from '@/lib/nepal-standards'
 
 const competitorRates = [
   { hotel: 'Meridian Hotel (Ours)', barRate: 8500, suiteRate: 15000, standardRate: 6000 },
@@ -91,13 +92,13 @@ export function RateIntelligenceView() {
                         </div>
                       </td>
                       <td className="text-right p-2.5 text-xs font-mono">
-                        NPR {comp.standardRate.toLocaleString()}
+                        {formatNPR(comp.standardRate)}
                       </td>
                       <td className="text-right p-2.5 text-xs font-mono font-medium">
-                        NPR {comp.barRate.toLocaleString()}
+                        {formatNPR(comp.barRate)}
                       </td>
                       <td className="text-right p-2.5 text-xs font-mono">
-                        NPR {comp.suiteRate.toLocaleString()}
+                        {formatNPR(comp.suiteRate)}
                       </td>
                     </tr>
                   )

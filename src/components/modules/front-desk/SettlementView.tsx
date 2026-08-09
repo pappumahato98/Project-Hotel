@@ -30,7 +30,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
-import { formatCurrency, nightsBetween } from '@/lib/format'
+import { formatCurrency, formatDateShort, formatDateTime, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useNavigationStore, useFolioContextStore } from '@/lib/store'
 import { invalidate } from '@/lib/queryKeys'
@@ -108,7 +108,7 @@ function getLastPayment(res: InHouseReservation): string | null {
   const latest = allPayments.reduce((a, b) =>
     new Date(a.createdAt) > new Date(b.createdAt) ? a : b
   )
-  return new Date(latest.createdAt).toLocaleDateString()
+  return formatDateShort(new Date(latest.createdAt))
 }
 
 function getVipBadge(vipLevel: string) {
@@ -233,7 +233,7 @@ export function SettlementView() {
       toast.error('Please allow pop-ups to print')
       return
     }
-    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const dateStr = formatDateShort(new Date())
     const tableRows = filteredReservations.map((r) => {
       const guestName = r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '—'
       const roomNum = r.room ? r.room.number : '—'
@@ -291,7 +291,7 @@ export function SettlementView() {
     <span>Total Guests: ${guestCount}</span>
     <span>Total Outstanding: ${formatCurrency(totalOutstanding)}</span>
   </div>
-  <div class="footer">Generated: ${new Date().toLocaleString()}</div>
+  <div class="footer">Generated: ${formatDateTime(new Date())}</div>
   <div class="no-print" style="text-align:center;margin-top:12px;">
     <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;border:2px solid #000;background:#f5f5f5;border-radius:4px;">Print Report</button>
   </div>

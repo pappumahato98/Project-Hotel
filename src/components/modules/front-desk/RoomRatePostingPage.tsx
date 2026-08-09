@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatDate, formatCurrency } from '@/lib/format'
+import { formatNPR } from '@/lib/nepal-standards'
 import { invalidate } from '@/lib/queryKeys'
 import { useNavigationStore, useFolioContextStore } from '@/lib/store'
 
@@ -392,10 +393,10 @@ export function RoomRatePostingPage() {
       {/* ═══════════════ STAT CARDS ═══════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatCard icon={<Clock className="size-4 text-amber-600" />} label="Pending" value={String(pendingSummary?.totalReservations ?? 0)} sublabel={`${pendingSummary?.totalPendingNights ?? 0} nights`} bgClass="bg-amber-50 border-amber-200" />
-        <StatCard icon={<Wallet className="size-4 text-emerald-600" />} label="Pending Amount" value={pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'} sublabel="Total charges" bgClass="bg-emerald-50 border-emerald-200" />
+        <StatCard icon={<Wallet className="size-4 text-emerald-600" />} label="Pending Amount" value={pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : formatNPR(0)} sublabel="Total charges" bgClass="bg-emerald-50 border-emerald-200" />
         <StatCard icon={<Users className="size-4 text-blue-600" />} label="In-House" value={String(filteredPendingReservations.length)} sublabel="With pending" bgClass="bg-blue-50 border-blue-200" />
-        <StatCard icon={<BarChart3 className="size-4 text-violet-600" />} label="Avg Rate/Night" value={pendingStats.avgRate > 0 ? formatCurrency(pendingStats.avgRate) : 'NPR 0'} sublabel="Of pending" bgClass="bg-violet-50 border-violet-200" />
-        <StatCard icon={<Building2 className="size-4 text-sky-600" />} label="Folio Balance" value={pendingStats.totalFolioBalance > 0 ? formatCurrency(pendingStats.totalFolioBalance) : 'NPR 0'} sublabel="Combined balance" bgClass="bg-sky-50 border-sky-200" />
+        <StatCard icon={<BarChart3 className="size-4 text-violet-600" />} label="Avg Rate/Night" value={pendingStats.avgRate > 0 ? formatCurrency(pendingStats.avgRate) : formatNPR(0)} sublabel="Of pending" bgClass="bg-violet-50 border-violet-200" />
+        <StatCard icon={<Building2 className="size-4 text-sky-600" />} label="Folio Balance" value={pendingStats.totalFolioBalance > 0 ? formatCurrency(pendingStats.totalFolioBalance) : formatNPR(0)} sublabel="Combined balance" bgClass="bg-sky-50 border-sky-200" />
         <StatCard icon={<AlertCircle className="size-4 text-red-600" />} label="Issues" value={String(pendingStats.noRoom)} sublabel={pendingStats.noRoom > 0 ? 'No room assigned' : 'All assigned'} bgClass="bg-red-50 border-red-200" />
       </div>
 
@@ -655,7 +656,7 @@ export function RoomRatePostingPage() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">Nights</p>
               </div>
               <div className="rounded-md border bg-emerald-50 p-3 text-center">
-                <p className="text-2xl font-bold text-emerald-700">{pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : 'NPR 0'}</p>
+                <p className="text-2xl font-bold text-emerald-700">{pendingSummary ? formatCurrency(pendingSummary.totalPendingAmount) : formatNPR(0)}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">Total</p>
               </div>
             </div>

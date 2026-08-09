@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { cn } from '@/lib/utils'
+import { formatNPR } from '@/lib/nepal-standards'
 import { format } from 'date-fns'
 
 // ── Types ────────────────────────────────────────────────────
@@ -56,10 +57,6 @@ interface Guest {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
-export function formatNPR(amount: number): string {
-  return `NPR ${amount.toLocaleString('en-NP')}`
-}
-
 function vipColor(level: string): string {
   switch (level) {
     case 'platinum':

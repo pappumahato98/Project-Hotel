@@ -1,80 +1,59 @@
 import { usePreferencesStore } from '@/lib/store'
+import {
+  formatNPR as _formatNPR,
+  formatDate as _formatDate,
+  formatDateShort as _formatDateShort,
+  formatTime as _formatTime,
+  formatDateTime as _formatDateTime,
+  formatDateISO as _formatDateISO,
+  formatNumber,
+  formatCurrencyCompact,
+} from '@/lib/nepal-standards'
 
-function getCurrency() {
-  try {
-    return usePreferencesStore.getState().preferences.currency
-  } catch {
-    return 'NPR'
-  }
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// Re-export Nepal standards formatters
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function getLocale(): Intl.LocalesArgument {
-  try {
-    const lang = usePreferencesStore.getState().preferences.language
-    if (lang === 'ne') return 'ne-NP'
-    return 'en-GB' // DD/MM/YYYY default locale
-  } catch {
-    return 'en-GB'
-  }
-}
+export { formatNumber, formatCurrencyCompact }
 
+/**
+ * Format currency as Rs. with Indian/Nepali lakh/crore grouping.
+ * Example: Rs. 1,50,000 | Rs. 1,00,00,000
+ */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('ne-NP', {
-    style: 'currency',
-    currency: getCurrency(),
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+  return _formatNPR(amount)
 }
 
 /**
- * Format date as DD-MM-YYYY (default) or based on user preference.
- * Uses en-GB locale which naturally produces DD/MM/YYYY.
+ * Format date as DD/MM/YYYY (Nepal/British standard)
  */
 export function formatDate(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat(getLocale(), {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d)
+  return _formatDate(date)
 }
 
 /**
- * Format date as DD-Mon-YYYY (e.g., 15-Jul-2025) for compact display.
+ * Format date as DD-Mon-YYYY (e.g., 15-Jul-2025)
  */
 export function formatDateShort(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(d)
+  return _formatDateShort(date)
 }
 
+/**
+ * Format time as 12-hour with AM/PM
+ */
 export function formatTime(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d)
+  return _formatTime(date)
 }
 
+/**
+ * Format date + time as DD/MM/YYYY, hh:mm AM/PM
+ */
 export function formatDateTime(date: string | Date): string {
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '—'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d)
+  return _formatDateTime(date)
+}
+
+export function formatDateISO(date: string | Date): string {
+  return _formatDateISO(date)
 }
 
 export function getTodayString(): string {
@@ -83,8 +62,6 @@ export function getTodayString(): string {
 
 /**
  * Convert a Date object to a YYYY-MM-DD string using LOCAL timezone.
- * Unlike `toISOString().split('T')[0]` which uses UTC, this respects the user's timezone.
- * Critical for Nepal (UTC+5:45) where UTC conversion shifts dates.
  */
 export function toDateOnly(d: Date): string {
   const year = d.getFullYear()
@@ -95,8 +72,6 @@ export function toDateOnly(d: Date): string {
 
 /**
  * Parse a YYYY-MM-DD date string to a Date at midnight LOCAL time.
- * Unlike `new Date('2025-06-15')` which parses as UTC midnight, this creates
- * a local-timezone date so the Calendar component displays the correct day.
  */
 export function fromDateOnly(s: string): Date {
   const [y, m, d] = s.split('-').map(Number)
@@ -156,5 +131,3 @@ export function getTypeShortcut(typeName: string | null | undefined, typeCode?: 
   if (typeName) return typeName.toUpperCase().slice(0, 3)
   return ''
 }
-
-

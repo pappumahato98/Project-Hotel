@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { formatDate, formatCurrency, nightsBetween, getTodayString, toDateOnly, fromDateOnly } from '@/lib/format'
+import { formatDate, formatDateShort, formatCurrency, nightsBetween, getTodayString, toDateOnly, fromDateOnly } from '@/lib/format'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
@@ -199,17 +199,19 @@ function generatePreviewConfirmation(): string {
   return result
 }
 
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 function formatDayOfWeek(dateStr: string): string {
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('en-US', { weekday: 'short' })
+  return WEEKDAY_SHORT[d.getDay()]
 }
 
 function formatDateWithDay(dateStr: string): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   const day = formatDayOfWeek(dateStr)
-  const formatted = d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' })
+  const formatted = formatDateShort(d)
   return `${day} ${formatted}`
 }
 

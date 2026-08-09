@@ -13,6 +13,7 @@ import {
   ChevronLeft, ChevronRight, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatDateShort } from '@/lib/format'
 
 type ShiftType = 'morning' | 'evening' | 'night' | 'off'
 
@@ -182,7 +183,7 @@ export function SchedulesView() {
   const sundayDate = new Date(mondayDate)
   sundayDate.setDate(mondayDate.getDate() + 6)
 
-  const weekLabel = `${mondayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })} – ${sundayDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
+  const weekLabel = `${formatDateShort(mondayDate)} – ${formatDateShort(sundayDate)}`
 
   // Count shifts for summary
   const shiftCounts = filteredSchedule.reduce((acc, entry) => {
@@ -333,7 +334,7 @@ export function SchedulesView() {
                   <div key={day} className="p-3 text-center">
                     <p className="text-xs font-medium text-muted-foreground">{day}</p>
                     <p className="text-xs text-muted-foreground/70">
-                      {new Date(mondayDate.getTime() + i * 86400000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                      {formatDateShort(new Date(mondayDate.getTime() + i * 86400000))}
                     </p>
                   </div>
                 ))}

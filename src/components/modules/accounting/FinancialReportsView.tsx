@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { formatNPR, cn } from '@/lib/utils'
+import { formatDateShort } from '@/lib/format'
 import { AccountingError } from './AccountingErrorBoundary'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -186,8 +187,7 @@ function getToday(): string {
 
 function formatDateDisplay(dateStr: string): string {
   if (!dateStr) return ''
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  return formatDateShort(dateStr + 'T00:00:00')
 }
 
 // ── Departments ──────────────────────────────────────────────────

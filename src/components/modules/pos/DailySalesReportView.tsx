@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formatNPR } from './pos-types'
+import { formatNPR } from '@/lib/nepal-standards'
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface DailyReportData {
@@ -464,10 +464,10 @@ function buildCsvContent(report: DailyReportData, date: string): string {
 
   // Summary
   lines.push('=== SUMMARY ===')
-  lines.push(`Total Revenue,NPR ${report.totalRevenue.toLocaleString()}`)
+  lines.push(`Total Revenue,${formatNPR(report.totalRevenue)}`)
   lines.push(`Total Orders,${report.totalOrders}`)
-  lines.push(`Avg Order Value,NPR ${report.avgOrderValue.toLocaleString()}`)
-  lines.push(`Tax Collected,NPR ${report.taxCollected.toLocaleString()}`)
+  lines.push(`Avg Order Value,${formatNPR(report.avgOrderValue)}`)
+  lines.push(`Tax Collected,${formatNPR(report.taxCollected)}`)
   lines.push('')
 
   // By Outlet
@@ -527,23 +527,23 @@ function downloadCsv(content: string, filename: string) {
 // ─── Print Helper ────────────────────────────────────────────────────
 function buildPrintHtml(report: DailyReportData, date: string): string {
   const outletRows = report.byOutlet.map(o =>
-    `<tr><td>${o.name}</td><td style="text-align:right">NPR ${o.revenue.toLocaleString()}</td><td style="text-align:right">${o.orders}</td></tr>`
+    `<tr><td>${o.name}</td><td style="text-align:right">${formatNPR(o.revenue)}</td><td style="text-align:right">${o.orders}</td></tr>`
   ).join('')
 
   const categoryRows = report.byCategory.map(c =>
-    `<tr><td>${c.name}</td><td style="text-align:right">NPR ${c.amount.toLocaleString()}</td><td style="text-align:right">${c.percentage}%</td></tr>`
+    `<tr><td>${c.name}</td><td style="text-align:right">${formatNPR(c.amount)}</td><td style="text-align:right">${c.percentage}%</td></tr>`
   ).join('')
 
   const paymentRows = report.byPayment.map(p =>
-    `<tr><td>${p.method}</td><td style="text-align:right">NPR ${p.amount.toLocaleString()}</td><td style="text-align:right">${p.percentage}%</td></tr>`
+    `<tr><td>${p.method}</td><td style="text-align:right">${formatNPR(p.amount)}</td><td style="text-align:right">${p.percentage}%</td></tr>`
   ).join('')
 
   const topItemRows = report.topItems.map(item =>
-    `<tr><td style="text-align:center">${item.rank}</td><td>${item.name}</td><td style="text-align:right">${item.qtySold}</td><td style="text-align:right">NPR ${item.revenue.toLocaleString()}</td></tr>`
+    `<tr><td style="text-align:center">${item.rank}</td><td>${item.name}</td><td style="text-align:right">${item.qtySold}</td><td style="text-align:right">${formatNPR(item.revenue)}</td></tr>`
   ).join('')
 
   const hourlyRows = report.hourlySales.map(h =>
-    `<tr><td>${h.hour}</td><td style="text-align:right">NPR ${h.revenue.toLocaleString()}</td><td style="text-align:right">${h.orders}</td></tr>`
+    `<tr><td>${h.hour}</td><td style="text-align:right">${formatNPR(h.revenue)}</td><td style="text-align:right">${h.orders}</td></tr>`
   ).join('')
 
   return `
@@ -566,10 +566,10 @@ function buildPrintHtml(report: DailyReportData, date: string): string {
 <p class="meta">Date: ${date}</p>
 
 <div class="summary">
-  <div class="summary-card"><div class="label">Total Revenue</div><div class="value">NPR ${report.totalRevenue.toLocaleString()}</div></div>
+  <div class="summary-card"><div class="label">Total Revenue</div><div class="value">${formatNPR(report.totalRevenue)}</div></div>
   <div class="summary-card"><div class="label">Total Orders</div><div class="value">${report.totalOrders}</div></div>
-  <div class="summary-card"><div class="label">Avg Order Value</div><div class="value">NPR ${report.avgOrderValue.toLocaleString()}</div></div>
-  <div class="summary-card"><div class="label">Tax Collected</div><div class="value">NPR ${report.taxCollected.toLocaleString()}</div></div>
+  <div class="summary-card"><div class="label">Avg Order Value</div><div class="value">${formatNPR(report.avgOrderValue)}</div></div>
+  <div class="summary-card"><div class="label">Tax Collected</div><div class="value">${formatNPR(report.taxCollected)}</div></div>
 </div>
 
 <h2>Sales by Outlet</h2>

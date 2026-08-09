@@ -112,6 +112,7 @@ model RoomType {
   maxOccupancy  Int
   bedConfig   String   @default("1 King Bed")
   areaSqFt    Float?
+  areaSqM     Float?
   view        String?
   amenities   String?  // JSON array of amenities
   sortOrder   Int      @default(0)

@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { invalidate } from '@/lib/queryKeys'
-import { formatDate, formatCurrency } from '@/lib/format'
+import { formatDate, formatDateShort, formatDateTime, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useNavigationStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
@@ -882,7 +882,7 @@ export function GuestLedgerView() {
       return
     }
     const guestName = `${ledger.guest.firstName} ${ledger.guest.lastName}`
-    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const dateStr = formatDateShort(new Date())
     // Compute running balance
     let runningBalance = 0
     const txRows = ledger.transactions.map((tx) => {
@@ -946,7 +946,7 @@ export function GuestLedgerView() {
     <span>Total Payments: ${formatCurrency(summary.totalPayments)}</span>
     <span>Outstanding: ${formatCurrency(summary.outstandingBalance)}</span>
   </div>
-  <div class="footer">Generated: ${new Date().toLocaleString()}</div>
+  <div class="footer">Generated: ${formatDateTime(new Date())}</div>
   <div class="no-print" style="text-align:center;margin-top:12px;">
     <button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer;border:2px solid #000;background:#f5f5f5;border-radius:4px;">Print Report</button>
   </div>

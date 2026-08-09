@@ -170,10 +170,6 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; border: string;
 const ALL_STATUSES = ['vacant_clean', 'occupied', 'vacant_dirty', 'cleaning', 'inspected', 'out_of_order', 'on_change']
 
 // ─── Helpers ──────────────────────────────────────────────────
-function formatNpr(amount: number): string {
-  return `Rs. ${amount.toLocaleString('en-NP')}`
-}
-
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })

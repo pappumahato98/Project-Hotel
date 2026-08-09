@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { formatNPR } from '@/lib/nepal-standards'
 import {
   ArrowRightLeft, Users, ClipboardCheck, Wrench,
   UtensilsCrossed, Banknote, CreditCard, Crown, StickyNote,
@@ -54,11 +55,6 @@ interface ShiftHandoverData {
   acknowledged: boolean
   acknowledgedAt: string | null
   sections: HandoverSections
-}
-
-// ─── Helpers ────────────────────────────────────────────────────
-function formatNPR(amount: number): string {
-  return `NPR ${amount.toLocaleString('en-NP')}`
 }
 
 // ─── Skeleton Loader ──────────────────────────────────────────
