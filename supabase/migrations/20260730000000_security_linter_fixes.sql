@@ -891,8 +891,10 @@ CREATE POLICY "admin_gm_insert_security" ON public."SecurityEvent"
 -- Revoke EXECUTE on SECURITY DEFINER functions from anon role.
 -- authenticated users still need access (used in RLS policies).
 
--- 3a. current_user_role: revoke anon, keep authenticated
+-- 3a. current_user_role: revoke anon AND authenticated
+--     RLS policies still work because they execute as the table owner
 REVOKE EXECUTE ON FUNCTION public.current_user_role() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.current_user_role() FROM authenticated;
 
 -- 3b. rls_auto_enable: revoke anon AND authenticated (admin-only operation),
 --     then grant back to authenticated with admin/GM role check
