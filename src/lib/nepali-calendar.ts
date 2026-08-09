@@ -384,19 +384,19 @@ export function bsToAD(bsYear: number, bsMonth: number, bsDay: number): Date {
 
 // ─── Formatting Functions ───────────────────────────────────────────────
 
-/** Format BS date in Nepali: "१५ जेष्ठ २०८२" */
+/** Format BS date in Nepali Devanagari: "२०८२ जेष्ठ १५" */
 export function formatBSDateNepali(bsDate: { year: number; month: number; day: number }): string {
-  return `${toNepaliDigits(bsDate.day)} ${getNepaliMonthName(bsDate.month)} ${toNepaliDigits(bsDate.year)}`
+  return `${toNepaliDigits(bsDate.year)} ${getNepaliMonthName(bsDate.month)} ${toNepaliDigits(bsDate.day)}`
 }
 
-/** Format BS date in English: "2082/02/15 BS" */
+/** Format BS date in English Long: "2082 Jestha 15" */
 export function formatBSDateEnglish(bsDate: { year: number; month: number; day: number }): string {
-  return `${bsDate.year}-${String(bsDate.month).padStart(2, '0')}-${String(bsDate.day).padStart(2, '0')} BS`
+  return `${bsDate.year} ${NEPALI_MONTHS_ENGLISH[bsDate.month - 1]} ${bsDate.day}`
 }
 
-/** Format BS date short: "15 Jestha 2082" */
+/** Format BS date in English Short: "2082/02/15 BS" */
 export function formatBSDateShort(bsDate: { year: number; month: number; day: number }): string {
-  return `${bsDate.day} ${NEPALI_MONTHS_SHORT_ENGLISH[bsDate.month - 1]} ${bsDate.year}`
+  return `${bsDate.year}/${String(bsDate.month).padStart(2, '0')}/${String(bsDate.day).padStart(2, '0')} BS`
 }
 
 // ─── Holiday Functions ───────────────────────────────────────────────────
