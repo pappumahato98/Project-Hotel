@@ -4,31 +4,26 @@
  * Features:
  *   - Lazy initialization (avoids Turbopack/Webpack env-loading race conditions)
  *   - Environment validation on first connection
- *   - Automatic SSL enforcement (sslmode=require) for all PostgreSQL connections
+ *   - Automatic SSL enforcement with Supabase CA certificate (sslmode=verify-full)
  *   - Connection pool limits for PgBouncer compatibility
  *   - Global singleton (prevents multiple clients in dev hot-reload)
  */
 import { PrismaClient } from '@prisma/client'
+import fs from 'fs'
+import path from 'path'
 import { hasPostgresConfigured } from '@/lib/env'
+
+// ─── Supabase SSL Certificate ────────────────────────────────────
+// Supabase Root CA 2021 — used for sslmode=verify-full to prevent
+// man-in-the-middle attacks. The cert is resolved relative to project root
+// so it works in any deployment environment.
+const SUPABASE_CA_CERT_PATH = path.resolve(process.cwd(), 'certs', 'prod-ca-2021.crt')
 
 // ─── Connection Pool Configuration ──────────────────────────────
 // Tuned for Supabase PgBouncer (transaction mode, port 5432).
 // Supabase free tier: 60 direct connections, 200 pooler connections.
 // Render starter: shared pool. Pro: dedicated 25 connections.
 // We use conservative defaults that work across all plans.
-
-const PRISMA_CONFIG = {
-  // Prisma connection pool (per server instance)
-  // Each instance gets its own pool — Render may run 1-2 instances on starter.
-  // With 2 instances × 10 connections = 20 pooler connections (well within 200 limit).
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL!,
-    },
-  },
-  // Log only errors in all environments (verbose logging in production is expensive)
-  log: ['error'] as const,
-}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -58,14 +53,34 @@ function validateDbConfig() {
   const separator = hasQuery ? '&' : '?'
   const params: string[] = []
 
-  // 1. Reject non-SSL connections — inject sslmode=require unless explicitly set
-  if (!url.includes('sslmode=')) {
-    params.push('sslmode=require')
-    console.warn('[db] SSL enforced: sslmode=require injected into DATABASE_URL. '
-      + 'To use a different mode, set sslmode= explicitly in your DATABASE_URL.')
-  } else if (url.includes('sslmode=disable') || url.includes('sslmode=allow') || url.includes('sslmode=prefer')) {
-    console.warn(`[db] ⚠️  Weak SSL mode detected (sslmode=disable/allow/prefer). `
-      + `Insecure connections may be intercepted. Use sslmode=require or sslmode=verify-full for production.`)
+  // 1. SSL enforcement — use verify-full with Supabase CA cert when available
+  const hasCert = fs.existsSync(SUPABASE_CA_CERT_PATH)
+  const explicitSslmode = url.match(/sslmode=([a-z-]+)/)?.[1]
+
+  if (!explicitSslmode) {
+    if (hasCert) {
+      // Best security: verify-full with CA certificate
+      params.push('sslmode=verify-full', `sslrootcert=${SUPABASE_CA_CERT_PATH}`)
+      console.warn('[db] SSL enforced: sslmode=verify-full with Supabase CA certificate. '
+        + `Certificate: ${SUPABASE_CA_CERT_PATH}`)
+    } else {
+      // Fallback: require SSL but skip cert verification
+      params.push('sslmode=require')
+      console.warn('[db] SSL enforced: sslmode=require (no CA cert found at certs/prod-ca-2021.crt). '
+        + 'Drop the Supabase CA cert there for verify-full protection.')
+    }
+  } else if (['disable', 'allow', 'prefer'].includes(explicitSslmode)) {
+    console.warn(`[db] \u26a0\ufe0f  Weak SSL mode detected (sslmode=${explicitSslmode}). `
+      + 'Insecure connections may be intercepted. Use sslmode=require or sslmode=verify-full for production.')
+  } else if (explicitSslmode === 'verify-full' && !url.includes('sslrootcert=')) {
+    // User wants verify-full but didn't provide cert path — inject ours
+    if (hasCert) {
+      params.push(`sslrootcert=${SUPABASE_CA_CERT_PATH}`)
+      console.warn(`[db] sslrootcert injected: ${SUPABASE_CA_CERT_PATH}`)
+    } else {
+      console.warn('[db] \u26a0\ufe0f  sslmode=verify-full without sslrootcert. '
+        + 'Connection may fail. Place Supabase CA cert at certs/prod-ca-2021.crt')
+    }
   }
 
   // 2. Connection pool limits (PgBouncer / Supabase / Render compatible)
@@ -89,7 +104,14 @@ function getDb(): PrismaClient {
 
   validateDbConfig()
 
-  _db = new PrismaClient(PRISMA_CONFIG)
+  _db = new PrismaClient({
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL!,
+      },
+    },
+    log: ['error'] as const,
+  })
   if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = _db
   return _db
 }
