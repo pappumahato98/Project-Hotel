@@ -6,7 +6,7 @@
  * 
  * Standards:
  *   Currency: NPR (Nepalese Rupee) with Indian/Nepali grouping (lakhs/crores)
- *   Dates: DD/MM/YYYY (British format, used in Nepal), BS optional via dual calendar
+ *   Dates: YYYY/MM/DD (Nepal standard), YYYY-Mon-DD short, BS optional via dual calendar
  *   Time: 12-hour with AM/PM, Asia/Katmandu (UTC+5:45)
  *   Phone: +977 format
  *   Tax: 13% VAT (Nepal standard), TDS rates
@@ -106,26 +106,29 @@ export function formatCurrencyCompact(amount: number): string {
 // ═══════════════════════════════════════════════════════════════════════
 
 /**
- * Format date as DD/MM/YYYY (standard Nepal/British format)
+ * Format date as YYYY/MM/DD (Nepal standard format)
  */
 export function formatDate(date: string | Date): string {
   const d = new Date(date)
   if (isNaN(d.getTime())) return '—'
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
-  return `${day}/${month}/${year}`
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}/${month}/${day}`
 }
 
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 /**
- * Format date as DD-Mon-YYYY (e.g., 15-Jul-2025)
+ * Format date as YYYY-Mon-DD (e.g., 2025-Jul-15) — Nepal short format
  */
 export function formatDateShort(date: string | Date): string {
   const d = new Date(date)
   if (isNaN(d.getTime())) return '—'
+  const year = d.getFullYear()
+  const month = MONTHS_EN[d.getMonth()]
   const day = String(d.getDate()).padStart(2, '0')
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${day}-${months[d.getMonth()]}-${d.getFullYear()}`
+  return `${year}-${month}-${day}`
 }
 
 /**
@@ -153,8 +156,28 @@ export function formatTime(date: string | Date): string {
   return `${h12}:${minutes} ${ampm}`
 }
 
+/** Devanagari digit map: 0-9 → ०-९ */
+const DEVANAGARI_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'] as const
+
 /**
- * Format date + time as DD/MM/YYYY, hh:mm AM/PM
+ * Format time in Devanagari script (e.g., ११:३० अपराह्न / ०८:१५ पूर्वाह्न)
+ */
+export function formatTimeDevanagari(date: string | Date): string {
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  const hours = d.getHours()
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  const ampm = hours >= 12 ? 'अपराह्न' : 'पूर्वाह्न'
+  const h12 = hours % 12 || 12
+
+  const toDevanagari = (n: number | string) =>
+    String(n).split('').map(ch => DEVANAGARI_DIGITS[parseInt(ch)] ?? ch).join('')
+
+  return `${toDevanagari(String(h12).padStart(2, '0'))}:${toDevanagari(minutes)} ${ampm}`
+}
+
+/**
+ * Format date + time as YYYY/MM/DD, hh:mm AM/PM
  */
 export function formatDateTime(date: string | Date): string {
   const d = new Date(date)
@@ -163,7 +186,7 @@ export function formatDateTime(date: string | Date): string {
 }
 
 /**
- * Format date + time short as DD-Mon-YYYY, hh:mm AM/PM
+ * Format date + time short as YYYY-Mon-DD, hh:mm AM/PM
  */
 export function formatDateTimeShort(date: string | Date): string {
   const d = new Date(date)

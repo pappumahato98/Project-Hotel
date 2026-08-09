@@ -149,7 +149,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         language: 'en',
         currency: 'NPR',
         timezone: 'Asia/Katmandu',
-        dateFormat: 'DD/MM/YYYY',
+        dateFormat: 'YYYY/MM/DD',
         notifications: true,
         compactMode: false,
         notifEmail: true,
