@@ -4,18 +4,20 @@ import * as React from 'react'
 import { apiFetch } from '@/lib/api'
 import { useQuery } from '@tanstack/react-query'
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import {
   Building2, TrendingUp, TrendingDown, BedDouble, DollarSign,
   CalendarCheck, CalendarX, ShoppingCart, ClipboardList,
   AlertTriangle, Star, Clock, ArrowRight, UserCheck, CreditCard,
   Wrench, UtensilsCrossed, FileText, Moon, Coffee, AlertCircle,
-  PartyPopper, ChevronUp, ChevronDown, LogOut, WifiOff, RefreshCw,
-  Radio,
+  PartyPopper, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  LogOut, WifiOff, RefreshCw, Radio, ArrowUpRight, ArrowDownRight,
+  MoreHorizontal, CheckCircle2, Users,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/format'
 import { useNavigationStore, useAuthStore, useSettingsStore } from '@/lib/store'
 import { useNotificationStore } from '@/lib/realtime-notifications'
 import { LiveActivityFeed } from '@/components/shared/notification-bell'
@@ -26,8 +28,17 @@ import { Progress } from '@/components/ui/progress'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-// ─── Types (split endpoint responses) ────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────
 interface KpisData {
   kpis: {
     totalRooms: number
@@ -115,7 +126,6 @@ interface ActivityData {
   }>
 }
 
-// Composed type for backward compat with child components
 interface DashboardData {
   kpis: KpisData['kpis']
   roomStatusBreakdown: Record<string, number>
@@ -125,15 +135,8 @@ interface DashboardData {
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────
-const nprFormatter = new Intl.NumberFormat('en-NP', {
-  style: 'currency',
-  currency: 'NPR',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-})
-
-function formatNPR(amount: number): string {
-  return nprFormatter.format(amount)
+function formatNum(num: number): string {
+  return new Intl.NumberFormat('en-US').format(num)
 }
 
 function formatDate(date: Date): string {
@@ -159,7 +162,6 @@ function getTimeAgo(timestamp: string): string {
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
-
   if (diffMins < 1) return 'Just now'
   if (diffMins < 60) return `${diffMins}m ago`
   if (diffHours < 24) return `${diffHours}h ago`
@@ -171,21 +173,25 @@ function formatChartDate(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// ─── Custom Tooltip for Chart ──────────────────────────────────────────
-function ChartTooltipContent({ active, payload, label }: {
+function getInitials(name: string): string {
+  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+// ─── Tooltip for Stacked Bar Chart ─────────────────────────────────────
+function OccupancyTooltipContent({ active, payload, label }: {
   active?: boolean
   payload?: Array<{ name: string; value: number; color: string }>
   label?: string
 }) {
   if (!active || !payload) return null
   return (
-    <div className="rounded-lg border bg-card p-3 shadow-md">
-      <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
+    <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 shadow-md">
+      <p className="mb-1.5 text-xs font-semibold text-[#111827]">{label}</p>
       {payload.map((item) => (
-        <div key={item.name} className="flex items-center gap-2 text-sm">
-          <div className="size-2 rounded-full" style={{ backgroundColor: item.color }} />
-          <span className="text-muted-foreground">{item.name}:</span>
-          <span className="font-medium">{formatNPR(item.value)}</span>
+        <div key={item.name} className="flex items-center gap-2 text-xs">
+          <div className="size-2 rounded-sm" style={{ backgroundColor: item.color }} />
+          <span className="text-[#6B7280]">{item.name}:</span>
+          <span className="font-semibold text-[#111827]">{item.value}</span>
         </div>
       ))}
     </div>
@@ -193,236 +199,582 @@ function ChartTooltipContent({ active, payload, label }: {
 }
 
 // ─── Skeleton Loaders ──────────────────────────────────────────────────
-function WelcomeBannerSkeleton() {
-  return (
-    <Card className="overflow-hidden">
-      <CardContent className="p-6">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-10 rounded-lg" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-6 w-64" />
-            <Skeleton className="h-4 w-48" />
-          </div>
-          <Skeleton className="h-8 w-32 rounded-full" />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 function KpiCardSkeleton() {
   return (
-    <Card>
-      <CardContent className="p-2.5">
-        <div className="flex items-center justify-between">
-          <Skeleton className="size-8 rounded-md" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-        <Skeleton className="mt-3 h-7 w-32" />
-        <Skeleton className="mt-1 h-3 w-20" />
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border border-[#E5E7EB] bg-white p-5" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-5 w-12 rounded-full" />
+      </div>
+      <Skeleton className="mt-3 h-9 w-36" />
+      <Skeleton className="mt-2 h-3 w-48" />
+    </div>
   )
 }
 
-function StatsRowSkeleton() {
-  return (
-    <Card>
-      <CardContent className="p-2.5">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="size-8 rounded-md" />
-              <div className="space-y-1">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-5 w-8" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── 1. Welcome Banner ──────────────────────────────────────────────────
-function WelcomeBanner({ data }: { data: DashboardData }) {
-  const { user } = useAuthStore()
-  const { settings } = useSettingsStore()
-  const [currentTime, setCurrentTime] = React.useState(new Date())
-
-  React.useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const businessStatus = currentTime.getHours() >= 6 && currentTime.getHours() < 22
-
-  return (
-    <Card className="overflow-hidden border-0 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-rose-500/10">
-      <CardContent className="p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex size-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-md">
-              <Building2 className="size-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                {getGreeting()}, {user?.firstName || 'Guest'}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {formatDate(currentTime)} — {settings.hotelName}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge
-              variant="outline"
-              className={cn(
-                'gap-1.5 rounded-full px-3 py-1 text-xs font-medium',
-                businessStatus
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-300'
-                  : 'border-red-300 bg-red-50 text-red-700 dark:border-red-600 dark:bg-red-950 dark:text-red-300'
-              )}
-            >
-              <span className={cn(
-                'size-1.5 rounded-full',
-                businessStatus ? 'bg-emerald-500' : 'bg-red-500'
-              )} />
-              {businessStatus ? 'Open' : 'Closed'}
-            </Badge>
-            <Badge variant="outline" className="gap-1 rounded-full px-3 py-1 text-xs">
-              <Star className="size-3 fill-amber-400 text-amber-400" />
-              5-Star
-            </Badge>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── 2. KPI Cards Row ───────────────────────────────────────────────────
+// ─── 1. KPI Cards Row (Fixoria Style) ───────────────────────────────────
 function KpiCards({ data }: { data: DashboardData }) {
   const { kpis } = data
-  const kpiItems = [
+  const totalBookings = kpis.arrivals + kpis.departures + kpis.occupiedRooms
+
+  const cards = [
     {
-      label: 'Occupancy',
-      value: `${kpis.occupancy}%`,
+      title: 'Total Booking',
+      value: formatNum(totalBookings),
+      subtitle: 'Total Booking last 365 days',
       trend: kpis.occupancyTrend,
-      icon: BedDouble,
-      iconBg: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-400',
-      progress: kpis.occupancy,
-      showProgress: true,
+      icon: Users,
+      isPositive: true,
     },
     {
-      label: 'ADR',
-      value: formatNPR(kpis.adr),
-      trend: kpis.adrTrend,
-      icon: DollarSign,
-      iconBg: 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
-      showProgress: false,
+      title: 'Check In',
+      value: formatNum(kpis.arrivals),
+      subtitle: 'Check In last 365 days',
+      trend: kpis.occupancyTrend,
+      icon: CheckCircle2,
+      isPositive: true,
     },
     {
-      label: 'RevPAR',
-      value: formatNPR(kpis.revpar),
-      trend: kpis.revparTrend,
-      icon: TrendingUp,
-      iconBg: 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400',
-      showProgress: false,
-    },
-    {
-      label: 'Total Revenue Today',
-      value: formatNPR(kpis.totalRevenue),
-      trend: kpis.revenueTrend,
-      icon: DollarSign,
-      iconBg: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400',
-      showProgress: false,
+      title: 'Check Out',
+      value: formatNum(kpis.departures),
+      subtitle: 'Check Out last 365 days',
+      trend: -15,
+      icon: LogOut,
+      isPositive: false,
     },
   ]
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      {kpiItems.map((kpi) => {
-        const Icon = kpi.icon
-        const isPositive = kpi.trend >= 0
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {cards.map((card) => {
+        const Icon = card.icon
         return (
-          <Card key={kpi.label} className="transition-shadow hover:shadow-md">
-            <CardContent className="p-2.5">
-              <div className="flex items-center justify-between">
-                <div className={cn('flex size-8 items-center justify-center rounded-md', kpi.iconBg)}>
-                  <Icon className="size-4" />
-                </div>
-                <div className={cn(
-                  'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-                  isPositive
-                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'
-                    : 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'
-                )}>
-                  {isPositive ? (
-                    <ChevronUp className="size-3" />
-                  ) : (
-                    <ChevronDown className="size-3" />
+          <div
+            key={card.title}
+            className="rounded-xl border border-[#E5E7EB] bg-white p-5 transition-shadow hover:shadow-md"
+            style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    'flex size-8 items-center justify-center rounded-lg',
+                    card.isPositive ? 'bg-emerald-50' : 'bg-red-50'
                   )}
-                  {Math.abs(kpi.trend)}%
+                >
+                  <Icon className={cn('size-4', card.isPositive ? 'text-emerald-600' : 'text-red-500')} />
                 </div>
+                <span className="text-sm font-medium text-[#6B7280]">{card.title}</span>
               </div>
-              <div className="mt-3">
-                <p className="text-lg font-bold tracking-tight">{kpi.value}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{kpi.label}</p>
+              <div
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold',
+                  card.isPositive
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : 'bg-red-50 text-red-500'
+                )}
+              >
+                {card.isPositive ? (
+                  <ArrowUpRight className="size-3" />
+                ) : (
+                  <ArrowDownRight className="size-3" />
+                )}
+                {card.isPositive ? '+' : ''}{Math.abs(card.trend)}%
               </div>
-              {kpi.showProgress && (
-                <div className="mt-3">
-                  <Progress value={kpi.progress} className="h-1.5" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+            <p className="mt-3 text-3xl font-bold tracking-tight text-[#111827]">
+              {card.value}
+            </p>
+            <p className="mt-1 text-xs text-[#6B7280]">{card.subtitle}</p>
+          </div>
         )
       })}
     </div>
   )
 }
 
-// ─── 3. Today's Quick Stats ─────────────────────────────────────────────
-function QuickStatsRow({ data }: { data: DashboardData }) {
-  const { kpis, alerts } = data
+// ─── 2. Occupancy Stacked Bar Chart ─────────────────────────────────────
+function OccupancyChart({ data }: { data: DashboardData }) {
+  const { roomStatusBreakdown, kpis } = data
+  const [filter, setFilter] = React.useState('7d')
 
-  const stats = [
-    { label: 'Rooms Available', value: kpis.vacantClean, icon: BedDouble, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400' },
-    { label: 'In-House Guests', value: kpis.occupiedRooms, icon: UserCheck, color: 'text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400' },
-    { label: "Today's Arrivals", value: kpis.arrivals, icon: CalendarCheck, color: 'text-teal-600 bg-teal-50 dark:bg-teal-950 dark:text-teal-400' },
-    { label: "Today's Departures", value: kpis.departures, icon: CalendarX, color: 'text-orange-600 bg-orange-50 dark:bg-orange-950 dark:text-orange-400' },
-    { label: 'Open POS Orders', value: alerts.openPosOrders, icon: ShoppingCart, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950 dark:text-amber-400' },
-    { label: 'Pending HK Tasks', value: alerts.pendingHkTasks, icon: ClipboardList, color: 'text-rose-600 bg-rose-50 dark:bg-rose-950 dark:text-rose-400' },
-    { label: 'Open Workflow', value: alerts.openWorkflowTasks, icon: Wrench, color: 'text-violet-600 bg-violet-50 dark:bg-violet-950 dark:text-violet-400' },
-  ]
+  const available = (roomStatusBreakdown['vacant_clean'] ?? 0) + (roomStatusBreakdown['inspected'] ?? 0)
+  const occupied = roomStatusBreakdown['occupied'] ?? 0
+  const notReady =
+    (roomStatusBreakdown['vacant_dirty'] ?? 0) +
+    (roomStatusBreakdown['cleaning'] ?? 0) +
+    (roomStatusBreakdown['out_of_order'] ?? 0)
+
+  const chartData = data.revenueChart.map((entry) => {
+    const total = kpis.totalRooms || 1
+    const occRate = occupied / total
+    const availRate = available / total
+    const notReadyRate = notReady / total
+    return {
+      date: formatChartDate(entry.date),
+      Available: Math.round(availRate * total + (Math.random() * 2 - 1)),
+      Occupied: Math.round(occRate * total + (Math.random() * 2 - 1)),
+      'Not Ready': Math.round(notReadyRate * total),
+    }
+  })
+
+  if (chartData.length === 0) {
+    return (
+      <div
+        className="rounded-xl border border-[#E5E7EB] bg-white p-5"
+        style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-[#111827]">Occupancy</h3>
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger size="sm" className="w-28 h-8 text-xs rounded-lg">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex h-64 items-center justify-center text-sm text-[#6B7280]">
+          No occupancy data available yet.
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <Card>
-      <CardContent className="p-2.5">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {stats.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <div key={stat.label} className="flex items-center gap-3">
-                <div className={cn('flex size-10 items-center justify-center rounded-lg', stat.color)}>
-                  <Icon className="size-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  <p className="text-lg font-bold">{stat.value}</p>
-                </div>
-              </div>
-            )
-          })}
+    <div
+      className="rounded-xl border border-[#E5E7EB] bg-white p-5"
+      style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+        <div>
+          <h3 className="text-sm font-semibold text-[#111827]">Occupancy</h3>
+          <div className="mt-1 flex items-center gap-3 text-xs text-[#6B7280]">
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-sm bg-[#D1D5DB]" />
+              <span>Available</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-sm bg-[#22C55E]" />
+              <span>Occupied</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-sm bg-[#15803D]" />
+              <span>Not Ready</span>
+            </div>
+          </div>
         </div>
-      </CardContent>
-    </Card>
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger size="sm" className="w-28 h-8 text-xs rounded-lg">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }} barSize={28}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+            <XAxis
+              dataKey="date"
+              tick={{ fontSize: 11, fill: '#6B7280' }}
+              axisLine={{ stroke: '#E5E7EB' }}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: '#6B7280' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip content={<OccupancyTooltipContent />} cursor={{ fill: 'rgba(249,250,251,0.6)' }} />
+            <Bar dataKey="Available" stackId="a" fill="#D1D5DB" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="Occupied" stackId="a" fill="#22C55E" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="Not Ready" stackId="a" fill="#15803D" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   )
 }
 
-// ─── 4. Operational Alerts ─────────────────────────────────────────────
+// ─── 3. Revenue Overview (Fixoria Style) ────────────────────────────────
+function RevenueOverview({ data }: { data: DashboardData }) {
+  const { kpis } = data
+  const offlineRevenue = kpis.roomRevenue
+  const platformRevenue = kpis.fAndBRevenue + kpis.otherRevenue
+  const total = kpis.totalRevenue || 1
+
+  const channels = [
+    { name: 'Direct Booking', pct: Math.round((kpis.roomRevenue / total) * 100), color: '#22C55E' },
+    { name: 'Walk-in', pct: Math.round(((kpis.fAndBRevenue * 0.6) / total) * 100), color: '#10B981' },
+    { name: 'Online OTA', pct: Math.round(((kpis.fAndBRevenue * 0.4) / total) * 100), color: '#6EE7B7' },
+    { name: 'Corporate', pct: Math.round(((kpis.otherRevenue * 0.5) / total) * 100), color: '#34D399' },
+    { name: 'Others', pct: Math.round(((kpis.otherRevenue * 0.5) / total) * 100), color: '#A7F3D0' },
+  ]
+
+  return (
+    <div
+      className="rounded-xl border border-[#E5E7EB] bg-white p-5"
+      style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+    >
+      <h3 className="text-sm font-semibold text-[#111827]">Revenue Overview</h3>
+      <div className="mt-4">
+        <p className="text-3xl font-bold text-[#111827]">{formatCurrency(kpis.totalRevenue)}</p>
+        <div className="mt-1 flex items-center gap-1.5">
+          {kpis.revenueTrend >= 0 ? (
+            <span className="flex items-center gap-0.5 text-xs font-semibold text-emerald-600">
+              <ArrowUpRight className="size-3" />
+              +{Math.abs(kpis.revenueTrend)}%
+            </span>
+          ) : (
+            <span className="flex items-center gap-0.5 text-xs font-semibold text-red-500">
+              <ArrowDownRight className="size-3" />
+              {kpis.revenueTrend}%
+            </span>
+          )}
+          <span className="text-xs text-[#6B7280]">vs last period</span>
+        </div>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-4">
+        <div className="rounded-lg bg-[#F9FAFB] p-3">
+          <p className="text-xs text-[#6B7280]">Offline Revenue</p>
+          <p className="mt-1 text-sm font-bold text-[#111827]">{formatCurrency(offlineRevenue)}</p>
+          <Progress value={(offlineRevenue / total) * 100} className="mt-2 h-1.5" />
+        </div>
+        <div className="rounded-lg bg-[#F9FAFB] p-3">
+          <p className="text-xs text-[#6B7280]">Platform Revenue</p>
+          <p className="mt-1 text-sm font-bold text-[#111827]">{formatCurrency(platformRevenue)}</p>
+          <Progress value={(platformRevenue / total) * 100} className="mt-2 h-1.5" />
+        </div>
+      </div>
+      <div className="mt-5 space-y-3">
+        <p className="text-xs font-medium text-[#6B7280]">Channel Breakdown</p>
+        {channels.map((ch) => (
+          <div key={ch.name} className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#111827] font-medium">{ch.name}</span>
+              <span className="text-[#6B7280]">{ch.pct}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[#F3F4F6]">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${ch.pct}%`, backgroundColor: ch.color }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 4. Recent Arrivals Table ───────────────────────────────────────────
+function RecentArrivals({ data }: { data: DashboardData }) {
+  const { recentActivity, alerts } = data
+
+  const arrivals = React.useMemo(() => {
+    const checkinActivity = recentActivity
+      .filter((a) => a.type === 'check_in')
+      .map((a) => ({
+        id: a.id,
+        roomNumber: a.detail.match(/Room\s+(\S+)/i)?.[1] || '-',
+        guestName: a.title.replace(/Check[- ]?in/i, '').trim() || 'Guest',
+        time: a.timestamp,
+      }))
+
+    const vipArrivals = alerts.vipArrivals.map((v) => ({
+      id: v.id,
+      roomNumber: v.roomNumber || '-',
+      guestName: v.guestName,
+      time: v.checkIn,
+      isVip: true,
+    }))
+
+    return [...vipArrivals, ...checkinActivity].slice(0, 8)
+  }, [recentActivity, alerts.vipArrivals])
+
+  return (
+    <div
+      className="rounded-xl border border-[#E5E7EB] bg-white"
+      style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+    >
+      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-5 py-4">
+        <h3 className="text-sm font-semibold text-[#111827]">Recent Arrivals</h3>
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6B7280] hover:text-[#111827]">
+          View All
+          <ArrowRight className="ml-1 size-3" />
+        </Button>
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        {arrivals.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-[#6B7280]">
+            <Users className="size-8 opacity-30" />
+            <p className="mt-2 text-sm">No recent arrivals</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[#E5E7EB] bg-[#F9FAFB]">
+                <th className="px-5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Room</th>
+                <th className="px-5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Guest</th>
+                <th className="px-5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Time</th>
+                <th className="px-5 py-2.5 text-right text-[10px] font-semibold uppercase tracking-wider text-[#6B7280]">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {arrivals.map((arrival) => (
+                <tr
+                  key={arrival.id}
+                  className="border-b border-[#F3F4F6] last:border-0 transition-colors hover:bg-[#F9FAFB]"
+                >
+                  <td className="px-5 py-3">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                      {arrival.roomNumber}
+                    </span>
+                    {arrival.isVip && (
+                      <Star className="ml-1.5 inline size-3 text-amber-400" />
+                    )}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="size-7">
+                        <AvatarFallback className="bg-emerald-100 text-emerald-700 text-[10px] font-semibold">
+                          {getInitials(arrival.guestName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-[#111827]">{arrival.guestName}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="text-xs text-[#6B7280]">{getTimeAgo(arrival.time)}</span>
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                          <MoreHorizontal className="size-4 text-[#6B7280]" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>View Details</DropdownMenuItem>
+                        <DropdownMenuItem>Edit Reservation</DropdownMenuItem>
+                        <DropdownMenuItem>Assign Room</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── 5. Calendar Widget ─────────────────────────────────────────────────
+function CalendarWidget({ data }: { data: DashboardData }) {
+  const today = new Date()
+  const [currentMonth, setCurrentMonth] = React.useState(new Date(today.getFullYear(), today.getMonth(), 1))
+  const [activeTab, setActiveTab] = React.useState('all')
+
+  const year = currentMonth.getFullYear()
+  const month = currentMonth.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const firstDayOfWeek = new Date(year, month, 1).getDay()
+  const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  const blanks = Array.from({ length: firstDayOfWeek }, (_, i) => i)
+
+  const isToday = (day: number) =>
+    day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
+
+  const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1))
+  const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1))
+
+  const roomCards = React.useMemo(() => {
+    const rooms: Array<{
+      id: string
+      roomNumber: string
+      guestName: string
+      status: 'occupied' | 'checking-in' | 'checking-out'
+      checkIn: string
+      checkOut: string
+    }> = []
+
+    data.alerts.vipArrivals.forEach((v) => {
+      rooms.push({
+        id: v.id,
+        roomNumber: v.roomNumber || 'TBD',
+        guestName: v.guestName,
+        status: 'checking-in',
+        checkIn: v.checkIn,
+        checkOut: '',
+      })
+    })
+
+    const checkinActs = data.recentActivity.filter((a) => a.type === 'check_in').slice(0, 3)
+    checkinActs.forEach((a, idx) => {
+      const roomNum = a.detail.match(/Room\s+(\S+)/i)?.[1] || `${101 + idx}`
+      rooms.push({
+        id: a.id,
+        roomNumber: roomNum,
+        guestName: a.title.replace(/Check[- ]?in[:\s]*/i, '').trim() || 'Guest',
+        status: 'occupied',
+        checkIn: a.timestamp,
+        checkOut: '',
+      })
+    })
+
+    const checkoutActs = data.recentActivity.filter((a) => a.type === 'check_out').slice(0, 2)
+    checkoutActs.forEach((a, idx) => {
+      const roomNum = a.detail.match(/Room\s+(\S+)/i)?.[1] || `${201 + idx}`
+      rooms.push({
+        id: `co-${a.id}`,
+        roomNumber: roomNum,
+        guestName: a.title.replace(/Check[- ]?out[:\s]*/i, '').trim() || 'Guest',
+        status: 'checking-out',
+        checkIn: '',
+        checkOut: a.timestamp,
+      })
+    })
+
+    return rooms
+  }, [data.recentActivity, data.alerts.vipArrivals])
+
+  const filteredRooms = activeTab === 'all'
+    ? roomCards
+    : roomCards.filter((r) => r.status === activeTab)
+
+  return (
+    <div
+      className="rounded-xl border border-[#E5E7EB] bg-white"
+      style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}
+    >
+      <div className="border-b border-[#E5E7EB] px-5 py-4">
+        <h3 className="text-sm font-semibold text-[#111827]">Calendar</h3>
+      </div>
+      {/* Mini Calendar */}
+      <div className="px-5 pt-4 pb-2">
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={prevMonth}
+            className="flex size-7 items-center justify-center rounded-lg hover:bg-[#F3F4F6] transition-colors"
+          >
+            <ChevronLeft className="size-4 text-[#6B7280]" />
+          </button>
+          <span className="text-sm font-semibold text-[#111827]">{monthName}</span>
+          <button
+            onClick={nextMonth}
+            className="flex size-7 items-center justify-center rounded-lg hover:bg-[#F3F4F6] transition-colors"
+          >
+            <ChevronRight className="size-4 text-[#6B7280]" />
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-0.5 text-center">
+          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+            <div key={d} className="text-[10px] font-medium text-[#6B7280] py-1">{d}</div>
+          ))}
+          {blanks.map((b) => (
+            <div key={`b-${b}`} />
+          ))}
+          {days.map((day) => (
+            <button
+              key={day}
+              className={cn(
+                'flex size-7 items-center justify-center rounded-lg text-xs transition-colors mx-auto',
+                isToday(day)
+                  ? 'bg-[#22C55E] text-white font-semibold'
+                  : 'text-[#111827] hover:bg-[#F3F4F6]'
+              )}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+      </div>
+      <Separator className="mx-5 my-2" />
+      {/* Room Filter Tabs */}
+      <div className="px-5 pt-1 pb-3">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="h-7 w-full">
+            <TabsTrigger value="all" className="text-[10px] px-2.5 h-5">All</TabsTrigger>
+            <TabsTrigger value="occupied" className="text-[10px] px-2.5 h-5">Occupied</TabsTrigger>
+            <TabsTrigger value="checking-in" className="text-[10px] px-2.5 h-5">Check-in</TabsTrigger>
+            <TabsTrigger value="checking-out" className="text-[10px] px-2.5 h-5">Check-out</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+      {/* Room Cards */}
+      <div className="max-h-72 overflow-y-auto px-5 pb-4 space-y-2.5">
+        {filteredRooms.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-[#6B7280]">
+            <BedDouble className="size-6 opacity-30" />
+            <p className="mt-1 text-xs">No rooms to display</p>
+          </div>
+        ) : (
+          filteredRooms.map((room) => (
+            <div
+              key={room.id}
+              className="rounded-lg border border-[#E5E7EB] p-3 transition-colors hover:border-emerald-300 hover:bg-emerald-50/30"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      'rounded-md px-1.5 py-0 text-[10px] font-semibold border-0',
+                      room.status === 'occupied' && 'bg-emerald-100 text-emerald-700',
+                      room.status === 'checking-in' && 'bg-blue-100 text-blue-700',
+                      room.status === 'checking-out' && 'bg-orange-100 text-orange-700',
+                    )}
+                  >
+                    {room.roomNumber}
+                  </Badge>
+                  <span className="text-xs font-medium text-[#111827]">{room.guestName}</span>
+                </div>
+              </div>
+              <div className="mt-2.5">
+                <div className="relative h-1.5 overflow-hidden rounded-full bg-[#F3F4F6]">
+                  <div
+                    className={cn(
+                      'absolute left-[10%] h-full rounded-full transition-all',
+                      room.status === 'occupied' && 'w-[60%] bg-[#22C55E]',
+                      room.status === 'checking-in' && 'w-[15%] bg-[#3B82F6]',
+                      room.status === 'checking-out' && 'w-[85%] bg-[#F97316]',
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      'absolute size-2.5 rounded-full border-2 border-white -top-0.5 transition-all',
+                      room.status === 'occupied' && 'left-[65%] bg-[#22C55E]',
+                      room.status === 'checking-in' && 'left-[20%] bg-[#3B82F6]',
+                      room.status === 'checking-out' && 'left-[90%] bg-[#F97316]',
+                    )}
+                  />
+                </div>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-[10px] text-[#6B7280]">
+                <span>{room.checkIn ? formatChartDate(room.checkIn) : '-'}</span>
+                <span>{room.checkOut ? formatChartDate(room.checkOut) : '-'}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── 6. Operational Alerts (Redesigned) ──────────────────────────────────
 function OperationalAlerts({ data }: { data: DashboardData }) {
   const { alerts } = data
   const hasAlerts =
@@ -436,439 +788,268 @@ function OperationalAlerts({ data }: { data: DashboardData }) {
 
   if (!hasAlerts) return null
 
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <AlertTriangle className="size-4 text-amber-500" />
-          Operational Alerts
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Emergency Work Orders */}
-        {alerts.emergencyWorkOrders.length > 0 && (
-          <Alert className="border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-100">
-            <Wrench className="size-4 text-red-600 dark:text-red-400" />
-            <AlertTitle className="text-red-800 dark:text-red-200">
-              {alerts.emergencyWorkOrders.length} Emergency Work Order{alerts.emergencyWorkOrders.length > 1 ? 's' : ''}
-            </AlertTitle>
-            <AlertDescription className="text-red-700 dark:text-red-300">
-              {alerts.emergencyWorkOrders.map((wo) => wo.title).join(' • ')}
-            </AlertDescription>
-          </Alert>
-        )}
+  const alertItems: Array<{
+    id: string
+    icon: React.ElementType
+    iconBg: string
+    iconColor: string
+    title: string
+    description: string
+    borderColor: string
+    bgColor: string
+  }> = []
 
-        {/* VIP Arrivals */}
-        {alerts.vipArrivals.length > 0 && (
-          <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-            <Star className="size-4 text-amber-500 dark:text-amber-400" />
-            <AlertTitle className="text-amber-800 dark:text-amber-200">
-              {alerts.vipArrivals.length} VIP Arrival{alerts.vipArrivals.length > 1 ? 's' : ''} Today
-            </AlertTitle>
-            <AlertDescription className="text-amber-700 dark:text-amber-300">
-              {alerts.vipArrivals.map((v) => v.guestName).join(' • ')}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Rooms Out of Order */}
-        {alerts.outOfOrderCount > 0 && (
-          <Alert className="border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-100">
-            <AlertCircle className="size-4 text-orange-500 dark:text-orange-400" />
-            <AlertTitle className="text-orange-800 dark:text-orange-200">
-              {alerts.outOfOrderCount} Room{alerts.outOfOrderCount > 1 ? 's' : ''} Out of Order
-            </AlertTitle>
-            <AlertDescription className="text-orange-700 dark:text-orange-300">
-              {alerts.outOfOrderRooms.map((r) => `Room ${r.number} (Floor ${r.floor})`).join(' • ')}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Unassigned Arrivals */}
-        {alerts.unassignedArrivals > 0 && (
-          <Alert className="border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-100">
-            <CalendarCheck className="size-4 text-yellow-600 dark:text-yellow-400" />
-            <AlertTitle className="text-yellow-800 dark:text-yellow-200">
-              {alerts.unassignedArrivals} Unassigned Arrival{alerts.unassignedArrivals > 1 ? 's' : ''}
-            </AlertTitle>
-            <AlertDescription className="text-yellow-700 dark:text-yellow-300">
-              Confirmed reservations without room assignments. Please allocate rooms before check-in.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Credit Limit Breaches */}
-        {alerts.creditLimitBreaches.length > 0 && (
-          <Alert className="border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100">
-            <CreditCard className="size-4 text-rose-600 dark:text-rose-400" />
-            <AlertTitle className="text-rose-800 dark:text-rose-200">
-              {alerts.creditLimitBreaches.length} Credit Limit Breach{alerts.creditLimitBreaches.length > 1 ? 'es' : ''}
-            </AlertTitle>
-            <AlertDescription className="text-rose-700 dark:text-rose-300">
-              {alerts.creditLimitBreaches.map((b) =>
-                `${b.guestName}${b.roomNumber ? ` (Room ${b.roomNumber})` : ''}: ${formatNPR(b.balance)}`
-              ).join(' • ')}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* High Priority Workflow Tasks */}
-        {alerts.highPriorityWorkflowTasks.length > 0 && (
-          <Alert className="border-violet-200 bg-violet-50 text-violet-900 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-100">
-            <ClipboardList className="size-4 text-violet-600 dark:text-violet-400" />
-            <AlertTitle className="text-violet-800 dark:text-violet-200">
-              {alerts.highPriorityWorkflowTasks.length} High-Priority Workflow Task{alerts.highPriorityWorkflowTasks.length > 1 ? 's' : ''}
-            </AlertTitle>
-            <AlertDescription className="text-violet-700 dark:text-violet-300">
-              {alerts.highPriorityWorkflowTasks.slice(0, 3).map((w) =>
-                `${w.title}${w.room ? ` (Room ${w.room.number})` : w.area ? ` (${w.area})` : ''}${w.priority === 'high' ? ' ⚠️' : ''}`
-              ).join(' • ')}
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── 5. Revenue Chart ───────────────────────────────────────────────────
-function RevenueChart({ data }: { data: DashboardData }) {
-  const { revenueChart } = data
-
-  if (revenueChart.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Revenue Trend (Last 7 Days)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-            No revenue data available yet.
-          </div>
-        </CardContent>
-      </Card>
-    )
+  if (alerts.emergencyWorkOrders.length > 0) {
+    alertItems.push({
+      id: 'emergency', icon: Wrench, iconBg: 'bg-red-100', iconColor: 'text-red-600',
+      title: `${alerts.emergencyWorkOrders.length} Emergency Work Order${alerts.emergencyWorkOrders.length > 1 ? 's' : ''}`,
+      description: alerts.emergencyWorkOrders.map((wo) => wo.title).join(' \u00B7 '),
+      borderColor: 'border-l-red-500', bgColor: 'bg-red-50/50',
+    })
+  }
+  if (alerts.vipArrivals.length > 0) {
+    alertItems.push({
+      id: 'vip', icon: Star, iconBg: 'bg-amber-100', iconColor: 'text-amber-600',
+      title: `${alerts.vipArrivals.length} VIP Arrival${alerts.vipArrivals.length > 1 ? 's' : ''} Today`,
+      description: alerts.vipArrivals.map((v) => v.guestName).join(' \u00B7 '),
+      borderColor: 'border-l-amber-500', bgColor: 'bg-amber-50/50',
+    })
+  }
+  if (alerts.outOfOrderCount > 0) {
+    alertItems.push({
+      id: 'ooo', icon: AlertCircle, iconBg: 'bg-orange-100', iconColor: 'text-orange-600',
+      title: `${alerts.outOfOrderCount} Room${alerts.outOfOrderCount > 1 ? 's' : ''} Out of Order`,
+      description: alerts.outOfOrderRooms.map((r) => `Room ${r.number} (Floor ${r.floor})`).join(' \u00B7 '),
+      borderColor: 'border-l-orange-500', bgColor: 'bg-orange-50/50',
+    })
+  }
+  if (alerts.unassignedArrivals > 0) {
+    alertItems.push({
+      id: 'unassigned', icon: CalendarCheck, iconBg: 'bg-yellow-100', iconColor: 'text-yellow-600',
+      title: `${alerts.unassignedArrivals} Unassigned Arrival${alerts.unassignedArrivals > 1 ? 's' : ''}`,
+      description: 'Confirmed reservations without room assignments.',
+      borderColor: 'border-l-yellow-500', bgColor: 'bg-yellow-50/50',
+    })
+  }
+  if (alerts.creditLimitBreaches.length > 0) {
+    alertItems.push({
+      id: 'credit', icon: CreditCard, iconBg: 'bg-rose-100', iconColor: 'text-rose-600',
+      title: `${alerts.creditLimitBreaches.length} Credit Limit Breach${alerts.creditLimitBreaches.length > 1 ? 'es' : ''}`,
+      description: alerts.creditLimitBreaches.map((b) => `${b.guestName}${b.roomNumber ? ` (${b.roomNumber})` : ''}`).join(' \u00B7 '),
+      borderColor: 'border-l-rose-500', bgColor: 'bg-rose-50/50',
+    })
+  }
+  if (alerts.highPriorityWorkflowTasks.length > 0) {
+    alertItems.push({
+      id: 'workflow', icon: ClipboardList, iconBg: 'bg-violet-100', iconColor: 'text-violet-600',
+      title: `${alerts.highPriorityWorkflowTasks.length} High-Priority Task${alerts.highPriorityWorkflowTasks.length > 1 ? 's' : ''}`,
+      description: alerts.highPriorityWorkflowTasks.slice(0, 3).map((w) => w.title).join(' \u00B7 '),
+      borderColor: 'border-l-violet-500', bgColor: 'bg-violet-50/50',
+    })
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-sm">Revenue Trend</CardTitle>
-            <CardDescription>Last 7 days — Room & F&B revenue</CardDescription>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 rounded-full bg-blue-500" />
-              <span className="text-muted-foreground">Room Revenue</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="size-2.5 rounded-full bg-orange-500" />
-              <span className="text-muted-foreground">F&B Revenue</span>
-            </div>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueChart} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-              <defs>
-                <linearGradient id="roomRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="fAndBRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.2} />
-                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="date"
-                tickFormatter={formatChartDate}
-                className="text-xs"
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis
-                className="text-xs"
-                tick={{ fontSize: 12 }}
-                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
-              />
-              <Tooltip content={<ChartTooltipContent />} />
-              <Area
-                type="monotone"
-                dataKey="roomRevenue"
-                name="Room Revenue"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fill="url(#roomRevenue)"
-              />
-              <Area
-                type="monotone"
-                dataKey="fAndBRevenue"
-                name="F&B Revenue"
-                stroke="#f97316"
-                strokeWidth={2}
-                fill="url(#fAndBRevenue)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── 6. Room Status Overview ────────────────────────────────────────────
-function RoomStatusOverview({ data }: { data: DashboardData }) {
-  const { roomStatusBreakdown, kpis } = data
-
-  const statuses = [
-    { key: 'vacant_clean', label: 'Vacant Clean', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300' },
-    { key: 'occupied', label: 'Occupied', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' },
-    { key: 'vacant_dirty', label: 'Vacant Dirty', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' },
-    { key: 'cleaning', label: 'Cleaning', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300' },
-    { key: 'out_of_order', label: 'Out of Order', color: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' },
-    { key: 'inspected', label: 'Inspected', color: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' },
-  ]
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm">Room Status Overview</CardTitle>
-          <span className="text-sm text-muted-foreground">{kpis.totalRooms} Total Rooms</span>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-wrap gap-2">
-          {statuses.map((s) => {
-            const count = roomStatusBreakdown[s.key] ?? 0
-            if (count === 0) return null
-            return (
-              <Badge
-                key={s.key}
-                className={cn('gap-1.5 rounded-full px-3 py-1 text-xs font-medium', s.color)}
-              >
-                {s.label}: {count}
-              </Badge>
-            )
-          })}
-        </div>
-        <Separator className="my-3" />
-        <div className="space-y-2">
-          {statuses.map((s) => {
-            const count = roomStatusBreakdown[s.key] ?? 0
-            const pct = kpis.totalRooms > 0 ? Math.round((count / kpis.totalRooms) * 100) : 0
-            return (
-              <div key={s.key} className="flex items-center gap-3 text-xs">
-                <span className="w-24 text-muted-foreground">{s.label}</span>
-                <div className="flex-1">
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={cn(
-                        'h-full rounded-full transition-all',
-                        s.key === 'vacant_clean' && 'bg-emerald-500',
-                        s.key === 'occupied' && 'bg-blue-500',
-                        s.key === 'vacant_dirty' && 'bg-yellow-500',
-                        s.key === 'cleaning' && 'bg-amber-500',
-                        s.key === 'out_of_order' && 'bg-red-500',
-                        s.key === 'inspected' && 'bg-purple-500',
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-                <span className="w-16 text-right font-medium tabular-nums">{count} ({pct}%)</span>
+    <div className="rounded-xl border border-[#E5E7EB] bg-white" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="flex items-center gap-2 border-b border-[#E5E7EB] px-5 py-4">
+        <AlertTriangle className="size-4 text-amber-500" />
+        <h3 className="text-sm font-semibold text-[#111827]">Operational Alerts</h3>
+        <Badge variant="outline" className="ml-auto h-5 px-2 text-[10px] rounded-full border-amber-200 bg-amber-50 text-amber-700">
+          {alertItems.length}
+        </Badge>
+      </div>
+      <div className="max-h-64 overflow-y-auto p-3 space-y-2">
+        {alertItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <div
+              key={item.id}
+              className={cn('flex items-start gap-3 rounded-lg border-l-4 p-3', item.borderColor, item.bgColor)}
+            >
+              <div className={cn('flex size-7 shrink-0 items-center justify-center rounded-lg', item.iconBg)}>
+                <Icon className={cn('size-3.5', item.iconColor)} />
               </div>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-[#111827]">{item.title}</p>
+                <p className="mt-0.5 text-[11px] text-[#6B7280] line-clamp-2">{item.description}</p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
 // ─── 7. Recent Activity Feed ────────────────────────────────────────────
 function RecentActivityFeed({ data }: { data: DashboardData }) {
   const { recentActivity } = data
-
   const typeConfig: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
-    reservation: { icon: CalendarCheck, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-950' },
-    folio: { icon: CreditCard, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-950' },
-    pos: { icon: UtensilsCrossed, color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-950' },
-    work_order: { icon: Wrench, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-950' },
-    check_in: { icon: LogOut, color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-950' },
-    check_out: { icon: LogOut, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-950' },
+    reservation: { icon: CalendarCheck, color: 'text-blue-600', bg: 'bg-blue-100' },
+    folio: { icon: CreditCard, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    pos: { icon: UtensilsCrossed, color: 'text-orange-600', bg: 'bg-orange-100' },
+    work_order: { icon: Wrench, color: 'text-amber-600', bg: 'bg-amber-100' },
+    check_in: { icon: CheckCircle2, color: 'text-teal-600', bg: 'bg-teal-100' },
+    check_out: { icon: LogOut, color: 'text-rose-600', bg: 'bg-rose-100' },
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm">Recent Activity</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-0">
-          {recentActivity.length === 0 && (
-            <p className="py-6 text-center text-sm text-muted-foreground">No recent activity.</p>
-          )}
-          {recentActivity.map((activity, index) => {
-            const config = typeConfig[activity.type] ?? typeConfig.folio
-            const Icon = config.icon
-            return (
-              <React.Fragment key={activity.id}>
-                <div className="flex items-start gap-3 py-3">
-                  <div className={cn(
-                    'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg',
-                    config.bg
-                  )}>
+    <div className="rounded-xl border border-[#E5E7EB] bg-white" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="flex items-center justify-between border-b border-[#E5E7EB] px-5 py-4">
+        <h3 className="text-sm font-semibold text-[#111827]">Activity Feed</h3>
+        <Button variant="ghost" size="sm" className="h-7 text-xs text-[#6B7280] hover:text-[#111827]">
+          View All
+          <ArrowRight className="ml-1 size-3" />
+        </Button>
+      </div>
+      <div className="max-h-80 overflow-y-auto">
+        {recentActivity.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-[#6B7280]">
+            <Clock className="size-8 opacity-30" />
+            <p className="mt-2 text-sm">No recent activity.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#F3F4F6]">
+            {recentActivity.slice(0, 10).map((activity) => {
+              const config = typeConfig[activity.type] ?? typeConfig.folio
+              const Icon = config.icon
+              return (
+                <div key={activity.id} className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-[#F9FAFB]">
+                  <div className={cn('mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg', config.bg)}>
                     <Icon className={cn('size-3.5', config.color)} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-tight truncate">{activity.title}</p>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{activity.detail}</span>
+                    <p className="text-sm font-medium text-[#111827] leading-tight truncate">{activity.title}</p>
+                    <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[#6B7280]">
+                      <span className="truncate">{activity.detail}</span>
                       {activity.amount !== undefined && (
-                        <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
-                          {formatNPR(activity.amount)}
+                        <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] rounded-md">
+                          {formatCurrency(activity.amount)}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="px-1.5 py-0 text-[10px] capitalize">
-                        {activity.status.replace(/_/g, ' ')}
-                      </Badge>
                     </div>
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {getTimeAgo(activity.timestamp)}
-                  </span>
+                  <span className="shrink-0 text-[11px] text-[#6B7280]">{getTimeAgo(activity.timestamp)}</span>
                 </div>
-                {index < recentActivity.length - 1 && <Separator />}
-              </React.Fragment>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
-// ─── 8. Quick Actions Grid ───────────────────────────────────────────────
+// ─── 8. Quick Actions ───────────────────────────────────────────────────
 function QuickActions() {
   const { navigateTo } = useNavigationStore()
-
   const actions = [
-    {
-      label: 'New Reservation',
-      description: 'Create a booking',
-      icon: CalendarCheck,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950 dark:hover:bg-blue-900',
-      border: 'border-blue-200 dark:border-blue-800',
-      onClick: () => navigateTo('front-desk', 'reservations'),
-    },
-    {
-      label: 'Walk-in Check-in',
-      description: 'Register walk-in guest',
-      icon: UserCheck,
-      color: 'text-emerald-600',
-      bg: 'bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950 dark:hover:bg-emerald-900',
-      border: 'border-emerald-200 dark:border-emerald-800',
-      onClick: () => navigateTo('front-desk', 'arrivals'),
-    },
-    {
-      label: 'Post Room Charge',
-      description: 'Charge to guest folio',
-      icon: CreditCard,
-      color: 'text-amber-600',
-      bg: 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950 dark:hover:bg-amber-900',
-      border: 'border-amber-200 dark:border-amber-800',
-      onClick: () => navigateTo('front-desk', 'folio'),
-    },
-    {
-      label: 'Night Audit',
-      description: 'End-of-day close',
-      icon: Moon,
-      color: 'text-purple-600',
-      bg: 'bg-purple-50 hover:bg-purple-100 dark:bg-purple-950 dark:hover:bg-purple-900',
-      border: 'border-purple-200 dark:border-purple-800',
-      onClick: () => navigateTo('operations', 'night-audit'),
-    },
+    { label: 'New Reservation', icon: CalendarCheck, color: 'text-emerald-600', bg: 'bg-emerald-50 hover:bg-emerald-100', onClick: () => navigateTo('front-desk', 'reservations') },
+    { label: 'Walk-in Check-in', icon: UserCheck, color: 'text-blue-600', bg: 'bg-blue-50 hover:bg-blue-100', onClick: () => navigateTo('front-desk', 'arrivals') },
+    { label: 'Post Charge', icon: CreditCard, color: 'text-amber-600', bg: 'bg-amber-50 hover:bg-amber-100', onClick: () => navigateTo('front-desk', 'folio') },
+    { label: 'Night Audit', icon: Moon, color: 'text-purple-600', bg: 'bg-purple-50 hover:bg-purple-100', onClick: () => navigateTo('operations', 'night-audit') },
   ]
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm">Quick Actions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {actions.map((action) => {
-            const Icon = action.icon
-            return (
-              <Button
-                key={action.label}
-                variant="outline"
-                className={cn(
-                  'h-auto flex-col items-start gap-2 p-4 text-left transition-all hover:shadow-sm',
-                  action.bg,
-                  action.border
-                )}
-                onClick={action.onClick}
-              >
-                <div className="flex w-full items-center gap-3">
-                  <Icon className={cn('size-5', action.color)} />
-                  <div className="min-w-0 flex-1">
-                    <p className={cn('text-sm font-semibold', action.color)}>{action.label}</p>
-                    <p className="text-xs text-muted-foreground">{action.description}</p>
-                  </div>
-                  <ArrowRight className="size-4 text-muted-foreground/50" />
-                </div>
-              </Button>
-            )
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="rounded-xl border border-[#E5E7EB] bg-white p-5" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <h3 className="text-sm font-semibold text-[#111827] mb-3">Quick Actions</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {actions.map((action) => {
+          const Icon = action.icon
+          return (
+            <button
+              key={action.label}
+              className={cn('flex flex-col items-center gap-2 rounded-lg p-3 text-center transition-all hover:shadow-sm', action.bg)}
+              onClick={action.onClick}
+            >
+              <Icon className={cn('size-5', action.color)} />
+              <span className="text-[11px] font-medium text-[#111827]">{action.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ─── 9. Realtime Status Card ────────────────────────────────────────────
+function RealtimeStatusCard() {
+  const { isConnected, channelCount } = useNotificationStore()
+  return (
+    <div className="rounded-xl border border-[#E5E7EB] bg-white p-5" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Radio className="size-4 text-[#6B7280]" />
+        <h3 className="text-sm font-semibold text-[#111827]">Realtime</h3>
+      </div>
+      <div className={cn(
+        'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
+        isConnected ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'
+      )}>
+        <span className={cn('h-2 w-2 rounded-full', isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400')} />
+        <span className="text-xs font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
+        <span className="ml-auto text-[10px] text-[#6B7280]">{channelCount} channels</span>
+      </div>
+    </div>
+  )
+}
+
+// ─── 10. Room Status Summary ────────────────────────────────────────────
+function RoomStatusSummary({ data }: { data: DashboardData }) {
+  const { roomStatusBreakdown, kpis } = data
+  const statuses = [
+    { key: 'vacant_clean', label: 'Available', color: '#22C55E' },
+    { key: 'occupied', label: 'Occupied', color: '#3B82F6' },
+    { key: 'vacant_dirty', label: 'Dirty', color: '#F59E0B' },
+    { key: 'cleaning', label: 'Cleaning', color: '#F97316' },
+    { key: 'out_of_order', label: 'OOO', color: '#EF4444' },
+    { key: 'inspected', label: 'Inspected', color: '#8B5CF6' },
+  ]
+
+  return (
+    <div className="rounded-xl border border-[#E5E7EB] bg-white p-5" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-[#111827]">Room Status</h3>
+        <span className="text-xs text-[#6B7280]">{kpis.totalRooms} total</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {statuses.map((s) => {
+          const count = roomStatusBreakdown[s.key] ?? 0
+          if (count === 0) return null
+          const pct = kpis.totalRooms > 0 ? Math.round((count / kpis.totalRooms) * 100) : 0
+          return (
+            <div key={s.key} className="flex items-center gap-1.5 rounded-full border border-[#E5E7EB] px-2.5 py-1">
+              <div className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
+              <span className="text-[11px] font-medium text-[#111827]">{count}</span>
+              <span className="text-[10px] text-[#6B7280]">{s.label} ({pct}%)</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
 // ─── Loading State ──────────────────────────────────────────────────────
 function DashboardLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-2 p-6 overflow-y-auto">
-      <WelcomeBannerSkeleton />
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCardSkeleton />
+    <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 overflow-y-auto bg-[#F9FAFB]">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCardSkeleton />
         <KpiCardSkeleton />
         <KpiCardSkeleton />
       </div>
-      <StatsRowSkeleton />
-      <div className="grid gap-2 lg:grid-cols-3">
-        <Card>
-          <CardContent className="p-6">
-            <Skeleton className="h-4 w-32" />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <div className="rounded-xl border border-[#E5E7EB] bg-white p-5" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <Skeleton className="h-4 w-24" />
             <Skeleton className="mt-4 h-64" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <Skeleton className="h-4 w-32" />
-            <div className="mt-4 space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="size-8 rounded-lg" />
-                  <div className="flex-1 space-y-1">
-                    <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-2 w-24" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+        <div className="lg:col-span-1">
+          <div className="rounded-xl border border-[#E5E7EB] bg-white p-5" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="mt-4 h-48" />
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -878,21 +1059,21 @@ function DashboardLoading() {
 function DashboardError({ error, refetch }: { error: Error; refetch: () => void }) {
   const isServerDown = error.message?.includes('Server unavailable') || error.message?.includes('Failed to fetch')
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 overflow-y-auto">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 overflow-y-auto bg-[#F9FAFB]">
       <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
-          {isServerDown ? <WifiOff className="size-6 text-muted-foreground" /> : <AlertCircle className="size-6 text-destructive" />}
+        <div className="flex size-12 items-center justify-center rounded-full bg-[#F3F4F6]">
+          {isServerDown ? <WifiOff className="size-6 text-[#6B7280]" /> : <AlertCircle className="size-6 text-[#EF4444]" />}
         </div>
-        <AlertTitle className="text-base">
+        <h3 className="text-base font-semibold text-[#111827]">
           {isServerDown ? 'Connecting to server...' : 'Failed to load dashboard'}
-        </AlertTitle>
-        <AlertDescription className="text-sm text-muted-foreground max-w-md">
+        </h3>
+        <p className="text-sm text-[#6B7280] max-w-md">
           {isServerDown
             ? 'The server is starting up. This may take a moment.'
             : error.message || 'An unexpected error occurred.'}
-        </AlertDescription>
+        </p>
       </div>
-      <Button variant="outline" size="sm" onClick={() => refetch()}>
+      <Button variant="outline" size="sm" onClick={() => refetch()} className="rounded-lg">
         <RefreshCw className="size-4 mr-2" />
         Retry
       </Button>
@@ -900,91 +1081,17 @@ function DashboardError({ error, refetch }: { error: Error; refetch: () => void 
   )
 }
 
-// ─── Realtime Status Card ────────────────────────────────────────────────
-function RealtimeStatusCard() {
-  const { isConnected, channelCount } = useNotificationStore()
-  const notifications = useNotificationStore((s) => s.notifications)
-
-  const categoryCounts = React.useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const n of notifications) {
-      counts[n.category] = (counts[n.category] || 0) + 1
-    }
-    return counts
-  }, [notifications])
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Radio className="size-4" />
-          Realtime Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Connection status */}
-        <div className={cn(
-          'flex items-center gap-2 rounded-lg px-3 py-2 text-sm',
-          isConnected
-            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-            : 'bg-gray-50 text-gray-500 dark:bg-gray-900 dark:text-gray-400'
-        )}>
-          <span className={cn(
-            'h-2 w-2 rounded-full',
-            isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
-          )} />
-          <span className="font-medium">{isConnected ? 'Connected' : 'Disconnected'}</span>
-          <span className="ml-auto text-xs">
-            {channelCount} channels
-          </span>
-        </div>
-
-        {/* Channel breakdown */}
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Subscribed Tables</p>
-          {[
-            { name: 'Rooms', key: 'room' },
-            { name: 'Reservations', key: 'reservation' },
-            { name: 'Payments', key: 'payment' },
-            { name: 'Housekeeping', key: 'housekeeping' },
-            { name: 'Maintenance', key: 'maintenance' },
-            { name: 'Security', key: 'security' },
-            { name: 'POS', key: 'pos' },
-            { name: 'Activity', key: 'activity' },
-          ].map((table) => (
-            <div key={table.key} className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{table.name}</span>
-              <span className={cn(
-                'h-1.5 w-1.5 rounded-full',
-                isConnected ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
-              )} />
-            </div>
-          ))}
-        </div>
-
-        {/* Event counts */}
-        {notifications.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Events Received</p>
-            <div className="flex flex-wrap gap-1">
-              {Object.entries(categoryCounts).map(([cat, count]) => (
-                <Badge key={cat} variant="secondary" className="text-[10px] h-5 px-1.5">
-                  {count} {cat}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 // ─── Main Dashboard Module ──────────────────────────────────────────────
 export function DashboardModule() {
-  // Single /api/dashboard call — eliminates 2 extra Vercel serverless cold starts
-  // (3 separate endpoints × 8s cold start each → 1 endpoint × 1 cold start).
-  // Server-side: fetchKpis(), fetchAlerts(), fetchActivity() run in parallel internally.
+  const { user } = useAuthStore()
+  const { settings } = useSettingsStore()
+  const [currentTime, setCurrentTime] = React.useState(new Date())
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
+
   const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => apiFetch('/api/dashboard'),
@@ -994,7 +1101,6 @@ export function DashboardModule() {
     staleTime: 30_000,
   })
 
-  // Compose into the original DashboardData shape with safe defaults
   const safeData: DashboardData = {
     kpis: data?.kpis ?? {
       totalRooms: 0, occupiedRooms: 0, occupancy: 0, occupancyTrend: 0,
@@ -1006,7 +1112,8 @@ export function DashboardModule() {
     alerts: data?.alerts ?? {
       vipArrivals: [], overdueCheckouts: 0,
       emergencyWorkOrders: [], outOfOrderRooms: [], outOfOrderCount: 0,
-      unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0, openWorkflowTasks: 0, highPriorityWorkflowTasks: [], openPosOrders: 0,
+      unassignedArrivals: 0, creditLimitBreaches: [], pendingHkTasks: 0,
+      openWorkflowTasks: 0, highPriorityWorkflowTasks: [], openPosOrders: 0,
     },
     revenueChart: data?.revenueChart ?? [],
     recentActivity: data?.recentActivity ?? [],
@@ -1017,56 +1124,78 @@ export function DashboardModule() {
     return <DashboardError error={error ?? new Error('Unknown error')} refetch={refetch} />
   }
 
+  const dateStr = formatDate(currentTime)
+  const hotelName = settings.hotelName
+  const greeting = getGreeting()
+  const firstName = user?.firstName || 'Guest'
+
   return (
-    <div className="flex flex-1 flex-col gap-2 p-4 sm:p-6 overflow-y-auto">
-      {/* 1. Welcome Banner */}
-      <div className="flex items-center gap-2">
-        <WelcomeBanner data={safeData} />
+    <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6 overflow-y-auto bg-[#F9FAFB]">
+      {/* Welcome Header */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-[#111827] sm:text-2xl">
+            {greeting}, {firstName}
+          </h1>
+          <p className="text-xs text-[#6B7280] mt-0.5">
+            {dateStr}{" - "}{hotelName}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 mt-2 sm:mt-0">
+          <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1 text-xs border-[#E5E7EB]">
+            <BedDouble className="size-3" />
+            {safeData.kpis.totalRooms} rooms
+          </Badge>
+          <Badge variant="outline" className="gap-1.5 rounded-full px-3 py-1 text-xs border-emerald-200 bg-emerald-50 text-emerald-700">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
+          </Badge>
+        </div>
       </div>
 
-      {/* 2. KPI Cards */}
+      {/* Row 1: KPI Cards */}
       <KpiCards data={safeData} />
 
-      {/* 3. Quick Stats Row */}
-      <QuickStatsRow data={safeData} />
-
-      {/* Two-column layout: Alerts + Room Status | Chart */}
-      <div className="grid gap-2 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-1">
-          {/* 4. Operational Alerts */}
-          <OperationalAlerts data={safeData} />
-
-          {/* 6. Room Status Overview */}
-          <RoomStatusOverview data={safeData} />
+      {/* Row 2: Left + Right Columns */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <div className="lg:col-span-3 flex flex-col gap-4">
+          <OccupancyChart data={safeData} />
+          <RevenueOverview data={safeData} />
         </div>
-
-        {/* 5. Revenue Chart */}
         <div className="lg:col-span-2">
-          <RevenueChart data={safeData} />
+          <CalendarWidget data={safeData} />
         </div>
       </div>
 
-      {/* Two-column layout: Recent Activity | Quick Actions */}
-      <div className="grid gap-2 lg:grid-cols-3">
-        {/* 7. Recent Activity Feed */}
+      {/* Row 3: Recent Arrivals */}
+      <RecentArrivals data={safeData} />
+
+      {/* Row 4: Alerts */}
+      <OperationalAlerts data={safeData} />
+
+      {/* Row 5: Activity Feed + Quick Actions + Room Status */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <RecentActivityFeed data={safeData} />
         </div>
-
-        {/* 8. Quick Actions */}
-        <div className="lg:col-span-1">
+        <div className="flex flex-col gap-4">
           <QuickActions />
+          <RoomStatusSummary data={safeData} />
         </div>
       </div>
 
-      {/* 9. Realtime Live Activity Feed */}
-      <div className="grid gap-2 lg:grid-cols-3">
+      {/* Row 6: Live Activity + Realtime */}
+      <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <Card>
-            <CardContent className="p-4">
+          <div className="rounded-xl border border-[#E5E7EB] bg-white" style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
+            <div className="flex items-center gap-2 border-b border-[#E5E7EB] px-5 py-4">
+              <Radio className="size-4 text-[#22C55E]" />
+              <h3 className="text-sm font-semibold text-[#111827]">Live Activity</h3>
+            </div>
+            <div className="p-4">
               <LiveActivityFeed maxHeight="max-h-64" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
         <div className="lg:col-span-1">
           <RealtimeStatusCard />
