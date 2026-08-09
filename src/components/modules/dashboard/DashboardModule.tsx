@@ -261,9 +261,9 @@ function DashboardSkeleton() {
       </div>
 
       {/* KPI cards skeleton */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-2xl bg-white p-6 shadow-sm">
+          <div key={i} className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <Skeleton className="size-10 rounded-xl" />
               <Skeleton className="h-4 w-16" />
@@ -275,9 +275,9 @@ function DashboardSkeleton() {
       </div>
 
       {/* Action cards skeleton */}
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-xl bg-white p-4 shadow-sm">
+          <div key={i} className="rounded-xl bg-white p-3 sm:p-4 shadow-sm">
             <Skeleton className="mb-3 size-10 rounded-full" />
             <Skeleton className="h-4 w-24" />
             <Skeleton className="mt-1 h-3 w-32" />
@@ -285,38 +285,40 @@ function DashboardSkeleton() {
         ))}
       </div>
 
-      {/* Charts skeleton */}
-      <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
+      {/* ═══ Bento skeleton ═══ */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5">
+        <div className="space-y-5 md:col-span-1 lg:col-span-7">
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
+            <Skeleton className="mb-4 h-5 w-48" />
+            <Skeleton className="h-56 w-full" />
+          </div>
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
             <Skeleton className="mb-4 h-5 w-40" />
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-48 w-full" />
           </div>
         </div>
-        <div className="lg:col-span-2">
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="md:col-span-1 lg:col-span-5">
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
             <Skeleton className="mb-4 h-5 w-40" />
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="mb-6 h-20 w-full" />
+            <Skeleton className="h-48 w-full" />
           </div>
         </div>
-      </div>
-
-      {/* Bottom grid skeleton */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="md:col-span-2 lg:col-span-7">
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
             <Skeleton className="mb-4 h-5 w-48" />
             <Skeleton className="h-48 w-full" />
           </div>
         </div>
-        <div className="lg:col-span-2">
-          <div className="space-y-6">
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-              <Skeleton className="h-32 w-full" />
-            </div>
-            <div className="rounded-2xl bg-white p-6 shadow-sm">
-              <Skeleton className="h-48 w-full" />
-            </div>
+        <div className="space-y-5 md:col-span-2 lg:col-span-5">
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
+            <Skeleton className="h-48 w-full" />
+          </div>
+          <div className="rounded-2xl bg-white p-4 sm:p-6 shadow-sm">
+            <Skeleton className="h-28 w-full" />
           </div>
         </div>
       </div>
@@ -435,20 +437,20 @@ function KpiCardsRow({ data }: { data: DashboardData }) {
   ]
 
   return (
-    <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 transition-all duration-300">
       {cards.map((card) => {
         if (card.isCircular) {
           return (
             <div
               key={card.title}
-              className="rounded-2xl bg-white p-6"
+              className="rounded-2xl bg-white p-4 sm:p-5 lg:p-6 transition-all duration-300"
               style={{
                 boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
               }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium" style={{ color: '#6B7280' }}>
+                  <p className="text-xs sm:text-sm font-medium" style={{ color: '#6B7280' }}>
                     {card.title}
                   </p>
                   <p className="mt-1 text-xs" style={{ color: '#9CA3AF' }}>
@@ -493,14 +495,14 @@ function KpiCardsRow({ data }: { data: DashboardData }) {
         return (
           <div
             key={card.title}
-            className="rounded-2xl bg-white p-6"
+            className="rounded-2xl bg-white p-4 sm:p-5 lg:p-6 transition-all duration-300"
             style={{
               boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
             }}
           >
             <div className="flex items-center justify-between">
               <div
-                className="flex size-10 items-center justify-center rounded-xl"
+                className="flex size-8 sm:size-10 items-center justify-center rounded-xl"
                 style={{ backgroundColor: card.iconBg }}
               >
                 <Icon className="size-5" style={{ color: card.iconColor }} />
@@ -511,10 +513,10 @@ function KpiCardsRow({ data }: { data: DashboardData }) {
                 </span>
               )}
             </div>
-            <p className="mt-4 text-2xl font-bold" style={{ color: '#111827' }}>
+            <p className="mt-3 sm:mt-4 text-xl sm:text-2xl lg:text-3xl font-bold" style={{ color: '#111827' }}>
               {card.value}
             </p>
-            <p className="mt-1 text-sm" style={{ color: '#6B7280' }}>
+            <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm" style={{ color: '#6B7280' }}>
               {card.subtitle}
             </p>
           </div>
@@ -572,13 +574,13 @@ function ActionCardsRow({ data }: { data: DashboardData }) {
   ]
 
   return (
-    <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 transition-all duration-300">
       {actions.map((action) => {
         const Icon = action.icon
         return (
           <div
             key={action.title}
-            className="group cursor-pointer rounded-xl bg-white p-4 transition-all hover:shadow-md"
+            className="group cursor-pointer rounded-xl bg-white p-3 sm:p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
             style={{
               boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)',
             }}
@@ -1401,7 +1403,7 @@ export function DashboardModule() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F3F4F6' }}>
       <style>{scrollbarStyles}</style>
-      <div className="p-4 sm:p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         {/* Section 1: Welcome Header */}
         <DashboardHeader onRefresh={handleRefresh} />
 
@@ -1411,44 +1413,38 @@ export function DashboardModule() {
         {/* Section 3: 5 Action Cards */}
         <ActionCardsRow data={safeData} />
 
-        {/* Section 4: Charts Row (2 columns) */}
-        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-          {/* Left Column (~60%) */}
-          <div className="lg:col-span-3">
+        {/* ═══ BENTO: Charts + Revenue ═══ */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5 transition-all duration-300">
+          <div className="space-y-5 md:col-span-1 lg:col-span-7">
             <OccupancyChart data={safeData} />
             <RoomTypeDonut data={safeData} />
           </div>
-
-          {/* Right Column (~40%) */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-1 lg:col-span-5">
             <RevenueOverview data={safeData} />
           </div>
         </div>
 
-        {/* Section 5: Bottom Grid (2 columns) */}
-        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-          {/* Left Column (~60%) - Recent Reservations Table */}
-          <div className="lg:col-span-3">
+        {/* ═══ BENTO: Table + Stats + Activity ═══ */}
+        <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5 transition-all duration-300">
+          <div className="md:col-span-2 lg:col-span-7">
             <ReservationsTable data={safeData} />
           </div>
-
-          {/* Right Column (~40%) - Quick Stats, Activity Feed, Room Status */}
-          <div className="space-y-6 lg:col-span-2">
+          <div className="space-y-5 md:col-span-2 lg:col-span-5">
             <QuickStatsGrid data={safeData} />
             <ActivityTimeline data={safeData} />
             <RoomStatusBars data={safeData} />
           </div>
         </div>
 
-        {/* Realtime Live Activity Feed */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-3">
-            <div className="rounded-2xl bg-white p-6" style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
+        {/* ═══ BENTO: Live Feed + Realtime ═══ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-5 transition-all duration-300">
+          <div className="md:col-span-1 lg:col-span-7">
+            <div className="rounded-2xl bg-white p-4 sm:p-6" style={{ boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1)' }}>
               <h3 className="mb-4 text-sm font-semibold" style={{ color: '#111827' }}>Live Activity Feed</h3>
               <LiveActivityFeed maxHeight="max-h-64" />
             </div>
           </div>
-          <div className="lg:col-span-2">
+          <div className="md:col-span-1 lg:col-span-5">
             <RealtimeStatusCard />
           </div>
         </div>
