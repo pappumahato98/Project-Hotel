@@ -858,3 +858,37 @@ Stage Summary:
 - Original backup preserved at DashboardModule.tsx.backup
 - User should say 'this dashboard to go' to finalize, or revert
 - File: src/components/modules/dashboard/DashboardModule.tsx (1208 lines)
+
+---
+Task ID: 2-rebuild
+Agent: Main Orchestrator
+Task: Rebuild hotel management dashboard to match reference design specification
+
+Work Log:
+- Read and analyzed backup file (DashboardModule.tsx.backup) to preserve exact data fetching, types, and store hooks
+- Preserved same API call: apiFetch('/api/dashboard') with React Query (60s interval, 3 retries, 30s staleTime)
+- Preserved same data types: KpisData, AlertsData, ActivityData, DashboardData
+- Preserved same store hooks: useAuthStore, useSettingsStore, useNavigationStore, useNotificationStore
+- Preserved LiveActivityFeed component and RealtimeStatusCard
+- Built complete new UI matching reference design specification:
+  - Section 1: Welcome Header with 'Dashboard' title (28px bold), subtitle, period selector pills (Today/7D/30D/90D), refresh button
+  - Section 2: 5 KPI Cards (Total Bookings, Check-In Today, Check-Out Today, Revenue, Occupancy Rate with SVG progress ring)
+  - Section 3: 5 Action Cards (New Booking, Check-In, Room Status, Alerts with View Details, Weather Kathmandu)
+  - Section 4: Charts Row - Occupancy Area Chart + Room Type Donut Chart (left ~60%) + Revenue Overview with Area/Bar toggle (right ~40%)
+  - Section 5: Bottom Grid - Recent Reservations Table (left ~60%) + Quick Stats 2x3 grid + Activity Timeline + Room Status progress bars (right ~40%)
+  - Live Activity Feed + Realtime Status Card
+- Applied exact color palette: Primary Green #10B981, Background #F3F4F6, Card Bg #FFFFFF, border-radius 12px/16px
+- Used recharts for all charts (AreaChart, PieChart, BarChart, ResponsiveContainer)
+- Used SVG circle with stroke-dasharray for occupancy progress ring
+- Applied custom scrollbar styles, max-heights with overflow-y-auto
+- Responsive grid layout with Tailwind (stacks on mobile)
+- Fixed literal backslash-n encoding issues in JSX
+- Fixed duplicate useQuery hook (merged into single query)
+- ESLint passes cleanly with 0 errors
+
+Stage Summary:
+- Dashboard completely rebuilt with new reference design layout
+- All data fetching preserved identically from backup
+- All 5 sections + realtime feed implemented
+- File: /home/z/my-project/src/components/modules/dashboard/DashboardModule.tsx (~1455 lines)
+- Original backed up at: DashboardModule.tsx.backup
