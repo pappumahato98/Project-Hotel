@@ -1152,3 +1152,27 @@ Stage Summary:
 - Render: same embedded cert, plus DIRECT_DATABASE_URL for migration flexibility
 - instrumentation.ts Edge Runtime warnings eliminated with runtime guard
 - Production deployment: just set DATABASE_URL + JWT_SECRET and deploy
+
+---
+Task ID: 2
+Agent: Main
+Task: Connect app to user's real Supabase PostgreSQL, fix Prisma URL parsing, full browser verification
+
+Work Log:
+- User provided Supabase connection string (session mode pooler port 6543)
+- Discovered Prisma CLI .env parser bug: fails with URL-encoded passwords (%40, %23)
+- Switched to transaction pooler (port 5432) + pgbouncer=true for Prisma compatibility
+- Successfully pushed full schema to Supabase: npx prisma db push
+- Database verified: 7 users, 61 chart of accounts seeded
+- Created scripts/prisma-local.sh wrapper to bypass Prisma .env URL parsing issue
+- Updated package.json db:* scripts to use the wrapper
+- Fixed instrumentation Edge Runtime warnings: moved process.on handlers to separate instrumentation-shutdown.ts
+- Discovered shell had stale DATABASE_URL=file: env var overriding .env
+- Full browser verification: login with admin@meridian.com → dashboard loaded with full sidebar (15+ modules)
+
+Stage Summary:
+- Supabase PostgreSQL fully connected and verified end-to-end
+- Transaction pooler (port 5432) with pgbouncer=true is the correct config for Prisma
+- .env has production-ready connection string
+- Login → Dashboard flow works against real database
+- Shell env DATABASE_URL needs to be unset or overridden for local dev

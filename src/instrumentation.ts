@@ -43,35 +43,6 @@ export async function register() {
     console.warn('[startup] Store initialization warning:', err)
   }
 
-  // Register graceful shutdown handlers (Node.js runtime only — not available in Edge)
-  registerShutdownHooks()
-}
-
-function registerShutdownHooks(): void {
-  // Guard: only register process signal handlers in Node.js runtime, not Edge Runtime
-  // Edge Runtime does not support process.on / process.exit
-  const isNodeRuntime = typeof process !== 'undefined' &&
-    typeof process.on === 'function' &&
-    typeof process.exit === 'function'
-
-  if (!isNodeRuntime) return
-
-  const shutdown = async (signal: string) => {
-    console.log(`[shutdown] Received ${signal}, starting graceful shutdown...`)
-
-    try {
-      const { closeStore } = await import('@/lib/redis')
-      await closeStore()
-      console.log('[shutdown] Store connection closed')
-    } catch {
-      // Best effort
-    }
-
-    console.log('[shutdown] Graceful shutdown complete')
-    // Give the event loop a moment to flush pending writes
-    setTimeout(() => process.exit(0), 500)
-  }
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'))
-  process.on('SIGINT', () => shutdown('SIGINT'))
+  // Register graceful shutdown handlers — deferred to avoid Edge Runtime static analysis
+  try { await import('./instrumentation-shutdown') } catch { /* not available in Edge */ }
 }

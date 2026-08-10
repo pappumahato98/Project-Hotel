@@ -8,10 +8,10 @@
     "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
     "postinstall": "prisma generate",
     "lint": "eslint .",
-    "db:push": "prisma db push",
+    "db:push": "bash scripts/prisma-local.sh db push --accept-data-loss",
     "db:generate": "prisma generate",
-    "db:migrate:dev": "prisma migrate dev",
-    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:dev": "bash scripts/prisma-local.sh migrate dev",
+    "db:migrate:deploy": "bash scripts/prisma-local.sh migrate deploy",
     "db:migrate:baseline": "echo 'Marking baseline as applied...' && DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder npx prisma migrate resolve --applied 0_baseline 2>/dev/null; echo 'Done. Future changes: npm run db:migrate:dev -- --name your-change'",
     "db:reset": "prisma migrate reset",
     "vercel-build": "prisma generate && next build"
