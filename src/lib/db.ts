@@ -124,8 +124,13 @@ function validateDbConfig() {
   }
 
   // ── Connection pool limits ───────────────────────────────────
+  // Supabase pooler has a hard limit (free tier: 15 connections).
+  // On Vercel serverless, each function invocation is a separate process,
+  // so the singleton only helps within a warm instance.
+  // connection_limit=1 ensures each PrismaClient opens at most 1 connection.
+  // PgBouncer multiplexes, so 1 connection per client is sufficient.
   if (!url.includes('connection_limit=')) {
-    params.push('connection_limit=10', 'pool_timeout=10')
+    params.push('connection_limit=1', 'pool_timeout=10', 'connect_timeout=5')
   }
 
   if (params.length > 0) {
