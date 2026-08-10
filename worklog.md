@@ -1233,3 +1233,25 @@ Stage Summary:
 - 3 files changed: fallback-users.ts, login/route.ts, login-page.tsx
 - Production verified: login works, health check passes
 - Users will see "Server is busy. Retrying in 3 seconds..." instead of cryptic error
+
+---
+Task ID: 4
+Agent: main
+Task: Fix Render deployment database errors (empty error message + prisma:error)
+
+Work Log:
+- Diagnosed: `isDatabaseError()` only checked string patterns in `.message` — failed when error had empty message
+- Prisma errors have `.code` property (P1000-P1017) and class name `PrismaClientInitializationError` that were not checked
+- SSL/certificate errors were also not matched
+- Fix 1: `isDatabaseError()` now checks 3 layers: .code property, class name, message patterns
+- Fix 2: Added `errorSummary()` helper for rich error logging (class name + message + code + meta)
+- Fix 3: Added SSL, certificate, EAI_AGAIN patterns to connection error detection
+- Fix 4: Updated login + refresh routes to use errorSummary for debugging
+- Committed: b24803e, pushed to GitHub
+- Vercel auto-deployed, verified: health OK, login OK
+- Render will auto-deploy from GitHub push
+
+Stage Summary:
+- Root cause: Prisma errors with empty .message fell through to generic 500 handler
+- Now ALL Prisma P1000-P1017 errors + PrismaClientInitializationError class + SSL errors are caught
+- Production logs will now show full error details (code, meta) instead of empty string
