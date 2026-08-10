@@ -1214,3 +1214,22 @@ Stage Summary:
 - Root cause: Prisma connection_limit=10 × N concurrent serverless functions > Supabase 15-connection pool limit
 - Fix: connection_limit=1 (PgBouncer multiplexes, 1 connection per client is sufficient)
 - Production verified: https://my-project-omega-three-80.vercel.app - healthy, no pool errors
+
+---
+Task ID: 3
+Agent: main
+Task: Fix "Authentication service error" on production login
+
+Work Log:
+- Diagnosed: `EMAXCONNSESSION` from Supabase pooler was not matched by `isDatabaseError()`
+- Fell into generic 500 branch returning cryptic "Authentication service error. Please contact administrator."
+- Fix 1: Added Supabase pooler error patterns (EMAXCONNSESSION, max clients, too many connections) to `isDatabaseError()`
+- Fix 2: Added `queryWithRetry()` helper in login route — retries DB queries once after 500ms on connection errors
+- Fix 3: Connection errors now return 503 "Service is busy" instead of 500 "Authentication service error"
+- Fix 4: Frontend auto-retries 503 responses once after 3 seconds
+- Committed: `42fc6e4`, pushed to GitHub, Vercel auto-deployed
+
+Stage Summary:
+- 3 files changed: fallback-users.ts, login/route.ts, login-page.tsx
+- Production verified: login works, health check passes
+- Users will see "Server is busy. Retrying in 3 seconds..." instead of cryptic error
