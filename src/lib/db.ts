@@ -80,6 +80,57 @@ function ensureCertFile(): string {
   }
 }
 
+/**
+ * Auto-repair DATABASE_URL for platforms that URL-decode env var values.
+ *
+ * Problem: Render, Railway, and some other platforms URL-decode environment
+ * variable values set through their web UI. So a password containing %40 (@)
+ * and %23 (#) gets decoded into raw @ and # characters, breaking the URL
+ * because @ separates credentials from host and # starts a fragment.
+ *
+ * Fix: Detect multiple @ signs (indicating unencoded @ in password) and
+ * re-encode them. Same for # in the credentials portion.
+ */
+function repairUrlEncoding(url: string): string {
+  // Count @ signs — a valid postgres URL has exactly one @ (the user:pass@host separator)
+  const atCount = (url.match(/@/g) || []).length
+  if (atCount <= 1) return url
+
+  // The LAST @ is the real separator between credentials and host
+  const lastAt = url.lastIndexOf('@')
+  const credentialsPart = url.substring(0, lastAt)  // postgresql://user:pass
+  const hostPart = url.substring(lastAt)  // @host:port/db?params
+
+  // In the credentials part, encode any raw @ and # that shouldn't be there
+  // Only encode the password portion (after the first : in the credentials)
+  const protoSep = credentialsPart.indexOf('://')
+  if (protoSep === -1) return url
+  const proto = credentialsPart.substring(0, protoSep + 3)  // postgresql://
+  const userInfo = credentialsPart.substring(protoSep + 3)  // user:pass
+  const colonIdx = userInfo.indexOf(':')
+  if (colonIdx === -1) return url
+
+  const user = userInfo.substring(0, colonIdx)
+  const pass = userInfo.substring(colonIdx + 1)
+
+  // Re-encode special characters in the password that break URL parsing
+  const encodedPass = pass
+    .replace(/@/g, '%40')
+    .replace(/#/g, '%23')
+    .replace(/%/g, (match, offset, str) => {
+      // Don't double-encode already-encoded sequences like %40
+      const next2 = str.substring(offset + 1, offset + 3)
+      if (/^[0-9A-Fa-f]{2}$/.test(next2)) return match
+      return '%25'
+    })
+    .replace(/\//g, '%2F')
+    .replace(/\?/g, '%3F')
+
+  const fixed = `${proto}${user}:${encodedPass}${hostPart}`
+  console.warn(`[db] URL auto-repaired: detected ${atCount} @ signs in URL, re-encoded password special characters`)
+  return fixed
+}
+
 function validateDbConfig() {
   if (_validated) return true
   _validated = true
@@ -93,7 +144,13 @@ function validateDbConfig() {
     return false
   }
 
-  const url = process.env.DATABASE_URL!
+  // Auto-repair URL encoding issues (e.g., Render URL-decoding %40 → @)
+  let url = process.env.DATABASE_URL!
+  const repairedUrl = repairUrlEncoding(url)
+  if (repairedUrl !== url) {
+    process.env.DATABASE_URL = repairedUrl
+    url = repairedUrl
+  }
   const hasQuery = url.includes('?')
   const separator = hasQuery ? '&' : '?'
   const params: string[] = []
