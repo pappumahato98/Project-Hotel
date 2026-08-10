@@ -111,6 +111,15 @@ export function isDatabaseError(error: unknown): boolean {
     msg.includes('network is unreachable')
   ) return true
 
+  // Supabase pooler errors (session/transaction pooler limits)
+  if (
+    msg.includes('EMAXCONNSESSION') ||
+    msg.includes('max clients reached') ||
+    msg.includes('max clients are limited to pool_size') ||
+    msg.includes('too many connections') ||
+    msg.includes('pooler') && msg.includes('error')
+  ) return true
+
   return false
 }
 

@@ -69,14 +69,29 @@ export async function POST(req: NextRequest) {
     let dbReachable = true
     let dbEmpty = false
 
+    // Helper: try DB query with one retry on connection errors
+    async function queryWithRetry<T>(fn: () => Promise<T>): Promise<T> {
+      try {
+        return await fn()
+      } catch (err) {
+        if (isDatabaseError(err)) {
+          console.warn('[auth] DB connection error, retrying in 500ms...')
+          await new Promise(r => setTimeout(r, 500))
+          return fn()
+        }
+        throw err
+      }
+    }
+
     try {
-      const dbUser = await db.authUser.findUnique({
-        where: { email: email.toLowerCase() },
-      })
+      const dbUser = await queryWithRetry(() =>
+        db.authUser.findUnique({ where: { email: email.toLowerCase() } })
+      )
       if (dbUser) {
         user = dbUser
       } else {
-        dbEmpty = (await db.authUser.count()) === 0
+        const count = await queryWithRetry(() => db.authUser.count())
+        dbEmpty = count === 0
       }
     } catch (dbErr: unknown) {
       const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr)
@@ -84,11 +99,18 @@ export async function POST(req: NextRequest) {
 
       if (isDatabaseError(dbErr)) {
         dbReachable = false
-        console.warn('[auth] Database unreachable, trying fallback auth')
+        console.warn('[auth] Database unreachable after retry, trying fallback auth')
         const fallback = await findFallbackUser(email)
         if (fallback) {
           user = fallback
           usedFallback = true
+        }
+        // In production without fallback, return a user-friendly message
+        if (!user) {
+          return NextResponse.json(
+            { error: 'Service is busy. Please wait a moment and try again.', detail: 'DB_UNREACHABLE' },
+            { status: 503, headers: { 'Retry-After': '5' } },
+          )
         }
       } else {
         console.error('[auth] Database schema/query error (not a connection issue):', errMsg.substring(0, 300))

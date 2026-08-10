@@ -147,6 +147,34 @@ export function LoginPage() {
           return
         }
 
+        // Service busy (503) — auto-retry once after 3s
+        if (res.status === 503) {
+          setError('Server is busy. Retrying in 3 seconds...')
+          setTimeout(async () => {
+            try {
+              const retryRes = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+              })
+              if (retryRes.ok) {
+                const retryData = await retryRes.json()
+                setAccessToken(retryData.accessToken)
+                if (retryData.csrfToken) setCsrfToken(retryData.csrfToken)
+                if (retryData.user) useAuthStore.getState().login(retryData.user, retryData.accessToken)
+                setError('')
+              } else {
+                const retryErr = await retryRes.json().catch(() => ({}))
+                setError(retryErr.error || 'Login failed. Please try again.')
+              }
+            } catch {
+              setError('Connection issue. Please try again.')
+            }
+            setLoading(false)
+          }, 3000)
+          return
+        }
+
         setError(data.error || 'Login failed')
         setLoading(false)
         return
