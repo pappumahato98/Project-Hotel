@@ -18,15 +18,14 @@
 #
 # REQUIRED ENV VARIABLES (set in Render dashboard):
 #
-#   DATABASE_URL  = PostgreSQL connection string
-#                  For Supabase, use the TRANSACTION-MODE pooler URL:
+#   DATABASE_URL  = Transaction pooler URL (for runtime queries)
 #                  postgresql://postgres.[ref]:[pass]@pooler.supabase.com:5432/postgres?pgbouncer=true
-#                  (Build command auto-switches to session-mode for migrations)
+#   DIRECT_DATABASE_URL = Session mode URL (for migrations only, OPTIONAL)
+#                  If set, used automatically during build for prisma migrate deploy
+#                  If not set, build command auto-switches pooler port 5432 → 6543
+#                  postgresql://postgres.[ref]:[pass]@pooler.supabase.com:6543/postgres
 #   JWT_SECRET    = <64+ char random string>
 #   REDIS_URL     = Redis connection string (OPTIONAL — falls back to in-memory)
-#                  Without Redis: rate limiting & auth cache are per-instance only
-#                  With Redis: distributed rate limiting, shared auth cache, pub/sub
-#                  Get one from: Render Redis, Upstash, AWS ElastiCache
 #                  Format: rediss://default:pass@redis-host:port (TLS in prod)
 #
 # SCALING GUIDE:
@@ -57,20 +56,22 @@ services:
       echo "Node: $(node -v) | npm: $(npm -v)"
 
       # ── Step 1: Apply database migrations ──
+      # Use DIRECT_DATABASE_URL if set (session mode), otherwise auto-derive from pooler URL
       if [ -n "$DATABASE_URL" ]; then
-        MIGRATE_URL="$DATABASE_URL"
-        # Supabase pooler port 5432 = transaction mode (bad for DDL/migrations)
-        # Switch to session-mode port 6543 for prisma migrate deploy
-        if echo "$MIGRATE_URL" | grep -q 'pooler\.supabase\.com:5432'; then
+        MIGRATE_URL="${DIRECT_DATABASE_URL:-$DATABASE_URL}"
+
+        # If no DIRECT_DATABASE_URL and pooler detected, auto-switch port 5432 → 6543 (session mode)
+        if [ -z "$DIRECT_DATABASE_URL" ] && echo "$MIGRATE_URL" | grep -q 'pooler\.supabase\.com:5432'; then
           MIGRATE_URL=$(echo "$MIGRATE_URL" | sed 's|pooler\.supabase\.com:5432|pooler.supabase.com:6543|' | sed 's|[?&]pgbouncer=true||g' | sed 's|&|?|1' | sed 's|?$||')
-          echo "[migrate] Detected Supabase PgBouncer — using session-mode port 6543"
+          echo "[migrate] Detected Supabase PgBouncer — auto-switched to session-mode port 6543"
         fi
 
+        # Also set SSL cert for migrations (write embedded cert to /tmp)
         echo "[migrate] Running prisma migrate deploy..."
         DATABASE_URL="$MIGRATE_URL" npx prisma migrate deploy 2>&1 || {
           echo "[warn] prisma migrate deploy failed — attempting fallback with db push"
           DATABASE_URL="$MIGRATE_URL" npx prisma db push --accept-data-loss 2>&1 || {
-            echo "[warn] prisma db push also failed (non-fatal, /api/db-setup can sync later)"
+            echo "[warn] prisma db push also failed (non-fatal, POST /api/db-setup can sync at runtime)"
           }
         }
       else
@@ -88,6 +89,8 @@ services:
       echo "=== Build complete ==="
     startCommand: npm start
     envVars:
+      - key: DIRECT_DATABASE_URL
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET

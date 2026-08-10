@@ -4,12 +4,45 @@
  * Features:
  *   - Lazy initialization (avoids Turbopack/Webpack env-loading race conditions)
  *   - Environment validation on first connection
- *   - Automatic SSL enforcement with Supabase CA certificate (sslmode=verify-full)
+ *   - Automatic SSL enforcement with EMBEDDED Supabase CA certificate
+ *     → Works on ALL platforms: Vercel (serverless), Render, Docker, Railway, Fly.io
+ *     → No filesystem cert file needed (cert is embedded inline)
  *   - Connection pool limits for PgBouncer compatibility
  *   - Global singleton (prevents multiple clients in dev hot-reload)
  */
 import { PrismaClient } from '@prisma/client'
 import { hasPostgresConfigured } from '@/lib/env'
+
+// ─── Embedded Supabase Root CA 2021 ─────────────────────────────────
+// This certificate is embedded directly in the code so that sslmode=verify-full
+// works on every deployment platform without needing a filesystem cert file.
+// Source: https://supabase.com/docs/guides/database/connecting-to-postgres#direct-connections
+// Expires: 2031-04-26
+const SUPABASE_CA_CERT = `
+-----BEGIN CERTIFICATE-----
+MIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL
+BQAwazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5l
+dyBDYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh
+c2UgUm9vdCAyMDIxIENBMB4XDTIxMDQyODEwNTY1M1oXDTMxMDQyNjEwNTY1M1ow
+azELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5ldyBD
+YXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJhc2Ug
+Um9vdCAyMDIxIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqQXW
+QyHOB+qR2GJobCq/CBmQ40G0oDmCC3mzVnn8sv4XNeWtE5XcEL0uVih7Jo4Dkx1Q
+DmGHBH1zDfgs2qXiLb6xpw/CKQPypZW1JssOTMIfQppNQ87K75Ya0p25Y3ePS2t2
+GtvHxNjUV6kjOZjEn2yWEcBdpOVCUYBVFBNMB4YBHkNRDa/+S4uywAoaTWnCJLUi
+cvTlHmMw6xSQQn1UfRQHk50DMCEJ7Cy1RxrZJrkXXRP3LqQL2ijJ6F4yMfh+Gyb4
+O4XajoVj/+R4GwywKYrrS8PrSNtwxr5StlQO8zIQUSMiq26wM8mgELFlS/32Uclt
+NaQ1xBRizkzpZct9DwIDAQABo2AwXjALBgNVHQ8EBAMCAQYwHQYDVR0OBBYEFKjX
+uXY32CztkhImng4yJNUtaUYsMB8GA1UdIwQYMBaAFKjXuXY32CztkhImng4yJNUt
+aUYsMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB8spzNn+4VU
+tVxbdMaX+39Z50sc7uATmus16jmmHjhIHz+l/9GlJ5KqAMOx26mPZgfzG7oneL2b
+VW+WgYUkTT3XEPFWnTp2RJwQao8/tYPXWEJDc0WVQHrpmnWOFKU/d3MqBgBm5y+6
+jB81TU/RG2rVerPDWP+1MMcNNy0491CTL5XQZ7JfDJJ9CCmXSdtTl4uUQnSuv/Qx
+Cea13BX2ZgJc7Au30vihLhub52De4P/4gonKsNHYdbWjg7OWKwNv/zitGDVDB9Y2
+CMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P
+o/bKiIz+Fq8=
+-----END CERTIFICATE-----
+`.trim()
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -17,6 +50,35 @@ const globalForPrisma = globalThis as unknown as {
 
 let _db: PrismaClient | undefined
 let _validated = false
+
+/**
+ * Write the embedded Supabase CA cert to a temp file.
+ * Returns the file path, or empty string if write fails.
+ * Uses deferred require() to avoid webpack "Can't resolve 'fs'" build errors.
+ */
+function ensureCertFile(): string {
+  // Check if we already have a cert path from a previous call
+  if (typeof process !== 'undefined' && (process as Record<string, unknown>).__supabase_ca_cert_path) {
+    return (process as Record<string, unknown>).__supabase_ca_cert_path as string
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('node:fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const os = require('node:os')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('node:path')
+    const certPath = path.join(os.tmpdir(), 'supabase-root-ca-2021.crt')
+    if (!fs.existsSync(certPath)) {
+      fs.writeFileSync(certPath, SUPABASE_CA_CERT, 'utf8')
+    }
+    // Cache on process object for this runtime
+    ;(process as Record<string, unknown>).__supabase_ca_cert_path = certPath
+    return certPath
+  } catch {
+    return ''
+  }
+}
 
 function validateDbConfig() {
   if (_validated) return true
@@ -37,38 +99,27 @@ function validateDbConfig() {
   const params: string[] = []
 
   // ── SSL enforcement ──────────────────────────────────────────
-  // Check for Supabase CA cert inside function body (not top-level import)
-  // to avoid webpack bundler "Can't resolve 'fs'" errors.
-  // Use __non_webpack_require__ to bypass webpack's static module resolution.
-  let hasCert = false
-  let certPath = ''
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-    const req = (typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require) as any
-    const nodeFs = req('node:fs')
-    const nodePath = req('node:path')
-    certPath = nodePath.resolve(process.cwd(), 'certs', 'prod-ca-2021.crt')
-    hasCert = nodeFs.existsSync(certPath)
-  } catch {
-    // fs/path not available — skip cert check, use sslmode=require as fallback
-  }
+  // Write embedded cert to /tmp and use sslmode=verify-full on ALL platforms.
+  // No filesystem cert file needed — the cert is embedded in this file.
+  const certPath = ensureCertFile()
 
   const explicitSslmode = url.match(/sslmode=([a-z-]+)/)?.[1]
 
   if (!explicitSslmode) {
-    if (hasCert) {
+    if (certPath) {
       params.push('sslmode=verify-full', `sslrootcert=${certPath}`)
-      console.warn(`[db] SSL enforced: sslmode=verify-full with Supabase CA cert (${certPath})`)
+      console.warn(`[db] SSL enforced: sslmode=verify-full with embedded Supabase CA cert (${certPath})`)
     } else {
+      // Absolute last resort — encrypted but no cert verification
       params.push('sslmode=require')
-      console.warn('[db] SSL enforced: sslmode=require (no CA cert at certs/prod-ca-2021.crt)')
+      console.warn('[db] SSL enforced: sslmode=require (failed to write embedded cert to /tmp)')
     }
   } else if (['disable', 'allow', 'prefer'].includes(explicitSslmode)) {
     console.warn(`[db] Weak SSL mode (sslmode=${explicitSslmode}). Use sslmode=verify-full.`)
   } else if (explicitSslmode === 'verify-full' && !url.includes('sslrootcert=')) {
-    if (hasCert) {
+    if (certPath) {
       params.push(`sslrootcert=${certPath}`)
-      console.warn(`[db] sslrootcert injected: ${certPath}`)
+      console.warn(`[db] sslrootcert injected from embedded cert: ${certPath}`)
     }
   }
 

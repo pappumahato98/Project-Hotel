@@ -4,7 +4,7 @@
  * 1. Validates environment variables before any request is processed.
  * 2. Starts background daemons (token cleanup).
  * 3. Pre-warms the Redis/store connection.
- * 4. Registers graceful shutdown handlers.
+ * 4. Registers graceful shutdown handlers (Node.js runtime only).
  */
 
 export async function register() {
@@ -43,11 +43,19 @@ export async function register() {
     console.warn('[startup] Store initialization warning:', err)
   }
 
-  // Register graceful shutdown handlers
+  // Register graceful shutdown handlers (Node.js runtime only — not available in Edge)
   registerShutdownHooks()
 }
 
 function registerShutdownHooks(): void {
+  // Guard: only register process signal handlers in Node.js runtime, not Edge Runtime
+  // Edge Runtime does not support process.on / process.exit
+  const isNodeRuntime = typeof process !== 'undefined' &&
+    typeof process.on === 'function' &&
+    typeof process.exit === 'function'
+
+  if (!isNodeRuntime) return
+
   const shutdown = async (signal: string) => {
     console.log(`[shutdown] Received ${signal}, starting graceful shutdown...`)
 
