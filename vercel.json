@@ -1,6 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npx prisma generate && npx next build",
-  "installCommand": "npm install --legacy-peer-deps",
-  "outputDirectory": ".next"
+  "services": {
+    "meridian-pms": {
+      "root": ".",
+      "framework": "nextjs",
+      "buildCommand": "set -e\necho \"=== Build starting ===\"\necho \"Node: $(node -v) | npm: $(npm -v)\"\n\n# ── Step 1: Apply database migrations ──\n# Use DIRECT_DATABASE_URL if set (session mode), otherwise auto-derive from pooler URL\nif [ -n \"$DATABASE_URL\" ]; then\n  MIGRATE_URL=\"${DIRECT_DATABASE_URL:-$DATABASE_URL}\"\n\n  # If no DIRECT_DATABASE_URL and pooler detected, auto-switch port 5432 → 6543 (session mode)\n  if [ -z \"$DIRECT_DATABASE_URL\" ] && echo \"$MIGRATE_URL\" | grep -q 'pooler\\.supabase\\.com:5432'; then\n    MIGRATE_URL=$(echo \"$MIGRATE_URL\" | sed 's|pooler\\.supabase\\.com:5432|pooler.supabase.com:6543|' | sed 's|[?&]pgbouncer=true||g' | sed 's|&|?|1' | sed 's|?$||')\n    echo \"[migrate] Detected Supabase PgBouncer — auto-switched to session-mode port 6543\"\n  fi\n\n  # Also set SSL cert for migrations (write embedded cert to /tmp)\n  echo \"[migrate] Running prisma migrate deploy...\"\n  DATABASE_URL=\"$MIGRATE_URL\" npx prisma migrate deploy 2>&1 || {\n    echo \"[warn] prisma migrate deploy failed — attempting fallback with db push\"\n    DATABASE_URL=\"$MIGRATE_URL\" npx prisma db push --accept-data-loss 2>&1 || {\n      echo \"[warn] prisma db push also failed (non-fatal, POST /api/db-setup can sync at runtime)\"\n    }\n  }\nelse\n  echo \"[migrate] DATABASE_URL not set — skipping migrations\"\nfi\n\n# ── Step 2: Generate Prisma client ──\necho \"[prisma] Generating client...\"\nnpx prisma generate\n\n# ── Step 3: Next.js build ──\necho \"[next] Building...\"\nnpx next build\n\necho \"=== Build complete ===\"\n"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "meridian-pms"
+      }
+    }
+  ]
 }
