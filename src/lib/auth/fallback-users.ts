@@ -72,20 +72,39 @@ const FALLBACK_USERS: FallbackUser[] = [
  * IMPORTANT: This must ONLY match network/transport-level failures.
  * Do NOT match schema errors, query errors, or other Prisma runtime errors.
  *
- * Prisma error codes:
+ * Prisma error codes (connection/initialization):
+ *   P1000 — Authentication failed against database server
  *   P1001 — Can't reach database server (network)
+ *   P1002 — The provided database URL is invalid
  *   P1003 — Database does not exist
  *   P1008 — Operation timed out
- *   P1009 — Database already exists (harmless, not connection)
- *   P1014 — Model not found (schema issue, NOT connection)
- *   P2010 — Raw query failed (query error, NOT connection)
+ *   P1017 — Server has closed the connection
+ *
+ * NOT connection errors (do NOT match):
+ *   P1009 — Database already exists (harmless)
+ *   P1014 — Model not found (schema issue)
+ *   P2010 — Raw query failed (query error)
+ *   P2021 — Table does not exist (schema issue)
  */
 export function isDatabaseError(error: unknown): boolean {
   if (!error) return false
-  const msg = error instanceof Error ? error.message : String(error)
 
-  // Prisma connection error codes
-  if (/P100[13]/.test(msg)) return true
+  // 1. Check Prisma error .code property (most reliable)
+  const code = (error as Record<string, unknown>)?.['code']
+  if (typeof code === 'string') {
+    // P1000-P1017 are all initialization/connection errors
+    if (/^P10(0[0-9]|1[0-7])$/.test(code)) return true
+  }
+
+  // 2. Check class name for PrismaClientInitializationError
+  const name = error instanceof Error ? error.constructor.name : ''
+  if (name === 'PrismaClientInitializationError') return true
+
+  // 3. Check message string patterns (fallback)
+  const msg = error instanceof Error ? (error.message || '') : String(error || '')
+
+  // Prisma connection error codes in message
+  if (/P100[0-9]/.test(msg) || /P101[0-7]/.test(msg)) return true
 
   // Node.js network errors
   if (
@@ -94,33 +113,55 @@ export function isDatabaseError(error: unknown): boolean {
     msg.includes('ECONNRESET') ||
     msg.includes('ETIMEDOUT') ||
     msg.includes('EPIPE') ||
-    msg.includes('getaddrinfo')
+    msg.includes('getaddrinfo') ||
+    msg.includes('EAI_AGAIN')
   ) return true
 
-  // Prisma validation error: wrong DATABASE_URL protocol (e.g. SQLite URL in
-  // postgresql-only schema — common in sandbox/dev without a real DB)
+  // Prisma validation error: wrong DATABASE_URL protocol
   if (msg.includes('URL must start with the protocol')) return true
 
-  // TCP / connection refused patterns
+  // TCP / connection patterns
   if (
     msg.includes('Connection refused') ||
     msg.includes('connect ETIMEDOUT') ||
     msg.includes('Socket closed') ||
     msg.includes('Unable to connect') ||
     msg.includes('could not connect') ||
-    msg.includes('network is unreachable')
+    msg.includes('network is unreachable') ||
+    msg.includes('SSL') ||
+    msg.includes('ssl') ||
+    msg.includes('certificate')
   ) return true
 
-  // Supabase pooler errors (session/transaction pooler limits)
+  // Supabase pooler errors
   if (
     msg.includes('EMAXCONNSESSION') ||
     msg.includes('max clients reached') ||
     msg.includes('max clients are limited to pool_size') ||
     msg.includes('too many connections') ||
-    msg.includes('pooler') && msg.includes('error')
+    (msg.includes('pooler') && msg.includes('error'))
   ) return true
 
   return false
+}
+
+/**
+ * Extract a readable summary from any error for logging.
+ */
+export function errorSummary(error: unknown): string {
+  if (!error) return '(no error)'
+  const parts: string[] = []
+  if (error instanceof Error) {
+    parts.push(error.constructor.name)
+    if (error.message) parts.push(error.message.slice(0, 200))
+    const code = (error as Record<string, unknown>)?.['code']
+    if (code) parts.push(`code=${code}`)
+    const meta = (error as Record<string, unknown>)?.['meta']
+    if (meta) parts.push(`meta=${JSON.stringify(meta).slice(0, 200)}`)
+  } else {
+    parts.push(String(error).slice(0, 300))
+  }
+  return parts.join(' | ')
 }
 
 /**

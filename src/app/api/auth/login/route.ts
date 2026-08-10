@@ -13,7 +13,7 @@ import {
 import { generateCsrfToken } from '@/lib/auth/csrf'
 import { logSecurityEvent } from '@/lib/security/audit'
 import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
-import { findFallbackUser, isDatabaseError } from '@/lib/auth/fallback-users'
+import { findFallbackUser, isDatabaseError, errorSummary } from '@/lib/auth/fallback-users'
 
 // ─── POST /api/auth/login ──────────────────────────────────────
 
@@ -94,8 +94,7 @@ export async function POST(req: NextRequest) {
         dbEmpty = count === 0
       }
     } catch (dbErr: unknown) {
-      const errMsg = dbErr instanceof Error ? dbErr.message : String(dbErr)
-      console.error('[auth] Database query error:', errMsg)
+      console.error('[auth] Database query error:', errorSummary(dbErr))
 
       if (isDatabaseError(dbErr)) {
         dbReachable = false
@@ -113,7 +112,7 @@ export async function POST(req: NextRequest) {
           )
         }
       } else {
-        console.error('[auth] Database schema/query error (not a connection issue):', errMsg.substring(0, 300))
+        console.error('[auth] Database schema/query error (not a connection issue):', errorSummary(dbErr))
         return NextResponse.json(
           { error: 'Authentication service error. Please contact administrator.', detail: 'DB_SCHEMA_ERROR' },
           { status: 500 },

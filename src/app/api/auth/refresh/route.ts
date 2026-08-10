@@ -11,7 +11,7 @@ import { generateCsrfToken, validateCsrf, validateOrigin } from '@/lib/auth/csrf
 import { rotateRefreshToken } from '@/lib/auth/rotation'
 import { logSecurityEvent } from '@/lib/security/audit'
 import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
-import { isDatabaseError } from '@/lib/auth/fallback-users'
+import { isDatabaseError, errorSummary } from '@/lib/auth/fallback-users'
 
 /**
  * Parse a raw cookie string into a key→value map.
@@ -168,13 +168,13 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     // Graceful degradation for DB-unreachable in production
     if (isDatabaseError(error)) {
-      console.error('[auth] Token refresh DB error:', error)
+      console.error('[auth] Token refresh DB error:', errorSummary(error))
       return NextResponse.json(
         { error: 'Service temporarily unavailable. Please try again in a few seconds.' },
         { status: 503, headers: { 'Retry-After': '10' } },
       )
     }
-    console.error('Token refresh error:', error)
+    console.error('Token refresh error:', errorSummary(error))
     return NextResponse.json(
       { error: 'Session refresh failed' },
       { status: 500 },
