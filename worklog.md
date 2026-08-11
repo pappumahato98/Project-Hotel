@@ -1255,3 +1255,25 @@ Stage Summary:
 - Root cause: Prisma errors with empty .message fell through to generic 500 handler
 - Now ALL Prisma P1000-P1017 errors + PrismaClientInitializationError class + SSL errors are caught
 - Production logs will now show full error details (code, meta) instead of empty string
+
+---
+Task ID: 6
+Agent: main
+Task: Agent Browser verification of Render auth login flow
+
+Work Log:
+- Opened https://project-neo-pep5.onrender.com/ in Agent Browser
+- Filled admin@meridian.com / admin123 and clicked Sign In
+- Button showed "Signing in..." then returned to "Sign in" with no visible error
+- Network requests showed: POST /api/auth/login → 503 (twice - original + auto-retry)
+- Response body: {"error":"Service is busy...","detail":"DB_UNREACHABLE"}
+- Health check confirmed: db.connect FAIL - "Authentication failed against database server"
+- Root cause confirmed: Render URL-decoded %40→@ and %23→# in password, breaking connection string
+- The URL repair fix (commit 4ff3089) IS on GitHub but Render hasn't auto-deployed it
+- Pushed empty commit to trigger deploy, waited 3+ minutes, still not deployed
+- Conclusion: Render auto-deploy is likely disabled on the service
+
+Stage Summary:
+- Auth chain: Frontend → POST /api/auth/login → 503 (DB_UNREACHABLE) ← BLOCKED HERE
+- The fix exists in code but Render needs manual redeploy
+- User must go to Render Dashboard → Service → Manual Deploy
