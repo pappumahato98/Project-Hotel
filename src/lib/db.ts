@@ -51,6 +51,19 @@ const globalForPrisma = globalThis as unknown as {
 let _db: PrismaClient | undefined
 let _validated = false
 
+// Export diagnostic info for health endpoint
+export function getDbDiagnostics() {
+  const raw = process.env.__DB_URL_RAW || '(not captured)'
+  const repaired = process.env.__DB_URL_REPAIRED || '(not captured)'
+  return {
+    rawUrlMasked: raw.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3'),
+    repairedUrlMasked: repaired.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3'),
+    urlRepaired: raw !== repaired,
+    rawAtCount: (raw.match(/@/g) || []).length,
+    repairedAtCount: (repaired.match(/@/g) || []).length,
+  }
+}
+
 /**
  * Write the embedded Supabase CA cert to a temp file.
  * Returns the file path, or empty string if write fails.
@@ -146,7 +159,10 @@ function validateDbConfig() {
 
   // Auto-repair URL encoding issues (e.g., Render URL-decoding %40 → @)
   let url = process.env.DATABASE_URL!
+  // Save original URL for diagnostics BEFORE any modification
+  ;(process as Record<string, unknown>).__DB_URL_RAW = url
   const repairedUrl = repairUrlEncoding(url)
+  ;(process as Record<string, unknown>).__DB_URL_REPAIRED = repairedUrl
   if (repairedUrl !== url) {
     process.env.DATABASE_URL = repairedUrl
     url = repairedUrl

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, getDbDiagnostics } from '@/lib/db'
 import { hasPostgresConfigured } from '@/lib/env'
 import { getStore, isDistributedStore } from '@/lib/redis'
 import { existsSync } from 'fs'
@@ -24,7 +24,10 @@ export async function GET() {
   } else if (!hasPostgresConfigured()) {
     checks.push({ name: 'DATABASE_URL', ok: false, detail: 'invalid format' })
   } else {
-    checks.push({ name: 'DATABASE_URL', ok: true, detail: 'postgresql://***@***' })
+    // Mask password but show full URL structure for debugging
+    const masked = dbUrl.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3')
+    const atCount = (dbUrl.match(/@/g) || []).length
+    checks.push({ name: 'DATABASE_URL', ok: true, detail: masked + ` (@count=${atCount})` })
   }
 
   // 2. JWT Auth configuration
@@ -95,7 +98,7 @@ export async function GET() {
 
   const allOk = checks.every((c) => c.ok)
   return NextResponse.json(
-    { status: allOk ? 'ok' : 'error', checks },
+    { status: allOk ? 'ok' : 'error', checks, dbDiagnostics: getDbDiagnostics() },
     { status: allOk ? 200 : 500 },
   )
 }
