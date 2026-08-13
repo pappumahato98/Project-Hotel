@@ -1277,3 +1277,21 @@ Stage Summary:
 - Auth chain: Frontend → POST /api/auth/login → 503 (DB_UNREACHABLE) ← BLOCKED HERE
 - The fix exists in code but Render needs manual redeploy
 - User must go to Render Dashboard → Service → Manual Deploy
+
+---
+Task ID: 7
+Agent: main
+Task: Deep diagnosis of Render auth failure
+
+Work Log:
+- Added URL diagnostics (raw URL, repair status, @ count, password length) to health endpoint
+- Captured raw DATABASE_URL at module load time (before any modification)
+- Deployed diagnostic version and checked Render
+- Result: password on Render is 50 characters, expected is 16 (WebeFly%4098%23)
+- @count=1 confirms NO URL decoding issue
+- The URL repair was a red herring — the actual problem is wrong password on Render
+
+Stage Summary:
+- Root cause: DATABASE_URL on Render has a DIFFERENT password (50 chars vs 16 chars expected)
+- User needs to update DATABASE_URL on Render dashboard to match the correct value
+- Correct DATABASE_URL: postgresql://postgres.kiqnyuwypqhpjwamrqob:WebeFly%4098%23@aws-1-ap-south-1.pooler.supabase.com:5432/postgres?pgbouncer=true
