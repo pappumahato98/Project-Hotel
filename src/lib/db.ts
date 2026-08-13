@@ -51,16 +51,25 @@ const globalForPrisma = globalThis as unknown as {
 let _db: PrismaClient | undefined
 let _validated = false
 
+// Capture raw DATABASE_URL at module load (before any modification)
+const _rawDbUrl = process.env.DATABASE_URL || ''
+
 // Export diagnostic info for health endpoint
 export function getDbDiagnostics() {
-  const raw = process.env.__DB_URL_RAW || '(not captured)'
-  const repaired = process.env.__DB_URL_REPAIRED || '(not captured)'
+  const current = process.env.DATABASE_URL || ''
+  const repaired = process.env.__DB_URL_REPAIRED || current
+  // Extract password from raw URL for length check
+  let passwordLength = 0
+  try {
+    const m = _rawDbUrl.match(/:[^@]+@/)
+    if (m) passwordLength = m[0].length - 2 // subtract : and @
+  } catch {}
   return {
-    rawUrlMasked: raw.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3'),
-    repairedUrlMasked: repaired.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3'),
-    urlRepaired: raw !== repaired,
-    rawAtCount: (raw.match(/@/g) || []).length,
-    repairedAtCount: (repaired.match(/@/g) || []).length,
+    rawUrlMasked: _rawDbUrl.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3'),
+    currentUrlMasked: current.replace(/(\/\/[^:]+:)([^@]+)(@.*)/, '$1***$3'),
+    urlRepaired: _rawDbUrl !== current,
+    rawAtCount: (_rawDbUrl.match(/@/g) || []).length,
+    passwordLength,
   }
 }
 
@@ -159,8 +168,6 @@ function validateDbConfig() {
 
   // Auto-repair URL encoding issues (e.g., Render URL-decoding %40 → @)
   let url = process.env.DATABASE_URL!
-  // Save original URL for diagnostics BEFORE any modification
-  ;(process as Record<string, unknown>).__DB_URL_RAW = url
   const repairedUrl = repairUrlEncoding(url)
   ;(process as Record<string, unknown>).__DB_URL_REPAIRED = repairedUrl
   if (repairedUrl !== url) {
