@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 import { toDateOnly } from '@/lib/format'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -207,9 +208,9 @@ export async function GET(request: NextRequest) {
 
     return { rows }
     }, 120000)
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('HK Rooms API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch room data' }, { status: 500 })
+    return cachedError('Failed to fetch room data', 500)
   }
 }

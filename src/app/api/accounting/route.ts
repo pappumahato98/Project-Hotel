@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 const BALANCE_TOLERANCE = 0.01
 
@@ -113,7 +114,7 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    return cachedJson({
       entries: enrichedEntries,
       pagination: {
         page,
@@ -121,11 +122,11 @@ export async function GET(req: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
-    })
+    }, req, { tier: 'long' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounting GET error:', msg)
-    return NextResponse.json({ error: 'Failed to fetch journal entries', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to fetch journal entries', 500, msg.substring(0, 200))
   }
 }
 
@@ -138,22 +139,20 @@ export async function POST(request: NextRequest) {
     const { date, description, reference, lines, sourceModule, sourceId } = body
 
     if (!lines || !Array.isArray(lines) || lines.length === 0) {
-      return NextResponse.json({ error: 'Journal entry must have at least one line' }, { status: 400 })
+      return cachedError('Journal entry must have at least one line', 400)
     }
 
     // Validate every line has an accountId
     for (const line of lines) {
       if (!line.accountId) {
-        return NextResponse.json({ error: 'Each line must have an accountId' }, { status: 400 })
+        return cachedError('Each line must have an accountId', 400)
       }
     }
 
     // Validate double-entry balance
     const balance = validateBalance(lines)
     if (!balance.valid) {
-      return NextResponse.json({
-        error: `Debits and credits must balance. Total DR: ${balance.totalDebit}, Total CR: ${balance.totalCredit}, Difference: ${balance.difference}`,
-      }, { status: 400 })
+      return cachedError(`Debits and credits must balance. Total DR: ${balance.totalDebit}, Total CR: ${balance.totalCredit}, Difference: ${balance.difference}`, 400)
     }
 
     // Validate accounts exist
@@ -166,10 +165,10 @@ export async function POST(request: NextRequest) {
     for (const aid of accountIds) {
       const acc = accountMap.get(aid)
       if (!acc) {
-        return NextResponse.json({ error: `Account ${aid} not found` }, { status: 400 })
+        return cachedError(`Account ${aid} not found`, 400)
       }
       if (!acc.active) {
-        return NextResponse.json({ error: `Account ${aid} is inactive` }, { status: 400 })
+        return cachedError(`Account ${aid} is inactive`, 400)
       }
     }
 
@@ -202,10 +201,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('journal_entry:created', journalEntry)
-    return NextResponse.json(journalEntry, { status: 201 })
+    return NextResponse.json(journalEntry, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounting POST error:', msg)
-    return NextResponse.json({ error: 'Failed to create journal entry', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to create journal entry', 500, msg.substring(0, 200))
   }
 }

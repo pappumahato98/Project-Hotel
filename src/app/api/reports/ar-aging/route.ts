@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -234,9 +235,9 @@ export async function GET(request: NextRequest) {
       }
     }, 120_000)
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('AR Aging Report API error:', error)
-    return NextResponse.json({ error: 'Failed to generate AR aging report' }, { status: 500 })
+    return cachedError('Failed to generate AR aging report', 500)
   }
 }

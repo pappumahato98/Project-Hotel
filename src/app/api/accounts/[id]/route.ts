@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(
   request: NextRequest,
@@ -37,14 +38,14 @@ export async function GET(
     })
 
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      return cachedError('Account not found', 404)
     }
 
-    return NextResponse.json(account)
+    return cachedJson(account, request, { tier: 'long' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Account GET error:', msg)
-    return NextResponse.json({ error: 'Failed to fetch account', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to fetch account', 500, msg.substring(0, 200))
   }
 }
 
@@ -60,11 +61,11 @@ export async function DELETE(
 
     const account = await db.ledgerAccount.findUnique({ where: { id } })
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      return cachedError('Account not found', 404)
     }
 
     if (!account.active) {
-      return NextResponse.json({ error: 'Account is already inactive' }, { status: 400 })
+      return cachedError('Account is already inactive', 400)
     }
 
     const updated = await db.ledgerAccount.update({
@@ -77,10 +78,10 @@ export async function DELETE(
 
     afterMutation('accounting')
     broadcastEvent('account:deactivated', updated)
-    return NextResponse.json(updated)
+    return NextResponse.json(updated, { headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Account DELETE error:', msg)
-    return NextResponse.json({ error: 'Failed to deactivate account', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to deactivate account', 500, msg.substring(0, 200))
   }
 }

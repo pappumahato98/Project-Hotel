@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -157,12 +158,12 @@ export async function GET(request: NextRequest) {
     const asOfDate = searchParams.get('asOfDate')
 
     if (!asOfDate) {
-      return NextResponse.json({ error: 'asOfDate query param is required (YYYY-MM-DD)' }, { status: 400 })
+      return cachedError('asOfDate query param is required (YYYY-MM-DD)', 400)
     }
 
     const asOf = new Date(asOfDate)
     if (isNaN(asOf.getTime())) {
-      return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD.' }, { status: 400 })
+      return cachedError('Invalid date format. Use YYYY-MM-DD.', 400)
     }
     asOf.setHours(23, 59, 59, 999)
 
@@ -291,9 +292,9 @@ export async function GET(request: NextRequest) {
       }
     }, 120_000)
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Balance Sheet API error:', error)
-    return NextResponse.json({ error: 'Failed to generate balance sheet' }, { status: 500 })
+    return cachedError('Failed to generate balance sheet', 500)
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 // ─── Date helpers ─────────────────────────────────────────
 function toDateOnlyLocal(d: Date): string {
@@ -106,19 +107,16 @@ export async function GET(req: NextRequest) {
     const totalPendingNights = pendingList.reduce((sum, r) => sum + r.pendingNights.length, 0)
     const totalPendingAmount = pendingList.reduce((sum, r) => sum + r.pendingAmount, 0)
 
-    return NextResponse.json({
+    return cachedJson({
       pendingReservations: pendingList,
       summary: {
         totalReservations: pendingList.length,
         totalPendingNights,
         totalPendingAmount,
       },
-    })
+    }, req, { tier: 'short' })
   } catch (error) {
     console.error('Room Rate Posting pending GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch pending postings' },
-      { status: 500 },
-    )
+    return cachedError('Failed to fetch pending postings', 500)
   }
 }

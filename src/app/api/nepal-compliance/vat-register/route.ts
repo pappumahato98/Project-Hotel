@@ -6,6 +6,7 @@ import {
 } from '@/lib/nepal-compliance/vat-engine'
 import { db } from '@/lib/db'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 type VATRegisterType = 'sales' | 'purchase' | 'sales_return' | 'purchase_return'
 
@@ -20,31 +21,22 @@ export async function GET(request: NextRequest) {
     const fiscalYear = searchParams.get('fiscalYear')
 
     if (!type) {
-      return NextResponse.json(
-        { error: "Query parameter 'type' is required." },
-        { status: 400 },
-      )
+      return cachedError("Query parameter 'type' is required.", 400)
     }
 
     // Special case: type=return → VAT return report
     if (type === 'return') {
       if (!fiscalYear) {
-        return NextResponse.json(
-          { error: "Query parameter 'fiscalYear' is required when type=return." },
-          { status: 400 },
-        )
+        return cachedError("Query parameter 'fiscalYear' is required when type=return.", 400)
       }
       const report = await generateVATReturnReport(fiscalYear)
-      return NextResponse.json({ type: 'return', fiscalYear, report })
+      return cachedJson({ type: 'return', fiscalYear, report }, request, { tier: 'long' })
     }
 
     // Standard register types
     const validTypes: VATRegisterType[] = ['sales', 'purchase', 'sales_return', 'purchase_return']
     if (!validTypes.includes(type as VATRegisterType)) {
-      return NextResponse.json(
-        { error: `type must be one of: ${validTypes.join(', ')}, or 'return'.` },
-        { status: 400 },
-      )
+      return cachedError(`type must be one of: ${validTypes.join(', ')}, or 'return'.`, 400)
     }
 
     // Default date range: current fiscal year (approximate)
@@ -52,10 +44,7 @@ export async function GET(request: NextRequest) {
     const toDate = to ? new Date(to) : new Date(new Date().getFullYear() + 1, 6, 15) // Jul 15 next year
 
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format for from/to. Use YYYY-MM-DD.' },
-        { status: 400 },
-      )
+      return cachedError('Invalid date format for from/to. Use YYYY-MM-DD.', 400)
     }
 
     // For sales_return and purchase_return, we query cancelled invoices
@@ -82,7 +71,7 @@ export async function GET(request: NextRequest) {
         status: inv.status,
       }))
 
-      return NextResponse.json({ type: 'sales_return', from, to, entries })
+      return cachedJson({ type: 'sales_return', from, to, entries }, request, { tier: 'long' })
     }
 
     if (type === 'purchase_return') {
@@ -107,23 +96,20 @@ export async function GET(request: NextRequest) {
         status: inv.status,
       }))
 
-      return NextResponse.json({ type: 'purchase_return', from, to, entries })
+      return cachedJson({ type: 'purchase_return', from, to, entries }, request, { tier: 'long' })
     }
 
     // Sales and Purchase use the engine functions
     if (type === 'sales') {
       const entries = await generateSalesVATRegister(fromDate, toDate)
-      return NextResponse.json({ type: 'sales', from, to, entries })
+      return cachedJson({ type: 'sales', from, to, entries }, request, { tier: 'long' })
     }
 
     // type === 'purchase'
     const entries = await generatePurchaseVATRegister(fromDate, toDate)
-    return NextResponse.json({ type: 'purchase', from, to, entries })
+    return cachedJson({ type: 'purchase', from, to, entries }, request, { tier: 'long' })
   } catch (error) {
     console.error('[vat-register] GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to retrieve VAT register.' },
-      { status: 500 },
-    )
+    return cachedError('Failed to retrieve VAT register.', 500)
   }
 }

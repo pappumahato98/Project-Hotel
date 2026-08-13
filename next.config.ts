@@ -2,18 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   typescript: {
-    // NOTE: Keep true during active development to avoid Vercel build failures
-    // on non-critical type warnings. Set to false for production hardening.
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
   staticPageGenerationTimeout: 120,
-  // Turbopack config (Next.js 16 default)
+  // Turbopack config
   turbopack: {},
+  // Compress responses (gzip/brotli) for faster transfers
+  compress: true,
   // Webpack fallback config
   webpack: (config, { isServer }) => {
-    // Don't bundle ioredis — use dynamic import in redis.ts
-    // This avoids the 'stream' module resolution error in sandbox/dev
     config.resolve = config.resolve || {}
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -36,6 +34,14 @@ const nextConfig: NextConfig = {
               priority: 40,
               enforce: true,
             },
+            // Cache heavy UI libraries separately for better caching
+            ui: {
+              name: 'ui-vendor',
+              chunks: 'all' as const,
+              test: /[\\/]node_modules[\\/](@radix-ui|lucide-react|date-fns|recharts)[\\/]/,
+              priority: 30,
+              reuseExistingChunk: true,
+            },
           },
         },
       }
@@ -48,7 +54,52 @@ const nextConfig: NextConfig = {
     'localhost',
   ],
   experimental: {
-    cpus: 1, // Limit to 1 CPU to reduce memory usage (prevents OOM in 4GB env)
+    cpus: 1,
+  },
+  // CDN-ready response headers for static assets
+  async headers() {
+    return [
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'CDN-Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/favicon.ico',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, immutable',
+          },
+        ],
+      },
+      {
+        source: '/fonts/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/images/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
+          },
+        ],
+      },
+    ]
   },
 };
 

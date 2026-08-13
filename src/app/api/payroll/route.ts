@@ -5,6 +5,7 @@ import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postPayroll } from '@/lib/accounting/auto-post'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request, ['admin', 'gm'])
@@ -44,15 +45,15 @@ export async function GET(request: NextRequest) {
 
     const monthLabel = new Date().toLocaleString('default', { month: 'long', year: 'numeric' })
 
-    return NextResponse.json({
+    return cachedJson({
       month: monthLabel,
       employees: records,
       departmentTotals,
       summary: { totalBaseSalary, totalVariablePay, totalOvertime, totalDeductions, totalNetPay, employeeCount: records.length },
-    })
+    }, request, { tier: 'long' })
   } catch (error) {
     console.error('Payroll API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch payroll' }, { status: 500 })
+    return cachedError('Failed to fetch payroll', 500)
   }
 }
 
@@ -79,10 +80,10 @@ export async function POST(request: NextRequest) {
 
     broadcastEvent('payroll:created', record)
     afterMutation('hr')
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Payroll POST error:', error)
-    return NextResponse.json({ error: 'Failed to create payroll record' }, { status: 500 })
+    return cachedError('Failed to create payroll record', 500)
   }
 }
 
@@ -94,7 +95,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const record = await db.payroll.update({
@@ -128,9 +129,9 @@ export async function PATCH(request: NextRequest) {
 
     broadcastEvent('payroll:updated', record)
     afterMutation('hr')
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Payroll PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update payroll record' }, { status: 500 })
+    return cachedError('Failed to update payroll record', 500)
   }
 }

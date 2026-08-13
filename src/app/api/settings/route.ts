@@ -3,6 +3,7 @@ import { db, withRetry } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── Default Settings ───────────────────────────────────────────
 const DEFAULT_SETTINGS: Record<string, unknown> = {
@@ -270,10 +271,10 @@ export async function GET(req: NextRequest) {
       }
       return map
     }, 5 * 60 * 1000)
-    return NextResponse.json(result)
+    return cachedJson(result, req, { tier: 'long' })
   } catch (error) {
     console.error('Settings GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 })
+    return cachedError('Failed to fetch settings', 500)
   }
 }
 
@@ -320,9 +321,9 @@ export async function PUT(request: NextRequest) {
       result[s.key] = parseValue(s.value, s.type)
     }
 
-    return NextResponse.json(result)
+    return NextResponse.json(result, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Settings PUT error:', error)
-    return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
+    return cachedError('Failed to update settings', 500)
   }
 }

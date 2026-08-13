@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -25,16 +26,16 @@ export async function GET(request: NextRequest) {
     const totalBookings = channels.reduce((s, c) => s + c.totalBookings, 0)
     const totalCommission = channels.reduce((s, c) => s + c.monthlyCommission, 0)
 
-    return NextResponse.json({
+    return cachedJson({
       channels,
       connected,
       disconnected,
       totalBookings,
       totalCommission,
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Channels API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch channels' }, { status: 500 })
+    return cachedError('Failed to fetch channels', 500)
   }
 }
 
@@ -59,10 +60,10 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('channel:created', channel)
-    return NextResponse.json(channel, { status: 201 })
+    return NextResponse.json(channel, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Channels POST error:', error)
-    return NextResponse.json({ error: 'Failed to create channel' }, { status: 500 })
+    return cachedError('Failed to create channel', 500)
   }
 }
 
@@ -74,7 +75,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const channel = await db.channel.update({
@@ -94,9 +95,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('channel:updated', channel)
-    return NextResponse.json(channel)
+    return NextResponse.json(channel, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Channels PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update channel' }, { status: 500 })
+    return cachedError('Failed to update channel', 500)
   }
 }

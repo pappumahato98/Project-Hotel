@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
@@ -47,14 +48,14 @@ export async function GET(req: NextRequest) {
     const draft = banquetOrders.filter((o) => o.status === 'draft').length
     const totalAmount = banquetOrders.reduce((s, o) => s + o.totalAmount, 0)
 
-    return NextResponse.json({
+    return cachedJson({
       orders: banquetOrders,
       total,
       summary: { confirmed, inProgress, draft, totalAmount },
-    })
+    }, req, { tier: 'medium' })
   } catch (error) {
     console.error('Banquet Orders API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch banquet orders' }, { status: 500 })
+    return cachedError('Failed to fetch banquet orders', 500)
   }
 }
 
@@ -82,10 +83,10 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('banquet_order:created', { eventId, ...orderData })
-    return NextResponse.json({ eventId, ...orderData, event }, { status: 201 })
+    return NextResponse.json({ eventId, ...orderData, event }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Banquet Orders POST error:', error)
-    return NextResponse.json({ error: 'Failed to create banquet order' }, { status: 500 })
+    return cachedError('Failed to create banquet order', 500)
   }
 }
 
@@ -98,7 +99,7 @@ export async function PATCH(request: NextRequest) {
 
     const existing = await db.event.findUnique({ where: { id: eventId } })
     if (!existing) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      return cachedError('Event not found', 404)
     }
 
     const existingNotes = existing.notes ? (() => { try { return JSON.parse(existing.notes) } catch { return {} } })() : {}
@@ -120,9 +121,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('banquet_order:updated', { eventId, ...updatedNotes })
-    return NextResponse.json({ eventId, ...updatedNotes, event })
+    return NextResponse.json({ eventId, ...updatedNotes, event }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Banquet Orders PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update banquet order' }, { status: 500 })
+    return cachedError('Failed to update banquet order', 500)
   }
 }

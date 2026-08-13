@@ -3,6 +3,7 @@ import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(
   request: NextRequest,
@@ -22,13 +23,13 @@ export async function GET(
     })
 
     if (!workOrder) {
-      return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
+      return cachedError('Work order not found', 404)
     }
 
-    return NextResponse.json({ workOrder })
+    return cachedJson({ workOrder }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Work Order GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch work order' }, { status: 500 })
+    return cachedError('Failed to fetch work order', 500)
   }
 }
 
@@ -65,10 +66,10 @@ export async function PATCH(
 
     afterMutation('work-orders')
     broadcastEvent('work_order:updated', workOrder)
-    return NextResponse.json({ workOrder })
+    return NextResponse.json({ workOrder }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Work Order PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update work order' }, { status: 500 })
+    return cachedError('Failed to update work order', 500)
   }
 }
 
@@ -83,9 +84,9 @@ export async function DELETE(
     await withRetry(() => db.workOrder.delete({ where: { id } }))
     afterMutation('work-orders')
     broadcastEvent('work_order:deleted', { id })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Work Order DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete work order' }, { status: 500 })
+    return cachedError('Failed to delete work order', 500)
   }
 }

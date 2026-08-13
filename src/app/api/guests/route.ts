@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -44,10 +45,10 @@ export async function GET(request: NextRequest) {
       return { guests, total: guests.length }
     }, 60000)
 
-    return NextResponse.json(result)
+    return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
     console.error('Guests API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch guest profiles' }, { status: 500 })
+    return cachedError('Failed to fetch guest profiles', 500)
   }
 }
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!firstName || !lastName) {
-      return NextResponse.json({ error: 'First name and last name are required' }, { status: 400 })
+      return cachedError('First name and last name are required', 400)
     }
 
     const guest = await withRetry(() => db.guest.create({
@@ -85,9 +86,9 @@ export async function POST(request: NextRequest) {
     }))
 
     afterMutation('guests')
-    return NextResponse.json({ guest }, { status: 201 })
+    return NextResponse.json({ guest }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create guest error:', error)
-    return NextResponse.json({ error: 'Failed to create guest' }, { status: 500 })
+    return cachedError('Failed to create guest', 500)
   }
 }

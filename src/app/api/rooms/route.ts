@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // Allow up to 60s on Vercel (Hobby plan default is 10s — this prevents timeouts)
 export const maxDuration = 60
@@ -111,10 +112,10 @@ export async function GET(req: NextRequest) {
       },
     }
     }, 120000)
-    return NextResponse.json(data)
+    return cachedJson(data, req, { tier: 'medium' })
   } catch (error) {
     console.error('Rooms API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch rooms' }, { status: 500 })
+    return cachedError('Failed to fetch rooms', 500)
   }
 }
 
@@ -152,9 +153,9 @@ export async function POST(req: NextRequest) {
     )
 
     afterMutation('rooms')
-    return NextResponse.json({ room: createdRoom }, { status: 201 })
+    return NextResponse.json({ room: createdRoom }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create room error:', error)
-    return NextResponse.json({ error: 'Failed to create room' }, { status: 500 })
+    return cachedError('Failed to create room', 500)
   }
 }

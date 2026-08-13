@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
         })
       }, 60000)
 
-      return NextResponse.json(items)
+      return cachedJson(items, request, { tier: 'medium' })
     }
 
     // Inspection audit history
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
           take: 50,
         })
       }, 60000)
-      return NextResponse.json(audits)
+      return cachedJson(audits, request, { tier: 'medium' })
     }
 
     // Tasks section (default)
@@ -97,10 +98,10 @@ export async function GET(request: NextRequest) {
       }
     }, 60000)
 
-    return NextResponse.json(result)
+    return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
     console.error('Housekeeping API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch housekeeping data' }, { status: 500 })
+    return cachedError('Failed to fetch housekeeping data', 500)
   }
 }
 
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return NextResponse.json(item, { status: 201 })
+      return NextResponse.json(item, { status: 201, headers: clearCacheHeaders() })
     }
 
     // ─── Claim Lost & Found ──────────────────────────────
@@ -145,21 +146,21 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return NextResponse.json(item)
+      return NextResponse.json(item, { headers: clearCacheHeaders() })
     }
 
     // ─── Reject & Reassign (with audit trail) ────────────
     if (action === 'reject-inspection') {
       const { id, performedBy, reason, checklist, photos } = body
-      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
-      if (!performedBy) return NextResponse.json({ error: 'Performer info is required' }, { status: 400 })
+      if (!id) return cachedError('Task ID is required', 400)
+      if (!performedBy) return cachedError('Performer info is required', 400)
 
       // Get the task for room info
       const existingTask = await db.hkTask.findUnique({
         where: { id },
         include: { room: { select: { id: true, number: true } } },
       })
-      if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      if (!existingTask) return cachedError('Task not found', 404)
 
       // Update task back to in_progress
       const task = await db.hkTask.update({
@@ -181,19 +182,19 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return NextResponse.json(task)
+      return NextResponse.json(task, { headers: clearCacheHeaders() })
     }
 
     // ─── Approve Inspection (with audit trail) ───────────
     if (action === 'approve-inspection') {
       const { id, performedBy, checklist, photos } = body
-      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
+      if (!id) return cachedError('Task ID is required', 400)
 
       const existingTask = await db.hkTask.findUnique({
         where: { id },
         include: { room: { select: { id: true, number: true } } },
       })
-      if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      if (!existingTask) return cachedError('Task not found', 404)
 
       // Update task to inspected
       const task = await db.hkTask.update({
@@ -218,19 +219,19 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return NextResponse.json(task)
+      return NextResponse.json(task, { headers: clearCacheHeaders() })
     }
 
     // ─── Force Mutation (with audit trail) ───────────────
     if (action === 'force-mutation') {
       const { id, performedBy, status, priority, reason } = body
-      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
+      if (!id) return cachedError('Task ID is required', 400)
 
       const existingTask = await db.hkTask.findUnique({
         where: { id },
         include: { room: { select: { id: true, number: true } } },
       })
-      if (!existingTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+      if (!existingTask) return cachedError('Task not found', 404)
 
       const updateData: Prisma.HkTaskUpdateInput = {}
       if (status) updateData.status = status
@@ -254,13 +255,13 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return NextResponse.json(task)
+      return NextResponse.json(task, { headers: clearCacheHeaders() })
     }
 
     // ─── Update Task Status (standard) ───────────────────
     if (action === 'update-task-status') {
       const { id, status, priority, inspectedBy } = body
-      if (!id) return NextResponse.json({ error: 'Task ID is required' }, { status: 400 })
+      if (!id) return cachedError('Task ID is required', 400)
 
       const updateData: Prisma.HkTaskUpdateInput = {}
       if (status) updateData.status = status
@@ -273,7 +274,7 @@ export async function POST(request: NextRequest) {
         data: updateData,
       })
 
-      return NextResponse.json(task)
+      return NextResponse.json(task, { headers: clearCacheHeaders() })
     }
 
     // Legacy fallback: if no action but id+status present, treat as update-task-status
@@ -283,12 +284,12 @@ export async function POST(request: NextRequest) {
         where: { id },
         data: { status },
       })
-      return NextResponse.json(task)
+      return NextResponse.json(task, { headers: clearCacheHeaders() })
     }
 
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Housekeeping POST error:', error)
-    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
+    return cachedError('Failed to process request', 500)
   }
 }

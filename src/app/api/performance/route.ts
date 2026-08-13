@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -58,10 +59,10 @@ export async function GET(request: NextRequest) {
       60000,
     ) // Cache for 60s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Performance API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch performance reviews' }, { status: 500 })
+    return cachedError('Failed to fetch performance reviews', 500)
   }
 }
 
@@ -99,12 +100,9 @@ export async function POST(request: NextRequest) {
       !reviewPeriod ||
       !reviewerName
     ) {
-      return NextResponse.json(
-        {
-          error:
-            'Missing required fields: employeeId, employeeName, department, position, reviewPeriod, reviewerName',
-        },
-        { status: 400 },
+      return cachedError(
+        'Missing required fields: employeeId, employeeName, department, position, reviewPeriod, reviewerName',
+        400,
       )
     }
 
@@ -137,10 +135,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('performance:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Performance API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create performance review' }, { status: 500 })
+    return cachedError('Failed to create performance review', 500)
   }
 }
 
@@ -152,17 +150,14 @@ export async function PATCH(request: NextRequest) {
     const { id, status, attendanceScore, taskScore, guestSatScore, punctualityScore, overallScore, notes, strengths, improvements, goals } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const updateData: Prisma.PerformanceReviewUpdateInput = {}
 
     if (status) {
       if (!['Draft', 'Submitted', 'Approved'].includes(status)) {
-        return NextResponse.json(
-          { error: 'Invalid status. Must be Draft, Submitted, or Approved' },
-          { status: 400 },
-        )
+        return cachedError('Invalid status. Must be Draft, Submitted, or Approved', 400)
       }
       updateData.status = status
       if (status === 'Approved') {
@@ -187,9 +182,9 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('performance:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Performance API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update performance review' }, { status: 500 })
+    return cachedError('Failed to update performance review', 500)
   }
 }

@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -54,10 +55,10 @@ export async function GET(request: NextRequest) {
       60000,
     ) // Cache for 60s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Recruitment API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch job postings' }, { status: 500 })
+    return cachedError('Failed to fetch job postings', 500)
   }
 }
 
@@ -69,12 +70,7 @@ export async function POST(request: NextRequest) {
     const { position, department, employmentType, description, requirements, salaryMin, salaryMax, status, postedBy, deadline } = body
 
     if (!position || !department || !employmentType) {
-      return NextResponse.json(
-        {
-          error: 'Missing required fields: position, department, employmentType',
-        },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: position, department, employmentType', 400)
     }
 
     const postingStatus = status || 'Draft'
@@ -98,10 +94,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('recruitment:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Recruitment API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create job posting' }, { status: 500 })
+    return cachedError('Failed to create job posting', 500)
   }
 }
 
@@ -113,7 +109,7 @@ export async function PATCH(request: NextRequest) {
     const { id, status, position, department, employmentType, description, requirements, salaryMin, salaryMax, deadline } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const updateData: Prisma.JobPostingUpdateInput = {}
@@ -129,10 +125,7 @@ export async function PATCH(request: NextRequest) {
 
     if (status !== undefined) {
       if (!['Draft', 'Open', 'Closed', 'Filled'].includes(status)) {
-        return NextResponse.json(
-          { error: 'Invalid status. Must be Draft, Open, Closed, or Filled' },
-          { status: 400 },
-        )
+        return cachedError('Invalid status. Must be Draft, Open, Closed, or Filled', 400)
       }
 
       if (status === 'Open') {
@@ -152,9 +145,9 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('recruitment:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Recruitment API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update job posting' }, { status: 500 })
+    return cachedError('Failed to update job posting', 500)
   }
 }

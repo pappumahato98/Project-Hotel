@@ -3,6 +3,7 @@ import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(
   request: NextRequest,
@@ -20,13 +21,13 @@ export async function GET(
     })
 
     if (!employee) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+      return cachedError('Employee not found', 404)
     }
 
-    return NextResponse.json({ employee })
+    return cachedJson({ employee }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Employee GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch employee' }, { status: 500 })
+    return cachedError('Failed to fetch employee', 500)
   }
 }
 
@@ -65,10 +66,10 @@ export async function PATCH(
 
     afterMutation('employees')
     broadcastEvent('employee:updated', employee)
-    return NextResponse.json({ employee })
+    return NextResponse.json({ employee }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Employee PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update employee' }, { status: 500 })
+    return cachedError('Failed to update employee', 500)
   }
 }
 
@@ -83,9 +84,9 @@ export async function DELETE(
     await withRetry(() => db.employee.delete({ where: { id } }))
     afterMutation('employees')
     broadcastEvent('employee:deleted', { id })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Employee DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete employee' }, { status: 500 })
+    return cachedError('Failed to delete employee', 500)
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 const VALID_FOLIO_TYPES = ['guest', 'company', 'comp', 'master']
 
@@ -24,17 +25,11 @@ export async function POST(
 
     // ── Validation ──────────────────────────────────────────────
     if (!Array.isArray(transactionIds) || transactionIds.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one transaction ID is required' },
-        { status: 400 },
-      )
+      return cachedError('At least one transaction ID is required', 400)
     }
 
     if (!VALID_FOLIO_TYPES.includes(folioType)) {
-      return NextResponse.json(
-        { error: `Invalid folioType. Must be one of: ${VALID_FOLIO_TYPES.join(', ')}` },
-        { status: 400 },
-      )
+      return cachedError(`Invalid folioType. Must be one of: ${VALID_FOLIO_TYPES.join(', ')}`, 400)
     }
 
     // ── Fetch source folio ──────────────────────────────────────
@@ -60,17 +55,14 @@ export async function POST(
     })
 
     if (!sourceFolio) {
-      return NextResponse.json({ error: 'Source folio not found' }, { status: 404 })
+      return cachedError('Source folio not found', 404)
     }
 
     // ── Verify all transaction IDs belong to the source folio ──
     const sourceTxnIds = new Set(sourceFolio.transactions.map((t) => t.id))
     for (const txnId of transactionIds) {
       if (!sourceTxnIds.has(txnId)) {
-        return NextResponse.json(
-          { error: `Transaction ${txnId} does not belong to this folio` },
-          { status: 400 },
-        )
+        return cachedError(`Transaction ${txnId} does not belong to this folio`, 400)
       }
     }
 
@@ -160,9 +152,9 @@ export async function POST(
     return NextResponse.json({
       sourceFolio: updatedSourceFolio,
       targetFolio: fullTargetFolio,
-    })
+    }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Folio split error:', error)
-    return NextResponse.json({ error: 'Failed to split folio' }, { status: 500 })
+    return cachedError('Failed to split folio', 500)
   }
 }

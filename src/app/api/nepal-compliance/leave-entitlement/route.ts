@@ -8,6 +8,7 @@ import {
   getNepalHolidaysEnriched,
   type EmploymentType,
 } from '@/lib/nepal-compliance/leave-engine'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 // ─── GET: Return all leave entitlements ────────────────────────────────
 
@@ -19,10 +20,7 @@ export async function GET(request: NextRequest) {
     const employmentType = searchParams.get('employmentType')
 
     if (employmentType && !VALID_EMPLOYMENT_TYPES.includes(employmentType as EmploymentType)) {
-      return NextResponse.json(
-        { error: `employmentType must be one of: ${VALID_EMPLOYMENT_TYPES.join(', ')}` },
-        { status: 400 },
-      )
+      return cachedError(`employmentType must be one of: ${VALID_EMPLOYMENT_TYPES.join(', ')}`, 400)
     }
 
     const allocations = getAllLeaveAllocations()
@@ -59,16 +57,13 @@ export async function GET(request: NextRequest) {
       publicHolidays: getNepalHolidaysEnriched(2082),
     }
 
-    return NextResponse.json({
+    return cachedJson({
       fiscalYear: '2081/82',
       employmentType: employmentType ?? 'all',
       entitlements,
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('[leave-entitlement] GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to retrieve leave entitlements.' },
-      { status: 500 },
-    )
+    return cachedError('Failed to retrieve leave entitlements.', 500)
   }
 }

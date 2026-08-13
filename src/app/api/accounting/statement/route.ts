@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 /**
  * GET /api/accounting/statement
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     const endDateStr = searchParams.get('endDate')
 
     if (!accountId) {
-      return NextResponse.json({ error: 'accountId is required' }, { status: 400 })
+      return cachedError('accountId is required', 400)
     }
 
     // Verify account exists
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
       select: { id: true, code: true, name: true, type: true },
     })
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      return cachedError('Account not found', 404)
     }
 
     // ─── Compute opening balance ──────────────────────────────
@@ -125,7 +126,7 @@ export async function GET(req: NextRequest) {
     const closingBalance = Math.round(runningBalance * 100) / 100
     const roundedOpening = Math.round(openingBalance * 100) / 100
 
-    return NextResponse.json({
+    return cachedJson({
       account: {
         id: account.id,
         code: account.code,
@@ -142,10 +143,10 @@ export async function GET(req: NextRequest) {
       totalCredits: Math.round(lines.reduce((sum, l) => sum + l.credit, 0) * 100) / 100,
       lineCount: lines.length,
       lines: statementLines,
-    })
+    }, req, { tier: 'long' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Account statement error:', msg)
-    return NextResponse.json({ error: 'Failed to generate account statement', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to generate account statement', 500, msg.substring(0, 200))
   }
 }

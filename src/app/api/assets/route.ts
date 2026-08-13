@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     const totalCurrentValue = assets.reduce((s, a) => s + a.currentValue, 0)
     const categories = [...new Set(assets.map((a) => a.category))]
 
-    return NextResponse.json({
+    return cachedJson({
       assets,
       total,
       operational,
@@ -35,10 +36,10 @@ export async function GET(request: NextRequest) {
       totalPurchaseValue,
       totalCurrentValue,
       categories,
-    })
+    }, request, { tier: 'long' })
   } catch (error) {
     console.error('Assets API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch assets' }, { status: 500 })
+    return cachedError('Failed to fetch assets', 500)
   }
 }
 
@@ -63,10 +64,10 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('asset:created', asset)
-    return NextResponse.json(asset, { status: 201 })
+    return NextResponse.json(asset, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Assets POST error:', error)
-    return NextResponse.json({ error: 'Failed to create asset' }, { status: 500 })
+    return cachedError('Failed to create asset', 500)
   }
 }
 
@@ -78,7 +79,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const asset = await db.asset.update({
@@ -98,9 +99,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('asset:updated', asset)
-    return NextResponse.json(asset)
+    return NextResponse.json(asset, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Assets PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update asset' }, { status: 500 })
+    return cachedError('Failed to update asset', 500)
   }
 }

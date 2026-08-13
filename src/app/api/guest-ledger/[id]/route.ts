@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── GET: Retrieve a single transaction or payment by ID ──
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
     })
 
     if (transaction) {
-      return NextResponse.json({
+      return cachedJson({
         id: transaction.id,
         type: 'charge',
         transactionType: transaction.transactionType,
@@ -49,7 +50,7 @@ export async function GET(
         roomNumber: transaction.folio.reservation.room?.number ?? null,
         folioId: transaction.folioId,
         createdAt: transaction.createdAt.toISOString(),
-      })
+      }, request, { tier: 'medium' })
     }
 
     // Try finding as a payment
@@ -71,7 +72,7 @@ export async function GET(
     })
 
     if (payment) {
-      return NextResponse.json({
+      return cachedJson({
         id: payment.id,
         type: 'payment',
         paymentMethod: payment.paymentMethod,
@@ -88,13 +89,13 @@ export async function GET(
         roomNumber: payment.folio.reservation.room?.number ?? null,
         folioId: payment.folioId,
         createdAt: payment.createdAt.toISOString(),
-      })
+      }, request, { tier: 'medium' })
     }
 
-    return NextResponse.json({ error: 'Transaction or payment not found' }, { status: 404 })
+    return cachedError('Transaction or payment not found', 404)
   } catch (error) {
     console.error('Guest Ledger GET by ID error:', error)
-    return NextResponse.json({ error: 'Failed to fetch transaction' }, { status: 500 })
+    return cachedError('Failed to fetch transaction', 500)
   }
 }
 
@@ -151,7 +152,7 @@ export async function DELETE(
           folioId: transaction.folioId,
         },
         folioBalance: newBalance,
-      })
+      }, { headers: clearCacheHeaders() })
     }
 
     // Try finding as a payment
@@ -195,12 +196,12 @@ export async function DELETE(
           folioId: payment.folioId,
         },
         folioBalance: newBalance,
-      })
+      }, { headers: clearCacheHeaders() })
     }
 
-    return NextResponse.json({ error: 'Transaction or payment not found' }, { status: 404 })
+    return cachedError('Transaction or payment not found', 404)
   } catch (error) {
     console.error('Guest Ledger DELETE (void) error:', error)
-    return NextResponse.json({ error: 'Failed to void transaction' }, { status: 500 })
+    return cachedError('Failed to void transaction', 500)
   }
 }

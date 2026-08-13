@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
       channelBreakdown[b.channel].revenue += b.netAmount
     }
 
-    return NextResponse.json({
+    return cachedJson({
       bookings,
       total,
       confirmed,
@@ -140,9 +141,9 @@ export async function GET(request: NextRequest) {
       totalRevenue,
       totalCommission,
       channelBreakdown,
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Channel Bookings API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch channel bookings' }, { status: 500 })
+    return cachedError('Failed to fetch channel bookings', 500)
   }
 }

@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { formatDateShort } from '@/lib/nepal-standards'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // POST /api/departures/[id]/email-receipt — Send checkout receipt to guest email
 export async function POST(
@@ -47,15 +48,12 @@ export async function POST(
     })
 
     if (!reservation) {
-      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+      return cachedError('Reservation not found', 404)
     }
 
     const guestEmail = reservation.guest?.email
     if (!guestEmail) {
-      return NextResponse.json(
-        { error: 'Guest has no email address on file' },
-        { status: 400 },
-      )
+      return cachedError('Guest has no email address on file', 400)
     }
 
     // Read hotel settings
@@ -102,9 +100,9 @@ export async function POST(
         outstandingBalance,
         sentAt: new Date().toISOString(),
       },
-    })
+    }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Departure email receipt error:', error)
-    return NextResponse.json({ error: 'Failed to send receipt email' }, { status: 500 })
+    return cachedError('Failed to send receipt email', 500)
   }
 }

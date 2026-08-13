@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -42,15 +43,15 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
+    return cachedJson({
       date: new Date().toISOString().split('T')[0],
       attendance,
       summary: { present, absent, onLeave, late, total: attendance.length },
       departmentSummary,
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Attendance API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch attendance' }, { status: 500 })
+    return cachedError('Failed to fetch attendance', 500)
   }
 }
 
@@ -77,10 +78,10 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('attendance:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Attendance POST error:', error)
-    return NextResponse.json({ error: 'Failed to create attendance record' }, { status: 500 })
+    return cachedError('Failed to create attendance record', 500)
   }
 }
 
@@ -92,7 +93,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const record = await db.attendance.update({
@@ -107,9 +108,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('attendance:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Attendance PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update attendance record' }, { status: 500 })
+    return cachedError('Failed to update attendance record', 500)
   }
 }

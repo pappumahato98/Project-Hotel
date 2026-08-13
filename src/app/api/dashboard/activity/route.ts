@@ -1,22 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { fetchActivity } from '../_data'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
-export const maxDuration = 15
+export const maxDuration = 30
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
-  if (auth instanceof NextResponse) return auth
+  if (auth instanceof globalThis.Response) return auth
 
   try {
     const data = await fetchActivity()
-    return NextResponse.json(data)
+    return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
     console.error('[dashboard/activity] error:', error)
     const msg = error instanceof Error ? error.message : String(error)
-    return NextResponse.json(
-      { error: 'Failed to fetch recent activity', detail: msg.substring(0, 500) },
-      { status: 500 },
-    )
+    return cachedError('Failed to fetch activity', 500, msg)
   }
 }

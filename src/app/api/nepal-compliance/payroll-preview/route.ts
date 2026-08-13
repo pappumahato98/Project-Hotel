@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSalaryBreakdown, calculateGratuity, calculateInsuranceDeduction, calculateCIT, validateMinimumSalary, type CompanyFundType, type MaritalStatus } from '@/lib/nepal-compliance/payroll-engine'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── POST: Preview full payroll ─────────────────────────────────────────
 
@@ -26,24 +27,15 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (typeof basicSalary !== 'number' || basicSalary <= 0) {
-      return NextResponse.json(
-        { error: 'basicSalary is required and must be a positive number.' },
-        { status: 400 },
-      )
+      return cachedError('basicSalary is required and must be a positive number.', 400)
     }
 
     if (companyType !== 'EPF' && companyType !== 'SSF') {
-      return NextResponse.json(
-        { error: "companyType must be 'EPF' or 'SSF'." },
-        { status: 400 },
-      )
+      return cachedError("companyType must be 'EPF' or 'SSF'.", 400)
     }
 
     if (maritalStatus !== 'married' && maritalStatus !== 'unmarried') {
-      return NextResponse.json(
-        { error: "maritalStatus must be 'married' or 'unmarried'." },
-        { status: 400 },
-      )
+      return cachedError("maritalStatus must be 'married' or 'unmarried'.", 400)
     }
 
     // Derive gross salary from basicSalary (basic is the input, gross = basic / 0.45)
@@ -84,12 +76,9 @@ export async function POST(request: NextRequest) {
       insurance,
       cit,
       minimumSalaryCompliance,
-    })
+    }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('[payroll-preview] POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate payroll preview.' },
-      { status: 500 },
-    )
+    return cachedError('Failed to generate payroll preview.', 500)
   }
 }

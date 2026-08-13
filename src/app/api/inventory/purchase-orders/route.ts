@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ── Helpers ──────────────────────────────────────────────────
 async function generatePONumber(): Promise<string> {
@@ -58,10 +59,10 @@ export async function GET(request: NextRequest) {
       createdAt: o.createdAt.toISOString(),
     }))
 
-    return NextResponse.json({ purchaseOrders })
+    return cachedJson({ purchaseOrders }, request, { tier: 'medium' })
   } catch (error) {
     console.error('PurchaseOrders GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch purchase orders' }, { status: 500 })
+    return cachedError('Failed to fetch purchase orders', 500)
   }
 }
 
@@ -113,14 +114,11 @@ export async function POST(request: NextRequest) {
         terms: order.terms ?? undefined,
         createdAt: order.createdAt.toISOString(),
       },
-      { status: 201 },
+      { status: 201, headers: clearCacheHeaders() },
     )
   } catch (error) {
     console.error('PurchaseOrders POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create purchase order' },
-      { status: 500 },
-    )
+    return cachedError('Failed to create purchase order', 500)
   }
 }
 
@@ -133,7 +131,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const updateData: Record<string, unknown> = {}
@@ -209,17 +207,14 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     await db.purchaseOrder.delete({ where: { id } })
     broadcastEvent('purchase-order:deleted', { id })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('PurchaseOrders DELETE error:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete purchase order' },
-      { status: 500 },
-    )
+    return cachedError('Failed to delete purchase order', 500)
   }
 }

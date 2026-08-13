@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function PATCH(
   request: NextRequest,
@@ -32,10 +33,10 @@ export async function PATCH(
       data,
     })
 
-    return NextResponse.json(ticket)
+    return NextResponse.json(ticket, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Support Ticket PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update support ticket' }, { status: 500 })
+    return cachedError('Failed to update support ticket', 500)
   }
 }
 
@@ -48,9 +49,9 @@ export async function DELETE(
   try {
     const { id } = await params
     await db.supportTicket.delete({ where: { id } })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Support Ticket DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete support ticket' }, { status: 500 })
+    return cachedError('Failed to delete support ticket', 500)
   }
 }

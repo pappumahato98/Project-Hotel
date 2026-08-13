@@ -1,6 +1,7 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 // GET /api/guests/[id]/stays — Fetch guest's past and current stays
 export async function GET(
@@ -18,7 +19,7 @@ export async function GET(
     })
 
     if (!guest) {
-      return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+      return cachedError('Guest not found', 404)
     }
 
     const reservations = await db.reservation.findMany({
@@ -46,9 +47,9 @@ export async function GET(
       guestName: `${guest.firstName} ${guest.lastName}`,
     }))
 
-    return NextResponse.json(stays)
+    return cachedJson(stays, req, { tier: 'medium' })
   } catch (error) {
     console.error('Fetch guest stays error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return cachedError('Internal server error', 500)
   }
 }

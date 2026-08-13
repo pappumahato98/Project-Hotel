@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -40,10 +41,10 @@ export async function GET(request: NextRequest) {
       emergency: workOrders.filter((o) => o.priority === 'emergency' && o.status !== 'closed' && o.status !== 'completed').length,
     }
 
-    return NextResponse.json({ workOrders, summary })
+    return cachedJson({ workOrders, summary }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Work Orders API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch work orders' }, { status: 500 })
+    return cachedError('Failed to fetch work orders', 500)
   }
 }
 
@@ -69,9 +70,9 @@ export async function POST(request: NextRequest) {
 
     afterMutation('work-orders')
     broadcastEvent('work_order:created', workOrder)
-    return NextResponse.json({ workOrder }, { status: 201 })
+    return NextResponse.json({ workOrder }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Work Orders POST error:', error)
-    return NextResponse.json({ error: 'Failed to create work order' }, { status: 500 })
+    return cachedError('Failed to create work order', 500)
   }
 }

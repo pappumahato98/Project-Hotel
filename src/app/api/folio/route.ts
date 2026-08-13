@@ -4,6 +4,7 @@ import { getOrSet, afterMutation, getSettingsMap } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -104,10 +105,10 @@ export async function GET(request: NextRequest) {
       return { folios, stats, settings: { taxRate, serviceCharge } }
     }, 30_000) // 30s cache TTL
 
-    return NextResponse.json(result)
+    return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
     console.error('Folio API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch folio data' }, { status: 500 })
+    return cachedError('Failed to fetch folio data', 500)
   }
 }
 
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingFolio) {
-      return NextResponse.json({ folio: existingFolio, message: 'Folio already exists' }, { status: 200 })
+      return NextResponse.json({ folio: existingFolio, message: 'Folio already exists' }, { status: 200, headers: clearCacheHeaders() })
     }
 
     const folio = await db.folio.create({
@@ -140,9 +141,9 @@ export async function POST(request: NextRequest) {
 
     afterMutation('folio')
 
-    return NextResponse.json({ folio }, { status: 201 })
+    return NextResponse.json({ folio }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create folio error:', error)
-    return NextResponse.json({ error: 'Failed to create folio' }, { status: 500 })
+    return cachedError('Failed to create folio', 500)
   }
 }

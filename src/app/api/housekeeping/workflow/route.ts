@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -52,10 +53,10 @@ export async function GET(request: NextRequest) {
       completed: items.filter((i) => i.status === 'completed').length,
     }
 
-    return NextResponse.json({ items, summary })
+    return cachedJson({ items, summary }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Workflow GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch workflow items' }, { status: 500 })
+    return cachedError('Failed to fetch workflow items', 500)
   }
 }
 
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
     // ─── Create new workflow task ─────────────────────────
     if (action === 'create') {
       const { title, description, priority, category, area, roomId, assignedTo, assignedByName, dueDate } = body
-      if (!title) return NextResponse.json({ error: 'Title is required' }, { status: 400 })
+      if (!title) return cachedError('Title is required', 400)
 
       const item = await db.hkWorkFlow.create({
         data: {
@@ -85,13 +86,13 @@ export async function POST(request: NextRequest) {
           dueDate: dueDate ? new Date(dueDate) : null,
         },
       })
-      return NextResponse.json(item, { status: 201 })
+      return NextResponse.json(item, { status: 201, headers: clearCacheHeaders() })
     }
 
     // ─── Update workflow task status ──────────────────────
     if (action === 'update-status') {
       const { id, status } = body
-      if (!id || !status) return NextResponse.json({ error: 'ID and status are required' }, { status: 400 })
+      if (!id || !status) return cachedError('ID and status are required', 400)
 
       const updateData: Record<string, unknown> = { status }
       if (status === 'completed') updateData.completedAt = new Date()
@@ -100,13 +101,13 @@ export async function POST(request: NextRequest) {
         where: { id },
         data: updateData,
       })
-      return NextResponse.json(item)
+      return NextResponse.json(item, { headers: clearCacheHeaders() })
     }
 
     // ─── Update workflow task (full) ──────────────────────
     if (action === 'update') {
       const { id, title, description, priority, category, area, roomId, assignedTo, assignedByName, dueDate } = body
-      if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      if (!id) return cachedError('ID is required', 400)
 
       const updateData: Record<string, unknown> = {}
       if (title !== undefined) updateData.title = title
@@ -123,21 +124,21 @@ export async function POST(request: NextRequest) {
         where: { id },
         data: updateData,
       })
-      return NextResponse.json(item)
+      return NextResponse.json(item, { headers: clearCacheHeaders() })
     }
 
     // ─── Delete workflow task ─────────────────────────────
     if (action === 'delete') {
       const { id } = body
-      if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      if (!id) return cachedError('ID is required', 400)
 
       await db.hkWorkFlow.delete({ where: { id } })
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
     }
 
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Workflow POST error:', error)
-    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
+    return cachedError('Failed to process request', 500)
   }
 }

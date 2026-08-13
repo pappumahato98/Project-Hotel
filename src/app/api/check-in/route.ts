@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── Generate unique 8-char alphanumeric confirmation number ───
 async function generateConfirmationNo(): Promise<string> {
@@ -117,22 +118,16 @@ export async function POST(request: NextRequest) {
 
     // ── Validate required fields ─────────────────────────────
     if (!source || !['reservation', 'direct'].includes(source)) {
-      return NextResponse.json(
-        { error: 'source must be "reservation" or "direct"' },
-        { status: 400 },
-      )
+      return cachedError('source must be "reservation" or "direct"', 400)
     }
     if (!roomId) {
-      return NextResponse.json({ error: 'roomId is required' }, { status: 400 })
+      return cachedError('roomId is required', 400)
     }
     if (!roomTypeId) {
-      return NextResponse.json({ error: 'roomTypeId is required' }, { status: 400 })
+      return cachedError('roomTypeId is required', 400)
     }
     if (typeof roomRate !== 'number' || roomRate < 0) {
-      return NextResponse.json(
-        { error: 'roomRate must be a non-negative number' },
-        { status: 400 },
-      )
+      return cachedError('roomRate must be a non-negative number', 400)
     }
 
     // ── Resolve property ────────────────────────────────────
@@ -141,10 +136,7 @@ export async function POST(request: NextRequest) {
       : await db.property.findFirst({ where: { active: true } })
 
     if (!property) {
-      return NextResponse.json(
-        { error: 'No active property found' },
-        { status: 400 },
-      )
+      return cachedError('No active property found', 400)
     }
 
     // ── Validate room exists and is available ───────────────
@@ -153,13 +145,10 @@ export async function POST(request: NextRequest) {
       include: { type: true },
     })
     if (!room) {
-      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+      return cachedError('Room not found', 404)
     }
     if (!['vacant_clean', 'vacant_dirty', 'inspected'].includes(room.status)) {
-      return NextResponse.json(
-        { error: `Room ${room.number} is not available for check-in (current status: ${room.status}). Please select a vacant or inspected room.` },
-        { status: 409 },
-      )
+      return cachedError(`Room ${room.number} is not available for check-in (current status: ${room.status}). Please select a vacant or inspected room.`, 409)
     }
 
     // ── Read system settings ────────────────────────────────
@@ -178,10 +167,7 @@ export async function POST(request: NextRequest) {
     if (source === 'reservation') {
       // ── RESERVATION CHECK-IN ──────────────────────────────
       if (!reservationId) {
-        return NextResponse.json(
-          { error: 'reservationId is required when source is "reservation"' },
-          { status: 400 },
-        )
+        return cachedError('reservationId is required when source is "reservation"', 400)
       }
 
       const existing = await db.reservation.findUnique({
@@ -189,15 +175,10 @@ export async function POST(request: NextRequest) {
         include: { guest: true, room: true },
       })
       if (!existing) {
-        return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+        return cachedError('Reservation not found', 404)
       }
       if (!['tentative', 'confirmed'].includes(existing.status)) {
-        return NextResponse.json(
-          {
-            error: `This reservation is already "${existing.status}" and cannot be checked in again. Only tentative or confirmed reservations can be checked in.`,
-          },
-          { status: 409 },
-        )
+        return cachedError(`This reservation is already "${existing.status}" and cannot be checked in again. Only tentative or confirmed reservations can be checked in.`, 409)
       }
 
       reservationIdToUse = existing.id
@@ -208,25 +189,16 @@ export async function POST(request: NextRequest) {
     } else {
       // ── DIRECT (WALK-IN) CHECK-IN ─────────────────────────
       if (!checkInStr || !checkOutStr) {
-        return NextResponse.json(
-          { error: 'checkIn and checkOut dates are required when source is "direct"' },
-          { status: 400 },
-        )
+        return cachedError('checkIn and checkOut dates are required when source is "direct"', 400)
       }
 
       checkInDate = new Date(checkInStr)
       checkOutDate = new Date(checkOutStr)
       if (isNaN(checkInDate.getTime()) || isNaN(checkOutDate.getTime())) {
-        return NextResponse.json(
-          { error: 'Invalid check-in or check-out date' },
-          { status: 400 },
-        )
+        return cachedError('Invalid check-in or check-out date', 400)
       }
       if (checkOutDate <= checkInDate) {
-        return NextResponse.json(
-          { error: 'Check-out must be after check-in' },
-          { status: 400 },
-        )
+        return cachedError('Check-out must be after check-in', 400)
       }
 
       // Apply default times if only dates were provided (midnight)
@@ -241,15 +213,12 @@ export async function POST(request: NextRequest) {
       if (guestId) {
         const existingGuest = await db.guest.findUnique({ where: { id: guestId } })
         if (!existingGuest) {
-          return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+          return cachedError('Guest not found', 404)
         }
         guestIdToUse = guestId
       } else if (guestData) {
         if (!guestData.firstName || !guestData.lastName) {
-          return NextResponse.json(
-            { error: 'Guest firstName and lastName are required' },
-            { status: 400 },
-          )
+          return cachedError('Guest firstName and lastName are required', 400)
         }
         const newGuest = await db.guest.create({
           data: {
@@ -269,10 +238,7 @@ export async function POST(request: NextRequest) {
         })
         guestIdToUse = newGuest.id
       } else {
-        return NextResponse.json(
-          { error: 'Either guestId or guest object is required for direct check-in' },
-          { status: 400 },
-        )
+        return cachedError('Either guestId or guest object is required for direct check-in', 400)
       }
 
       // Generate confirmation number
@@ -313,10 +279,7 @@ export async function POST(request: NextRequest) {
 
     // ── Guard: ensure guestId is available ──────────────────
     if (!guestIdToUse) {
-      return NextResponse.json(
-        { error: 'No guest associated with this check-in' },
-        { status: 400 },
-      )
+      return cachedError('No guest associated with this check-in', 400)
     }
 
     // Wrap sequential DB writes in withRetry for transient error resilience
@@ -496,10 +459,10 @@ export async function POST(request: NextRequest) {
             ? 'Guest checked in successfully'
             : 'Walk-in check-in completed',
       },
-      { status: 200 },
+      { status: 200, headers: clearCacheHeaders() },
     )
   } catch (error) {
     console.error('Check-in API error:', error)
-    return NextResponse.json({ error: 'Failed to process check-in' }, { status: 500 })
+    return cachedError('Failed to process check-in', 500)
   }
 }

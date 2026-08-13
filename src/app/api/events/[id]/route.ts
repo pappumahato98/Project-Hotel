@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postEventsRevenue } from '@/lib/accounting/auto-post'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(
   request: NextRequest,
@@ -16,13 +17,13 @@ export async function GET(
     const event = await db.event.findUnique({ where: { id } })
 
     if (!event) {
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      return cachedError('Event not found', 404)
     }
 
-    return NextResponse.json(event)
+    return cachedJson(event, request, { tier: 'medium' })
   } catch (error) {
     console.error('Event GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch event' }, { status: 500 })
+    return cachedError('Failed to fetch event', 500)
   }
 }
 
@@ -72,10 +73,10 @@ export async function PATCH(
     }
 
     broadcastEvent('event:updated', event)
-    return NextResponse.json(event)
+    return NextResponse.json(event, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Event PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update event' }, { status: 500 })
+    return cachedError('Failed to update event', 500)
   }
 }
 
@@ -89,9 +90,9 @@ export async function DELETE(
     const { id } = await params
     await db.event.delete({ where: { id } })
     broadcastEvent('event:deleted', { id })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Event DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete event' }, { status: 500 })
+    return cachedError('Failed to delete event', 500)
   }
 }

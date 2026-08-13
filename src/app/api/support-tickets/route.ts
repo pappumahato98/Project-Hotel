@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
@@ -12,10 +13,10 @@ export async function GET(req: NextRequest) {
       take: 100,
     })
 
-    return NextResponse.json(tickets)
+    return cachedJson(tickets, req, { tier: 'medium' })
   } catch (error) {
     console.error('Support Tickets GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch support tickets' }, { status: 500 })
+    return cachedError('Failed to fetch support tickets', 500)
   }
 }
 
@@ -40,9 +41,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(ticket, { status: 201 })
+    return NextResponse.json(ticket, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Support Tickets POST error:', error)
-    return NextResponse.json({ error: 'Failed to create support ticket' }, { status: 500 })
+    return cachedError('Failed to create support ticket', 500)
   }
 }

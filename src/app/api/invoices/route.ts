@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
@@ -100,10 +101,10 @@ export async function GET(request: NextRequest) {
       }
     }, 120) // Cache for 120s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Invoices API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 })
+    return cachedError('Failed to fetch invoices', 500)
   }
 }
 
@@ -117,32 +118,20 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!type || !lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
-      return NextResponse.json(
-        { error: 'Missing required fields: type, lineItems (non-empty array)' },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: type, lineItems (non-empty array)', 400)
     }
 
     if (!['sales', 'purchase', 'credit_note', 'debit_note'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid type. Must be sales, purchase, credit_note, or debit_note' },
-        { status: 400 },
-      )
+      return cachedError('Invalid type. Must be sales, purchase, credit_note, or debit_note', 400)
     }
 
     // Validate line items
     for (const item of lineItems) {
       if (!item.description || item.quantity === undefined || item.unitPrice === undefined) {
-        return NextResponse.json(
-          { error: 'Each line item requires: description, quantity, unitPrice' },
-          { status: 400 },
-        )
+        return cachedError('Each line item requires: description, quantity, unitPrice', 400)
       }
       if (item.quantity <= 0 || item.unitPrice < 0) {
-        return NextResponse.json(
-          { error: 'Line item quantity must be > 0 and unitPrice must be >= 0' },
-          { status: 400 },
-        )
+        return cachedError('Line item quantity must be > 0 and unitPrice must be >= 0', 400)
       }
     }
 
@@ -169,7 +158,7 @@ export async function POST(request: NextRequest) {
       // Verify uniqueness of provided number
       const exists = await db.invoice.findUnique({ where: { invoiceNumber: finalInvoiceNumber } })
       if (exists) {
-        return NextResponse.json({ error: 'Invoice number already exists' }, { status: 409 })
+        return cachedError('Invoice number already exists', 409)
       }
     }
 
@@ -221,10 +210,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('invoice:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoices API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 })
+    return cachedError('Failed to create invoice', 500)
   }
 }
 
@@ -237,15 +226,12 @@ export async function PATCH(request: NextRequest) {
     const { id, status, paidAmount, notes, dueDate, vendorName, customerName, lineItems } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const validStatuses = ['Draft', 'Sent', 'Paid', 'Partially Paid', 'Overdue', 'Cancelled']
     if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
-        { status: 400 },
-      )
+      return cachedError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400)
     }
 
     // Fetch current invoice
@@ -254,12 +240,12 @@ export async function PATCH(request: NextRequest) {
       include: { lineItems: true },
     })
     if (!current) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+      return cachedError('Invoice not found', 404)
     }
 
     // Block updates on cancelled invoices
     if (current.status === 'Cancelled') {
-      return NextResponse.json({ error: 'Cannot update a cancelled invoice' }, { status: 400 })
+      return cachedError('Cannot update a cancelled invoice', 400)
     }
 
     const data: Prisma.InvoiceUpdateInput = {}
@@ -312,7 +298,7 @@ export async function PATCH(request: NextRequest) {
       } else if (status === 'Sent') {
         // Transition from Draft to Sent
         if (current.status !== 'Draft') {
-          return NextResponse.json({ error: 'Only Draft invoices can be sent' }, { status: 400 })
+          return cachedError('Only Draft invoices can be sent', 400)
         }
       }
     }
@@ -325,10 +311,10 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('invoice:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoices API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 })
+    return cachedError('Failed to update invoice', 500)
   }
 }
 
@@ -341,20 +327,20 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json({ error: 'Invoice ID is required (query param)' }, { status: 400 })
+      return cachedError('Invoice ID is required (query param)', 400)
     }
 
     const current = await db.invoice.findUnique({ where: { id } })
     if (!current) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+      return cachedError('Invoice not found', 404)
     }
 
     if (current.status === 'Cancelled') {
-      return NextResponse.json({ error: 'Invoice is already cancelled' }, { status: 400 })
+      return cachedError('Invoice is already cancelled', 400)
     }
 
     if (current.status === 'Paid') {
-      return NextResponse.json({ error: 'Cannot cancel a paid invoice. Create a credit note instead.' }, { status: 400 })
+      return cachedError('Cannot cancel a paid invoice. Create a credit note instead.', 400)
     }
 
     const record = await db.invoice.update({
@@ -365,10 +351,10 @@ export async function DELETE(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('invoice:cancelled', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoices API DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to cancel invoice' }, { status: 500 })
+    return cachedError('Failed to cancel invoice', 500)
   }
 }
 

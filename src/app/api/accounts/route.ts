@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 const VALID_TYPES = ['asset', 'liability', 'equity', 'revenue', 'expense'] as const
 
@@ -69,17 +70,17 @@ export async function GET(req: NextRequest) {
       if (typeBreakdown[a.type] !== undefined) typeBreakdown[a.type]++
     }
 
-    return NextResponse.json({
+    return cachedJson({
       accounts,
       grouped,
       balanceMap,
       typeBreakdown,
       totalCount: accounts.length,
-    })
+    }, req, { tier: 'long' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounts GET error:', msg)
-    return NextResponse.json({ error: 'Failed to fetch accounts', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to fetch accounts', 500, msg.substring(0, 200))
   }
 }
 
@@ -92,7 +93,7 @@ export async function PATCH(req: NextRequest) {
     const { id, name, description, active, department, subtype } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'Account id is required' }, { status: 400 })
+      return cachedError('Account id is required', 400)
     }
 
     const data: Record<string, unknown> = {}
@@ -112,11 +113,11 @@ export async function PATCH(req: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('account:updated', account)
-    return NextResponse.json(account)
+    return NextResponse.json(account, { headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounts PATCH error:', msg)
-    return NextResponse.json({ error: 'Failed to update account', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to update account', 500, msg.substring(0, 200))
   }
 }
 
@@ -129,17 +130,17 @@ export async function POST(req: NextRequest) {
     const { code, name, type, description, department, subtype } = body
 
     if (!code || !name || !type) {
-      return NextResponse.json({ error: 'code, name, and type are required' }, { status: 400 })
+      return cachedError('code, name, and type are required', 400)
     }
 
     if (!VALID_TYPES.includes(type)) {
-      return NextResponse.json({ error: `Invalid account type. Must be one of: ${VALID_TYPES.join(', ')}` }, { status: 400 })
+      return cachedError(`Invalid account type. Must be one of: ${VALID_TYPES.join(', ')}`, 400)
     }
 
     // Validate code uniqueness
     const existing = await db.ledgerAccount.findUnique({ where: { code } })
     if (existing) {
-      return NextResponse.json({ error: `Account with code '${code}' already exists` }, { status: 409 })
+      return cachedError(`Account with code '${code}' already exists`, 409)
     }
 
     const account = await db.ledgerAccount.create({
@@ -158,10 +159,10 @@ export async function POST(req: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('account:created', account)
-    return NextResponse.json(account, { status: 201 })
+    return NextResponse.json(account, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounts POST error:', msg)
-    return NextResponse.json({ error: 'Failed to create account', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to create account', 500, msg.substring(0, 200))
   }
 }

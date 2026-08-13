@@ -3,6 +3,7 @@ import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(
   request: NextRequest,
@@ -15,13 +16,13 @@ export async function GET(
     const item = await db.inventoryItem.findUnique({ where: { id } })
 
     if (!item) {
-      return NextResponse.json({ error: 'Inventory item not found' }, { status: 404 })
+      return cachedError('Inventory item not found', 404)
     }
 
-    return NextResponse.json({ item })
+    return cachedJson({ item }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Inventory Item GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch inventory item' }, { status: 500 })
+    return cachedError('Failed to fetch inventory item', 500)
   }
 }
 
@@ -57,10 +58,10 @@ export async function PATCH(
 
     afterMutation('inventory')
     broadcastEvent('inventory:updated', item)
-    return NextResponse.json({ item })
+    return NextResponse.json({ item }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Inventory Item PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update inventory item' }, { status: 500 })
+    return cachedError('Failed to update inventory item', 500)
   }
 }
 
@@ -75,9 +76,9 @@ export async function DELETE(
     await withRetry(() => db.inventoryItem.delete({ where: { id } }))
     afterMutation('inventory')
     broadcastEvent('inventory:deleted', { id })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Inventory Item DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete inventory item' }, { status: 500 })
+    return cachedError('Failed to delete inventory item', 500)
   }
 }

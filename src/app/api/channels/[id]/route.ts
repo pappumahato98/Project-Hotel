@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function DELETE(
   request: NextRequest,
@@ -18,9 +19,9 @@ export async function DELETE(
     })
 
     broadcastEvent('channel:deleted', channel)
-    return NextResponse.json(channel)
+    return NextResponse.json(channel, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Channel DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete channel' }, { status: 500 })
+    return cachedError('Failed to delete channel', 500)
   }
 }

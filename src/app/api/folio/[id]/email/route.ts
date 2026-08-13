@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // POST /api/folio/[id]/email — Send folio statement to guest email
 export async function POST(
@@ -52,15 +53,12 @@ export async function POST(
     })
 
     if (!folio) {
-      return NextResponse.json({ error: 'Folio not found' }, { status: 404 })
+      return cachedError('Folio not found', 404)
     }
 
     const guestEmail = folio.guest.email
     if (!guestEmail) {
-      return NextResponse.json(
-        { error: 'Guest has no email address on file' },
-        { status: 400 }
-      )
+      return cachedError('Guest has no email address on file', 400)
     }
 
     // Compute totals
@@ -104,9 +102,9 @@ export async function POST(
         outstandingBalance,
         sentAt: new Date().toISOString(),
       },
-    })
+    }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Folio email error:', error)
-    return NextResponse.json({ error: 'Failed to send folio statement' }, { status: 500 })
+    return cachedError('Failed to send folio statement', 500)
   }
 }

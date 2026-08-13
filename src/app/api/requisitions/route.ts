@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -25,10 +26,10 @@ export async function GET(request: NextRequest) {
     const approved = requisitions.filter((r) => r.status === 'approved').length
     const received = requisitions.filter((r) => r.status === 'received').length
 
-    return NextResponse.json({ requisitions, total, summary: { pending, approved, received } })
+    return cachedJson({ requisitions, total, summary: { pending, approved, received } }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Requisitions API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch requisitions' }, { status: 500 })
+    return cachedError('Failed to fetch requisitions', 500)
   }
 }
 
@@ -52,10 +53,10 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('requisition:created', requisition)
-    return NextResponse.json(requisition, { status: 201 })
+    return NextResponse.json(requisition, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Requisitions POST error:', error)
-    return NextResponse.json({ error: 'Failed to create requisition' }, { status: 500 })
+    return cachedError('Failed to create requisition', 500)
   }
 }
 
@@ -67,7 +68,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const requisition = await db.requisition.update({
@@ -83,9 +84,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('requisition:updated', requisition)
-    return NextResponse.json(requisition)
+    return NextResponse.json(requisition, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Requisitions PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update requisition' }, { status: 500 })
+    return cachedError('Failed to update requisition', 500)
   }
 }

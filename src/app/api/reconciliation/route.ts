@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
@@ -68,10 +69,10 @@ export async function GET(request: NextRequest) {
       120,
     )
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Reconciliation API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch reconciliations' }, { status: 500 })
+    return cachedError('Failed to fetch reconciliations', 500)
   }
 }
 
@@ -84,10 +85,7 @@ export async function POST(request: NextRequest) {
     const { accountId, bankName, statementDate, statementBalance, notes } = body
 
     if (!accountId || statementBalance === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields: accountId, statementBalance' },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: accountId, statementBalance', 400)
     }
 
     // Verify account exists
@@ -95,7 +93,7 @@ export async function POST(request: NextRequest) {
       where: { id: accountId },
     })
     if (!account) {
-      return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+      return cachedError('Account not found', 404)
     }
 
     // Calculate book balance from journal lines for this account
@@ -128,10 +126,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('reconciliation:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Reconciliation API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create reconciliation' }, { status: 500 })
+    return cachedError('Failed to create reconciliation', 500)
   }
 }
 
@@ -144,19 +142,16 @@ export async function PATCH(request: NextRequest) {
     const { id, action, adjustments, notes, bankName, statementBalance } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const existing = await db.reconciliation.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json({ error: 'Reconciliation not found' }, { status: 404 })
+      return cachedError('Reconciliation not found', 404)
     }
 
     if (existing.status === 'reconciled') {
-      return NextResponse.json(
-        { error: 'This reconciliation is already completed. Create a new one.' },
-        { status: 400 },
-      )
+      return cachedError('This reconciliation is already completed. Create a new one.', 400)
     }
 
     const data: Prisma.ReconciliationUpdateInput = {}
@@ -242,10 +237,10 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('reconciliation:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Reconciliation API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update reconciliation' }, { status: 500 })
+    return cachedError('Failed to update reconciliation', 500)
   }
 }
 

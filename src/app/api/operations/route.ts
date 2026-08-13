@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -473,10 +474,10 @@ export async function GET(req: NextRequest) {
       shiftHandover: shiftHandoverData,
     }
     }, 120000)
-    return NextResponse.json(data)
+    return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
     console.error('Operations API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch operations data' }, { status: 500 })
+    return cachedError('Failed to fetch operations data', 500)
   }
 }
 
@@ -554,15 +555,15 @@ export async function POST(request: NextRequest) {
         postedBy,
       }).catch(() => {})
 
-      return NextResponse.json({ success: true, audit })
+      return NextResponse.json({ success: true, audit }, { headers: clearCacheHeaders() })
     }
 
     if (action === 'close-day') {
-      return NextResponse.json({ success: true, message: 'Day closed successfully' })
+      return NextResponse.json({ success: true, message: 'Day closed successfully' }, { headers: clearCacheHeaders() })
     }
 
     if (action === 'close-shift') {
-      return NextResponse.json({ success: true, message: 'Shift closed successfully' })
+      return NextResponse.json({ success: true, message: 'Shift closed successfully' }, { headers: clearCacheHeaders() })
     }
 
     if (action === 'acknowledge-handover') {
@@ -570,12 +571,12 @@ export async function POST(request: NextRequest) {
         success: true,
         acknowledgedAt: new Date().toISOString(),
         acknowledgedBy: data?.name ?? 'Unknown',
-      })
+      }, { headers: clearCacheHeaders() })
     }
 
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Operations POST error:', error)
-    return NextResponse.json({ error: 'Failed to process operation' }, { status: 500 })
+    return cachedError('Failed to process operation', 500)
   }
 }

@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 const BALANCE_TOLERANCE = 0.01
 
@@ -44,7 +45,7 @@ export async function GET(
     })
 
     if (!entry) {
-      return NextResponse.json({ error: 'Journal entry not found' }, { status: 404 })
+      return cachedError('Journal entry not found', 404)
     }
 
     let totalDebit = 0
@@ -54,16 +55,16 @@ export async function GET(
       totalCredit += line.credit
     }
 
-    return NextResponse.json({
+    return cachedJson({
       ...entry,
       totalDebit: Math.round(totalDebit * 100) / 100,
       totalCredit: Math.round(totalCredit * 100) / 100,
       balanced: Math.abs(totalDebit - totalCredit) <= BALANCE_TOLERANCE,
-    })
+    }, request, { tier: 'long' })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Journal Entry GET error:', msg)
-    return NextResponse.json({ error: 'Failed to fetch journal entry', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to fetch journal entry', 500, msg.substring(0, 200))
   }
 }
 
@@ -84,15 +85,15 @@ export async function PATCH(
     })
 
     if (!existing) {
-      return NextResponse.json({ error: 'Journal entry not found' }, { status: 404 })
+      return cachedError('Journal entry not found', 404)
     }
 
     if (existing.status === 'posted') {
-      return NextResponse.json({ error: 'Cannot modify a posted entry. Void it and create a new one.' }, { status: 400 })
+      return cachedError('Cannot modify a posted entry. Void it and create a new one.', 400)
     }
 
     if (existing.status === 'voided') {
-      return NextResponse.json({ error: 'Cannot modify a voided entry' }, { status: 400 })
+      return cachedError('Cannot modify a voided entry', 400)
     }
 
     // Update entry-level fields
@@ -114,15 +115,13 @@ export async function PATCH(
       }>
 
       if (!Array.isArray(lines) || lines.length === 0) {
-        return NextResponse.json({ error: 'Journal entry must have at least one line' }, { status: 400 })
+        return cachedError('Journal entry must have at least one line', 400)
       }
 
       // Validate balance
       const balance = validateBalance(lines)
       if (!balance.valid) {
-        return NextResponse.json({
-          error: `Debits and credits must balance. Total DR: ${balance.totalDebit}, Total CR: ${balance.totalCredit}, Difference: ${balance.difference}`,
-        }, { status: 400 })
+        return cachedError(`Debits and credits must balance. Total DR: ${balance.totalDebit}, Total CR: ${balance.totalCredit}, Difference: ${balance.difference}`, 400)
       }
 
       // Validate account ids
@@ -135,10 +134,10 @@ export async function PATCH(
       for (const aid of accountIds) {
         const acc = accountMap.get(aid)
         if (!acc) {
-          return NextResponse.json({ error: `Account ${aid} not found` }, { status: 400 })
+          return cachedError(`Account ${aid} not found`, 400)
         }
         if (!acc.active) {
-          return NextResponse.json({ error: `Account ${aid} is inactive` }, { status: 400 })
+          return cachedError(`Account ${aid} is inactive`, 400)
         }
       }
 
@@ -194,11 +193,11 @@ export async function PATCH(
 
     afterMutation('accounting')
     broadcastEvent('journal_entry:updated', entry)
-    return NextResponse.json(entry)
+    return NextResponse.json(entry, { headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Journal Entry PATCH error:', msg)
-    return NextResponse.json({ error: 'Failed to update journal entry', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to update journal entry', 500, msg.substring(0, 200))
   }
 }
 
@@ -222,23 +221,21 @@ export async function POST(
     })
 
     if (!entry) {
-      return NextResponse.json({ error: 'Journal entry not found' }, { status: 404 })
+      return cachedError('Journal entry not found', 404)
     }
 
     if (entry.status !== 'draft') {
-      return NextResponse.json({ error: `Cannot post entry with status '${entry.status}'. Only draft entries can be posted.` }, { status: 400 })
+      return cachedError(`Cannot post entry with status '${entry.status}'. Only draft entries can be posted.`, 400)
     }
 
     // Validate balance before posting
     const balance = validateBalance(entry.lines)
     if (!balance.valid) {
-      return NextResponse.json({
-        error: `Cannot post unbalanced entry. Total DR: ${balance.totalDebit}, Total CR: ${balance.totalCredit}, Difference: ${balance.difference}`,
-      }, { status: 400 })
+      return cachedError(`Cannot post unbalanced entry. Total DR: ${balance.totalDebit}, Total CR: ${balance.totalCredit}, Difference: ${balance.difference}`, 400)
     }
 
     if (entry.lines.length === 0) {
-      return NextResponse.json({ error: 'Cannot post an entry with no lines' }, { status: 400 })
+      return cachedError('Cannot post an entry with no lines', 400)
     }
 
     const postedBy = `${auth.user.firstName} ${auth.user.lastName}`
@@ -261,11 +258,11 @@ export async function POST(
 
     afterMutation('accounting')
     broadcastEvent('journal_entry:posted', updated)
-    return NextResponse.json(updated)
+    return NextResponse.json(updated, { headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Journal Entry POST (post) error:', msg)
-    return NextResponse.json({ error: 'Failed to post journal entry', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to post journal entry', 500, msg.substring(0, 200))
   }
 }
 
@@ -285,11 +282,11 @@ export async function DELETE(
 
     const entry = await db.journalEntry.findUnique({ where: { id } })
     if (!entry) {
-      return NextResponse.json({ error: 'Journal entry not found' }, { status: 404 })
+      return cachedError('Journal entry not found', 404)
     }
 
     if (entry.status === 'voided') {
-      return NextResponse.json({ error: 'Entry is already voided' }, { status: 400 })
+      return cachedError('Entry is already voided', 400)
     }
 
     const voidedBy = `${auth.user.firstName} ${auth.user.lastName}`
@@ -311,10 +308,10 @@ export async function DELETE(
 
     afterMutation('accounting')
     broadcastEvent('journal_entry:voided', { id, voidedBy })
-    return NextResponse.json(updated)
+    return NextResponse.json(updated, { headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Journal Entry DELETE error:', msg)
-    return NextResponse.json({ error: 'Failed to void journal entry', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to void journal entry', 500, msg.substring(0, 200))
   }
 }

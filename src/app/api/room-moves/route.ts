@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -26,10 +27,10 @@ export async function GET(request: NextRequest) {
 
     const total = await db.roomMoveLog.count({ where })
 
-    return NextResponse.json({ moves, total })
+    return cachedJson({ moves, total }, request, { tier: 'short' })
   } catch (error) {
     console.error('Room moves API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch room moves' }, { status: 500 })
+    return cachedError('Failed to fetch room moves', 500)
   }
 }
 
@@ -56,10 +57,7 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!reservationId || !reason) {
-      return NextResponse.json(
-        { error: 'Reservation ID and reason are required' },
-        { status: 400 },
-      )
+      return cachedError('Reservation ID and reason are required', 400)
     }
 
     const move = await db.roomMoveLog.create({
@@ -81,9 +79,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ move }, { status: 201 })
+    return NextResponse.json({ move }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create room move error:', error)
-    return NextResponse.json({ error: 'Failed to create room move log' }, { status: 500 })
+    return cachedError('Failed to create room move log', 500)
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
 
 // ─── Default tax rate ────────────────────────────────────
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get('to')
 
     if (!guestId) {
-      return NextResponse.json({ error: 'guestId is required' }, { status: 400 })
+      return cachedError('guestId is required', 400)
     }
 
     // Fetch the guest
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!guest) {
-      return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+      return cachedError('Guest not found', 404)
     }
 
     // Fetch all folios for this guest with transactions, payments, reservation & room
@@ -210,7 +211,7 @@ export async function GET(request: NextRequest) {
     // Round all monetary values
     const round = (n: number) => Math.round(n * 100) / 100
 
-    return NextResponse.json({
+    return cachedJson({
       guest,
       summary: {
         totalStays,
@@ -228,10 +229,10 @@ export async function GET(request: NextRequest) {
       },
       stays,
       transactions: allTransactions,
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Guest Ledger API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch guest ledger' }, { status: 500 })
+    return cachedError('Failed to fetch guest ledger', 500)
   }
 }
 
@@ -244,31 +245,19 @@ export async function POST(request: NextRequest) {
     const { folioId, type, transactionType, description, amount, paymentMethod, reference, cardType } = body
 
     if (!folioId || !type || !amount) {
-      return NextResponse.json(
-        { error: 'folioId, type, and amount are required' },
-        { status: 400 },
-      )
+      return cachedError('folioId, type, and amount are required', 400)
     }
 
     if (!['charge', 'payment'].includes(type)) {
-      return NextResponse.json(
-        { error: 'type must be "charge" or "payment"' },
-        { status: 400 },
-      )
+      return cachedError('type must be "charge" or "payment"', 400)
     }
 
     if (type === 'charge' && !description) {
-      return NextResponse.json(
-        { error: 'description is required for charges' },
-        { status: 400 },
-      )
+      return cachedError('description is required for charges', 400)
     }
 
     if (type === 'payment' && !paymentMethod) {
-      return NextResponse.json(
-        { error: 'paymentMethod is required for payments' },
-        { status: 400 },
-      )
+      return cachedError('paymentMethod is required for payments', 400)
     }
 
     // Find the folio and validate it's open
@@ -277,14 +266,11 @@ export async function POST(request: NextRequest) {
     })
 
     if (!folio) {
-      return NextResponse.json({ error: 'Folio not found' }, { status: 404 })
+      return cachedError('Folio not found', 404)
     }
 
     if (folio.status !== 'open') {
-      return NextResponse.json(
-        { error: `Cannot post to a ${folio.status} folio. Folio must be open.` },
-        { status: 400 },
-      )
+      return cachedError(`Cannot post to a ${folio.status} folio. Folio must be open.`, 400)
     }
 
     if (type === 'charge') {
@@ -340,7 +326,7 @@ export async function POST(request: NextRequest) {
           createdAt: result.transaction.createdAt.toISOString(),
         },
         folioBalance: result.newBalance,
-      })
+      }, { headers: clearCacheHeaders() })
     }
 
     // type === 'payment'
@@ -389,9 +375,9 @@ export async function POST(request: NextRequest) {
         createdAt: result.payment.createdAt.toISOString(),
       },
       folioBalance: result.newBalance,
-    })
+    }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Guest Ledger POST error:', error)
-    return NextResponse.json({ error: 'Failed to post transaction' }, { status: 500 })
+    return cachedError('Failed to post transaction', 500)
   }
 }

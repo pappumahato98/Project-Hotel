@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -30,14 +31,14 @@ export async function GET(request: NextRequest) {
     const totalDepositsPaid = events.reduce((sum, e) => sum + e.depositPaid, 0)
     const totalDepositsPending = events.reduce((sum, e) => sum + (e.depositAmount - e.depositPaid), 0)
 
-    return NextResponse.json({
+    return cachedJson({
       events,
       total,
       summary: { totalRevenue, totalDepositsPaid, totalDepositsPending },
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Events API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
+    return cachedError('Failed to fetch events', 500)
   }
 }
 
@@ -66,9 +67,9 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('event:created', event)
-    return NextResponse.json(event, { status: 201 })
+    return NextResponse.json(event, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Events POST error:', error)
-    return NextResponse.json({ error: 'Failed to create event' }, { status: 500 })
+    return cachedError('Failed to create event', 500)
   }
 }

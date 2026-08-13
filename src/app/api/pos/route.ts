@@ -4,6 +4,7 @@ import { getSettingsMap, getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── Types ──────────────────────────────────────────────────────
 export interface TableItem {
@@ -676,7 +677,7 @@ export async function GET(request: NextRequest) {
   return result
   }, 60000)
 
-  return NextResponse.json(data)
+  return cachedJson(data, request, { tier: 'short' })
 }
 
 // ─── POST Handler - Create Order ────────────────────────────────
@@ -743,7 +744,7 @@ export async function POST(request: NextRequest) {
 
       broadcastEvent('pos:order_created', updated)
       afterMutation('pos')
-      return NextResponse.json(updated, { status: 201 })
+      return NextResponse.json(updated, { status: 201, headers: clearCacheHeaders() })
     }
 
     if (action === 'close_order') {
@@ -753,7 +754,7 @@ export async function POST(request: NextRequest) {
         include: { items: true },
       })
       if (!existingOrder) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+        return cachedError('Order not found', 404)
       }
       const finalAmount = paymentAmount || existingOrder.totalAmount
       const updated = await db.posOrder.update({
@@ -785,7 +786,7 @@ export async function POST(request: NextRequest) {
         postedBy,
       }).catch(() => {})
 
-      return NextResponse.json(updated)
+      return NextResponse.json(updated, { headers: clearCacheHeaders() })
     }
 
     if (action === 'add_item') {
@@ -793,7 +794,7 @@ export async function POST(request: NextRequest) {
       const qty = quantity || 1
       const menuItem = await db.menuItem.findUnique({ where: { id: menuItemId } })
       if (!menuItem) {
-        return NextResponse.json({ error: 'Menu item not found' }, { status: 404 })
+        return cachedError('Menu item not found', 404)
       }
       const itemTotal = menuItem.price * qty
       await db.orderItem.create({
@@ -818,20 +819,20 @@ export async function POST(request: NextRequest) {
       })
       broadcastEvent('order:item_added', { orderId: addItemOrderId, menuItemId, quantity: qty })
       afterMutation('pos')
-      return NextResponse.json(updated)
+      return NextResponse.json(updated, { headers: clearCacheHeaders() })
     }
 
     if (action === 'update_item_qty') {
       const { itemId: updateItemId, quantity: newQty } = body
       if (!updateItemId || !newQty || newQty < 1) {
-        return NextResponse.json({ error: 'Valid itemId and quantity required' }, { status: 400 })
+        return cachedError('Valid itemId and quantity required', 400)
       }
       const existingItem = await db.orderItem.findUnique({
         where: { id: updateItemId },
         include: { order: true },
       })
       if (!existingItem) {
-        return NextResponse.json({ error: 'Order item not found' }, { status: 404 })
+        return cachedError('Order item not found', 404)
       }
       const itemTotal = existingItem.unitPrice * newQty
       await db.orderItem.update({
@@ -847,7 +848,7 @@ export async function POST(request: NextRequest) {
       })
       broadcastEvent('order:item_updated', { itemId: updateItemId, quantity: newQty })
       afterMutation('pos')
-      return NextResponse.json(updated)
+      return NextResponse.json(updated, { headers: clearCacheHeaders() })
     }
 
     if (action === 'update_item_status') {
@@ -858,7 +859,7 @@ export async function POST(request: NextRequest) {
       })
       broadcastEvent('order:item_updated', { itemId, status: itemStatus })
       afterMutation('pos')
-      return NextResponse.json(updated)
+      return NextResponse.json(updated, { headers: clearCacheHeaders() })
     }
 
     if (action === 'update_order_status') {
@@ -868,7 +869,7 @@ export async function POST(request: NextRequest) {
         data: { status },
       })
       broadcastEvent('pos:order_updated', updated)
-      return NextResponse.json(updated)
+      return NextResponse.json(updated, { headers: clearCacheHeaders() })
     }
 
     if (action === 'apply_discount') {
@@ -880,7 +881,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!existingOrder) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+        return cachedError('Order not found', 404)
       }
 
       const subtotal = existingOrder.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
@@ -899,7 +900,7 @@ export async function POST(request: NextRequest) {
       })
 
       broadcastEvent('pos:discount_applied', { orderId: discOrderId, discountAmount, reason: discReason })
-      return NextResponse.json(updated)
+      return NextResponse.json(updated, { headers: clearCacheHeaders() })
     }
 
     if (action === 'split_bill') {
@@ -907,7 +908,7 @@ export async function POST(request: NextRequest) {
 
       const existingOrder = await db.posOrder.findUnique({ where: { id: splitOrderId } })
       if (!existingOrder) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+        return cachedError('Order not found', 404)
       }
 
       // Store split bill info as a special order item note
@@ -931,7 +932,7 @@ export async function POST(request: NextRequest) {
       })
 
       broadcastEvent('pos:bill_split', { orderId: splitOrderId, splitSubtotals })
-      return NextResponse.json({ success: true, orderId: splitOrderId, splitSubtotals })
+      return NextResponse.json({ success: true, orderId: splitOrderId, splitSubtotals }, { headers: clearCacheHeaders() })
     }
 
     if (action === 'charge_to_room') {
@@ -942,7 +943,7 @@ export async function POST(request: NextRequest) {
       if (!folio) {
         const reservation = await db.reservation.findUnique({ where: { id: reservationId }, select: { guestId: true } })
         if (!reservation) {
-          return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+          return cachedError('Reservation not found', 404)
         }
         folio = await db.folio.create({ data: { reservationId, guestId: reservation.guestId } })
       }
@@ -973,12 +974,12 @@ export async function POST(request: NextRequest) {
 
       afterMutation('folio')
       broadcastEvent('pos:charge_to_room', { folioId: folio.id, amount, reservationId })
-      return NextResponse.json({ success: true, folioId: folio.id, amount })
+      return NextResponse.json({ success: true, folioId: folio.id, amount }, { headers: clearCacheHeaders() })
     }
 
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('POS POST error:', error)
-    return NextResponse.json({ error: 'Failed to process POS request' }, { status: 500 })
+    return cachedError('Failed to process POS request', 500)
   }
 }

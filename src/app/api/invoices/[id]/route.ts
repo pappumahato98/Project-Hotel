@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── GET: Single invoice with line items ──────────────────────────────
 export async function GET(
@@ -25,13 +26,13 @@ export async function GET(
     })
 
     if (!invoice) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+      return cachedError('Invoice not found', 404)
     }
 
-    return NextResponse.json(invoice)
+    return cachedJson(invoice, request, { tier: 'long' })
   } catch (error) {
     console.error('Invoice GET by ID error:', error)
-    return NextResponse.json({ error: 'Failed to fetch invoice' }, { status: 500 })
+    return cachedError('Failed to fetch invoice', 500)
   }
 }
 
@@ -49,10 +50,7 @@ export async function PATCH(
 
     const validStatuses = ['Draft', 'Sent', 'Paid', 'Partially Paid', 'Overdue', 'Cancelled']
     if (status && !validStatuses.includes(status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
-        { status: 400 },
-      )
+      return cachedError(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400)
     }
 
     const current = await db.invoice.findUnique({
@@ -60,11 +58,11 @@ export async function PATCH(
       include: { lineItems: true },
     })
     if (!current) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+      return cachedError('Invoice not found', 404)
     }
 
     if (current.status === 'Cancelled') {
-      return NextResponse.json({ error: 'Cannot update a cancelled invoice' }, { status: 400 })
+      return cachedError('Cannot update a cancelled invoice', 400)
     }
 
     const data: Prisma.InvoiceUpdateInput = {}
@@ -113,7 +111,7 @@ export async function PATCH(
       } else if (status === 'Partially Paid' && paidAmount !== undefined) {
         data.paidAmount = parseFloat(paidAmount)
       } else if (status === 'Sent' && current.status !== 'Draft') {
-        return NextResponse.json({ error: 'Only Draft invoices can be sent' }, { status: 400 })
+        return cachedError('Only Draft invoices can be sent', 400)
       }
     }
 
@@ -125,10 +123,10 @@ export async function PATCH(
 
     afterMutation('accounting')
     broadcastEvent('invoice:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoice PATCH by ID error:', error)
-    return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 })
+    return cachedError('Failed to update invoice', 500)
   }
 }
 
@@ -144,18 +142,15 @@ export async function DELETE(
 
     const current = await db.invoice.findUnique({ where: { id } })
     if (!current) {
-      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+      return cachedError('Invoice not found', 404)
     }
 
     if (current.status === 'Cancelled') {
-      return NextResponse.json({ error: 'Invoice is already cancelled' }, { status: 400 })
+      return cachedError('Invoice is already cancelled', 400)
     }
 
     if (current.status === 'Paid') {
-      return NextResponse.json(
-        { error: 'Cannot cancel a paid invoice. Create a credit note instead.' },
-        { status: 400 },
-      )
+      return cachedError('Cannot cancel a paid invoice. Create a credit note instead.', 400)
     }
 
     const record = await db.invoice.update({
@@ -166,10 +161,10 @@ export async function DELETE(
 
     afterMutation('accounting')
     broadcastEvent('invoice:cancelled', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoice DELETE by ID error:', error)
-    return NextResponse.json({ error: 'Failed to cancel invoice' }, { status: 500 })
+    return cachedError('Failed to cancel invoice', 500)
   }
 }
 

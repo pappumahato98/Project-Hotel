@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function PATCH(
   request: NextRequest,
@@ -33,10 +34,10 @@ export async function PATCH(
       data,
     })
 
-    return NextResponse.json({ entry })
+    return NextResponse.json({ entry }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Waitlist PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update waitlist entry' }, { status: 500 })
+    return cachedError('Failed to update waitlist entry', 500)
   }
 }
 
@@ -49,9 +50,9 @@ export async function DELETE(
   try {
     const { id } = await params
     await db.waitlistEntry.delete({ where: { id } })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Waitlist DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete waitlist entry' }, { status: 500 })
+    return cachedError('Failed to delete waitlist entry', 500)
   }
 }

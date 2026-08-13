@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // POST /api/reservations/[id]/check-in — Enhanced check-in endpoint
 export async function POST(
@@ -46,23 +47,17 @@ export async function POST(
     })
 
     if (!reservation) {
-      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+      return cachedError('Reservation not found', 404)
     }
 
     if (!['confirmed', 'tentative'].includes(reservation.status)) {
-      return NextResponse.json(
-        { error: `Cannot check in a reservation with status "${reservation.status}". Only confirmed or tentative reservations can be checked in.` },
-        { status: 400 }
-      )
+      return cachedError(`Cannot check in a reservation with status "${reservation.status}". Only confirmed or tentative reservations can be checked in.`, 400)
     }
 
     // Validate room exists and is not out_of_order if assigned
     if (reservation.roomId && reservation.room) {
       if (reservation.room.status === 'out_of_order') {
-        return NextResponse.json(
-          { error: `Room ${reservation.room.number} is out of order and cannot be checked into` },
-          { status: 400 }
-        )
+        return cachedError(`Room ${reservation.room.number} is out of order and cannot be checked into`, 400)
       }
     }
 
@@ -145,9 +140,9 @@ export async function POST(
     })
 
     afterMutation('reservations')
-    return NextResponse.json({ reservation: updatedReservation })
+    return NextResponse.json({ reservation: updatedReservation }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Check-in error:', error)
-    return NextResponse.json({ error: 'Failed to check in reservation' }, { status: 500 })
+    return cachedError('Failed to check in reservation', 500)
   }
 }

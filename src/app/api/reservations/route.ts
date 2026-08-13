@@ -5,6 +5,7 @@ import { adToBS } from '@/lib/nepali-calendar'
 import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── Nepali Fiscal Year Helpers ─────────────────────────────
 // FY starts Shrawan (BS month 4). Short form: "82/83" = FY 2082/2083
@@ -177,10 +178,10 @@ export async function GET(request: NextRequest) {
       },
     }
     }, 120000)
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Reservations API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch reservations' }, { status: 500 })
+    return cachedError('Failed to fetch reservations', 500)
   }
 }
 
@@ -346,9 +347,9 @@ export async function POST(request: NextRequest) {
 
 
     afterMutation('reservations')
-    return NextResponse.json({ reservation }, { status: 201 })
+    return NextResponse.json({ reservation }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create reservation error:', error)
-    return NextResponse.json({ error: 'Failed to create reservation' }, { status: 500 })
+    return cachedError('Failed to create reservation', 500)
   }
 }

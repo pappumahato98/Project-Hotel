@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -27,10 +28,10 @@ export async function GET(request: NextRequest) {
       orderBy: [{ scheduledTime: 'asc' }],
     })
 
-    return NextResponse.json({ calls })
+    return cachedJson({ calls }, request, { tier: 'short' })
   } catch (error) {
     console.error('WakeUpCalls GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch wake-up calls' }, { status: 500 })
+    return cachedError('Failed to fetch wake-up calls', 500)
   }
 }
 
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { reservationId, roomId, roomNumber, guestName, scheduledTime, phoneExtension, notes, date } = body
 
     if (!roomNumber || !guestName || !scheduledTime) {
-      return NextResponse.json({ error: 'roomNumber, guestName, and scheduledTime are required' }, { status: 400 })
+      return cachedError('roomNumber, guestName, and scheduledTime are required', 400)
     }
 
     const callDate = date || new Date().toISOString().split('T')[0]
@@ -60,9 +61,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ call }, { status: 201 })
+    return NextResponse.json({ call }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('WakeUpCalls POST error:', error)
-    return NextResponse.json({ error: 'Failed to create wake-up call' }, { status: 500 })
+    return cachedError('Failed to create wake-up call', 500)
   }
 }

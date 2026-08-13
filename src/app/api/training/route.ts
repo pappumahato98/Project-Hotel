@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -58,10 +59,10 @@ export async function GET(request: NextRequest) {
       60000,
     ) // Cache for 60s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Training API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch training sessions' }, { status: 500 })
+    return cachedError('Failed to fetch training sessions', 500)
   }
 }
 
@@ -73,12 +74,9 @@ export async function POST(request: NextRequest) {
     const { courseName, instructor, date, duration, maxCapacity, category, status, description, location, department } = body
 
     if (!courseName || !instructor || !date || !duration || !maxCapacity || !category) {
-      return NextResponse.json(
-        {
-          error:
-            'Missing required fields: courseName, instructor, date, duration, maxCapacity, category',
-        },
-        { status: 400 },
+      return cachedError(
+        'Missing required fields: courseName, instructor, date, duration, maxCapacity, category',
+        400,
       )
     }
 
@@ -99,10 +97,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('training:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Training API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create training session' }, { status: 500 })
+    return cachedError('Failed to create training session', 500)
   }
 }
 
@@ -114,7 +112,7 @@ export async function PATCH(request: NextRequest) {
     const { id, status, courseName, instructor, date, duration, maxCapacity, category, description, location, department } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const updateData: Prisma.TrainingSessionUpdateInput = {}
@@ -131,9 +129,9 @@ export async function PATCH(request: NextRequest) {
 
     if (status !== undefined) {
       if (!['Upcoming', 'In Progress', 'Completed', 'Cancelled'].includes(status)) {
-        return NextResponse.json(
-          { error: 'Invalid status. Must be Upcoming, In Progress, Completed, or Cancelled' },
-          { status: 400 },
+        return cachedError(
+          'Invalid status. Must be Upcoming, In Progress, Completed, or Cancelled',
+          400,
         )
       }
       updateData.status = status
@@ -159,9 +157,9 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('training:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Training API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update training session' }, { status: 500 })
+    return cachedError('Failed to update training session', 500)
   }
 }

@@ -2,6 +2,7 @@ import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // GET /api/guests/[id] — Fetch single guest
 export async function GET(
@@ -23,12 +24,12 @@ export async function GET(
       },
     })
     if (!guest) {
-      return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+      return cachedError('Guest not found', 404)
     }
-    return NextResponse.json({ guest })
+    return cachedJson({ guest }, req, { tier: 'medium' })
   } catch (error) {
     console.error('Fetch guest error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return cachedError('Internal server error', 500)
   }
 }
 
@@ -58,15 +59,15 @@ export async function PATCH(
     }
 
     if (Object.keys(data).length === 0) {
-      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+      return cachedError('No valid fields to update', 400)
     }
 
     // Validate name not empty
     if (data.firstName !== undefined && (!data.firstName || String(data.firstName).trim() === '')) {
-      return NextResponse.json({ error: 'First name is required' }, { status: 400 })
+      return cachedError('First name is required', 400)
     }
     if (data.lastName !== undefined && (!data.lastName || String(data.lastName).trim() === '')) {
-      return NextResponse.json({ error: 'Last name is required' }, { status: 400 })
+      return cachedError('Last name is required', 400)
     }
 
     const updated = await withRetry(() => db.guest.update({
@@ -75,10 +76,10 @@ export async function PATCH(
     }))
 
     afterMutation('guests')
-    return NextResponse.json({ guest: updated, message: 'Guest updated successfully' })
+    return NextResponse.json({ guest: updated, message: 'Guest updated successfully' }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Update guest error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return cachedError('Internal server error', 500)
   }
 }
 
@@ -101,17 +102,14 @@ export async function DELETE(
     })
 
     if (activeReservations > 0) {
-      return NextResponse.json(
-        { error: `Cannot delete guest with ${activeReservations} active reservation(s)` },
-        { status: 409 }
-      )
+      return cachedError(`Cannot delete guest with ${activeReservations} active reservation(s)`, 409)
     }
 
     await withRetry(() => db.guest.delete({ where: { id } }))
     afterMutation('guests')
-    return NextResponse.json({ success: true, message: 'Guest deleted successfully' })
+    return NextResponse.json({ success: true, message: 'Guest deleted successfully' }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Delete guest error:', error)
-    return NextResponse.json({ error: 'Failed to delete guest' }, { status: 500 })
+    return cachedError('Failed to delete guest', 500)
   }
 }

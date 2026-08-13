@@ -4,6 +4,7 @@ import { afterMutation, getOrSet } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -44,10 +45,10 @@ export async function GET(request: NextRequest) {
       return { employees, total, departmentBreakdown: deptMap }
     }, 120000)
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Employees API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch employees' }, { status: 500 })
+    return cachedError('Failed to fetch employees', 500)
   }
 }
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const property = await db.property.findFirst()
     if (!property) {
-      return NextResponse.json({ error: 'No property found' }, { status: 400 })
+      return cachedError('No property found', 400)
     }
 
     const employee = await withRetry(() =>
@@ -81,9 +82,9 @@ export async function POST(request: NextRequest) {
 
     afterMutation('employees')
     broadcastEvent('employee:created', employee)
-    return NextResponse.json({ employee }, { status: 201 })
+    return NextResponse.json({ employee }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Employees POST error:', error)
-    return NextResponse.json({ error: 'Failed to create employee' }, { status: 500 })
+    return cachedError('Failed to create employee', 500)
   }
 }

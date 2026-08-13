@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(
   request: NextRequest,
@@ -26,12 +27,12 @@ export async function GET(
       },
     })
     if (!room) {
-      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+      return cachedError('Room not found', 404)
     }
-    return NextResponse.json({ room })
+    return cachedJson({ room }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Room GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch room' }, { status: 500 })
+    return cachedError('Failed to fetch room', 500)
   }
 }
 
@@ -50,7 +51,7 @@ export async function PATCH(
     // If restoring from out_of_order, use the saved previousStatus
     const room = await db.room.findUnique({ where: { id } })
     if (!room) {
-      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+      return cachedError('Room not found', 404)
     }
 
     const updateData: Record<string, unknown> = {}
@@ -94,10 +95,10 @@ export async function PATCH(
       }),
     )
     afterMutation('rooms')
-    return NextResponse.json({ room: updated })
+    return NextResponse.json({ room: updated }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Room PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update room' }, { status: 500 })
+    return cachedError('Failed to update room', 500)
   }
 }
 export async function DELETE(
@@ -111,14 +112,14 @@ export async function DELETE(
 
     const room = await db.room.findUnique({ where: { id } })
     if (!room) {
-      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+      return cachedError('Room not found', 404)
     }
 
     await withRetry(() => db.room.delete({ where: { id } }))
     afterMutation('rooms')
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Room DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete room' }, { status: 500 })
+    return cachedError('Failed to delete room', 500)
   }
 }

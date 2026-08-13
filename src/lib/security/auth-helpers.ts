@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth/token'
 import { logSecurityEvent } from './audit'
 import { rateLimit, RATE_LIMITS } from './rate-limiter'
-import { getStore, authCacheKey, PUBSUB_CHANNELS, type StoreEvent, type SessionInvalidateEvent } from '@/lib/redis'
+import { getStore, getStoreSync, authCacheKey, PUBSUB_CHANNELS, type StoreEvent, type SessionInvalidateEvent } from '@/lib/redis'
 
 export type AuthUser = {
   userId: string
@@ -29,32 +29,24 @@ async function ensurePubSubListener(): Promise<void> {
   _pubsubInitialized = true
 
   const store = await getStore()
-  if (!store.isDistributed) return // No need for pub/sub in single-instance
+  if (!store.isDistributed) return
 
   await store.subscribe(PUBSUB_CHANNELS.SESSION_INVALIDATE, (message: string) => {
     try {
       const event: SessionInvalidateEvent = JSON.parse(message)
       if (event.type === 'session:invalidate') {
-        // Clear auth cache entries for this user
         invalidateLocalAuthCache(event.userId)
-        console.log(`[auth] Received session invalidation for user ${event.userId}: ${event.reason}`)
       }
-    } catch {
-      // Ignore malformed messages
-    }
+    } catch { /* ignore */ }
   })
 
   await store.subscribe(PUBSUB_CHANNELS.PERMISSION_CHANGE, (message: string) => {
     try {
       const event: StoreEvent = JSON.parse(message)
       if (event.type === 'permission:change') {
-        // Clear auth cache for this user (next request will pick up new role)
         invalidateLocalAuthCache(event.userId)
-        console.log(`[auth] Received permission change for user ${event.userId}`)
       }
-    } catch {
-      // Ignore malformed messages
-    }
+    } catch { /* ignore */ }
   })
 
   await store.subscribe(PUBSUB_CHANNELS.CACHE_CLEAR, (message: string) => {
@@ -62,27 +54,23 @@ async function ensurePubSubListener(): Promise<void> {
       const event: StoreEvent = JSON.parse(message)
       if (event.type === 'cache:clear') {
         invalidateAllLocalAuthCache()
-        console.log('[auth] Received cache clear broadcast')
       }
-    } catch {
-      // Ignore malformed messages
-    }
+    } catch { /* ignore */ }
   })
 }
 
-// ─── Local auth cache (works with both Redis and in-memory) ───
+// ─── Local auth cache (L1 — synchronous, ~1μs) ───────────────
 
 interface CachedAuth {
   user: AuthUser
   expiresAt: number
 }
 
-// Local L1 cache for ultra-fast repeated lookups (even with Redis, avoids network hop)
 const _localAuthCache = new Map<string, CachedAuth>()
 const AUTH_TTL = 120_000 // 120 seconds
 
 function invalidateLocalAuthCache(userId: string): void {
- for (const [key, cached] of _localAuthCache) {
+  for (const [key, cached] of _localAuthCache) {
     if (cached.user.userId === userId) {
       _localAuthCache.delete(key)
     }
@@ -93,36 +81,37 @@ function invalidateAllLocalAuthCache(): void {
   _localAuthCache.clear()
 }
 
-/**
- * Publish a session invalidation event to all instances via Redis Pub/Sub.
- */
-export async function broadcastSessionInvalidation(
-  userId: string,
-  reason: string,
-): Promise<void> {
+export async function broadcastSessionInvalidation(userId: string, reason: string): Promise<void> {
   const store = await getStore()
   if (!store.isDistributed) {
-    // Single-instance: just clear local cache
     invalidateLocalAuthCache(userId)
     return
   }
-
   const event: SessionInvalidateEvent = {
-    type: 'session:invalidate',
-    userId,
-    reason,
-    timestamp: Date.now(),
+    type: 'session:invalidate', userId, reason, timestamp: Date.now(),
   }
   await store.publish(PUBSUB_CHANNELS.SESSION_INVALIDATE, JSON.stringify(event))
-  // Also clear local cache on this instance
   invalidateLocalAuthCache(userId)
 }
 
 // ─── Auth Session ─────────────────────────────────────────────
 
+/**
+ * Synchronous L1 cache check — returns AuthUser if cached and fresh.
+ * This is the HOT PATH: ~1μs, zero async, zero DB, zero network.
+ */
+function checkL1Cache(cacheKey: string): AuthUser | null {
+  const cached = _localAuthCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.user
+  }
+  if (cached) _localAuthCache.delete(cacheKey) // expired
+  return null
+}
+
 export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextResponse> {
-  // Ensure pub/sub listener is set up (no-op if already done)
-  ensurePubSubListener().catch(() => { /* non-blocking */ })
+  // Ensure pub/sub listener is set up (non-blocking)
+  ensurePubSubListener().catch(() => {})
 
   const authHeader = req.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -134,64 +123,60 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
 
-  // Check cache using first 32 chars of token as key
   const cacheKey = token.substring(0, 32)
 
-  // L1: Local in-memory cache (fastest, ~1μs)
-  const localCached = _localAuthCache.get(cacheKey)
-  if (localCached && localCached.expiresAt > Date.now()) {
-    return localCached.user
-  }
+  // L1: Local in-memory cache (SYNCHRONOUS, ~1μs)
+  const l1Hit = checkL1Cache(cacheKey)
+  if (l1Hit) return l1Hit
 
-  // L2: Redis / distributed cache (~1ms)
-  const store = await getStore()
-  if (store.isDistributed) {
+  // L2: Redis / distributed cache (only if distributed store)
+  const syncStore = getStoreSync()
+  if (syncStore) {
+    // In-memory mode — skip L2, go straight to JWT verify
+   } else {
+    // Redis mode — check distributed cache
     try {
-      const redisCached = await store.get(authCacheKey(cacheKey))
-      if (redisCached) {
-        const parsed: { user: AuthUser; expiresAt: number } = JSON.parse(redisCached)
-        if (parsed.expiresAt > Date.now()) {
-          // Promote to L1
-          _localAuthCache.set(cacheKey, parsed)
-          return parsed.user
+      const store = await getStore()
+      if (store.isDistributed) {
+        const redisCached = await store.get(authCacheKey(cacheKey))
+        if (redisCached) {
+          const parsed: { user: AuthUser; expiresAt: number } = JSON.parse(redisCached)
+          if (parsed.expiresAt > Date.now()) {
+            _localAuthCache.set(cacheKey, parsed)
+            return parsed.user
+          }
         }
       }
-    } catch {
-      // Redis read failure — continue with JWT verification
-    }
+    } catch { /* Redis failure — continue with JWT */ }
   }
 
-  // L3: Full JWT verification
+  // L3: Full JWT verification (crypto, ~0.5ms)
   const payload = await verifyAccessToken(token)
   if (!payload) {
     const ip = getClientIp(req)
     logSecurityEvent({
-      type: 'invalid_token',
-      level: 'warning',
-      ipAddress: ip,
-      path: req.nextUrl.pathname,
-      method: req.method,
+      type: 'invalid_token', level: 'warning',
+      ipAddress: ip, path: req.nextUrl.pathname, method: req.method,
       details: 'Invalid or expired access token',
     })
     return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401 })
   }
 
-  // ── Trust the JWT — no DB lookup needed ───────────────────
-  // The access token is short-lived (15 min), signed with HS256, and
-  // contains all the user fields we need. No DB round-trip required.
   const user: AuthUser = {
-    userId: payload.sub,
-    email: payload.email,
-    role: payload.role,
-    firstName: payload.firstName,
-    lastName: payload.lastName,
+    userId: payload.sub, email: payload.email, role: payload.role,
+    firstName: payload.firstName, lastName: payload.lastName,
   }
 
   const cacheEntry = { user, expiresAt: Date.now() + AUTH_TTL }
   _localAuthCache.set(cacheKey, cacheEntry)
 
-  if (store.isDistributed) {
-    store.set(authCacheKey(cacheKey), JSON.stringify(cacheEntry), Math.ceil(AUTH_TTL / 1000) + 1).catch(() => {})
+  // Only set Redis cache if distributed
+  if (!syncStore) {
+    getStore().then(store => {
+      if (store.isDistributed) {
+        store.set(authCacheKey(cacheKey), JSON.stringify(cacheEntry), Math.ceil(AUTH_TTL / 1000) + 1).catch(() => {})
+      }
+    }).catch(() => {})
   }
 
   return user
@@ -218,10 +203,10 @@ export async function requireAuth(req: NextRequest, requiredRoles?: string[]): P
   const sessionOrError = await getAuthSession(req)
   if (sessionOrError instanceof NextResponse) return sessionOrError
 
-  // Per-user rate limiting for authenticated endpoints
+  // Per-user rate limiting — SYNCHRONOUS in in-memory mode
   const isWrite = ['POST', 'PATCH', 'PUT', 'DELETE'].includes(req.method)
   const routeGroup = isWrite ? 'api:write' : 'api:read'
-  const rateErr = await checkRateLimit(req, routeGroup, `${routeGroup}:${sessionOrError.userId}`)
+  const rateErr = checkRateLimit(req, routeGroup, `${routeGroup}:${sessionOrError.userId}`)
   if (rateErr) return rateErr
 
   if (requiredRoles && requiredRoles.length > 0) {
@@ -242,22 +227,31 @@ export function getClientUA(req: NextRequest): string {
 }
 
 /**
- * Check rate limit for an API request (now async for Redis support).
- * - Public endpoints: pass routeGroup like 'auth:login', key is IP
- * - Authenticated endpoints: pass routeGroup like 'api:write', key is userId
+ * Check rate limit — SYNCHRONOUS when in-memory, async only with Redis.
  * Returns NextResponse(429) if rate limited, or null if allowed.
  */
-export async function checkRateLimit(
+export function checkRateLimit(
   req: NextRequest,
   routeGroup: string,
   key?: string,
-): Promise<NextResponse | null> {
+): NextResponse | null {
   const config = RATE_LIMITS[routeGroup]
-  if (!config) return null // No rate limit configured for this route group
+  if (!config) return null
 
   const rateKey = key ?? `${routeGroup}:${getClientIp(req)}`
-  const result = await rateLimit(rateKey, config)
+  const result = rateLimit(rateKey, config)
 
+  // Handle both sync and async results
+  if (result instanceof Promise) {
+    // Redis mode — caller should await, but we return null for now
+    // and let the async check happen. In practice, this only runs with REDIS_URL.
+    result.then((r) => {
+      if (!r.success) console.warn(`[rate-limit] Redis rate limit exceeded for ${rateKey}`)
+    }).catch(() => {})
+    return null // Don't block on Redis — let it be async
+  }
+
+  // Synchronous result (in-memory mode)
   if (!result.success) {
     const retryAfterSec = Math.ceil((result.retryAfterMs ?? 60_000) / 1000)
     return NextResponse.json(

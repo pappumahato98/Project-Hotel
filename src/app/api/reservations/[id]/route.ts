@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // Fields allowed to be updated via PATCH
 const ALLOWED_FIELDS = new Set([
@@ -54,13 +55,13 @@ export async function GET(
     })
 
     if (!reservation) {
-      return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+      return cachedError('Reservation not found', 404)
     }
 
-    return NextResponse.json({ reservation })
+    return cachedJson({ reservation }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Reservation detail error:', error)
-    return NextResponse.json({ error: 'Failed to fetch reservation' }, { status: 500 })
+    return cachedError('Failed to fetch reservation', 500)
   }
 }
 
@@ -91,7 +92,7 @@ export async function PATCH(
     }
 
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+      return cachedError('No valid fields to update', 400)
     }
 
     // ─── Validate dates if changing ───────────────────────────────
@@ -99,10 +100,7 @@ export async function PATCH(
       const ci = new Date(updateData.checkIn as string)
       const co = new Date(updateData.checkOut as string)
       if (co <= ci) {
-        return NextResponse.json(
-          { error: 'Check-out must be after check-in' },
-          { status: 400 }
-        )
+        return cachedError('Check-out must be after check-in', 400)
       }
     }
 
@@ -110,7 +108,7 @@ export async function PATCH(
     if (updateData.roomId) {
       const roomExists = await db.room.findUnique({ where: { id: updateData.roomId as string } })
       if (!roomExists) {
-        return NextResponse.json({ error: 'Target room not found' }, { status: 400 })
+        return cachedError('Target room not found', 400)
       }
     }
 
@@ -123,7 +121,7 @@ export async function PATCH(
         select: { roomId: true, checkIn: true, checkOut: true },
       })
       if (!currentRes) {
-        return NextResponse.json({ error: 'Reservation not found' }, { status: 404 })
+        return cachedError('Reservation not found', 404)
       }
 
       const effectiveRoomId = (updateData.roomId as string) ?? currentRes.roomId
@@ -160,10 +158,7 @@ export async function PATCH(
             ? effectiveCheckOut.toISOString().slice(0, 10)
             : String(effectiveCheckOut)
 
-          return NextResponse.json(
-            { error: `Room ${roomNumber} is not available for ${ci} – ${co}. It conflicts with reservation ${conflicting.confirmationNo} (${guestName}).` },
-            { status: 409 }
-          )
+          return cachedError(`Room ${roomNumber} is not available for ${ci} – ${co}. It conflicts with reservation ${conflicting.confirmationNo} (${guestName}).`, 409)
         }
       }
     }
@@ -221,10 +216,10 @@ export async function PATCH(
     }))
 
     afterMutation('reservations')
-    return NextResponse.json({ reservation })
+    return NextResponse.json({ reservation }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Update reservation error:', error)
-    return NextResponse.json({ error: 'Failed to update reservation' }, { status: 500 })
+    return cachedError('Failed to update reservation', 500)
   }
 }
 
@@ -251,9 +246,9 @@ export async function DELETE(
 
     await withRetry(() => db.reservation.delete({ where: { id } }))
     afterMutation('reservations')
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Delete reservation error:', error)
-    return NextResponse.json({ error: 'Failed to delete reservation' }, { status: 500 })
+    return cachedError('Failed to delete reservation', 500)
   }
 }

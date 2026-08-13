@@ -4,6 +4,7 @@ import { afterMutation, getOrSet } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { getHotelNow } from '@/lib/timezone'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // Hotel timezone helper (replaces manual offset math)
 function getNepalToday(): Date {
@@ -127,10 +128,10 @@ export async function GET(req: NextRequest) {
       }
     }, 120000)
 
-    return NextResponse.json(data)
+    return cachedJson(data, req, { tier: 'medium' })
   } catch (error) {
     console.error('Revenue API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch revenue data' }, { status: 500 })
+    return cachedError('Failed to fetch revenue data', 500)
   }
 }
 
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
       )
       afterMutation('revenue')
       broadcastEvent('rate_plan:created', ratePlan)
-      return NextResponse.json({ ratePlan }, { status: 201 })
+      return NextResponse.json({ ratePlan }, { status: 201, headers: clearCacheHeaders() })
     }
 
     if (action === 'create_daily_rate') {
@@ -173,12 +174,12 @@ export async function POST(request: NextRequest) {
       )
       afterMutation('revenue')
       broadcastEvent('daily_rate:created', dailyRate)
-      return NextResponse.json({ dailyRate }, { status: 201 })
+      return NextResponse.json({ dailyRate }, { status: 201, headers: clearCacheHeaders() })
     }
 
-    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+    return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Revenue POST error:', error)
-    return NextResponse.json({ error: 'Failed to create revenue data' }, { status: 500 })
+    return cachedError('Failed to create revenue data', 500)
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export const maxDuration = 60
 
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const existing = await db.ledgerAccount.count()
     if (existing > 0) {
-      return NextResponse.json({ message: `Accounting already initialized (${existing} accounts exist)`, count: existing })
+      return NextResponse.json({ message: `Accounting already initialized (${existing} accounts exist)`, count: existing }, { headers: clearCacheHeaders() })
     }
 
     const accounts = [
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       message: `Accounting initialized with ${created.count} chart of accounts`,
       count: created.count,
-    }, { status: 201 })
+    }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     if (msg.includes('relation') && (msg.includes('does not exist') || msg.includes('not found'))) {
@@ -111,6 +112,6 @@ export async function POST(req: NextRequest) {
       }, { status: 503 })
     }
     console.error('Accounting setup error:', msg)
-    return NextResponse.json({ error: 'Failed to initialize accounting', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Failed to initialize accounting', 500, msg.substring(0, 200))
   }
 }

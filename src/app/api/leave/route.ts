@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -48,10 +49,10 @@ export async function GET(request: NextRequest) {
       }
     }, 60000) // Cache for 60s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Leave API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 })
+    return cachedError('Failed to fetch leave requests', 500)
   }
 }
 
@@ -63,10 +64,7 @@ export async function POST(request: NextRequest) {
     const { employeeId, employeeName, department, leaveType, startDate, endDate, duration, reason } = body
 
     if (!employeeId || !employeeName || !department || !leaveType || !startDate || !endDate || !duration) {
-      return NextResponse.json(
-        { error: 'Missing required fields: employeeId, employeeName, department, leaveType, startDate, endDate, duration' },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: employeeId, employeeName, department, leaveType, startDate, endDate, duration', 400)
     }
 
     const record = await db.leaveRequest.create({
@@ -84,10 +82,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('leave:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Leave API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create leave request' }, { status: 500 })
+    return cachedError('Failed to create leave request', 500)
   }
 }
 
@@ -99,11 +97,11 @@ export async function PATCH(request: NextRequest) {
     const { id, status, approvedBy, rejectionReason } = body
 
     if (!id || !status) {
-      return NextResponse.json({ error: 'ID and status are required' }, { status: 400 })
+      return cachedError('ID and status are required', 400)
     }
 
     if (!['Approved', 'Rejected', 'Cancelled'].includes(status)) {
-      return NextResponse.json({ error: 'Invalid status. Must be Approved, Rejected, or Cancelled' }, { status: 400 })
+      return cachedError('Invalid status. Must be Approved, Rejected, or Cancelled', 400)
     }
 
     const record = await db.leaveRequest.update({
@@ -118,9 +116,9 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('leave:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Leave API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 })
+    return cachedError('Failed to update leave request', 500)
   }
 }

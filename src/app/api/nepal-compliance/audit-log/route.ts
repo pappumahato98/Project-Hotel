@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuditLog, type AuditDocType } from '@/lib/nepal-compliance/audit-trail'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 // ─── GET: Paginated audit log entries ─────────────────────────────────
 
@@ -22,17 +23,11 @@ export async function GET(request: NextRequest) {
     const toDate = to ? new Date(to) : undefined
 
     if (fromDate && isNaN(fromDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format for "from". Use YYYY-MM-DD.' },
-        { status: 400 },
-      )
+      return cachedError('Invalid date format for "from". Use YYYY-MM-DD.', 400)
     }
 
     if (toDate && isNaN(toDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid date format for "to". Use YYYY-MM-DD.' },
-        { status: 400 },
-      )
+      return cachedError('Invalid date format for "to". Use YYYY-MM-DD.', 400)
     }
 
     const entries = await getAuditLog({
@@ -45,15 +40,12 @@ export async function GET(request: NextRequest) {
       offset,
     })
 
-    return NextResponse.json({
+    return cachedJson({
       entries,
       pagination: { limit, offset },
-    })
+    }, request, { tier: 'long' })
   } catch (error) {
     console.error('[audit-log] GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to retrieve audit log.' },
-      { status: 500 },
-    )
+    return cachedError('Failed to retrieve audit log.', 500)
   }
 }

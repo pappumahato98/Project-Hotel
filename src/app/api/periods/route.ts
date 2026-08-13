@@ -5,6 +5,7 @@ import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postPeriodCloseEntries } from '@/lib/accounting/auto-post'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── GET: List accounting periods with journal entry counts ────────────
 export async function GET(request: NextRequest) {
@@ -71,10 +72,10 @@ export async function GET(request: NextRequest) {
       120,
     )
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Periods API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch periods' }, { status: 500 })
+    return cachedError('Failed to fetch periods', 500)
   }
 }
 
@@ -87,27 +88,18 @@ export async function POST(request: NextRequest) {
     const { period, periodType, startDate, endDate, notes } = body
 
     if (!period || !periodType || !startDate || !endDate) {
-      return NextResponse.json(
-        { error: 'Missing required fields: period, periodType, startDate, endDate' },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: period, periodType, startDate, endDate', 400)
     }
 
     if (!['month', 'quarter', 'year'].includes(periodType)) {
-      return NextResponse.json(
-        { error: 'periodType must be month, quarter, or year' },
-        { status: 400 },
-      )
+      return cachedError('periodType must be month, quarter, or year', 400)
     }
 
     const start = new Date(startDate)
     const end = new Date(endDate)
 
     if (end <= start) {
-      return NextResponse.json(
-        { error: 'endDate must be after startDate' },
-        { status: 400 },
-      )
+      return cachedError('endDate must be after startDate', 400)
     }
 
     // Check for overlapping open periods
@@ -121,19 +113,13 @@ export async function POST(request: NextRequest) {
     })
 
     if (overlapping) {
-      return NextResponse.json(
-        { error: `Overlaps with existing open period: ${overlapping.period} (${overlapping.startDate.toISOString().slice(0, 10)} to ${overlapping.endDate.toISOString().slice(0, 10)})` },
-        { status: 409 },
-      )
+      return cachedError(`Overlaps with existing open period: ${overlapping.period} (${overlapping.startDate.toISOString().slice(0, 10)} to ${overlapping.endDate.toISOString().slice(0, 10)})`, 409)
     }
 
     // Check uniqueness of period identifier
     const existingPeriod = await db.accountingPeriod.findUnique({ where: { period } })
     if (existingPeriod) {
-      return NextResponse.json(
-        { error: `Period "${period}" already exists` },
-        { status: 409 },
-      )
+      return cachedError(`Period "${period}" already exists`, 409)
     }
 
     const record = await db.accountingPeriod.create({
@@ -149,10 +135,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('period:opened', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Periods API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create period' }, { status: 500 })
+    return cachedError('Failed to create period', 500)
   }
 }
 
@@ -165,33 +151,27 @@ export async function PATCH(request: NextRequest) {
     const { id, action, notes } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     if (action === 'close') {
       const period = await db.accountingPeriod.findUnique({ where: { id } })
       if (!period) {
-        return NextResponse.json({ error: 'Period not found' }, { status: 404 })
+        return cachedError('Period not found', 404)
       }
 
       if (period.status === 'closed') {
-        return NextResponse.json({ error: 'Period is already closed' }, { status: 400 })
+        return cachedError('Period is already closed', 400)
       }
 
       // Verify trial balance is balanced
       const trialBalance = await computeTrialBalance(period.startDate, period.endDate)
 
       if (!trialBalance.isBalanced) {
-        return NextResponse.json(
-          {
-            error: 'Cannot close period: trial balance is not balanced',
-            detail: {
-              totalDebit: trialBalance.totalDebit,
-              totalCredit: trialBalance.totalCredit,
-              difference: trialBalance.difference,
-            },
-          },
-          { status: 400 },
+        return cachedError(
+          'Cannot close period: trial balance is not balanced',
+          400,
+          `Debit: ${trialBalance.totalDebit}, Credit: ${trialBalance.totalCredit}, Diff: ${trialBalance.difference}`,
         )
       }
 
@@ -247,7 +227,7 @@ export async function PATCH(request: NextRequest) {
         period: record,
         trialBalance,
         subPeriodsClosed: period.periodType === 'year' ? 'all open sub-periods' : null,
-      })
+      }, { headers: clearCacheHeaders() })
     }
 
     // Regular update
@@ -261,10 +241,10 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('period:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Periods API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update period' }, { status: 500 })
+    return cachedError('Failed to update period', 500)
   }
 }
 

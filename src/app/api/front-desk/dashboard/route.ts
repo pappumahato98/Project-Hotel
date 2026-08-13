@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet, getSettingsMap } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -213,9 +214,9 @@ export async function GET(req: NextRequest) {
       },
     }
     }, 120000)
-    return NextResponse.json(result)
+    return cachedJson(result, req, { tier: 'short' })
   } catch (error) {
     console.error('Front Desk Dashboard API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 })
+    return cachedError('Failed to fetch dashboard data', 500)
   }
 }

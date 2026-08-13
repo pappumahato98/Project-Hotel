@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── Recalculate folio balance ────────────────────────────
 async function recalcFolioBalance(folioId: string) {
@@ -73,10 +74,7 @@ export async function PATCH(
     }
 
     if (!voidReason) {
-      return NextResponse.json(
-        { error: 'voidReason is required to void a rate posting' },
-        { status: 400 },
-      )
+      return cachedError('voidReason is required to void a rate posting', 400)
     }
 
     // Fetch the posting with its folio transactions
@@ -103,17 +101,11 @@ export async function PATCH(
     })
 
     if (!posting) {
-      return NextResponse.json(
-        { error: 'Rate posting not found' },
-        { status: 404 },
-      )
+      return cachedError('Rate posting not found', 404)
     }
 
     if (posting.status === 'voided') {
-      return NextResponse.json(
-        { error: 'Rate posting is already voided' },
-        { status: 400 },
-      )
+      return cachedError('Rate posting is already voided', 400)
     }
 
     const folioId = posting.folioId
@@ -175,12 +167,9 @@ export async function PATCH(
       voidedPosting,
       folio: updatedFolio,
       voidedTransactions: posting.folio.transactions.length,
-    })
+    }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Room Rate Posting PATCH error:', error)
-    return NextResponse.json(
-      { error: 'Failed to void rate posting' },
-      { status: 500 },
-    )
+    return cachedError('Failed to void rate posting', 500)
   }
 }

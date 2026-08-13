@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 // ─── Icon mapping from outlet type ──────────────────────────────────
 const OUTLET_ICON_MAP: Record<string, string> = {
@@ -194,10 +195,10 @@ export async function GET(request: NextRequest) {
       } satisfies DailySalesResponse
     }, 120000)
 
-    return NextResponse.json(response)
+    return cachedJson(response, request, { tier: 'short' })
   } catch (error) {
     console.error('POS Daily Sales API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch daily sales report' }, { status: 500 })
+    return cachedError('Failed to fetch daily sales report', 500)
   }
 }
 

@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -51,10 +52,10 @@ export async function GET(request: NextRequest) {
       60000,
     ) // Cache for 60s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Shift Exchange API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch shift exchange requests' }, { status: 500 })
+    return cachedError('Failed to fetch shift exchange requests', 500)
   }
 }
 
@@ -66,12 +67,9 @@ export async function POST(request: NextRequest) {
     const { requesterId, requesterName, requesterDept, fromShift, toShift, exchangeDate, reason, targetId, targetName } = body
 
     if (!requesterId || !requesterName || !requesterDept || !fromShift || !toShift || !exchangeDate || !reason) {
-      return NextResponse.json(
-        {
-          error:
-            'Missing required fields: requesterId, requesterName, requesterDept, fromShift, toShift, exchangeDate, reason',
-        },
-        { status: 400 },
+      return cachedError(
+        'Missing required fields: requesterId, requesterName, requesterDept, fromShift, toShift, exchangeDate, reason',
+        400,
       )
     }
 
@@ -91,10 +89,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('shift-exchange:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Shift Exchange API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create shift exchange request' }, { status: 500 })
+    return cachedError('Failed to create shift exchange request', 500)
   }
 }
 
@@ -106,14 +104,11 @@ export async function PATCH(request: NextRequest) {
     const { id, status, approvedBy, rejectionReason } = body
 
     if (!id || !status) {
-      return NextResponse.json({ error: 'ID and status are required' }, { status: 400 })
+      return cachedError('ID and status are required', 400)
     }
 
     if (!['Pending', 'Approved', 'Rejected', 'Cancelled'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status. Must be Pending, Approved, Rejected, or Cancelled' },
-        { status: 400 },
-      )
+      return cachedError('Invalid status. Must be Pending, Approved, Rejected, or Cancelled', 400)
     }
 
     const updateData: Prisma.ShiftExchangeUpdateInput = {
@@ -136,9 +131,9 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('shift-exchange:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Shift Exchange API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update shift exchange request' }, { status: 500 })
+    return cachedError('Failed to update shift exchange request', 500)
   }
 }

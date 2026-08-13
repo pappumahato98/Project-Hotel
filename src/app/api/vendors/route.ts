@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -24,10 +25,10 @@ export async function GET(request: NextRequest) {
     const active = vendors.filter((v) => v.status === 'active').length
     const categories = [...new Set(vendors.map((v) => v.category))]
 
-    return NextResponse.json({ vendors, total, active, categories })
+    return cachedJson({ vendors, total, active, categories }, request, { tier: 'long' })
   } catch (error) {
     console.error('Vendors API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch vendors' }, { status: 500 })
+    return cachedError('Failed to fetch vendors', 500)
   }
 }
 
@@ -53,10 +54,10 @@ export async function POST(request: NextRequest) {
     })
 
     broadcastEvent('vendor:created', vendor)
-    return NextResponse.json(vendor, { status: 201 })
+    return NextResponse.json(vendor, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Vendors POST error:', error)
-    return NextResponse.json({ error: 'Failed to create vendor' }, { status: 500 })
+    return cachedError('Failed to create vendor', 500)
   }
 }
 
@@ -68,7 +69,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...data } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     const vendor = await db.vendor.update({
@@ -89,9 +90,9 @@ export async function PATCH(request: NextRequest) {
     })
 
     broadcastEvent('vendor:updated', vendor)
-    return NextResponse.json(vendor)
+    return NextResponse.json(vendor, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Vendors PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update vendor' }, { status: 500 })
+    return cachedError('Failed to update vendor', 500)
   }
 }

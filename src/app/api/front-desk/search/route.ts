@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q')
 
     if (!query || query.length < 2) {
-      return NextResponse.json({ results: [] })
+      return cachedJson({ results: [] }, request, { tier: 'medium' })
     }
 
     const results: Array<{ type: string; id: string; label: string; sublabel: string }> = []
@@ -78,9 +79,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ results })
+    return cachedJson({ results }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Quick search error:', error)
-    return NextResponse.json({ error: 'Failed to search' }, { status: 500 })
+    return cachedError('Failed to search', 500)
   }
 }

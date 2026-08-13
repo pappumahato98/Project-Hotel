@@ -3,6 +3,7 @@ import { db, withRetry } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postRoomRevenue, postFolioCharge, postFolioSettlement } from '@/lib/accounting/auto-post'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // POST: Post a new charge or record a payment
 export async function POST(
@@ -27,7 +28,7 @@ export async function POST(
     })
 
     if (!folio) {
-      return NextResponse.json({ error: 'Folio not found' }, { status: 404 })
+      return cachedError('Folio not found', 404)
     }
 
     // Read settings for tax rate
@@ -137,10 +138,10 @@ export async function POST(
       })
     })
 
-    return NextResponse.json({ folio: updatedFolio })
+    return NextResponse.json({ folio: updatedFolio }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Folio transaction error:', error)
-    return NextResponse.json({ error: 'Failed to post transaction' }, { status: 500 })
+    return cachedError('Failed to post transaction', 500)
   }
 }
 
@@ -157,7 +158,7 @@ export async function DELETE(
     const { type, transactionId, paymentId, reason } = body
 
     if (!reason) {
-      return NextResponse.json({ error: 'Reason is required for void operations' }, { status: 400 })
+      return cachedError('Reason is required for void operations', 400)
     }
 
     const folio = await db.folio.findUnique({
@@ -165,7 +166,7 @@ export async function DELETE(
     })
 
     if (!folio) {
-      return NextResponse.json({ error: 'Folio not found' }, { status: 404 })
+      return cachedError('Folio not found', 404)
     }
 
     if (type === 'void_transaction' && transactionId) {
@@ -175,7 +176,7 @@ export async function DELETE(
       })
 
       if (!txn) {
-        return NextResponse.json({ error: 'Transaction not found in this folio' }, { status: 404 })
+        return cachedError('Transaction not found in this folio', 404)
       }
 
       // Wrap writes in withRetry for transient error resilience
@@ -222,7 +223,7 @@ export async function DELETE(
         })
       })
 
-      return NextResponse.json({ folio: updatedFolio })
+      return NextResponse.json({ folio: updatedFolio }, { headers: clearCacheHeaders() })
     } else if (type === 'void_payment' && paymentId) {
       // Verify the payment belongs to this folio
       const pay = await db.folioPayment.findFirst({
@@ -230,7 +231,7 @@ export async function DELETE(
       })
 
       if (!pay) {
-        return NextResponse.json({ error: 'Payment not found in this folio' }, { status: 404 })
+        return cachedError('Payment not found in this folio', 404)
       }
 
       // Wrap writes in withRetry for transient error resilience
@@ -275,13 +276,13 @@ export async function DELETE(
         })
       })
 
-      return NextResponse.json({ folio: updatedFolio })
+      return NextResponse.json({ folio: updatedFolio }, { headers: clearCacheHeaders() })
     } else {
-      return NextResponse.json({ error: 'Invalid void type. Provide type: void_transaction or void_payment' }, { status: 400 })
+      return cachedError('Invalid void type. Provide type: void_transaction or void_payment', 400)
     }
   } catch (error) {
     console.error('Folio void error:', error)
-    return NextResponse.json({ error: 'Failed to void transaction' }, { status: 500 })
+    return cachedError('Failed to void transaction', 500)
   }
 }
 
@@ -315,9 +316,9 @@ export async function PATCH(
 
     afterMutation('folio')
 
-    return NextResponse.json({ folio })
+    return NextResponse.json({ folio }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Update folio error:', error)
-    return NextResponse.json({ error: 'Failed to update folio' }, { status: 500 })
+    return cachedError('Failed to update folio', 500)
   }
 }

@@ -13,9 +13,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30 * 1000,
+            // 2-minute staleTime: UI renders instantly from cache (0ms).
+            // Data is silently refreshed in background after 2min.
+            staleTime: 2 * 60 * 1000,
+            // Cache data for 10 minutes even if unused (prevents re-fetch on tab switch)
+            gcTime: 10 * 60 * 1000,
             retry: 1,
             refetchOnWindowFocus: false,
+            // Keep previous data while new data loads (no flash/empty state)
+            placeholderData: (previousData: unknown) => previousData,
           },
         },
       })

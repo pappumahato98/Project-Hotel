@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -129,16 +130,16 @@ export async function GET(request: NextRequest) {
     const department = searchParams.get('department') || undefined
 
     if (!startDate || !endDate) {
-      return NextResponse.json({ error: 'startDate and endDate query params are required' }, { status: 400 })
+      return cachedError('startDate and endDate query params are required', 400)
     }
 
     const start = new Date(startDate)
     const end = new Date(endDate)
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD.' }, { status: 400 })
+      return cachedError('Invalid date format. Use YYYY-MM-DD.', 400)
     }
     if (start > end) {
-      return NextResponse.json({ error: 'startDate must be before or equal to endDate' }, { status: 400 })
+      return cachedError('startDate must be before or equal to endDate', 400)
     }
 
     const cacheKey = `reports:profit-loss:${startDate}:${endDate}${department ? `:${department}` : ''}`
@@ -278,9 +279,9 @@ export async function GET(request: NextRequest) {
       }
     }, 120_000) // Cache 2 minutes
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Profit & Loss API error:', error)
-    return NextResponse.json({ error: 'Failed to generate P&L report' }, { status: 500 })
+    return cachedError('Failed to generate P&L report', 500)
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError } from '@/lib/api-response'
 
 // ─── Date helpers ─────────────────────────────────────────
 function toDateOnly(d: Date): string {
@@ -161,12 +162,9 @@ export async function GET(request: NextRequest) {
       }
     }, 120000)
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Room Rate Posting list GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch rate postings' },
-      { status: 500 },
-    )
+    return cachedError('Failed to fetch rate postings', 500)
   }
 }

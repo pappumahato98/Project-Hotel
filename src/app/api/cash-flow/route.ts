@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -214,9 +215,9 @@ export async function GET(request: NextRequest) {
       }
     }, 120000) // Cache for 120s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Cash Flow API GET error:', error)
-    return NextResponse.json({ error: 'Failed to generate cash flow report' }, { status: 500 })
+    return cachedError('Failed to generate cash flow report', 500)
   }
 }

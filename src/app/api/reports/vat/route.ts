@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -84,16 +85,16 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate')
 
     if (!startDate || !endDate) {
-      return NextResponse.json({ error: 'startDate and endDate query params are required' }, { status: 400 })
+      return cachedError('startDate and endDate query params are required', 400)
     }
 
     const start = new Date(startDate)
     const end = new Date(endDate)
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return NextResponse.json({ error: 'Invalid date format. Use YYYY-MM-DD.' }, { status: 400 })
+      return cachedError('Invalid date format. Use YYYY-MM-DD.', 400)
     }
     if (start > end) {
-      return NextResponse.json({ error: 'startDate must be before or equal to endDate' }, { status: 400 })
+      return cachedError('startDate must be before or equal to endDate', 400)
     }
 
     const cacheKey = `reports:vat:${startDate}:${endDate}`
@@ -244,9 +245,9 @@ export async function GET(request: NextRequest) {
       }
     }, 120_000)
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('VAT Report API error:', error)
-    return NextResponse.json({ error: 'Failed to generate VAT report' }, { status: 500 })
+    return cachedError('Failed to generate VAT report', 500)
   }
 }

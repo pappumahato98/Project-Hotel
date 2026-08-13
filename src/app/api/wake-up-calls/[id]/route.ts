@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function PATCH(
   request: NextRequest,
@@ -29,10 +30,10 @@ export async function PATCH(
       data,
     })
 
-    return NextResponse.json({ call })
+    return NextResponse.json({ call }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('WakeUpCalls PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update wake-up call' }, { status: 500 })
+    return cachedError('Failed to update wake-up call', 500)
   }
 }
 
@@ -45,9 +46,9 @@ export async function DELETE(
   try {
     const { id } = await params
     await db.wakeUpCall.delete({ where: { id } })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('WakeUpCalls DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete wake-up call' }, { status: 500 })
+    return cachedError('Failed to delete wake-up call', 500)
   }
 }

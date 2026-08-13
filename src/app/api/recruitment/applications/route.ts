@@ -4,6 +4,7 @@ import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -32,10 +33,10 @@ export async function GET(request: NextRequest) {
       60000,
     ) // Cache for 60s
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Recruitment Applications API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch job applications' }, { status: 500 })
+    return cachedError('Failed to fetch job applications', 500)
   }
 }
 
@@ -47,12 +48,7 @@ export async function POST(request: NextRequest) {
     const { postingId, applicantName, applicantEmail, applicantPhone, resumeUrl, notes } = body
 
     if (!postingId || !applicantName) {
-      return NextResponse.json(
-        {
-          error: 'Missing required fields: postingId, applicantName',
-        },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: postingId, applicantName', 400)
     }
 
     const record = await db.jobApplication.create({
@@ -74,10 +70,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('recruitment:application_created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Recruitment Applications API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create job application' }, { status: 500 })
+    return cachedError('Failed to create job application', 500)
   }
 }
 
@@ -89,20 +85,17 @@ export async function PATCH(request: NextRequest) {
     const { id, status, notes } = body
 
     if (!id || !status) {
-      return NextResponse.json({ error: 'ID and status are required' }, { status: 400 })
+      return cachedError('ID and status are required', 400)
     }
 
     if (!['Applied', 'Screening', 'Interview', 'Offer', 'Rejected', 'Hired'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status. Must be Applied, Screening, Interview, Offer, Rejected, or Hired' },
-        { status: 400 },
-      )
+      return cachedError('Invalid status. Must be Applied, Screening, Interview, Offer, Rejected, or Hired', 400)
     }
 
     // Fetch existing application to get postingId and current status
     const existing = await db.jobApplication.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+      return cachedError('Application not found', 404)
     }
 
     const updateData: Prisma.JobApplicationUpdateInput = {
@@ -154,9 +147,9 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('hr')
     broadcastEvent('recruitment:application_updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Recruitment Applications API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update job application' }, { status: 500 })
+    return cachedError('Failed to update job application', 500)
   }
 }

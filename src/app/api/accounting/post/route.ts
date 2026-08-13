@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 // ─── Account code constants ─────────────────────────────────────────────
 const ACCT = {
@@ -459,7 +460,7 @@ export async function POST(request: NextRequest) {
     const { module, action, data } = body
 
     if (!module || !action) {
-      return NextResponse.json({ error: 'module and action are required' }, { status: 400 })
+      return cachedError('module and action are required', 400)
     }
 
     const validModules: ModuleType[] = [
@@ -467,28 +468,28 @@ export async function POST(request: NextRequest) {
       'events', 'night_audit', 'invoice_payment', 'folio_settlement',
     ]
     if (!validModules.includes(module)) {
-      return NextResponse.json({ error: `Invalid module. Must be one of: ${validModules.join(', ')}` }, { status: 400 })
+      return cachedError(`Invalid module. Must be one of: ${validModules.join(', ')}`, 400)
     }
 
     if (action !== 'post' && action !== 'reverse') {
-      return NextResponse.json({ error: "action must be 'post' or 'reverse'" }, { status: 400 })
+      return cachedError("action must be 'post' or 'reverse'", 400)
     }
 
     if (!data || typeof data !== 'object') {
-      return NextResponse.json({ error: 'data object is required' }, { status: 400 })
+      return cachedError('data object is required', 400)
     }
 
     const postedBy = `${auth.user.firstName} ${auth.user.lastName}`
     const result = await generateAndCreateEntry(module, action, data, postedBy)
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
+      return cachedError(result.error ?? 'Auto-posting failed', 400)
     }
 
-    return NextResponse.json(result.entry, { status: 201 })
+    return NextResponse.json(result.entry, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Auto-posting engine error:', msg)
-    return NextResponse.json({ error: 'Auto-posting failed', detail: msg.substring(0, 200) }, { status: 500 })
+    return cachedError('Auto-posting failed', 500, msg.substring(0, 200))
   }
 }

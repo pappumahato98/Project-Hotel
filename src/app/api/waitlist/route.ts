@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -33,10 +34,10 @@ export async function GET(request: NextRequest) {
       ],
     })
 
-    return NextResponse.json({ entries })
+    return cachedJson({ entries }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Waitlist GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch waitlist' }, { status: 500 })
+    return cachedError('Failed to fetch waitlist', 500)
   }
 }
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     const { guestName, contactPhone, contactEmail, roomPreference, roomTypeId, checkInDate, checkOutDate, adults, children, priority, notes } = body
 
     if (!guestName || !checkInDate || !checkOutDate) {
-      return NextResponse.json({ error: 'guestName, checkInDate, and checkOutDate are required' }, { status: 400 })
+      return cachedError('guestName, checkInDate, and checkOutDate are required', 400)
     }
 
     const entry = await db.waitlistEntry.create({
@@ -67,9 +68,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ entry }, { status: 201 })
+    return NextResponse.json({ entry }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Waitlist POST error:', error)
-    return NextResponse.json({ error: 'Failed to create waitlist entry' }, { status: 500 })
+    return cachedError('Failed to create waitlist entry', 500)
   }
 }

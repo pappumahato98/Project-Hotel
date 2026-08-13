@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
         })
         return { report: 'arrivals', date: targetDate.toISOString(), reservations, total: reservations.length }
         }, 300000)
-        return NextResponse.json(data)
+        return cachedJson(data, request, { tier: 'long' })
       }
 
       case 'departures': {
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
         })
         return { report: 'departures', date: targetDate.toISOString(), reservations, total: reservations.length }
         }, 300000)
-        return NextResponse.json(data)
+        return cachedJson(data, request, { tier: 'long' })
       }
 
       case 'inhouse': {
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
         })
         return { report: 'inhouse', reservations, total: reservations.length }
         }, 300000)
-        return NextResponse.json(data)
+        return cachedJson(data, request, { tier: 'long' })
       }
 
       case 'room-moves': {
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
           skip: offset,
         })
         const total = await db.roomMoveLog.count()
-        return NextResponse.json({ report: 'room-moves', moves, total })
+        return cachedJson({ report: 'room-moves', moves, total }, request, { tier: 'long' })
       }
 
       case 'occupancy': {
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
 
         return { report: 'occupancy', totalRooms, days }
         }, 300000)
-        return NextResponse.json(data)
+        return cachedJson(data, request, { tier: 'long' })
       }
 
       case 'revenue': {
@@ -154,7 +155,7 @@ export async function GET(request: NextRequest) {
           averageRate: reservations.length > 0 ? reservations.reduce((sum, r) => sum + (r.roomRate || 0), 0) / reservations.length : 0,
         }
         }, 300000)
-        return NextResponse.json(data)
+        return cachedJson(data, request, { tier: 'long' })
       }
 
       default: {
@@ -188,11 +189,11 @@ export async function GET(request: NextRequest) {
           moveLogs: moves,
         }
         }, 300000)
-        return NextResponse.json(data)
+        return cachedJson(data, request, { tier: 'long' })
       }
     }
   } catch (error) {
     console.error('Front Desk Reports API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch report' }, { status: 500 })
+    return cachedError('Failed to fetch report', 500)
   }
 }

@@ -4,6 +4,7 @@ import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
@@ -32,16 +33,16 @@ export async function GET(request: NextRequest) {
 
     const totalValue = items.reduce((sum, item) => sum + item.currentStock * item.unitCost, 0)
 
-    return NextResponse.json({
+    return cachedJson({
       items,
       total,
       categories,
       lowStockItems,
       totalValue,
-    })
+    }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Inventory API error:', error)
-    return NextResponse.json({ error: 'Failed to fetch inventory' }, { status: 500 })
+    return cachedError('Failed to fetch inventory', 500)
   }
 }
 
@@ -70,9 +71,9 @@ export async function POST(request: NextRequest) {
 
     afterMutation('inventory')
     broadcastEvent('inventory:created', item)
-    return NextResponse.json({ item }, { status: 201 })
+    return NextResponse.json({ item }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Inventory POST error:', error)
-    return NextResponse.json({ error: 'Failed to create inventory item' }, { status: 500 })
+    return cachedError('Failed to create inventory item', 500)
   }
 }

@@ -440,7 +440,7 @@ let _storeInitializing: Promise<KVStore> | null = null
  * Synchronous store access for in-memory mode (zero async overhead).
  * Returns null if REDIS_URL is set (caller should use getStoreAsync).
  */
-function getStoreSync(): KVStore | null {
+export function getStoreSync(): KVStore | null {
   if (_store) return _store
   if (process.env.REDIS_URL) return null // needs async init
   // No REDIS_URL → in-memory store (instant)

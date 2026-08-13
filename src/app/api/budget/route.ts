@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
@@ -119,10 +120,10 @@ export async function GET(request: NextRequest) {
       120,
     )
 
-    return NextResponse.json(data)
+    return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Budget API GET error:', error)
-    return NextResponse.json({ error: 'Failed to fetch budgets' }, { status: 500 })
+    return cachedError('Failed to fetch budgets', 500)
   }
 }
 
@@ -145,18 +146,12 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!name || !fiscalYear || !period || budgetedAmount === undefined) {
-      return NextResponse.json(
-        { error: 'Missing required fields: name, fiscalYear, period, budgetedAmount' },
-        { status: 400 },
-      )
+      return cachedError('Missing required fields: name, fiscalYear, period, budgetedAmount', 400)
     }
 
     // Validate fiscalYear format (YYYY)
     if (!/^\d{4}$/.test(String(fiscalYear))) {
-      return NextResponse.json(
-        { error: 'fiscalYear must be a 4-digit year (e.g. 2025)' },
-        { status: 400 },
-      )
+      return cachedError('fiscalYear must be a 4-digit year (e.g. 2025)', 400)
     }
 
     // Validate period format (YYYY-MM, YYYY-QN, YYYY-HN, or YYYY)
@@ -167,16 +162,13 @@ export async function POST(request: NextRequest) {
       /^\d{4}-Q[1-4]$/.test(periodStr) || // quarter
       /^\d{4}-H[1-2]$/.test(periodStr) // half-year
     if (!validPeriod) {
-      return NextResponse.json(
-        { error: 'period must be YYYY, YYYY-MM, YYYY-QN, or YYYY-HN format' },
-        { status: 400 },
-      )
+      return cachedError('period must be YYYY, YYYY-MM, YYYY-QN, or YYYY-HN format', 400)
     }
 
     // Validate amount
     const amt = parseFloat(budgetedAmount)
     if (isNaN(amt) || amt < 0) {
-      return NextResponse.json({ error: 'budgetedAmount must be a non-negative number' }, { status: 400 })
+      return cachedError('budgetedAmount must be a non-negative number', 400)
     }
 
     const record = await db.budget.create({
@@ -195,10 +187,10 @@ export async function POST(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('budget:created', record)
-    return NextResponse.json(record, { status: 201 })
+    return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Budget API POST error:', error)
-    return NextResponse.json({ error: 'Failed to create budget' }, { status: 500 })
+    return cachedError('Failed to create budget', 500)
   }
 }
 
@@ -225,28 +217,22 @@ export async function PATCH(request: NextRequest) {
     } = body
 
     if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
+      return cachedError('ID is required', 400)
     }
 
     if (status && !['Active', 'Closed', 'Archived'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid status. Must be Active, Closed, or Archived' },
-        { status: 400 },
-      )
+      return cachedError('Invalid status. Must be Active, Closed, or Archived', 400)
     }
 
     const existing = await db.budget.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json({ error: 'Budget not found' }, { status: 404 })
+      return cachedError('Budget not found', 404)
     }
 
     // Handle update_actuals action
     if (action === 'update_actuals') {
       if (!existing.accountId) {
-        return NextResponse.json(
-          { error: 'Cannot update actuals: budget is not linked to an account' },
-          { status: 400 },
-        )
+        return cachedError('Cannot update actuals: budget is not linked to an account', 400)
       }
 
       const actualFromJournal = await computeActualFromJournal(
@@ -262,7 +248,7 @@ export async function PATCH(request: NextRequest) {
 
       afterMutation('accounting')
       broadcastEvent('budget:updated', record)
-      return NextResponse.json(record)
+      return NextResponse.json(record, { headers: clearCacheHeaders() })
     }
 
     // Regular update
@@ -270,10 +256,7 @@ export async function PATCH(request: NextRequest) {
     if (name !== undefined) data.name = name
     if (fiscalYear !== undefined) {
       if (!/^\d{4}$/.test(String(fiscalYear))) {
-        return NextResponse.json(
-          { error: 'fiscalYear must be a 4-digit year' },
-          { status: 400 },
-        )
+        return cachedError('fiscalYear must be a 4-digit year', 400)
       }
       data.fiscalYear = String(fiscalYear)
     }
@@ -282,17 +265,14 @@ export async function PATCH(request: NextRequest) {
       const validPeriod =
         /^\d{4}$/.test(p) || /^\d{4}-\d{2}$/.test(p) || /^\d{4}-Q[1-4]$/.test(p) || /^\d{4}-H[1-2]$/.test(p)
       if (!validPeriod) {
-        return NextResponse.json(
-          { error: 'period must be YYYY, YYYY-MM, YYYY-QN, or YYYY-HN' },
-          { status: 400 },
-        )
+        return cachedError('period must be YYYY, YYYY-MM, YYYY-QN, or YYYY-HN', 400)
       }
       data.period = p
     }
     if (budgetedAmount !== undefined) {
       const amt = parseFloat(budgetedAmount)
       if (isNaN(amt) || amt < 0) {
-        return NextResponse.json({ error: 'budgetedAmount must be non-negative' }, { status: 400 })
+        return cachedError('budgetedAmount must be non-negative', 400)
       }
       data.budgetedAmount = amt
     }
@@ -311,10 +291,10 @@ export async function PATCH(request: NextRequest) {
 
     afterMutation('accounting')
     broadcastEvent('budget:updated', record)
-    return NextResponse.json(record)
+    return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Budget API PATCH error:', error)
-    return NextResponse.json({ error: 'Failed to update budget' }, { status: 500 })
+    return cachedError('Failed to update budget', 500)
   }
 }
 
