@@ -191,6 +191,16 @@ export function LoginPage() {
         useAuthStore.getState().login(data.user, data.accessToken)
       }
 
+      // Pre-warm server caches in background (fire-and-forget)
+      // This makes dashboard, rooms, front-desk load instantly when user navigates there
+      const warmEndpoints = [
+        '/api/dashboard/kpis', '/api/dashboard/alerts', '/api/dashboard/activity',
+        '/api/rooms', '/api/front-desk/dashboard', '/api/reservations?limit=10',
+      ]
+      for (const ep of warmEndpoints) {
+        fetch(ep, { headers: { Authorization: `Bearer ${data.accessToken}` } }).catch(() => {})
+      }
+
       // Do NOT call router.push('/') — we're already on '/' (the only route).
       // The zustand isAuthenticated change will trigger page.tsx to re-render
       // and swap from LoginPage to AppShell automatically.

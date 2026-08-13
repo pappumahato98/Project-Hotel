@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, withRetry } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
-import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 export async function GET(request: NextRequest) {
@@ -15,34 +14,15 @@ export async function GET(request: NextRequest) {
     const where: Prisma.GuestWhereInput = {}
 
     if (search) {
-      // Build OR conditions for direct guest fields + relation-based search
-      const directConditions: Prisma.GuestWhereInput[] = [
-        { firstName: { contains: search } },
-        { lastName: { contains: search } },
-        { email: { contains: search } },
+      // Build OR conditions — only direct fields (PgBouncer compatible)
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
         { nationality: { contains: search } },
-        // Company search through reservations
-        {
-          reservations: {
-            some: {
-              company: { contains: search },
-            },
-          },
-        },
-        // Room number search through reservations → rooms
-        {
-          reservations: {
-            some: {
-              room: {
-                number: { contains: search },
-              },
-            },
-          },
-        },
+        { company: { contains: search } },
       ]
-
-      where.OR = directConditions
     }
 
     if (vipLevel) {
