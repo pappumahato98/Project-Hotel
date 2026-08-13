@@ -14,6 +14,8 @@ import { generateCsrfToken } from '@/lib/auth/csrf'
 import { logSecurityEvent } from '@/lib/security/audit'
 import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
 import { findFallbackUser, isDatabaseError, errorSummary } from '@/lib/auth/fallback-users'
+import { prewarm } from '@/lib/cache'
+import { fetchKpis, fetchAlerts, fetchActivity } from '@/app/api/dashboard/_data'
 
 // ─── POST /api/auth/login ──────────────────────────────────────
 
@@ -150,34 +152,34 @@ export async function POST(req: NextRequest) {
     const csrf = generateCsrfToken()
     const tokenFamilyId = randomUUID()
 
-    // Store refresh token in DB (skip if using fallback — no DB available)
+    // Store refresh token + update lastLogin in parallel (non-blocking)
     if (!usedFallback) {
-      try {
-        await db.refreshToken.create({
+      Promise.all([
+        db.refreshToken.create({
           data: {
-            tokenHash: refreshTokenHash,
-            userId: user.id,
-            tokenFamilyId,
-            userAgent: getClientUA(req),
-            ipAddress: clientIp,
+            tokenHash: refreshTokenHash, userId: user.id, tokenFamilyId,
+            userAgent: getClientUA(req), ipAddress: clientIp,
             expiresAt: getRefreshTokenExpiry(),
           },
-        })
-        await db.authUser.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
-      } catch {
-        // DB write failed — non-critical
-      }
+        }),
+        db.authUser.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }),
+      ]).catch(() => {})
     }
 
+    // Audit log
     logSecurityEvent({
       type: 'auth_success', level: 'info',
       userId: user.id, email: user.email,
       ipAddress: clientIp, userAgent: getClientUA(req),
       path: '/api/auth/login', method: 'POST',
     })
+
+    // Pre-warm dashboard cache in background so it's ready when user lands there
+    if (!usedFallback) {
+      prewarm('dashboard:kpis', fetchKpis)
+      prewarm('dashboard:alerts', fetchAlerts)
+      prewarm('dashboard:activity', fetchActivity)
+    }
 
     const cookieOptions = getRefreshCookieOptions()
     const refreshCookie = [
