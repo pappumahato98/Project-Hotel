@@ -57,7 +57,8 @@ if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
 
 /**
  * Check rate limit for a given key.
- * Automatically uses Redis (distributed) or in-memory (single instance).
+ * - In-memory mode: synchronous fast path (no async overhead)
+ * - Redis mode: uses ZSET-based sliding window (atomic, distributed)
  */
 export async function rateLimit(
   key: string,
@@ -68,6 +69,7 @@ export async function rateLimit(
   if (store.isDistributed) {
     return rateLimitRedis(store, key, config)
   }
+  // In-memory: already synchronous under the hood
   return rateLimitMemory(key, config)
 }
 

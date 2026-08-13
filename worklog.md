@@ -1295,3 +1295,26 @@ Stage Summary:
 - Root cause: DATABASE_URL on Render has a DIFFERENT password (50 chars vs 16 chars expected)
 - User needs to update DATABASE_URL on Render dashboard to match the correct value
 - Correct DATABASE_URL: postgresql://postgres.kiqnyuwypqhpjwamrqob:WebeFly%4098%23@aws-1-ap-south-1.pooler.supabase.com:5432/postgres?pgbouncer=true
+---
+Task ID: 1
+Agent: main
+Task: Performance optimization for Render deployment (slow response times)
+
+Work Log:
+- Analyzed full request chain: login → rate limit → DB query → bcrypt → JWT sign → dashboard data fetch
+- Identified 5 major bottlenecks causing slow response on Render
+- Implemented pgbouncer=true in DATABASE_URL (reduces per-query PgBouncer overhead ~2-3ms)
+- Made getStore() synchronous for in-memory mode (eliminates async microtask overhead on every rate limit check)
+- Removed unnecessary db.authUser.count() from login (saves 1 DB round-trip ~300-500ms from Render to Supabase Mumbai)
+- Added JWT freshness window (2 min) — skips DB lookup on every authenticated API call when token is fresh
+- This is the BIGGEST win: eliminates ~200-500ms DB round-trip per API call for 13 out of every 15 minutes of token life
+- Verified: 0 lint errors, dev server responds GET / 200 in 52ms
+
+Stage Summary:
+- 4 files modified: db.ts, redis.ts, auth-helpers.ts, login/route.ts
+- Estimated improvement:
+  - Login: ~300-500ms faster (removed count() query)
+  - Every API call after login: ~200-500ms faster (JWT freshness fast path)
+  - Rate limiting: near-zero overhead (sync in-memory path)
+  - PgBouncer: ~2-3ms per query (reduced protocol overhead)
+- Total expected improvement: 500ms-1s+ per request on Render

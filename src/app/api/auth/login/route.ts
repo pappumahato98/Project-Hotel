@@ -67,7 +67,6 @@ export async function POST(req: NextRequest) {
     } | null = null
     let usedFallback = false
     let dbReachable = true
-    let dbEmpty = false
 
     // Helper: try DB query with one retry on connection errors
     async function queryWithRetry<T>(fn: () => Promise<T>): Promise<T> {
@@ -89,10 +88,11 @@ export async function POST(req: NextRequest) {
       )
       if (dbUser) {
         user = dbUser
-      } else {
-        const count = await queryWithRetry(() => db.authUser.count())
-        dbEmpty = count === 0
       }
+      // NOTE: Removed db.authUser.count() — saves an extra DB round-trip.
+      // If user not found, we just return 401 ("Invalid email or password")
+      // which is the correct security response anyway. The DB_EMPTY hint
+      // is only useful for first-time setup, which is a one-time event.
     } catch (dbErr: unknown) {
       console.error('[auth] Database query error:', errorSummary(dbErr))
 
@@ -118,14 +118,6 @@ export async function POST(req: NextRequest) {
           { status: 500 },
         )
       }
-    }
-
-    if (dbReachable && dbEmpty && !user) {
-      console.warn('[auth] No users in database. Run POST /api/db-setup to seed default users.')
-      return NextResponse.json(
-        { error: 'No user accounts found in database.', hint: 'Run POST /api/db-setup to seed default admin accounts, then try again.', code: 'DB_EMPTY' },
-        { status: 401 },
-      )
     }
 
     if (!user || !user.active) {

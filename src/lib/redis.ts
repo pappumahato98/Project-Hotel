@@ -437,17 +437,32 @@ let _store: KVStore | null = null
 let _storeInitializing: Promise<KVStore> | null = null
 
 /**
+ * Synchronous store access for in-memory mode (zero async overhead).
+ * Returns null if REDIS_URL is set (caller should use getStoreAsync).
+ */
+function getStoreSync(): KVStore | null {
+  if (_store) return _store
+  if (process.env.REDIS_URL) return null // needs async init
+  // No REDIS_URL → in-memory store (instant)
+  _store = new MemoryStore()
+  return _store
+}
+
+/**
  * Get the singleton KV store instance.
+ * - Fast path: if REDIS_URL is not set, returns synchronously-created MemoryStore (no await)
  * - If REDIS_URL is set → RedisStore (distributed, multi-instance)
- * - If REDIS_URL is not set → MemoryStore (single instance, zero deps)
  *
  * Thread-safe: only one store instance is ever created.
  */
 export async function getStore(): Promise<KVStore> {
-  if (_store) return _store
+  // Fast path: in-memory mode — no async needed
+  const sync = getStoreSync()
+  if (sync) return sync
+
   if (_storeInitializing) return _storeInitializing
 
-  _storeInitializing = createStore().then((s) => {
+  _storeInitializing = createStoreAsync().then((s) => {
     _store = s
     return s
   })
@@ -455,13 +470,8 @@ export async function getStore(): Promise<KVStore> {
   return _storeInitializing
 }
 
-async function createStore(): Promise<KVStore> {
+async function createStoreAsync(): Promise<KVStore> {
   const redisUrl = process.env.REDIS_URL
-
-  if (!redisUrl) {
-    console.log('[store] REDIS_URL not set — using in-memory store (single-instance mode)')
-    return new MemoryStore()
-  }
 
   // Validate URL format
   if (!redisUrl.startsWith('redis://') && !redisUrl.startsWith('rediss://')) {

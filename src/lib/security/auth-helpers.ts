@@ -163,7 +163,7 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     }
   }
 
-  // L3: Full JWT verification + DB lookup (~5-20ms)
+  // L3: Full JWT verification
   const payload = await verifyAccessToken(token)
   if (!payload) {
     const ip = getClientIp(req)
@@ -178,7 +178,40 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401 })
   }
 
-  // Verify user still exists and is active
+  // ── Fast path: trust fresh JWT without DB lookup ────────────
+  // If the JWT was issued less than JWT_FRESHNESS_WINDOW seconds ago,
+  // skip the DB round-trip entirely. The JWT contains all fields we need.
+  // This eliminates ~200-500ms DB latency on every API call.
+  // Security: role changes take effect within JWT_FRESHNESS_WINDOW seconds.
+  const JWT_FRESHNESS_WINDOW = 120 // 2 minutes
+  const issuedAt = (payload.iat as number) || 0
+  const nowSec = Math.floor(Date.now() / 1000)
+  const tokenAge = nowSec - issuedAt
+
+  const userFromJwt: AuthUser = {
+    userId: payload.sub,
+    email: payload.email,
+    role: payload.role,
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+  }
+
+  if (tokenAge <= JWT_FRESHNESS_WINDOW) {
+    // Token is fresh — trust it without DB check
+    const cacheEntry = { user: userFromJwt, expiresAt: Date.now() + AUTH_TTL }
+    _localAuthCache.set(cacheKey, cacheEntry)
+    // Try to store in Redis (non-blocking — don't await to keep fast path fast)
+    getStore().then(store => {
+      if (store.isDistributed) {
+        store.set(authCacheKey(cacheKey), JSON.stringify(cacheEntry), Math.ceil(AUTH_TTL / 1000) + 1).catch(() => {})
+      }
+    }).catch(() => {})
+    return userFromJwt
+  }
+
+  // ── Slow path: verify user still exists and is active ───────
+  // For tokens older than JWT_FRESHNESS_WINDOW, hit the DB to check
+  // for deactivation, role changes, etc.
   let profile: { id: string; email: string; role: string; firstName: string; lastName: string; active: boolean } | null = null
   try {
     profile = await db.authUser.findUnique({
@@ -189,15 +222,8 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     // Database unreachable — in dev/sandbox, trust the JWT payload
     if (isDatabaseError(dbErr) && process.env.NODE_ENV !== 'production') {
       console.warn('[auth] DB unreachable for session check, using JWT payload')
-      const user: AuthUser = {
-        userId: payload.sub,
-        email: payload.email,
-        role: payload.role,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-      }
-      _localAuthCache.set(cacheKey, { user, expiresAt: Date.now() + AUTH_TTL })
-      return user
+      _localAuthCache.set(cacheKey, { user: userFromJwt, expiresAt: Date.now() + AUTH_TTL })
+      return userFromJwt
     }
     const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
     return NextResponse.json(
