@@ -1375,44 +1375,69 @@ function DashboardError({ error, refetch }: { error: Error; refetch: () => void 
 // Main Dashboard Module
 // ═══════════════════════════════════════════════════════════════════════════
 export function DashboardModule() {
-  const { data, isLoading, isError, error, refetch } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: () => apiFetch('/api/dashboard'),
+  // Split into 3 parallel queries — each section appears independently
+  const kpisQuery = useQuery<KpisData>({
+    queryKey: ['dashboard', 'kpis'],
+    queryFn: () => apiFetch('/api/dashboard/kpis'),
     refetchInterval: 60000,
-    retry: 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    retry: 2,
+    retryDelay: 1000,
     staleTime: 30_000,
   })
 
+  const alertsQuery = useQuery<AlertsData>({
+    queryKey: ['dashboard', 'alerts'],
+    queryFn: () => apiFetch('/api/dashboard/alerts'),
+    refetchInterval: 60000,
+    retry: 2,
+    retryDelay: 1000,
+    staleTime: 30_000,
+  })
+
+  const activityQuery = useQuery<ActivityData>({
+    queryKey: ['dashboard', 'activity'],
+    queryFn: () => apiFetch('/api/dashboard/activity'),
+    refetchInterval: 60000,
+    retry: 2,
+    retryDelay: 1000,
+    staleTime: 30_000,
+  })
+
+  const isLoading = kpisQuery.isLoading && alertsQuery.isLoading && activityQuery.isLoading
+  const isError = kpisQuery.isError && alertsQuery.isError && activityQuery.isError
+  const error = kpisQuery.error ?? alertsQuery.error ?? activityQuery.error
+
+  const handleRefresh = () => {
+    kpisQuery.refetch()
+    alertsQuery.refetch()
+    activityQuery.refetch()
+  }
+
   // Compose into the original DashboardData shape with safe defaults
   const safeData: DashboardData = {
-    kpis: data?.kpis ?? {
+    kpis: kpisQuery.data?.kpis ?? {
       totalRooms: 36, occupiedRooms: 6, occupancy: 17, occupancyTrend: 2,
       arrivals: 4, departures: 2, vacantClean: 27,
       totalRevenue: 170000, roomRevenue: 120000, fAndBRevenue: 35000, otherRevenue: 15000,
       adr: 8500, revpar: 4722, revenueTrend: 12, adrTrend: 5, revparTrend: 8,
     },
-    roomStatusBreakdown: data?.roomStatusBreakdown ?? {
+    roomStatusBreakdown: kpisQuery.data?.roomStatusBreakdown ?? {
       occupied: 6, vacant_clean: 27, vacant_dirty: 1, cleaning: 1, out_of_order: 1,
     },
-    alerts: data?.alerts ?? {
+    alerts: alertsQuery.data?.alerts ?? {
       vipArrivals: [], overdueCheckouts: 0,
       emergencyWorkOrders: [{ id: '1', title: 'AC repair Room 205', category: 'hvac', priority: 'emergency', status: 'open' }],
       outOfOrderRooms: [{ id: '1', number: '312', floor: 3 }], outOfOrderCount: 1,
       unassignedArrivals: 2, creditLimitBreaches: [], pendingHkTasks: 5, openWorkflowTasks: 3,
       highPriorityWorkflowTasks: [], openPosOrders: 2,
     },
-    revenueChart: data?.revenueChart ?? [],
-    recentActivity: data?.recentActivity ?? [],
+    revenueChart: kpisQuery.data?.revenueChart ?? [],
+    recentActivity: activityQuery.data?.recentActivity ?? [],
   }
 
   if (isLoading) return <DashboardSkeleton />
   if (isError) {
-    return <DashboardError error={error ?? new Error('Unknown error')} refetch={refetch} />
-  }
-
-  const handleRefresh = () => {
-    refetch()
+    return <DashboardError error={error ?? new Error('Unknown error')} refetch={handleRefresh} />
   }
 
   return (
