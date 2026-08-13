@@ -1318,3 +1318,31 @@ Stage Summary:
   - Rate limiting: near-zero overhead (sync in-memory path)
   - PgBouncer: ~2-3ms per query (reduced protocol overhead)
 - Total expected improvement: 500ms-1s+ per request on Render
+---
+Task ID: 2
+Agent: main
+Task: Performance analysis and optimization via Agent Browser on Render
+
+Work Log:
+- Used Agent Browser to measure live Render response times
+- Health endpoint: 756ms (includes DB ping + Redis ping)
+- Login: 2054ms (bcrypt + 2 DB writes)
+- Dashboard cold cache: 8842ms (25+ DB queries serialized through connection_limit=1)
+- Dashboard warm cache: 62ms
+- Rooms cold: 2814ms (6 parallel queries, warm: instant)
+- Front-desk cold: 4909ms (16 queries, warm: instant)
+- Guests: 500 error (PgBouncer incompatible nested OR relations)
+
+Optimizations applied:
+1. Split dashboard into 3 parallel useQuery calls (progressive loading)
+2. Login DB writes made non-blocking (Promise.all + fire-and-forget)
+3. Client-side cache pre-warming after login (6 endpoints fired in background)
+4. Fixed guests 500 (removed nested relation OR conditions)
+5. Auth session: zero DB lookups (trust JWT)
+6. pgbouncer=true in DATABASE_URL
+7. Sync getStore() for in-memory mode
+
+Stage Summary:
+- After deployment: login ~1.5s (down from 2s), dashboard/rooms/front-desk instant on navigation
+- Guests 500 fixed
+- All changes pushed to GitHub
