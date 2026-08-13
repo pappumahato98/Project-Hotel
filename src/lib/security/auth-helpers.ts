@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth/token'
-import { db } from '@/lib/db'
 import { logSecurityEvent } from './audit'
-import { findFallbackUser, isDatabaseError } from '@/lib/auth/fallback-users'
-import { rateLimit, RATE_LIMITS, type RateLimitConfig } from './rate-limiter'
+import { rateLimit, RATE_LIMITS } from './rate-limiter'
 import { getStore, authCacheKey, PUBSUB_CHANNELS, type StoreEvent, type SessionInvalidateEvent } from '@/lib/redis'
 
 export type AuthUser = {
@@ -178,17 +176,10 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     return NextResponse.json({ error: 'Session expired. Please log in again.' }, { status: 401 })
   }
 
-  // ── Fast path: trust fresh JWT without DB lookup ────────────
-  // If the JWT was issued less than JWT_FRESHNESS_WINDOW seconds ago,
-  // skip the DB round-trip entirely. The JWT contains all fields we need.
-  // This eliminates ~200-500ms DB latency on every API call.
-  // Security: role changes take effect within JWT_FRESHNESS_WINDOW seconds.
-  const JWT_FRESHNESS_WINDOW = 120 // 2 minutes
-  const issuedAt = (payload.iat as number) || 0
-  const nowSec = Math.floor(Date.now() / 1000)
-  const tokenAge = nowSec - issuedAt
-
-  const userFromJwt: AuthUser = {
+  // ── Trust the JWT — no DB lookup needed ───────────────────
+  // The access token is short-lived (15 min), signed with HS256, and
+  // contains all the user fields we need. No DB round-trip required.
+  const user: AuthUser = {
     userId: payload.sub,
     email: payload.email,
     role: payload.role,
@@ -196,66 +187,11 @@ export async function getAuthSession(req: NextRequest): Promise<AuthUser | NextR
     lastName: payload.lastName,
   }
 
-  if (tokenAge <= JWT_FRESHNESS_WINDOW) {
-    // Token is fresh — trust it without DB check
-    const cacheEntry = { user: userFromJwt, expiresAt: Date.now() + AUTH_TTL }
-    _localAuthCache.set(cacheKey, cacheEntry)
-    // Try to store in Redis (non-blocking — don't await to keep fast path fast)
-    getStore().then(store => {
-      if (store.isDistributed) {
-        store.set(authCacheKey(cacheKey), JSON.stringify(cacheEntry), Math.ceil(AUTH_TTL / 1000) + 1).catch(() => {})
-      }
-    }).catch(() => {})
-    return userFromJwt
-  }
-
-  // ── Slow path: verify user still exists and is active ───────
-  // For tokens older than JWT_FRESHNESS_WINDOW, hit the DB to check
-  // for deactivation, role changes, etc.
-  let profile: { id: string; email: string; role: string; firstName: string; lastName: string; active: boolean } | null = null
-  try {
-    profile = await db.authUser.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, email: true, role: true, firstName: true, lastName: true, active: true },
-    })
-  } catch (dbErr: unknown) {
-    // Database unreachable — in dev/sandbox, trust the JWT payload
-    if (isDatabaseError(dbErr) && process.env.NODE_ENV !== 'production') {
-      console.warn('[auth] DB unreachable for session check, using JWT payload')
-      _localAuthCache.set(cacheKey, { user: userFromJwt, expiresAt: Date.now() + AUTH_TTL })
-      return userFromJwt
-    }
-    const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
-    return NextResponse.json(
-      { error: 'Service temporarily unavailable. Please try again in a few seconds.' },
-      { status: 503, headers: { 'Retry-After': '10' } },
-    )
-  }
-
-  if (!profile || !profile.active) {
-    return NextResponse.json({ error: 'Account not found or deactivated' }, { status: 403 })
-  }
-
-  const user: AuthUser = {
-    userId: profile.id,
-    email: profile.email,
-    role: profile.role,
-    firstName: profile.firstName,
-    lastName: profile.lastName,
-  }
-
   const cacheEntry = { user, expiresAt: Date.now() + AUTH_TTL }
-
-  // Store in L1 local cache
   _localAuthCache.set(cacheKey, cacheEntry)
 
-  // Store in L2 Redis cache
   if (store.isDistributed) {
-    try {
-      await store.set(authCacheKey(cacheKey), JSON.stringify(cacheEntry), Math.ceil(AUTH_TTL / 1000) + 1)
-    } catch {
-      // Redis write failure — L1 cache still works
-    }
+    store.set(authCacheKey(cacheKey), JSON.stringify(cacheEntry), Math.ceil(AUTH_TTL / 1000) + 1).catch(() => {})
   }
 
   return user
