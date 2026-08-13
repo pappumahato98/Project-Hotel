@@ -14,8 +14,6 @@ import { generateCsrfToken } from '@/lib/auth/csrf'
 import { logSecurityEvent } from '@/lib/security/audit'
 import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
 import { findFallbackUser, isDatabaseError, errorSummary } from '@/lib/auth/fallback-users'
-import { prewarm } from '@/lib/cache'
-import { fetchKpis, fetchAlerts, fetchActivity } from '@/app/api/dashboard/_data'
 
 // ─── POST /api/auth/login ──────────────────────────────────────
 
@@ -173,13 +171,6 @@ export async function POST(req: NextRequest) {
       ipAddress: clientIp, userAgent: getClientUA(req),
       path: '/api/auth/login', method: 'POST',
     })
-
-    // Pre-warm dashboard cache in background so it's ready when user lands there
-    if (!usedFallback) {
-      prewarm('dashboard:kpis', fetchKpis)
-      prewarm('dashboard:alerts', fetchAlerts)
-      prewarm('dashboard:activity', fetchActivity)
-    }
 
     const cookieOptions = getRefreshCookieOptions()
     const refreshCookie = [
