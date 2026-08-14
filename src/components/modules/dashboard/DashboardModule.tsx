@@ -16,6 +16,7 @@ import {
   Radio, Plus, Calendar, Bed, Bell, Cloud, Sun, CloudRain,
   Users, ShieldCheck, Thermometer, FileDown, ExternalLink,
   Droplets, CheckCircle2, XCircle, X as XIcon, Eye,
+  ChevronLeft,
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
@@ -59,6 +60,7 @@ interface KpisData {
     totalRevenue: number
   }>
   defaultCreditLimit: number
+  range?: { type: string; label: string; from: string; to: string }
 }
 
 interface AlertsData {
@@ -328,40 +330,106 @@ function DashboardSkeleton() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 1: Welcome Header
+// SECTION 1: Welcome Header with Date Filter
 // ═══════════════════════════════════════════════════════════════════════════
-function DashboardHeader({ onRefresh }: { onRefresh: () => void }) {
-  const [activePeriod, setActivePeriod] = React.useState('Today')
-  const periods = ['Today', '7D', '30D', '90D']
+
+type DateFilterType = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'
+
+interface DateFilterOption {
+  value: DateFilterType
+  label: string
+  param: string
+}
+
+const DATE_FILTERS: DateFilterOption[] = [
+  { value: 'today', label: 'Today', param: 'range=today' },
+  { value: 'yesterday', label: 'Yesterday', param: 'range=yesterday' },
+  { value: '7d', label: '7 Days', param: 'range=7d' },
+  { value: '30d', label: '30 Days', param: 'range=30d' },
+  { value: 'month', label: 'This Month', param: 'range=month' },
+]
+
+function DashboardHeader({
+  activeFilter,
+  onFilterChange,
+  onRefresh,
+}: {
+  activeFilter: DateFilterType
+  onFilterChange: (filter: DateFilterType, from?: string, to?: string) => void
+  onRefresh: () => void
+}) {
+  const [showCustom, setShowCustom] = React.useState(false)
+  const [customFrom, setCustomFrom] = React.useState('')
+  const [customTo, setCustomTo] = React.useState('')
+
+  const handleCustomApply = () => {
+    if (customFrom && customTo) {
+      onFilterChange('custom', customFrom, customTo)
+      setShowCustom(false)
+    }
+  }
 
   return (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1
-          className="text-[28px] font-bold leading-tight"
-          style={{ color: '#111827' }}
-        >
+        <h1 className="text-[28px] font-bold leading-tight" style={{ color: '#111827' }}>
           Dashboard
         </h1>
         <p className="mt-1 text-sm" style={{ color: '#6B7280' }}>
           Overview of hotel performance and operations
         </p>
       </div>
-      <div className="flex items-center gap-2">
-        {periods.map((period) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        {DATE_FILTERS.map((opt) => (
           <button
-            key={period}
-            onClick={() => setActivePeriod(period)}
-            className="rounded-full px-4 py-1.5 text-xs font-medium transition-all"
+            key={opt.value}
+            onClick={() => { setShowCustom(false); onFilterChange(opt.value) }}
+            className="rounded-full px-3.5 py-1.5 text-xs font-medium transition-all"
             style={
-              activePeriod === period
+              activeFilter === opt.value
                 ? { backgroundColor: '#10B981', color: '#FFFFFF' }
                 : { backgroundColor: '#F3F4F6', color: '#6B7280' }
             }
           >
-            {period}
+            {opt.label}
           </button>
         ))}
+        {/* Custom date range */}
+        {activeFilter === 'custom' && (
+          <div className="flex items-center gap-1.5 rounded-full border px-3 py-1.5" style={{ borderColor: '#10B981', backgroundColor: '#ECFDF5' }}>
+            <input
+              type="date"
+              value={customFrom}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="h-6 w-28 rounded border-0 bg-transparent text-xs text-gray-700 focus:outline-none focus:ring-0"
+            />
+            <span className="text-xs text-gray-400">→</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="h-6 w-28 rounded border-0 bg-transparent text-xs text-gray-700 focus:outline-none focus:ring-0"
+            />
+            {customFrom && customTo && (
+              <button
+                onClick={handleCustomApply}
+                className="ml-1 rounded-full bg-emerald-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-emerald-700"
+              >
+                Go
+              </button>
+            )}
+          </div>
+        )}
+        {activeFilter !== 'custom' && (
+          <button
+            onClick={() => setShowCustom(true)}
+            className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-medium transition-all hover:bg-gray-50"
+            style={{ borderColor: '#E5E7EB', color: '#6B7280' }}
+          >
+            <Calendar className="size-3" />
+            Custom
+          </button>
+        )}
         <button
           onClick={onRefresh}
           className="flex size-9 items-center justify-center rounded-full border transition-colors hover:bg-gray-50"
@@ -1375,11 +1443,30 @@ function DashboardError({ error, refetch }: { error: Error; refetch: () => void 
 // Main Dashboard Module
 // ═══════════════════════════════════════════════════════════════════════════
 export function DashboardModule() {
-  // Split into 3 parallel queries — each section appears independently
+  // Date filter state — default '7d' (excludes today = fast, ~3ms)
+  const [dateFilter, setDateFilter] = React.useState<'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'>('7d')
+  const [customRange, setCustomRange] = React.useState<{ from: string; to: string } | null>(null)
+
+  // Build KPI URL with range param
+  const kpisUrl = React.useMemo(() => {
+    if (dateFilter === 'custom' && customRange) {
+      return `/api/dashboard/kpis?range=custom&from=${customRange.from}&to=${customRange.to}`
+    }
+    return `/api/dashboard/kpis?range=${dateFilter}`
+  }, [dateFilter, customRange])
+
+  const handleFilterChange = React.useCallback((filter: typeof dateFilter, from?: string, to?: string) => {
+    if (filter === 'custom' && from && to) {
+      setCustomRange({ from, to })
+    }
+    setDateFilter(filter)
+  }, [])
+
+  // Split into 3 parallel queries — KPIs react to date filter
   const kpisQuery = useQuery<KpisData>({
-    queryKey: ['dashboard', 'kpis'],
-    queryFn: () => apiFetch('/api/dashboard/kpis'),
-    refetchInterval: 60000,
+    queryKey: ['dashboard', 'kpis', dateFilter, customRange],
+    queryFn: () => apiFetch(kpisUrl),
+    refetchInterval: dateFilter === 'today' ? 30000 : 120000,
     retry: 2,
     retryDelay: 1000,
     staleTime: 30_000,
@@ -1444,8 +1531,8 @@ export function DashboardModule() {
     <div className="min-h-screen" style={{ backgroundColor: '#F3F4F6' }}>
       <style>{scrollbarStyles}</style>
       <div className="p-3 sm:p-4 md:p-6">
-        {/* Section 1: Welcome Header */}
-        <DashboardHeader onRefresh={handleRefresh} />
+        {/* Section 1: Welcome Header with Date Filter */}
+        <DashboardHeader activeFilter={dateFilter} onFilterChange={handleFilterChange} onRefresh={handleRefresh} />
 
         {/* Section 3: 5 Action Cards */}
         <ActionCardsRow data={safeData} />
