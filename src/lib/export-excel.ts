@@ -1,8 +1,13 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 /**
  * Excel Export Utility with branded header styling.
  *
  * Table headers use #149DDD (brand blue) with white text,
  * matching the UI table header color across all modules.
+ *
+ * Uses dynamic import() to avoid bundling exceljs in the initial
+ * client bundle — it only loads when the user clicks Export.
  *
  * Usage:
  *   exportToExcel(
@@ -11,8 +16,6 @@
  *     'employees'
  *   )
  */
-
-import ExcelJS from 'exceljs'
 
 const HEADER_BG = 'FF149DDD' // #149DDD in ARGB
 const HEADER_FONT_COLOR = 'FFFFFFFF' // white
@@ -35,6 +38,10 @@ export async function exportToExcel(
   filename: string,
   options: ExportOptions = {},
 ) {
+  // Dynamic import — exceljs is large and uses Node.js APIs,
+  // so we only load it when the user actually exports.
+  const ExcelJS = (await import('exceljs')).default
+
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet(options.sheetName || 'Sheet1')
 
