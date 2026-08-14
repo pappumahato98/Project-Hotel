@@ -547,6 +547,10 @@ model NightAudit {
   totalRevenue  Float    @default(0)
   totalTax      Float    @default(0)
   occupancy     Float    @default(0)
+  totalRooms    Int      @default(0)
+  occupiedRooms Int      @default(0)
+  arrivals      Int      @default(0)
+  departures    Int      @default(0)
   adr           Float    @default(0)
   revpar        Float    @default(0)
   notes         String?
