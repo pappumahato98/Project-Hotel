@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { formatDate, formatCurrency } from '@/lib/format'
 import { formatNPR } from '@/lib/nepal-standards'
 import { invalidate } from '@/lib/queryKeys'
@@ -288,23 +289,25 @@ export function RoomRatePostingPage() {
     toast.info('Viewing guest profile')
   }, [navigateTo])
 
-  // ── Export CSV ──────────────────────────────────────────────────
-  const handleExport = useCallback(() => {
-    const rows = filteredPendingReservations.map((r) => ({
-      Room: r.room?.number || '', Guest: r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '',
-      'Check-In': formatDate(r.checkIn), 'Check-Out': formatDate(r.checkOut),
-      'Rate/Night': r.roomRate, 'Pending Nights': r.pendingNights.length,
-      'Posted Nights': r.postedNights.length, 'Future Nights': r.futureNights.length,
-      'Pending Amount': r.pendingAmount, 'Folio Balance': r.folio?.balance || 0,
-      'Confirmation #': r.confirmationNo,
-    }))
+  // ── Export Excel ──────────────────────────────────────────────────
+  const handleExport = useCallback(async () => {
+    const rows = filteredPendingReservations.map((r) => [
+      r.room?.number || '',
+      r.guest ? `${r.guest.firstName} ${r.guest.lastName}` : '',
+      formatDate(r.checkIn),
+      formatDate(r.checkOut),
+      r.roomRate,
+      r.pendingNights.length,
+      r.postedNights.length,
+      r.futureNights.length,
+      r.pendingAmount,
+      r.folio?.balance || 0,
+      r.confirmationNo,
+    ])
     if (rows.length === 0) { toast.info('No data to export'); return }
-    const headers = Object.keys(rows[0])
-    const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => `"${(r as Record<string, unknown>)[h]}"`).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a'); a.href = url; a.download = `rate-posting-${new Date().toISOString().split('T')[0]}.csv`
-    a.click(); URL.revokeObjectURL(url); toast.success(`Exported ${rows.length} records`)
+    const headers = ['Room', 'Guest', 'Check-In', 'Check-Out', 'Rate/Night', 'Pending Nights', 'Posted Nights', 'Future Nights', 'Pending Amount', 'Folio Balance', 'Confirmation #']
+    await exportToExcel(headers, rows, `rate-posting-${new Date().toISOString().split('T')[0]}`)
+    toast.success(`Exported ${rows.length} records`)
   }, [filteredPendingReservations])
 
   const hasActiveFilters = search || postingType !== 'all' || dateFilter

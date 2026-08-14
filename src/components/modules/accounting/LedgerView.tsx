@@ -4,6 +4,7 @@ import { useState, useMemo, Fragment } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
 import { formatNPR, cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { formatDateShort } from '@/lib/format'
 import { toast } from 'sonner'
 import { AccountingError } from './AccountingErrorBoundary'
@@ -353,23 +354,28 @@ export function LedgerView() {
     })
   }
 
-  function exportStatementCSV() {
+  async function exportStatementCSV() {
     if (!statementData) return
     const a = statementData.account
-    const header = 'Date,Reference,Description,Narration,Debit,Credit,Balance\n'
-    const rows = statementData.lines.map((l) => {
-      const desc = (l.description || '').replace(/,/g, ';')
-      const narration = (l.narration || '').replace(/,/g, ';')
-      return `${formatDateShort(l.date)},${l.reference || ''},"${desc}","${narration}",${l.debit || ''},${l.credit || ''},${l.runningBalance}`
-    }).join('\n')
-    const csv = `Account: ${a.code} - ${a.name}\nPeriod: ${statementData.period.startDate || 'All'} to ${statementData.period.endDate || 'All'}\nOpening Balance: ${statementData.openingBalance}\n\n${header}${rows}\n\nClosing Balance: ${statementData.closingBalance}`
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `statement-${a.code}-${startDate}-to-${endDate}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
+    const headers = ['Date', 'Reference', 'Description', 'Narration', 'Debit', 'Credit', 'Balance']
+    const rows = statementData.lines.map((l) => [
+      formatDateShort(l.date),
+      l.reference || '',
+      (l.description || '').replace(/,/g, ';'),
+      (l.narration || '').replace(/,/g, ';'),
+      l.debit || '',
+      l.credit || '',
+      l.runningBalance,
+    ])
+    await exportToExcel(
+      headers,
+      rows,
+      `statement-${a.code}-${startDate}-to-${endDate}`,
+      {
+        title: `Account: ${a.code} - ${a.name}\nPeriod: ${statementData.period.startDate || 'All'} to ${statementData.period.endDate || 'All'}\nOpening Balance: ${statementData.openingBalance}`,
+        footerRows: [['Closing Balance', '', '', '', '', '', statementData.closingBalance]],
+      },
+    )
     toast.success('Statement exported')
   }
 

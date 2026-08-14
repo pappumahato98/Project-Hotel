@@ -454,73 +454,76 @@ function HourlySalesTrend({ hourly }: { hourly: DailyReportData['hourlySales'] }
   )
 }
 
-// ─── CSV Export Helper ───────────────────────────────────────────────
-function buildCsvContent(report: DailyReportData, date: string): string {
-  const lines: string[] = []
+// ─── Excel Export Helper ──────────────────────────────────────────────
+const HEADER_BG = 'FF149DDD'
+const HEADER_FONT_COLOR = 'FFFFFFFF'
+const BORDER_COLOR = 'FFCCCCCC'
 
-  // Header
-  lines.push(`POS Daily Sales Report — ${date}`)
-  lines.push('')
+async function downloadExcel(report: DailyReportData, date: string) {
+  const ExcelJS = (await import('exceljs')).default
+  const workbook = new ExcelJS.Workbook()
 
-  // Summary
-  lines.push('=== SUMMARY ===')
-  lines.push(`Total Revenue,${formatNPR(report.totalRevenue)}`)
-  lines.push(`Total Orders,${report.totalOrders}`)
-  lines.push(`Avg Order Value,${formatNPR(report.avgOrderValue)}`)
-  lines.push(`Tax Collected,${formatNPR(report.taxCollected)}`)
-  lines.push('')
+  function addSheet(name: string, headers: string[], rows: (string | number)[][]) {
+    const sheet = workbook.addWorksheet(name)
+    const headerRow = sheet.addRow(headers)
+    headerRow.height = 24
+    headerRow.eachCell((cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_BG } }
+      cell.font = { bold: true, color: { argb: HEADER_FONT_COLOR }, size: 11 }
+      cell.alignment = { horizontal: 'left', vertical: 'middle' }
+      cell.border = { bottom: { style: 'thin', color: { argb: HEADER_BG } }, right: { style: 'thin', color: { argb: BORDER_COLOR } } }
+    })
+    for (const row of rows) {
+      const dataRow = sheet.addRow(row)
+      dataRow.height = 20
+      dataRow.eachCell((cell) => {
+        cell.font = { size: 10, color: { argb: 'FF333333' } }
+        cell.border = { bottom: { style: 'hair', color: { argb: BORDER_COLOR } }, right: { style: 'hair', color: { argb: BORDER_COLOR } } }
+      })
+    }
+    sheet.columns.forEach((col, i) => {
+      const headerLen = (headers[i] || '').length
+      const maxDataLen = rows.reduce((max, row) => Math.max(max, String(row[i] ?? '').length), 0)
+      col.width = Math.min(Math.max(headerLen, maxDataLen) + 4, 40)
+    })
+    sheet.views = [{ state: 'frozen', ySplit: 1 }]
+  }
+
+  // Summary sheet
+  addSheet('Summary', ['Metric', 'Value'], [
+    ['Total Revenue', report.totalRevenue],
+    ['Total Orders', report.totalOrders],
+    ['Avg Order Value', report.avgOrderValue],
+    ['Tax Collected', report.taxCollected],
+  ])
 
   // By Outlet
-  lines.push('=== SALES BY OUTLET ===')
-  lines.push('Outlet,Revenue,Orders')
-  for (const o of report.byOutlet) {
-    lines.push(`"${o.name}",${o.revenue},${o.orders}`)
-  }
-  lines.push('')
+  addSheet('By Outlet', ['Outlet', 'Revenue', 'Orders'],
+    report.byOutlet.map(o => [o.name, o.revenue, o.orders]))
 
   // By Category
-  lines.push('=== SALES BY CATEGORY ===')
-  lines.push('Category,Amount,Share (%)')
-  for (const c of report.byCategory) {
-    lines.push(`"${c.name}",${c.amount},${c.percentage}`)
-  }
-  lines.push('')
+  addSheet('By Category', ['Category', 'Amount', 'Share (%)'],
+    report.byCategory.map(c => [c.name, c.amount, c.percentage]))
 
-  // By Payment
-  lines.push('=== PAYMENT BREAKDOWN ===')
-  lines.push('Method,Amount,Share (%)')
-  for (const p of report.byPayment) {
-    lines.push(`"${p.method}",${p.amount},${p.percentage}`)
-  }
-  lines.push('')
+  // Payment Breakdown
+  addSheet('Payments', ['Method', 'Amount', 'Share (%)'],
+    report.byPayment.map(p => [p.method, p.amount, p.percentage]))
 
   // Top Items
-  lines.push('=== TOP SELLING ITEMS ===')
-  lines.push('Rank,Item Name,Qty Sold,Revenue')
-  for (const item of report.topItems) {
-    lines.push(`${item.rank},"${item.name}",${item.qtySold},${item.revenue}`)
-  }
-  lines.push('')
+  addSheet('Top Items', ['Rank', 'Item Name', 'Qty Sold', 'Revenue'],
+    report.topItems.map(item => [item.rank, item.name, item.qtySold, item.revenue]))
 
-  // Hourly
-  lines.push('=== HOURLY SALES ===')
-  lines.push('Hour,Revenue,Orders')
-  for (const h of report.hourlySales) {
-    lines.push(`${h.hour},${h.revenue},${h.orders}`)
-  }
+  // Hourly Sales
+  addSheet('Hourly', ['Hour', 'Revenue', 'Orders'],
+    report.hourlySales.map(h => [h.hour, h.revenue, h.orders]))
 
-  return lines.join('\n')
-}
-
-function downloadCsv(content: string, filename: string) {
-  const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' })
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = filename
-  document.body.appendChild(a)
+  a.download = `pos-daily-sales-${date}.xlsx`
   a.click()
-  document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
 
@@ -623,15 +626,13 @@ export default function DailySalesReportView() {
     printWindow.document.close()
   }
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!hasData) {
       toast.info('No data to export for this date')
       return
     }
-    const csv = buildCsvContent(reportData, reportDate)
-    const filename = `pos-daily-sales-${reportDate}.csv`
-    downloadCsv(csv, filename)
-    toast.success('Report exported as CSV')
+    await downloadExcel(reportData, reportDate)
+    toast.success('Report exported as Excel')
   }
 
   return (

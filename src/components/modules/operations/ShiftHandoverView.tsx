@@ -11,6 +11,7 @@ import {
   CheckCircle2, Printer, Download, Loader2, AlertTriangle, Star, BadgeCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { exportToExcel } from '@/lib/export-excel'
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -119,49 +120,32 @@ export function ShiftHandoverView() {
     toast.success('Handover report regenerated')
   }
 
-  const handleExportShiftHandover = () => {
+  const handleExportShiftHandover = async () => {
     const s = sections
     const dateStr = format(new Date(), 'yyyy-MM-dd')
-    const rows: string[][] = [
-      ['Shift Handover Report'],
-      [`Generated: ${data.generatedAt}`],
-      [`Shift: ${data.shiftType}`],
-      [`Outgoing Supervisor: ${data.outgoingSupervisor}`],
-      [`Incoming Supervisor: ${data.incomingSupervisor}`],
-      [''],
-      ['Category', 'Metric', 'Value'],
-      ['Guest Statistics', 'In-House Guests', String(s.inHouseGuests)],
-      ['Guest Statistics', 'Arrivals Checked In', String(s.arrivals.checkedIn)],
-      ['Guest Statistics', 'Arrivals Pending', String(s.arrivals.pending)],
-      ['Guest Statistics', 'Departures Done', String(s.departures.done)],
-      ['Guest Statistics', 'Departures Pending', String(s.departures.pending)],
-      ['Operations', 'HK Task Completion %', String(s.hkTaskCompletion)],
-      ['Operations', 'Open Work Orders', String(s.openWorkOrders)],
-      ['Operations', 'Open POS Tables', String(s.openPosTables)],
-      ['Financial', 'Cashier Balance', String(s.cashierBalance)],
-      ['Financial', 'Folios Above Credit', String(s.pendingFoliosAboveCredit)],
-      [''],
-      ['VIP In-House', 'Room', 'Reason'],
-      ...s.vipInHouse.map(v => ['VIP', v.room, v.reason]),
-      [''],
-      ['Special Notes'],
-      ...s.specialNotes.map(n => [n]),
+    const metricsHeaders = ['Category', 'Metric', 'Value']
+    const metricsRows: (string | number)[][] = [
+      ['Guest Statistics', 'In-House Guests', s.inHouseGuests],
+      ['Guest Statistics', 'Arrivals Checked In', s.arrivals.checkedIn],
+      ['Guest Statistics', 'Arrivals Pending', s.arrivals.pending],
+      ['Guest Statistics', 'Departures Done', s.departures.done],
+      ['Guest Statistics', 'Departures Pending', s.departures.pending],
+      ['Operations', 'HK Task Completion %', s.hkTaskCompletion],
+      ['Operations', 'Open Work Orders', s.openWorkOrders],
+      ['Operations', 'Open POS Tables', s.openPosTables],
+      ['Financial', 'Cashier Balance', s.cashierBalance],
+      ['Financial', 'Folios Above Credit', s.pendingFoliosAboveCredit],
     ]
-    const csvContent = rows.map(r => r.map(c => {
-      const val = String(c ?? '')
-      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-        return `"${val.replace(/"/g, '""')}"`
-      }
-      return val
-    }).join(',')).join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `shift-handover-${dateStr}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Shift handover exported as CSV')
+    await exportToExcel(
+      metricsHeaders,
+      metricsRows,
+      `shift-handover-${dateStr}`,
+      {
+        title: `Shift Handover Report\nGenerated: ${data.generatedAt} | Shift: ${data.shiftType}\nOutgoing: ${data.outgoingSupervisor} | Incoming: ${data.incomingSupervisor}`,
+        sheetName: 'Metrics',
+      },
+    )
+    toast.success('Shift handover exported as Excel')
   }
 
   const handlePrintShiftHandover = () => {

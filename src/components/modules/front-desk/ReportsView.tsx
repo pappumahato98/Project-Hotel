@@ -41,7 +41,7 @@ import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatCurrency, formatDateTime } from '@/lib/format'
 import { nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { exportToCSV } from '@/lib/sort-csv'
+import { exportToExcel } from '@/lib/export-excel'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -1130,7 +1130,7 @@ export function ReportsView() {
   const activeTabConfig = REPORT_TABS.find((t) => t.value === activeTab)
   const ActiveIcon = activeTabConfig?.icon || BarChart3
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const cacheData = queryClient.getQueryData(['front-desk-reports', activeTab])
     if (!cacheData) {
       toast.error('No data to export. Please wait for the report to load.')
@@ -1146,9 +1146,32 @@ export function ReportsView() {
       return [obj]
     }
     const rows = extractRows(data)
+    if (rows.length === 0) return
+    // Flatten nested objects for headers
+    const flattenRow = (row: Record<string, unknown>, prefix = ''): Record<string, unknown> => {
+      const result: Record<string, unknown> = {}
+      for (const [key, value] of Object.entries(row)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          Object.assign(result, flattenRow(value as Record<string, unknown>, fullKey))
+        } else if (Array.isArray(value)) {
+          result[fullKey] = JSON.stringify(value)
+        } else {
+          result[fullKey] = value
+        }
+      }
+      return result
+    }
+    const flattened = rows.map((row) => flattenRow(row))
+    const headers = Object.keys(flattened[0] || {})
+    const dataRows = flattened.map(row => headers.map(h => {
+      const val = row[h]
+      if (val === null || val === undefined) return ''
+      return String(val)
+    }))
     const today = new Date().toISOString().split('T')[0]
-    exportToCSV(rows, `front-desk-${activeTab}-${today}`)
-    toast.success(`${activeTab.replace(/-/g, ' ')} report exported as CSV`)
+    await exportToExcel(headers, dataRows, `front-desk-${activeTab}-${today}`)
+    toast.success(`${activeTab.replace(/-/g, ' ')} report exported as Excel`)
   }
 
   const reportDescriptions: Record<ReportType, string> = {

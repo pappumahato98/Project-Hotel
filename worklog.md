@@ -1498,3 +1498,44 @@ Stage Summary:
 - The canary check was a false assumption — one column existing doesn't mean ALL columns exist
 - Fix removes canary, adds missing columns, and adds prisma db push as belt-and-suspenders
 - Committed as ff53e15 and pushed to origin/main
+
+
+---
+Task ID: 2-b
+Agent: General-purpose sub-agent
+Task: Update all CSV exports to Excel with #149DDD headers
+
+Work Log:
+- Read export-excel.ts utility to understand API (headers[], rows[][], filename, options?)
+- Scanned all 53 listed files for export functionality
+- Found 15 files with actual CSV/export code (the remaining 38 had no export functions)
+- Updated 15 files to use exportToExcel from @/lib/export-excel:
+  1. DeparturesView.tsx - handleExportCSV → async, uses exportToExcel
+  2. SettlementView.tsx - handleExportCSV → async, uses exportToExcel
+  3. GuestLedgerView.tsx - handleExport → async, uses exportToExcel
+  4. RoomRatePostingPage.tsx - handleExport → async, uses exportToExcel
+  5. FolioView.tsx - exportTransactionsCsv renamed to exportTransactionsExcel, uses footerRows for totals
+  6. TrialBalanceView.tsx - handleExportCSV → async, footerRows for GRAND TOTAL, button text Export Excel
+  7. AccountsPayableView.tsx - handleExportCSV → async, button text Export Excel
+  8. AccountsReceivableView.tsx - handleExportCSV → async, button text Export Excel
+  9. PayrollView.tsx - handleExportPayroll → async, footerRows for TOTAL row, removed unused escapeCsvField
+  10. DailySalesReportView.tsx - multi-section report → multi-sheet Excel workbook using ExcelJS directly with same #149DDD styling
+  11. ShiftHandoverView.tsx - handleExportShiftHandover → async, uses exportToExcel with title for metadata
+  12. SchedulesView.tsx - handleExport → async, uses exportToExcel
+  13. ReportsView.tsx - replaced exportToCSV import with exportToExcel, inlines flattenRow logic
+  14. LedgerView.tsx - exportStatementCSV → async, uses exportToExcel with title and footerRows for closing balance
+  15. sort-csv.ts - added deprecation comment, kept exportToCSV function as-is for backward compat
+- All file extensions changed from .csv to .xlsx
+- All toast messages updated from CSV to Excel where referenced
+- Verified: 0 lint errors (76 pre-existing warnings), 0 new TypeScript errors
+- No remaining importers of exportToCSV (only the definition in sort-csv.ts remains)
+
+Stage Summary:
+- All 15 files with export functionality now produce .xlsx files with #149DDD branded headers
+- DailySalesReportView uses direct ExcelJS for multi-sheet workbook (6 sheets: Summary, By Outlet, By Category, Payments, Top Items, Hourly)
+- FolioView uses footerRows for Total Charges/Payments/Outstanding Balance
+- PayrollView uses footerRows for TOTAL row
+- TrialBalanceView uses footerRows for GRAND TOTAL row
+- LedgerView uses title for account metadata and footerRows for Closing Balance
+- 38 listed files confirmed to have NO export functionality (skipped as instructed)
+

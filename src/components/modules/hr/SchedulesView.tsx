@@ -13,6 +13,7 @@ import {
   ChevronLeft, ChevronRight, AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { formatDateShort } from '@/lib/format'
 
 type ShiftType = 'morning' | 'evening' | 'night' | 'off'
@@ -194,7 +195,7 @@ export function SchedulesView() {
     return acc
   }, {} as Record<string, number>)
 
-  function handleExport() {
+  async function handleExport() {
     const headers = ['Employee', 'Department', 'Position', ...DAYS]
     const rows = filteredSchedule.map((entry) => [
       entry.name,
@@ -205,15 +206,8 @@ export function SchedulesView() {
         return SHIFT_CONFIG[shift].label
       }),
     ])
-    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `schedule-${weekLabel.replace(/\s/g, '-')}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Schedule exported as CSV')
+    await exportToExcel(headers, rows, `schedule-${weekLabel.replace(/\s/g, '-')}`)
+    toast.success('Schedule exported as Excel')
   }
 
   if (isLoading) return <LoadingSkeleton />

@@ -32,6 +32,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatCurrency, formatDateShort, formatDateTime, nightsBetween } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { useNavigationStore, useFolioContextStore } from '@/lib/store'
 import { invalidate } from '@/lib/queryKeys'
 
@@ -438,7 +439,7 @@ export function SettlementView() {
     }
   }
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const headers = ['Room', 'Guest', 'Confirmation', 'Nights', 'Outstanding', 'Last Payment']
     const rows = filteredReservations.map((r) => [
       r.room?.number ?? 'Unassigned',
@@ -448,14 +449,7 @@ export function SettlementView() {
       String(getOutstandingBalance(r)),
       getLastPayment(r) || '—',
     ])
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'settlement.csv'
-    a.click()
-    URL.revokeObjectURL(url)
+    await exportToExcel(headers, rows, 'settlement')
   }
 
   const handleSettleSelected = () => {

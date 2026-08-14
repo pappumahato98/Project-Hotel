@@ -36,6 +36,7 @@ import { Progress } from '@/components/ui/progress'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { useSettingsStore, usePreferencesStore, useFolioContextStore, useNavigationStore, useGuestLedgerContextStore } from '@/lib/store'
 import { toast } from 'sonner'
 
@@ -208,11 +209,11 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced
 }
 
-// ─── CSV Export Helper ─────────────────────────────────────────────────
+// ─── Excel Export Helper ─────────────────────────────────────────────────
 
-function exportTransactionsCsv(folio: Folio, transactions: FolioTransaction[]) {
+async function exportTransactionsExcel(folio: Folio, transactions: FolioTransaction[]) {
   const headers = ['Date', 'Type', 'Description', 'Qty', 'Amount', 'Tax', 'Total', 'Running Balance', 'Posted By', 'Reference', 'Outlet']
-  const rows: string[][] = []
+  const rows: (string | number)[][] = []
   let runningBalance = 0
 
   for (const txn of transactions) {
@@ -221,11 +222,11 @@ function exportTransactionsCsv(folio: Folio, transactions: FolioTransaction[]) {
       formatDateTime(txn.createdAt),
       TRANSACTION_TYPE_LABELS[txn.transactionType] || txn.transactionType,
       txn.description.replace(/,/g, ';'),
-      String(txn.quantity),
-      String(txn.amount),
-      String(txn.taxAmount),
-      String(txn.totalAmount),
-      String(runningBalance),
+      txn.quantity,
+      txn.amount,
+      txn.taxAmount,
+      txn.totalAmount,
+      runningBalance,
       txn.postedBy || '',
       txn.reference || '',
       txn.outlet || '',
@@ -233,28 +234,21 @@ function exportTransactionsCsv(folio: Folio, transactions: FolioTransaction[]) {
   }
 
   const guestName = guestFullName(folio.guest)
-  const roomNum = folio.reservation.room?.number || 'N/A'
   const confNo = folio.reservation.confirmationNo
-  const csvContent = [
-    `Folio Statement - ${guestName}`,
-    `Room: ${roomNum} | Confirmation: ${confNo}`,
-    `Generated: ${formatDateTime(new Date())}`,
-    '',
-    headers.join(','),
-    ...rows.map(r => r.map(c => `"${c}"`).join(',')),
-    '',
-    `"Total Charges","${folioCharges(folio)}"`,
-    `"Total Payments","${folioPayments(folio)}"`,
-    `"Outstanding Balance","${folioOutstanding(folio)}"`,
-  ].join('\n')
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `folio-${confNo}-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  await exportToExcel(
+    headers,
+    rows,
+    `folio-${confNo}-${new Date().toISOString().slice(0, 10)}`,
+    {
+      title: `Folio Statement - ${guestName}`,
+      footerRows: [
+        ['Total Charges', folioCharges(folio)],
+        ['Total Payments', folioPayments(folio)],
+        ['Outstanding Balance', folioOutstanding(folio)],
+      ],
+    },
+  )
 }
 
 // ─── Component ──────────────────────────────────────────────────────────
@@ -493,9 +487,9 @@ export function FolioView() {
 
   const handleSortToggle = (field: SortField) => () => handleSort(field)
 
-  const handleExportCsv = (folio: Folio, filteredTxns: FolioTransaction[]) => {
-    exportTransactionsCsv(folio, filteredTxns)
-    toast.success('CSV exported successfully')
+  const handleExportCsv = async (folio: Folio, filteredTxns: FolioTransaction[]) => {
+    await exportTransactionsExcel(folio, filteredTxns)
+    toast.success('Excel exported successfully')
   }
 
   // ─── Mutations ────────────────────────────────────────────────────

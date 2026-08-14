@@ -13,8 +13,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Download, DollarSign, TrendingUp, TrendingDown, Users, Banknote, Loader2 } from 'lucide-react'
-import { formatNPR } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { formatNPR, cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 
 // ── Types ────────────────────────────────────────────────────
 interface PayrollEmployee {
@@ -57,13 +57,6 @@ interface PayrollComparison {
   previousMonth: PayrollData | null
 }
 
-function escapeCsvField(value: string | number | null | undefined): string {
-  const str = String(value ?? '')
-  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
 
 function getMonthStr(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
@@ -113,37 +106,27 @@ export function PayrollView() {
     onError: () => toast.error('Failed to process payroll'),
   })
 
-  const handleExportPayroll = () => {
+  const handleExportPayroll = async () => {
     if (!data?.employees) {
       toast.error('No payroll data to export')
       return
     }
-    const rows: string[][] = [
-      ['Employee Name', 'Position', 'Department', 'Base Salary', 'Variable Pay', 'Overtime', 'Deductions', 'Net Pay'],
-      ...data.employees.map((emp: PayrollEmployee) => [
-        emp.name,
-        emp.position,
-        emp.department,
-        String(emp.baseSalary),
-        String(emp.variablePay),
-        String(emp.overtime),
-        String(emp.deductions),
-        String(emp.netPay),
-      ]),
-    ]
-    if (data.summary) {
-      rows.push([])
-      rows.push(['TOTAL', '', '', String(data.summary.totalBaseSalary), String(data.summary.totalVariablePay), String(data.summary.totalOvertime ?? 0), String(data.summary.totalDeductions), String(data.summary.totalNetPay)])
-    }
-    const csvContent = rows.map(r => r.map(escapeCsvField).join(',')).join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `payroll-${selectedMonth}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Payroll exported as CSV')
+    const headers = ['Employee Name', 'Position', 'Department', 'Base Salary', 'Variable Pay', 'Overtime', 'Deductions', 'Net Pay']
+    const rows = data.employees.map((emp: PayrollEmployee) => [
+      emp.name,
+      emp.position,
+      emp.department,
+      emp.baseSalary,
+      emp.variablePay,
+      emp.overtime,
+      emp.deductions,
+      emp.netPay,
+    ])
+    const footerRows = data.summary ? [[
+      'TOTAL', '', '', data.summary.totalBaseSalary, data.summary.totalVariablePay, data.summary.totalOvertime ?? 0, data.summary.totalDeductions, data.summary.totalNetPay,
+    ]] : undefined
+    await exportToExcel(headers, rows, `payroll-${selectedMonth}`, { footerRows })
+    toast.success('Payroll exported as Excel')
   }
 
   // Trend calculations

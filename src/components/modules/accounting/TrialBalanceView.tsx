@@ -15,6 +15,7 @@ import {
 import { CheckCircle2, XCircle, RefreshCw, Download, Scale, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useState } from 'react'
 import { formatNPR, cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { formatDateShort, toDateOnly, fromDateOnly } from '@/lib/format'
 
 // ── Types ────────────────────────────────────────────────────
@@ -80,20 +81,21 @@ export function TrialBalanceView() {
     enabled: generated,
   })
 
-  // CSV export
-  const handleExportCSV = () => {
+  // Excel export
+  const handleExportCSV = async () => {
     if (!data) return
     const headers = ['Account Code', 'Account Name', 'Type', 'Debit Total', 'Credit Total', 'Net Balance', 'Nature']
     const rows = data.accounts.map(a => [
       a.accountCode, a.accountName, a.type, a.debitTotal.toFixed(2), a.creditTotal.toFixed(2), a.netBalance.toFixed(2), a.balanceNature
     ])
-    rows.push(['', '', 'GRAND TOTAL', data.totalDebit.toFixed(2), data.totalCredit.toFixed(2), '', data.isBalanced ? 'Balanced' : `Diff: ${data.balanceDifference.toFixed(2)}`])
-    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `trial-balance-${startDate}-to-${endDate}.csv`; a.click()
-    URL.revokeObjectURL(url)
+    await exportToExcel(
+      headers,
+      rows,
+      `trial-balance-${startDate}-to-${endDate}`,
+      {
+        footerRows: [['', '', 'GRAND TOTAL', data.totalDebit.toFixed(2), data.totalCredit.toFixed(2), '', data.isBalanced ? 'Balanced' : `Diff: ${data.balanceDifference.toFixed(2)}`]],
+      },
+    )
   }
 
   return (
@@ -111,7 +113,7 @@ export function TrialBalanceView() {
             <RefreshCw className={cn('h-3 w-3 mr-1', isFetching && 'animate-spin')} />Refresh
           </Button>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportCSV} disabled={isLoading || !data}>
-            <Download className="h-3 w-3 mr-1" />Export CSV
+            <Download className="h-3 w-3 mr-1" />Export Excel
           </Button>
         </div>
       </div>

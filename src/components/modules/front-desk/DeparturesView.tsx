@@ -35,6 +35,7 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { RoomTypeBedBadge } from '@/components/shared/room-type-bed-badge'
 import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { useSettingsStore, usePreferencesStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
 import { invalidate } from '@/lib/queryKeys'
 
@@ -307,7 +308,7 @@ export function DeparturesView() {
     }
   }
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const headers = ['Room', 'Guest', 'Confirmation', 'Check-Out', 'Balance', 'Status']
     const rows = departures.map((d) => [
       d.room?.number ?? 'Unassigned',
@@ -317,14 +318,7 @@ export function DeparturesView() {
       String(getBalance(d)),
       d.status,
     ])
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'departures.csv'
-    a.click()
-    URL.revokeObjectURL(url)
+    await exportToExcel(headers, rows, 'departures')
   }
 
   const handleCheckoutSelected = () => {

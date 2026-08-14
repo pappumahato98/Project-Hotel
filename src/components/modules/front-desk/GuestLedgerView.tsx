@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api'
 import { invalidate } from '@/lib/queryKeys'
 import { formatDate, formatDateShort, formatDateTime, formatCurrency } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { toast } from 'sonner'
 import { useNavigationStore, useFolioContextStore, useGuestLedgerContextStore, useReservationContextStore } from '@/lib/store'
 
@@ -956,15 +957,9 @@ export function GuestLedgerView() {
     printWindow.document.close()
   }, [ledger])
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     if (!ledger) return
-    function escapeCsvField(value: string | number | null | undefined): string {
-      const str = String(value ?? '')
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`
-      }
-      return str
-    }
+    const headers = ['Date', 'Type', 'Category', 'Description', 'Confirmation#', 'Room', 'Amount', 'Tax', 'Total']
     const rows = ledger.transactions.map((tx) => [
       tx.createdAt,
       tx.type,
@@ -976,18 +971,8 @@ export function GuestLedgerView() {
       tx.taxAmount,
       tx.totalAmount,
     ])
-    const csvContent = [
-      ['Date', 'Type', 'Category', 'Description', 'Confirmation#', 'Room', 'Amount', 'Tax', 'Total'].map(escapeCsvField).join(','),
-      ...rows.map((r) => r.map(escapeCsvField).join(',')),
-    ].join('\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `guest-ledger-${ledger.guest.firstName}-${ledger.guest.lastName}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Ledger exported as CSV')
+    await exportToExcel(headers, rows, `guest-ledger-${ledger.guest.firstName}-${ledger.guest.lastName}`)
+    toast.success('Ledger exported as Excel')
   }, [ledger])
 
   const toggleGroup = useCallback((key: string) => {

@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronDown, ChevronRight, Download, Send, Users, Clock, AlertTriangle } from 'lucide-react'
 import { useState } from 'react'
 import { formatNPR, cn } from '@/lib/utils'
+import { exportToExcel } from '@/lib/export-excel'
 import { toast } from 'sonner'
 
 // ── Types ────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ export function AccountsReceivableView() {
     toast.success(`Payment reminder sent to ${guestName}`)
   }
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!data) return
     const headers = ['Guest Name', 'Total Outstanding', 'Current (0-30d)', '31-60 days', '61-90 days', '90+ days']
     const rows = data.guestGroups.map(g => [
@@ -86,14 +87,7 @@ export function AccountsReceivableView() {
       g.aging.days61to90.toFixed(2),
       g.aging.daysOver90.toFixed(2),
     ])
-    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${v}"`).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `ar-aging-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    await exportToExcel(headers, rows, `ar-aging-${new Date().toISOString().split('T')[0]}`)
     toast.success('AR Aging report exported')
   }
 
@@ -113,7 +107,7 @@ export function AccountsReceivableView() {
             <Users className={cn('h-3 w-3 mr-1', isFetching && 'animate-spin')} />Refresh
           </Button>
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleExportCSV} disabled={isLoading || !data}>
-            <Download className="h-3 w-3 mr-1" />Export CSV
+            <Download className="h-3 w-3 mr-1" />Export Excel
           </Button>
         </div>
       </div>

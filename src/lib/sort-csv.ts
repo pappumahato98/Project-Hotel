@@ -17,6 +17,9 @@ export function handleSort(
 }
 
 // ─── CSV Export Utility ───────────────────────────────────────────
+// DEPRECATED: Use `exportToExcel` from `@/lib/export-excel` instead for Excel
+// output with #149DDD branded header styling. This function is kept for
+// backward compatibility but produces plain CSV files.
 
 export function exportToCSV(data: Record<string, unknown>[], filename: string) {
   if (!data || data.length === 0) return
