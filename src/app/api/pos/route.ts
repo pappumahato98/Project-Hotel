@@ -143,6 +143,8 @@ export interface PosStats {
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
+
+  try {
   const { searchParams } = new URL(request.url)
   const section = searchParams.get('section') ?? 'all'
 
@@ -678,6 +680,11 @@ export async function GET(request: NextRequest) {
   }, 60000)
 
   return cachedJson(data, request, { tier: 'short' })
+  } catch (error) {
+    console.error('[pos] GET error:', error)
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch POS data', 500, msg.substring(0, 300))
+  }
 }
 
 // ─── POST Handler - Create Order ────────────────────────────────

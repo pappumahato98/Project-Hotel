@@ -4,11 +4,11 @@ import { db } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postNightAuditSummary } from '@/lib/accounting/auto-post'
-import { getHotelNow, getHotelToday, DEFAULT_TIMEZONE } from '@/lib/timezone'
+import { getHotelNow, getHotelStartOfDay, DEFAULT_TIMEZONE } from '@/lib/timezone'
 
 // ─── Hotel timezone helpers (replaces manual offset math) ──────
 function getNepalNow(): Date { return getHotelNow() }
-function getNepalToday(): Date { return getHotelToday() }
+function getNepalToday(): Date { return getHotelStartOfDay() }
 
 function getNepalTomorrow(): Date {
   const d = getHotelNow()
