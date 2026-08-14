@@ -45,6 +45,18 @@ export async function register() {
     console.warn('[startup] Store initialization warning:', err)
   }
 
+  // Auto-sync database schema (adds missing columns if schema drift detected)
+  // This runs before any API request, preventing PrismaClientUnknownRequestError
+  try {
+    const { hasPostgresConfigured } = await import('@/lib/env')
+    if (hasPostgresConfigured()) {
+      const { syncSchema } = await import('@/lib/db')
+      await syncSchema()
+    }
+  } catch (err) {
+    console.warn('[startup] Schema auto-sync skipped:', err instanceof Error ? err.message : err)
+  }
+
   // Register graceful shutdown handlers — deferred to avoid Edge Runtime static analysis
   try { await import('./instrumentation-shutdown') } catch { /* not available in Edge */ }
 }

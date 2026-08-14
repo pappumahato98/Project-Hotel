@@ -160,8 +160,76 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Step 2: Fix known database trigger issues ──
-    log('Step 2/6: Checking database triggers...')
+    // ── Step 2: Explicit column sync (reliable fallback for prisma db push) ──
+    log('Step 2/7: Syncing missing columns (explicit ALTER TABLE)...')
+    let columnsAdded = 0
+    try {
+      const { db } = await import('@/lib/db')
+
+      // NightAudit: add snapshot columns
+      for (const col of ['totalRooms', 'occupiedRooms', 'arrivals', 'departures'] as const) {
+        try {
+          await db.$executeRawUnsafe(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "${col}" INTEGER NOT NULL DEFAULT 0`)
+          columnsAdded++
+        } catch { /* column may already exist */ }
+      }
+
+      // NightAudit: add composite index
+      try {
+        await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`)
+      } catch { /* index may already exist */ }
+
+      // RoomType: add areaSqM
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "RoomType" ADD COLUMN IF NOT EXISTS "areaSqM" DOUBLE PRECISION`)
+        columnsAdded++
+      } catch { /* column may already exist */ }
+
+      // JournalEntry: add audit trail columns
+      for (const col of ['sourceModule', 'sourceId', 'postedBy'] as const) {
+        try {
+          await db.$executeRawUnsafe(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "${col}" TEXT`)
+          columnsAdded++
+        } catch { /* column may already exist */ }
+      }
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`)
+        columnsAdded++
+      } catch { /* column may already exist */ }
+
+      // LedgerAccount: add department
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`)
+        columnsAdded++
+      } catch { /* column may already exist */ }
+
+      // Channel: no column rename needed (both schema and DB use 'logo')
+
+      // RefreshToken: add token family tracking columns
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`)
+        columnsAdded++
+      } catch { /* column may already exist */ }
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "replacedBy" TEXT`)
+        columnsAdded++
+      } catch { /* column may already exist */ }
+      try {
+        await db.$executeRawUnsafe(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`)
+        columnsAdded++
+      } catch { /* column may already exist */ }
+      try {
+        await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`)
+      } catch { /* index may already exist */ }
+
+      log(`Column sync: ${columnsAdded} columns added/verified`)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log(`Column sync note: ${msg.substring(0, 300)}`)
+    }
+
+    // ── Step 3: Fix known database trigger issues ──
+    log('Step 3/7: Checking database triggers...')
     try {
       const { db } = await import('@/lib/db')
       await db.$executeRawUnsafe(`
@@ -191,8 +259,8 @@ export async function POST(req: NextRequest) {
       log(`Trigger fix note: ${msg.substring(0, 200)}`)
     }
 
-    // ── Step 3: Regenerate Prisma client ──
-    log('Step 3/6: Regenerating Prisma client...')
+    // ── Step 4: Regenerate Prisma client ──
+    log('Step 4/7: Regenerating Prisma client...')
     try {
       execSync('npx prisma generate 2>&1', {
         timeout: 30_000,
@@ -204,8 +272,8 @@ export async function POST(req: NextRequest) {
       log(`Prisma generate note: ${msg.substring(0, 200)}`)
     }
 
-    // ── Step 3: Seed chart of accounts if empty ──
-    log('Step 4/6: Checking chart of accounts...')
+    // ── Step 5: Seed chart of accounts if empty ──
+    log('Step 5/7: Checking chart of accounts...')
     let accountsSeeded = 0
     try {
       const { db } = await import('@/lib/db')
@@ -230,8 +298,8 @@ export async function POST(req: NextRequest) {
       // Don't fail — schema might still be syncing
     }
 
-    // ── Step 4: Create initial accounting period if missing ──
-    log('Step 5/6: Checking accounting periods...')
+    // ── Step 6: Create initial accounting period if missing ──
+    log('Step 6/7: Checking accounting periods...')
     try {
       const { db } = await import('@/lib/db')
       const periodCount = await db.accountingPeriod.count()
@@ -260,8 +328,8 @@ export async function POST(req: NextRequest) {
       log(`Period check note: ${msg.substring(0, 200)}`)
     }
 
-    // ── Step 5: Seed/reset default users ──
-    log('Step 6/6: Checking default users...')
+    // ── Step 7: Seed/reset default users ──
+    log('Step 7/7: Checking default users...')
     let usersSeeded = 0
     let usersUpdated = 0
     try {
@@ -302,7 +370,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Setup complete: schema synced, ${accountsSeeded} chart of accounts, ${usersSeeded} created, ${usersUpdated} updated`,
-      steps: ['schema-push', 'fix-triggers', 'prisma-generate', 'seed-accounts', 'check-periods', 'seed-users'],
+      steps: ['schema-push', 'column-sync', 'fix-triggers', 'prisma-generate', 'seed-accounts', 'check-periods', 'seed-users'],
       accountsSeeded,
       usersSeeded,
       usersUpdated,

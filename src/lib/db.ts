@@ -248,6 +248,16 @@ function getDb(): PrismaClient {
   return _db
 }
 
+/**
+ * Public API: trigger schema sync. Safe to call multiple times.
+ * Used by instrumentation.ts at startup and by requireDb() on first request.
+ */
+export async function syncSchema(): Promise<void> {
+  if (!hasPostgresConfigured()) return
+  const client = getDb()
+  await autoSyncSchema(client)
+}
+
 /** Proxy that delegates every property access to the lazily-created client */
 export const db = new Proxy({} as PrismaClient, {
   get(_target, prop, receiver) {
@@ -259,6 +269,21 @@ export const db = new Proxy({} as PrismaClient, {
     return value
   },
 })
+
+/**
+ * Trigger auto-sync and return the DB client.
+ * Call this at the start of any API route that needs the database.
+ * Returns null if DB is not configured, or the client if ready.
+ *
+ * This is the recommended alternative to `requireDb()` for routes that
+ * don't need the 503 response (e.g., routes that handle DB errors themselves).
+ */
+export async function ensureDb(): Promise<PrismaClient | null> {
+  if (!hasPostgresConfigured()) return null
+  const client = getDb()
+  await autoSyncSchema(client)
+  return client
+}
 
 /** Retry wrapper — kept for API compatibility */
 export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
@@ -314,6 +339,8 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
     const client = getDb()
     await client.$queryRaw`SELECT 1`
     _dbPingResult = { ok: true, detail: 'ok', ts: now }
+    // Auto-sync schema on first successful connection
+    await autoSyncSchema(client)
     return null
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -333,3 +360,74 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
 }
 
 let _dbPingResult: { ok: boolean; detail: string; ts: number } | null = null
+let _schemaSyncPromise: Promise<void> | null = null
+
+/**
+ * Auto-sync missing database columns.
+ *
+ * Runs once per process after the first successful DB connection.
+ * Adds any columns that exist in the Prisma schema but are missing
+ * from the actual database (schema drift from manual/Supabase migrations).
+ *
+ * This is the self-healing mechanism — after a deploy, the first API
+ * request that calls requireDb() will trigger this sync, fixing any
+ * PrismaClientUnknownRequestError caused by missing columns.
+ *
+ * Uses a singleton Promise to prevent concurrent execution.
+ */
+function autoSyncSchema(client: PrismaClient): Promise<void> {
+  // Return existing promise if sync is already in progress or completed
+  if (_schemaSyncPromise) return _schemaSyncPromise
+
+  _schemaSyncPromise = (async () => {
+    try {
+      // Quick check: does NightAudit have the 'totalRooms' column?
+      // If yes, assume all columns are synced (totalRooms was the first addition).
+      const colCheck = await client.$queryRawUnsafe<Array<{ column_name: string }>>(`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'NightAudit' AND column_name = 'totalRooms'
+      `)
+      if (colCheck.length > 0) {
+        return // Schema is already in sync
+      }
+
+      console.warn('[db] Schema drift detected — auto-syncing missing columns...')
+      let fixed = 0
+
+      const alter = async (sql: string) => {
+        try { await client.$executeRawUnsafe(sql); fixed++ } catch { /* already exists */ }
+      }
+
+      // NightAudit: snapshot columns
+      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "totalRooms" INTEGER NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "occupiedRooms" INTEGER NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "arrivals" INTEGER NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "departures" INTEGER NOT NULL DEFAULT 0`)
+      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`) } catch {}
+
+      // RoomType: metric area
+      await alter(`ALTER TABLE "RoomType" ADD COLUMN IF NOT EXISTS "areaSqM" DOUBLE PRECISION`)
+
+      // JournalEntry: audit trail
+      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceModule" TEXT`)
+      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
+      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`)
+      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`)
+
+      // LedgerAccount: department
+      await alter(`ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`)
+
+      // RefreshToken: token family tracking
+      await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`)
+      await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "replacedBy" TEXT`)
+      await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`)
+      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`) } catch {}
+
+      console.warn(`[db] Auto-sync complete: ${fixed} columns added`)
+    } catch (err) {
+      console.error('[db] Auto-sync failed (non-fatal):', err instanceof Error ? err.message : err)
+    }
+  })()
+
+  return _schemaSyncPromise
+}

@@ -1440,3 +1440,35 @@ Stage Summary:
 - App starts even without DATABASE_URL/JWT_SECRET — shows clear error messages via API
 - Health endpoint `/api/health` always accessible for diagnostics
 - Lint: 0 errors, 76 pre-existing warnings
+---
+Task ID: schema-drift-fix
+Agent: Main Orchestrator
+Task: Fix PrismaClientUnknownRequestError causing all modules to error
+
+Work Log:
+- Investigated PrismaClientUnknownRequestError on dashboard/activity endpoint
+- Performed systematic column-by-column comparison of Prisma schema vs Supabase migration SQL
+- Identified 12 missing columns across 5 tables (NightAudit, RoomType, JournalEntry, LedgerAccount, RefreshToken)
+- Created migration SQL: supabase/migrations/20260804000000_sync_prisma_schema_columns.sql
+- Updated db-setup endpoint: added Step 2/7 with explicit ALTER TABLE IF NOT EXISTS for all 12 columns
+- Added autoSyncSchema() to src/lib/db.ts — singleton Promise that checks and adds missing columns
+- Added syncSchema() export for external use
+- Modified instrumentation.ts to call syncSchema() at server startup (before any API request)
+- Kept auto-sync fallback in requireDb() for routes that use it
+
+Missing columns found:
+- NightAudit: totalRooms, occupiedRooms, arrivals, departures (INT NOT NULL DEFAULT 0)
+- NightAudit: missing composite index (status, businessDate)
+- RoomType: areaSqM (DOUBLE PRECISION)
+- JournalEntry: sourceModule, sourceId, postedBy (TEXT), postedAt (TIMESTAMP)
+- LedgerAccount: department (TEXT)
+- RefreshToken: tokenFamilyId (TEXT), replacedBy (TEXT), revokedAt (TIMESTAMP)
+- RefreshToken: missing index on tokenFamilyId
+
+Stage Summary:
+- Root cause: Prisma schema had columns not present in the production database
+- The original Supabase migration (20260729000000) created tables without these columns
+- prisma db push in db-setup may have failed silently on Render
+- Fix is self-healing: auto-sync runs at startup AND on first requireDb() call
+- Also updated db-setup endpoint with explicit ALTER TABLE as reliable fallback
+- No code errors (0 lint errors)
