@@ -365,7 +365,7 @@ let _schemaSyncPromise: Promise<void> | null = null
 /**
  * Auto-sync missing database columns.
  *
- * Runs once per process after the first successful DB connection.
+ * Runs ONCE per process after the first successful DB connection.
  * Adds any columns that exist in the Prisma schema but are missing
  * from the actual database (schema drift from manual/Supabase migrations).
  *
@@ -374,6 +374,8 @@ let _schemaSyncPromise: Promise<void> | null = null
  * PrismaClientUnknownRequestError caused by missing columns.
  *
  * Uses a singleton Promise to prevent concurrent execution.
+ * All ALTER TABLE statements use IF NOT EXISTS so they are idempotent —
+ * safe to run every time without a canary check.
  */
 function autoSyncSchema(client: PrismaClient): Promise<void> {
   // Return existing promise if sync is already in progress or completed
@@ -381,22 +383,15 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
 
   _schemaSyncPromise = (async () => {
     try {
-      // Quick check: does NightAudit have the 'totalRooms' column?
-      // If yes, assume all columns are synced (totalRooms was the first addition).
-      const colCheck = await client.$queryRawUnsafe<Array<{ column_name: string }>>(`
-        SELECT column_name FROM information_schema.columns
-        WHERE table_schema = 'public' AND table_name = 'NightAudit' AND column_name = 'totalRooms'
-      `)
-      if (colCheck.length > 0) {
-        return // Schema is already in sync
-      }
-
-      console.warn('[db] Schema drift detected — auto-syncing missing columns...')
+      console.warn('[db] Schema auto-sync starting...')
       let fixed = 0
 
       const alter = async (sql: string) => {
-        try { await client.$executeRawUnsafe(sql); fixed++ } catch { /* already exists */ }
+        try { await client.$executeRawUnsafe(sql); fixed++ } catch { /* already exists or irrelevant */ }
       }
+
+      // AuthUser: password hash (critical for authentication)
+      await alter(`ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT NOT NULL DEFAULT ''`)
 
       // NightAudit: snapshot columns
       await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "totalRooms" INTEGER NOT NULL DEFAULT 0`)
@@ -414,8 +409,9 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
       await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`)
       await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`)
 
-      // LedgerAccount: department
+      // LedgerAccount: department + subtype
       await alter(`ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`)
+      await alter(`ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "subtype" TEXT`)
 
       // RefreshToken: token family tracking
       await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`)
@@ -423,7 +419,11 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
       await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`)
       try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`) } catch {}
 
-      console.warn(`[db] Auto-sync complete: ${fixed} columns added`)
+      if (fixed > 0) {
+        console.warn(`[db] Auto-sync complete: ${fixed} columns/indexes added`)
+      } else {
+        console.warn('[db] Auto-sync: schema is up to date')
+      }
     } catch (err) {
       console.error('[db] Auto-sync failed (non-fatal):', err instanceof Error ? err.message : err)
     }

@@ -13,6 +13,7 @@
  */
 
 import { NextResponse } from 'next/server'
+import { hasPostgresConfigured } from '@/lib/env'
 
 type CacheTier = 'short' | 'medium' | 'long' | 'static'
 
@@ -153,7 +154,6 @@ export function withCache(
   return async (req: Request) => {
     try {
       // Quick DB availability check — return 503 early if DB is not configured
-      const { hasPostgresConfigured } = await import('@/lib/env')
       if (!hasPostgresConfigured()) {
         return NextResponse.json(
           { error: 'Database not configured', code: 'DB_NOT_CONFIGURED', detail: 'DATABASE_URL is not set. Configure it in your deployment environment.' },
@@ -166,13 +166,25 @@ export function withCache(
     } catch (error) {
       console.error('[withCache] error:', error)
       const msg = error instanceof Error ? error.message : String(error)
-      // Detect DB connection errors and return a clearer message
+      // Detect DB connection / Prisma errors and return a clearer message
+      const errName = error?.constructor?.name ?? ''
+      const errCode = (error as Record<string, unknown>)?.code ?? ''
       if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') ||
           msg.includes('connection') || msg.includes('timeout') ||
           msg.includes('P1001') || msg.includes('P1008') ||
-          msg.includes('authentication failed') || msg.includes('password authentication')) {
+          msg.includes('authentication failed') || msg.includes('password authentication') ||
+          errName === 'PrismaClientUnknownRequestError' ||
+          errCode === 'P1001' || errCode === 'P1008' || errCode === 'P2024' ||
+          errCode === 'P2025') {
+        // Schema drift / missing column errors should be retried after auto-sync
+        const isSchemaError = errName === 'PrismaClientUnknownRequestError' ||
+          msg.includes('column') || msg.includes('relation') || msg.includes('table')
         return NextResponse.json(
-          { error: 'Database unreachable', code: 'DB_UNREACHABLE', detail: msg.substring(0, 300) },
+          {
+            error: isSchemaError ? 'Database schema mismatch' : 'Database unreachable',
+            code: isSchemaError ? 'DB_SCHEMA_ERROR' : 'DB_UNREACHABLE',
+            detail: msg.substring(0, 300),
+          },
           { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '10' } },
         )
       }

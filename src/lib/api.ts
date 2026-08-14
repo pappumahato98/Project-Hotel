@@ -142,11 +142,13 @@ export async function apiFetch<T = unknown>(
       let errData: Record<string, unknown> | null = null
       try { errData = await res.json() } catch {}
       const code = errData?.code as string | undefined
-      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE') {
+      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE' || code === 'DB_SCHEMA_ERROR') {
         const detail = (errData?.detail as string) || ''
         const msg = code === 'DB_NOT_CONFIGURED'
           ? 'Database not configured. Please set DATABASE_URL in your deployment environment variables.'
-          : 'Database is not reachable. Please check your DATABASE_URL and database status.'
+          : code === 'DB_SCHEMA_ERROR'
+            ? 'Database schema mismatch. The app is auto-fixing — please wait a moment and retry.'
+            : 'Database is not reachable. Please check your DATABASE_URL and database status.'
         // Dispatch a custom event that the app shell can listen to
         window.dispatchEvent(new CustomEvent('db-unavailable', { detail: { code, message: msg, detail } }))
         throw new Error(msg)

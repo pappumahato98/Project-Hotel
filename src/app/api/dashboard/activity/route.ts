@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
     const data = await fetchActivity()
     return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
-    console.error('[dashboard/activity] error:', error)
+    const code = (error as Record<string, unknown>)?.code ?? ''
+    const meta = (error as Record<string, unknown>)?.meta ?? ''
+    console.error('[dashboard/activity] error:', { message: error instanceof Error ? error.message : String(error), code, meta, name: error?.constructor?.name })
     const msg = error instanceof Error ? error.message : String(error)
     return cachedError('Failed to fetch activity', 500, msg)
   }
