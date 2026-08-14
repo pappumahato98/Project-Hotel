@@ -152,12 +152,30 @@ export function withCache(
 ) {
   return async (req: Request) => {
     try {
+      // Quick DB availability check — return 503 early if DB is not configured
+      const { hasPostgresConfigured } = await import('@/lib/env')
+      if (!hasPostgresConfigured()) {
+        return NextResponse.json(
+          { error: 'Database not configured', code: 'DB_NOT_CONFIGURED', detail: 'DATABASE_URL is not set. Configure it in your deployment environment.' },
+          { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '30' } },
+        )
+      }
       const result = await handler(req)
       if (result instanceof NextResponse) return result
       return cachedJson(result, req, options)
     } catch (error) {
       console.error('[withCache] error:', error)
       const msg = error instanceof Error ? error.message : String(error)
+      // Detect DB connection errors and return a clearer message
+      if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') ||
+          msg.includes('connection') || msg.includes('timeout') ||
+          msg.includes('P1001') || msg.includes('P1008') ||
+          msg.includes('authentication failed') || msg.includes('password authentication')) {
+        return NextResponse.json(
+          { error: 'Database unreachable', code: 'DB_UNREACHABLE', detail: msg.substring(0, 300) },
+          { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '10' } },
+        )
+      }
       return cachedError('Internal server error', 500, msg)
     }
   }

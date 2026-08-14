@@ -137,6 +137,22 @@ export async function apiFetch<T = unknown>(
   }
 
   if (!res.ok) {
+    // Handle 503 DB errors — provide clear setup instructions
+    if (res.status === 503 && typeof window !== 'undefined') {
+      let errData: Record<string, unknown> | null = null
+      try { errData = await res.json() } catch {}
+      const code = errData?.code as string | undefined
+      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE') {
+        const detail = (errData?.detail as string) || ''
+        const msg = code === 'DB_NOT_CONFIGURED'
+          ? 'Database not configured. Please set DATABASE_URL in your deployment environment variables.'
+          : 'Database is not reachable. Please check your DATABASE_URL and database status.'
+        // Dispatch a custom event that the app shell can listen to
+        window.dispatchEvent(new CustomEvent('db-unavailable', { detail: { code, message: msg, detail } }))
+        throw new Error(msg)
+      }
+    }
+
     const contentType = res.headers.get('content-type') || ''
     if (contentType.includes('text/html')) {
       throw new Error('Server unavailable. Please try again.')

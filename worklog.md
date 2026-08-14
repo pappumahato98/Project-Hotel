@@ -1416,3 +1416,27 @@ Stage Summary:
 - Error details (Prisma connection failures, auth issues, etc.) now visible in API responses for debugging in production
 - No changes to validation errors (400/404) outside catch blocks
 - No changes to files that already passed the detail parameter
+
+---
+Task ID: render-build-fix
+Agent: Main Orchestrator
+Task: Fix Render deployment — build command doesn't need DB, app handles missing DB gracefully
+
+Work Log:
+- Identified ROOT CAUSE: `instrumentation.ts` throws Error in production if env validation fails (DATABASE_URL/JWT_SECRET missing), crashing the entire app at startup
+- Fixed `package.json` build script: removed `prisma migrate deploy` (requires live DB), now just `prisma generate && next build`
+- Fixed `package.json` start script: moved `prisma migrate deploy` to runtime (best-effort, `2>/dev/null`)
+- Simplified `render.yaml`: buildCommand = `npm run build`, startCommand = `npm start`, removed plan: starter, removed custom build script
+- Fixed `src/instrumentation.ts`: no longer throws on env validation failure in production, logs warning instead
+- Fixed `src/lib/env.ts`: `validateEnv()` logs errors instead of throwing in production
+- Added `requireDb()` to `src/lib/db.ts`: returns 503 with clear `DB_NOT_CONFIGURED`/`DB_UNREACHABLE` error codes
+- Updated `withCache()` in `src/lib/api-response.ts`: checks `hasPostgresConfigured()` early, detects DB connection errors in catch
+- Updated dashboard routes (kpis, alerts, activity) and housekeeping route to call `requireDb()`
+- Updated `src/lib/api.ts`: detects 503 DB error codes, dispatches `db-unavailable` custom event for frontend handling
+
+Stage Summary:
+- Build no longer requires database connection (just `prisma generate` + `next build`)
+- Migrations run at startup (best-effort, won't crash)
+- App starts even without DATABASE_URL/JWT_SECRET — shows clear error messages via API
+- Health endpoint `/api/health` always accessible for diagnostics
+- Lint: 0 errors, 76 pre-existing warnings

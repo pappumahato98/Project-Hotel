@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, requireDb } from '@/lib/db'
 import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -8,6 +8,8 @@ import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
 export async function GET(request: NextRequest) {
   const auth = await requireAuth(request)
   if (auth instanceof NextResponse) return auth
+  const dbErr = await requireDb(request)
+  if (dbErr) return dbErr
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')

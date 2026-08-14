@@ -126,14 +126,11 @@ export function validateEnv(): ValidationResult {
 
   const valid = errors.length === 0
 
-  if (!valid && process.env.NODE_ENV === 'production') {
+  if (!valid) {
     const errorMsg = errors.map(e => `  ❌ ${e.key}: ${e.message}`).join('\n')
-    console.error(`\n╔══════════════════════════════════════════════════╗
-║  ENVIRONMENT VALIDATION FAILED                    ║
-║  The application cannot start in production.      ║
-╠══════════════════════════════════════════════════╣
-${errorMsg}
-╚══════════════════════════════════════════════════╝\n`)
+    // Log errors but do NOT throw — allow the app to start
+    // so the health endpoint and setup instructions are accessible.
+    console.error(`[env] Configuration errors (app will start but features may not work):\n${errorMsg}\n`)
   }
 
   if (warnings.length > 0) {

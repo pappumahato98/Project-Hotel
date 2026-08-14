@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 -H 0.0.0.0",
-    "build": "npx prisma migrate deploy 2>/dev/null; prisma generate && next build",
-    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}",
+    "build": "prisma generate && next build",
+    "start": "npx prisma migrate deploy 2>/dev/null; next start -H 0.0.0.0 -p ${PORT:-3000}",
     "postinstall": "prisma generate",
     "lint": "eslint .",
     "db:push": "bash scripts/prisma-local.sh db push --accept-data-loss",

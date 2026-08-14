@@ -264,3 +264,72 @@ export const db = new Proxy({} as PrismaClient, {
 export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   return fn()
 }
+
+/**
+ * Check if the database is reachable. Returns null if OK, or an error Response
+ * if the database is not configured or unreachable.
+ *
+ * Usage in API routes:
+ *   const dbErr = await requireDb(req)
+ *   if (dbErr) return dbErr
+ *
+ * Returns a 503 with a clear message so the frontend can show a proper setup prompt.
+ */
+export async function requireDb(req?: Request): Promise<globalThis.Response | null> {
+  // Quick check: is DATABASE_URL a postgres URL?
+  if (!hasPostgresConfigured()) {
+    return new globalThis.Response(
+      JSON.stringify({
+        error: 'Database not configured',
+        code: 'DB_NOT_CONFIGURED',
+        detail: 'DATABASE_URL is not set or not a valid PostgreSQL URL. Set it in your deployment environment variables and redeploy.',
+      }),
+      {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+      },
+    )
+  }
+
+  // Quick connectivity test (cached for 30s per process)
+  const now = Date.now()
+  if (_dbPingResult && (now - _dbPingResult.ts) < 30_000) {
+    if (!_dbPingResult.ok) {
+      return new globalThis.Response(
+        JSON.stringify({
+          error: 'Database unreachable',
+          code: 'DB_UNREACHABLE',
+          detail: _dbPingResult.detail,
+        }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '10' },
+        },
+      )
+    }
+    return null // DB is reachable
+  }
+
+  try {
+    const client = getDb()
+    await client.$queryRaw`SELECT 1`
+    _dbPingResult = { ok: true, detail: 'ok', ts: now }
+    return null
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    _dbPingResult = { ok: false, detail: msg.slice(0, 200), ts: now }
+    return new globalThis.Response(
+      JSON.stringify({
+        error: 'Database unreachable',
+        code: 'DB_UNREACHABLE',
+        detail: msg.slice(0, 200),
+      }),
+      {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '10' },
+      },
+    )
+  }
+}
+
+let _dbPingResult: { ok: boolean; detail: string; ts: number } | null = null

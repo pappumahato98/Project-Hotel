@@ -11,9 +11,9 @@
 #
 # Option B — Manual Web Service:
 #   1. https://dashboard.render.com → New → Web Service
-#   2. Connect repo: pappumahto98/Project-Neo
-#   3. Build Command:  see buildCommand below
-#   4. Start Command: npm start  (uses PORT from package.json)
+#   2. Connect repo: pappumahato98/Project-Neo
+#   3. Build Command:  npm run build  (prisma generate + next build, NO DB needed)
+#   4. Start Command:  npm start  (runs migrations best-effort, then next start)
 #   5. Add env vars → Deploy
 #
 # REQUIRED ENV VARIABLES (set in Render dashboard):
@@ -21,25 +21,16 @@
 #   DATABASE_URL  = Transaction pooler URL (for runtime queries)
 #                  postgresql://postgres.[ref]:[pass]@pooler.supabase.com:5432/postgres?pgbouncer=true
 #   DIRECT_DATABASE_URL = Session mode URL (for migrations only, OPTIONAL)
-#                  If set, used automatically during build for prisma migrate deploy
-#                  If not set, build command auto-switches pooler port 5432 → 6543
+#                  If set, used automatically during start for prisma migrate deploy
+#                  If not set, start command auto-switches pooler port 5432 → 6543
 #                  postgresql://postgres.[ref]:[pass]@pooler.supabase.com:6543/postgres
 #   JWT_SECRET    = <64+ char random string>
 #   REDIS_URL     = Redis connection string (OPTIONAL — falls back to in-memory)
 #                  Format: rediss://default:pass@redis-host:port (TLS in prod)
 #
-# SCALING GUIDE:
-#   - 1 instance, no Redis:   Works fine up to ~500 concurrent users
-#   - 2+ instances, no Redis:  Rate limiting is per-instance (less accurate)
-#   - 1+ instances, Redis:    Full distributed rate limiting, shared auth cache
-#   - 3+ instances, Redis:    Recommended for 1000+ concurrent users
-#
-# MIGRATION STRATEGY:
-#   Schema changes are managed via `prisma migrate` (version-controlled SQL files).
-#   - prisma/migrations/0_baseline/migration.sql = initial schema (already applied)
-#   - Future changes: `npx prisma migrate dev --name description`
-#   - Deploy: `npx prisma migrate deploy` applies only new migrations
-#   - Fallback: /api/db-setup still available for runtime schema sync
+# NOTE: Build does NOT require a database connection.
+#       Migrations run at startup (best-effort, won't crash if DB is unavailable).
+#       If DB is not set up yet, use POST /api/db-setup after first deploy.
 #
 # AFTER FIRST DEPLOY:
 #   POST /api/db-setup  to seed default users & chart of accounts
@@ -49,44 +40,7 @@ services:
   - type: web
     name: meridian-pms
     runtime: node
-    plan: starter
-    buildCommand: |
-      set -e
-      echo "=== Build starting ==="
-      echo "Node: $(node -v) | npm: $(npm -v)"
-
-      # ── Step 1: Apply database migrations ──
-      # Use DIRECT_DATABASE_URL if set (session mode), otherwise auto-derive from pooler URL
-      if [ -n "$DATABASE_URL" ]; then
-        MIGRATE_URL="${DIRECT_DATABASE_URL:-$DATABASE_URL}"
-
-        # If no DIRECT_DATABASE_URL and pooler detected, auto-switch port 5432 → 6543 (session mode)
-        if [ -z "$DIRECT_DATABASE_URL" ] && echo "$MIGRATE_URL" | grep -q 'pooler\.supabase\.com:5432'; then
-          MIGRATE_URL=$(echo "$MIGRATE_URL" | sed 's|pooler\.supabase\.com:5432|pooler.supabase.com:6543|' | sed 's|[?&]pgbouncer=true||g' | sed 's|&|?|1' | sed 's|?$||')
-          echo "[migrate] Detected Supabase PgBouncer — auto-switched to session-mode port 6543"
-        fi
-
-        # Also set SSL cert for migrations (write embedded cert to /tmp)
-        echo "[migrate] Running prisma migrate deploy..."
-        DATABASE_URL="$MIGRATE_URL" npx prisma migrate deploy 2>&1 || {
-          echo "[warn] prisma migrate deploy failed — attempting fallback with db push"
-          DATABASE_URL="$MIGRATE_URL" npx prisma db push --accept-data-loss 2>&1 || {
-            echo "[warn] prisma db push also failed (non-fatal, POST /api/db-setup can sync at runtime)"
-          }
-        }
-      else
-        echo "[migrate] DATABASE_URL not set — skipping migrations"
-      fi
-
-      # ── Step 2: Generate Prisma client ──
-      echo "[prisma] Generating client..."
-      npx prisma generate
-
-      # ── Step 3: Next.js build ──
-      echo "[next] Building..."
-      npx next build
-
-      echo "=== Build complete ==="
+    buildCommand: npm run build
     startCommand: npm start
     envVars:
       - key: DIRECT_DATABASE_URL
@@ -98,7 +52,7 @@ services:
       - key: REDIS_URL
         sync: false
       - key: NODE_OPTIONS
-        value: "--max-old-space-size=384"
+        value: "--max-old-space-size=512"
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: NODE_ENV

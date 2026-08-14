@@ -12,16 +12,18 @@ export async function register() {
   const { validateEnv } = await import('@/lib/env')
   const result = validateEnv()
 
-  if (!result.valid && process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'Environment validation failed. Fix the errors above before deploying.\n' +
-      result.errors.map(e => `  - ${e.key}: ${e.message}`).join('\n')
-    )
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    const ok = result.errors.length === 0 ? '✅' : '⚠️'
-    console.log(`[startup] Environment validation ${ok} — ${result.errors.length} errors, ${result.warnings.length} warnings`)
+  if (!result.valid) {
+    const errMsg = result.errors.map(e => `  - ${e.key}: ${e.message}`).join('\n')
+    if (process.env.NODE_ENV === 'production') {
+      // Log but do NOT throw — let the app start so health endpoint and
+      // setup instructions are accessible via /api/health
+      console.error(`[startup] ⚠️  Environment has ${result.errors.length} error(s):\n${errMsg}\n[startup] App starting anyway — /api/health for diagnostics`)
+    } else {
+      const ok = '⚠️'
+      console.log(`[startup] Environment validation ${ok} — ${result.errors.length} errors, ${result.warnings.length} warnings`)
+    }
+  } else if (process.env.NODE_ENV !== 'production') {
+    console.log(`[startup] Environment validation ✅ — ${result.errors.length} errors, ${result.warnings.length} warnings`)
   }
 
   // Start periodic cleanup of expired refresh tokens (every 5 min)
