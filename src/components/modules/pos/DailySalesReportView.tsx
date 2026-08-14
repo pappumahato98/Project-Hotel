@@ -460,7 +460,7 @@ const HEADER_FONT_COLOR = 'FFFFFFFF'
 const BORDER_COLOR = 'FFCCCCCC'
 
 async function downloadExcel(report: DailyReportData, date: string) {
-  const ExcelJS = (await import('exceljs')).default
+  const ExcelJS = await import('exceljs')
   const workbook = new ExcelJS.Workbook()
 
   function addSheet(name: string, headers: string[], rows: (string | number)[][]) {

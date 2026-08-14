@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-
 /**
  * Excel Export Utility with branded header styling.
  *
@@ -40,7 +38,7 @@ export async function exportToExcel(
 ) {
   // Dynamic import — exceljs is large and uses Node.js APIs,
   // so we only load it when the user actually exports.
-  const ExcelJS = (await import('exceljs')).default
+  const ExcelJS = await import('exceljs')
 
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet(options.sheetName || 'Sheet1')
