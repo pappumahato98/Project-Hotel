@@ -1472,3 +1472,29 @@ Stage Summary:
 - Fix is self-healing: auto-sync runs at startup AND on first requireDb() call
 - Also updated db-setup endpoint with explicit ALTER TABLE as reliable fallback
 - No code errors (0 lint errors)
+---
+Task ID: fix-all-modules-prisma-error
+Agent: Main Orchestrator
+Task: Fix PrismaClientUnknownRequestError causing ALL modules to show "Module Error"
+
+Work Log:
+- Investigated PrismaClientUnknownRequestError on [dashboard/activity] endpoint
+- Discovered `withCache` function is NOT used by any route (only defined)
+- Found `requireDb` guard only used in 4 routes (3 dashboard + housekeeping)
+- Ran comprehensive schema comparison: Prisma schema vs Supabase init migration
+- Found `AuthUser.passwordHash` and `LedgerAccount.subtype` were MISSING from both init migration AND autoSyncSchema
+- Found autoSyncSchema used a canary check (NightAudit.totalRooms exists → skip all syncs) that was hiding the missing columns
+- Fixed `autoSyncSchema`: removed canary check, now always runs all ALTER TABLE statements (idempotent with IF NOT EXISTS)
+- Added `AuthUser.passwordHash` and `LedgerAccount.subtype` to autoSyncSchema
+- Added `prisma db push --accept-data-loss` to start command for comprehensive schema sync
+- Changed `withCache` dynamic import to static import for robustness
+- Added PrismaClientUnknownRequestError detection in withCache error handler (returns 503 with DB_SCHEMA_ERROR code)
+- Added DB_SCHEMA_ERROR handling in frontend apiFetch
+- Added Supabase migration file for the two missing columns
+- Improved error logging in dashboard/activity route (logs error code, meta, constructor name)
+
+Stage Summary:
+- Root cause: autoSyncSchema canary check skipped sync when NightAudit.totalRooms existed, but AuthUser.passwordHash and LedgerAccount.subtype were still missing
+- The canary check was a false assumption — one column existing doesn't mean ALL columns exist
+- Fix removes canary, adds missing columns, and adds prisma db push as belt-and-suspenders
+- Committed as ff53e15 and pushed to origin/main
