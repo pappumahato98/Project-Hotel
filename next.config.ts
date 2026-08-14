@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
 const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
@@ -10,6 +12,25 @@ const nextConfig: NextConfig = {
   turbopack: {},
   // Compress responses (gzip/brotli) for faster transfers
   compress: true,
+  // ─── API Proxy: Vercel (frontend) → Render (backend) ────────────
+  // When NEXT_PUBLIC_API_URL is set (e.g. on Vercel), all /api/* requests
+  // are proxied to the backend. Cookies, auth headers, and sessions work
+  // transparently — no CORS needed.
+  //
+  // Setup on Vercel:
+  //   NEXT_PUBLIC_API_URL = https://meridian-pms.onrender.com
+  //
+  // On Render (monolith), leave unset — API routes serve directly.
+  async rewrites() {
+    if (!API_URL) return []
+    const base = API_URL.replace(/\/$/, '')
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${base}/api/:path*`,
+      },
+    ]
+  },
   // Webpack fallback config
   webpack: (config, { isServer }) => {
     config.resolve = config.resolve || {}
