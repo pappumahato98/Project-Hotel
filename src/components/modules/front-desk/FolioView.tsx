@@ -365,26 +365,12 @@ export function FolioView() {
   const showSearchDropdown = searchResults.length > 0 && debouncedSearch.length >= 2
   const isSearchDropdownOpen = showSearchDropdown && !dropdownForceClose
 
-  // Fetch selected folio detail
+  // Fetch selected folio detail — always fetches full data from dedicated endpoint
   const { data: folioDetail, isLoading: detailLoading } = useQuery({
     queryKey: ['folio-detail', selectedFolioId],
     queryFn: async () => {
       if (!selectedFolioId) return null
-      // Find folio in the list first
-      const folio = foliosData?.folios?.find((f) => f.id === selectedFolioId)
-      if (folio) {
-        // If folio has transactions/payments, use it; otherwise fetch with reservationId
-        if (folio.transactions.length > 0 || folio.payments.length > 0) return folio
-        try {
-          const data = await apiFetch<{ folios: Folio[] }>(`/api/folio?reservationId=${folio.reservation.id}`)
-          return data.folios?.[0] || folio
-        } catch { return folio }
-      }
-      // Fallback: fetch all and find
-      try {
-        const data = await apiFetch<{ folios: Folio[] }>('/api/folio')
-        return data.folios?.find((f) => f.id === selectedFolioId) || null
-      } catch { return null }
+      return apiFetch<{ folio: Folio }>(`/api/folio/${selectedFolioId}`).then(d => d.folio)
     },
     enabled: !!selectedFolioId,
   })
@@ -531,7 +517,7 @@ export function FolioView() {
       setChargeType('miscellaneous')
       toast.success('Charge posted successfully')
     },
-    onError: () => toast.error('Failed to post charge'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to post charge'),
   })
 
   const recordPaymentMutation = useMutation({
@@ -562,7 +548,7 @@ export function FolioView() {
       setPayReceivedBy('Front Desk')
       toast.success('Payment recorded successfully')
     },
-    onError: () => toast.error('Failed to record payment'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to record payment'),
   })
 
   const voidMutation = useMutation({
@@ -587,7 +573,7 @@ export function FolioView() {
       setVoidReason('')
       toast.success('Transaction voided successfully')
     },
-    onError: () => toast.error('Failed to void transaction'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to void transaction'),
   })
 
   const splitFolioMutation = useMutation({
@@ -618,7 +604,7 @@ export function FolioView() {
         `Split ${splitSelectedTxnIds.size} transaction${splitSelectedTxnIds.size !== 1 ? 's' : ''} to new ${FOLIO_TYPE_LABELS[splitFolioType]} folio`,
       )
     },
-    onError: () => toast.error('Failed to split folio'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to split folio'),
   })
 
   const handlePrintFolio = () => {

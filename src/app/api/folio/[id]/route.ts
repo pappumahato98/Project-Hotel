@@ -3,7 +3,45 @@ import { db, withRetry } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postRoomRevenue, postFolioCharge, postFolioSettlement } from '@/lib/accounting/auto-post'
-import { cachedError, clearCacheHeaders } from '@/lib/api-response'
+import { cachedError, cachedJson, clearCacheHeaders } from '@/lib/api-response'
+
+// GET: Fetch a single folio with full transaction & payment history
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) return auth
+  try {
+    const { id } = await params
+
+    const folio = await db.folio.findUnique({
+      where: { id },
+      include: {
+        reservation: {
+          select: {
+            id: true, confirmationNo: true, checkIn: true, checkOut: true,
+            roomRate: true, status: true, creditLimit: true,
+            room: { select: { number: true } },
+          },
+        },
+        guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true } },
+        transactions: { orderBy: { createdAt: 'desc' } },
+        payments: { orderBy: { createdAt: 'desc' } },
+      },
+    })
+
+    if (!folio) {
+      return cachedError('Folio not found', 404)
+    }
+
+    return cachedJson({ folio }, request, { tier: 'short' })
+  } catch (error) {
+    console.error('Folio detail error:', error)
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch folio', 500, msg.substring(0, 300))
+  }
+}
 
 // POST: Post a new charge or record a payment
 export async function POST(
