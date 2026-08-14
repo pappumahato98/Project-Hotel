@@ -44,7 +44,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ workOrders, summary }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Work Orders API error:', error)
-    return cachedError('Failed to fetch work orders', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch work orders', 500, msg.substring(0, 300))
   }
 }
 
@@ -73,6 +75,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ workOrder }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Work Orders POST error:', error)
-    return cachedError('Failed to create work order', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create work order', 500, msg.substring(0, 300))
   }
 }

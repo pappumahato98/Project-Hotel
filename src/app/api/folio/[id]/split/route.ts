@@ -155,6 +155,8 @@ export async function POST(
     }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Folio split error:', error)
-    return cachedError('Failed to split folio', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to split folio', 500, msg.substring(0, 300))
   }
 }

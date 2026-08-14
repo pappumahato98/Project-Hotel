@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'long' })
   } catch (error) {
     console.error('[audit-log] GET error:', error)
-    return cachedError('Failed to retrieve audit log.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to retrieve audit log.', 500, msg.substring(0, 300))
   }
 }

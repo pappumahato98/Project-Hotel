@@ -79,6 +79,8 @@ export async function POST(request: NextRequest) {
     }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('[payroll-preview] POST error:', error)
-    return cachedError('Failed to generate payroll preview.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to generate payroll preview.', 500, msg.substring(0, 300))
   }
 }

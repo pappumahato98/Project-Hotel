@@ -32,7 +32,9 @@ export async function GET(
     return cachedJson(invoice, request, { tier: 'long' })
   } catch (error) {
     console.error('Invoice GET by ID error:', error)
-    return cachedError('Failed to fetch invoice', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch invoice', 500, msg.substring(0, 300))
   }
 }
 
@@ -126,7 +128,9 @@ export async function PATCH(
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoice PATCH by ID error:', error)
-    return cachedError('Failed to update invoice', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update invoice', 500, msg.substring(0, 300))
   }
 }
 
@@ -164,7 +168,9 @@ export async function DELETE(
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoice DELETE by ID error:', error)
-    return cachedError('Failed to cancel invoice', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to cancel invoice', 500, msg.substring(0, 300))
   }
 }
 

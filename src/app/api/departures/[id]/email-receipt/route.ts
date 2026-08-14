@@ -103,6 +103,8 @@ export async function POST(
     }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Departure email receipt error:', error)
-    return cachedError('Failed to send receipt email', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to send receipt email', 500, msg.substring(0, 300))
   }
 }

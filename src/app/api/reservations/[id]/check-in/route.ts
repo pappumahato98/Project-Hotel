@@ -143,6 +143,8 @@ export async function POST(
     return NextResponse.json({ reservation: updatedReservation }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Check-in error:', error)
-    return cachedError('Failed to check in reservation', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to check in reservation', 500, msg.substring(0, 300))
   }
 }

@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ entries }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Waitlist GET error:', error)
-    return cachedError('Failed to fetch waitlist', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch waitlist', 500, msg.substring(0, 300))
   }
 }
 
@@ -71,6 +73,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ entry }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Waitlist POST error:', error)
-    return cachedError('Failed to create waitlist entry', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create waitlist entry', 500, msg.substring(0, 300))
   }
 }

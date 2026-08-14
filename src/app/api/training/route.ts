@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Training API GET error:', error)
-    return cachedError('Failed to fetch training sessions', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch training sessions', 500, msg.substring(0, 300))
   }
 }
 
@@ -100,7 +102,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Training API POST error:', error)
-    return cachedError('Failed to create training session', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create training session', 500, msg.substring(0, 300))
   }
 }
 
@@ -160,6 +164,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Training API PATCH error:', error)
-    return cachedError('Failed to update training session', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update training session', 500, msg.substring(0, 300))
   }
 }

@@ -32,7 +32,9 @@ export async function GET(
     return cachedJson({ room }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Room GET error:', error)
-    return cachedError('Failed to fetch room', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch room', 500, msg.substring(0, 300))
   }
 }
 
@@ -98,7 +100,9 @@ export async function PATCH(
     return NextResponse.json({ room: updated }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Room PATCH error:', error)
-    return cachedError('Failed to update room', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update room', 500, msg.substring(0, 300))
   }
 }
 export async function DELETE(
@@ -120,6 +124,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Room DELETE error:', error)
-    return cachedError('Failed to delete room', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete room', 500, msg.substring(0, 300))
   }
 }

@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Attendance API error:', error)
-    return cachedError('Failed to fetch attendance', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch attendance', 500, msg.substring(0, 300))
   }
 }
 
@@ -81,7 +83,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Attendance POST error:', error)
-    return cachedError('Failed to create attendance record', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create attendance record', 500, msg.substring(0, 300))
   }
 }
 
@@ -111,6 +115,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Attendance PATCH error:', error)
-    return cachedError('Failed to update attendance record', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update attendance record', 500, msg.substring(0, 300))
   }
 }

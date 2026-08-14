@@ -213,6 +213,8 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Trial Balance API GET error:', error)
-    return cachedError('Failed to generate trial balance', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to generate trial balance', 500, msg.substring(0, 300))
   }
 }

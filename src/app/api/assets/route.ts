@@ -39,7 +39,9 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'long' })
   } catch (error) {
     console.error('Assets API error:', error)
-    return cachedError('Failed to fetch assets', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch assets', 500, msg.substring(0, 300))
   }
 }
 
@@ -67,7 +69,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(asset, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Assets POST error:', error)
-    return cachedError('Failed to create asset', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create asset', 500, msg.substring(0, 300))
   }
 }
 
@@ -102,6 +106,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(asset, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Assets PATCH error:', error)
-    return cachedError('Failed to update asset', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update asset', 500, msg.substring(0, 300))
   }
 }

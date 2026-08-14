@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'long' })
   } catch (error) {
     console.error('[cbms-status] GET error:', error)
-    return cachedError('Failed to retrieve CBMS status.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to retrieve CBMS status.', 500, msg.substring(0, 300))
   }
 }
 
@@ -40,6 +42,8 @@ export async function POST(request: NextRequest) {
     }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('[cbms-status] POST error:', error)
-    return cachedError('Failed to trigger CBMS sync.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to trigger CBMS sync.', 500, msg.substring(0, 300))
   }
 }

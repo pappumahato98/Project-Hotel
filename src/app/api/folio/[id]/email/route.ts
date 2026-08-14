@@ -105,6 +105,8 @@ export async function POST(
     }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Folio email error:', error)
-    return cachedError('Failed to send folio statement', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to send folio statement', 500, msg.substring(0, 300))
   }
 }

@@ -980,6 +980,8 @@ export async function POST(request: NextRequest) {
     return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('POS POST error:', error)
-    return cachedError('Failed to process POS request', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to process POS request', 500, msg.substring(0, 300))
   }
 }

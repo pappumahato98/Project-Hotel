@@ -82,6 +82,8 @@ export async function GET(request: NextRequest) {
     return cachedJson({ results }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Quick search error:', error)
-    return cachedError('Failed to search', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to search', 500, msg.substring(0, 300))
   }
 }

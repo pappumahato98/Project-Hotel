@@ -62,7 +62,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Performance API GET error:', error)
-    return cachedError('Failed to fetch performance reviews', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch performance reviews', 500, msg.substring(0, 300))
   }
 }
 
@@ -138,7 +140,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Performance API POST error:', error)
-    return cachedError('Failed to create performance review', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create performance review', 500, msg.substring(0, 300))
   }
 }
 
@@ -185,6 +189,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Performance API PATCH error:', error)
-    return cachedError('Failed to update performance review', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update performance review', 500, msg.substring(0, 300))
   }
 }

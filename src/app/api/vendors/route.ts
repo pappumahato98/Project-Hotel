@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ vendors, total, active, categories }, request, { tier: 'long' })
   } catch (error) {
     console.error('Vendors API error:', error)
-    return cachedError('Failed to fetch vendors', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch vendors', 500, msg.substring(0, 300))
   }
 }
 
@@ -57,7 +59,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(vendor, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Vendors POST error:', error)
-    return cachedError('Failed to create vendor', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create vendor', 500, msg.substring(0, 300))
   }
 }
 
@@ -93,6 +97,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(vendor, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Vendors PATCH error:', error)
-    return cachedError('Failed to update vendor', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update vendor', 500, msg.substring(0, 300))
   }
 }

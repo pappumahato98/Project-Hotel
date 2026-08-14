@@ -110,6 +110,8 @@ export async function GET(request: NextRequest) {
     return cachedJson({ type: 'purchase', from, to, entries }, request, { tier: 'long' })
   } catch (error) {
     console.error('[vat-register] GET error:', error)
-    return cachedError('Failed to retrieve VAT register.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to retrieve VAT register.', 500, msg.substring(0, 300))
   }
 }

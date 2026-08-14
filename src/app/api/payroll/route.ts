@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'long' })
   } catch (error) {
     console.error('Payroll API error:', error)
-    return cachedError('Failed to fetch payroll', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch payroll', 500, msg.substring(0, 300))
   }
 }
 
@@ -83,7 +85,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Payroll POST error:', error)
-    return cachedError('Failed to create payroll record', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create payroll record', 500, msg.substring(0, 300))
   }
 }
 
@@ -132,6 +136,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Payroll PATCH error:', error)
-    return cachedError('Failed to update payroll record', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update payroll record', 500, msg.substring(0, 300))
   }
 }

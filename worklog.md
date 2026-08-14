@@ -1395,3 +1395,24 @@ Stage Summary:
 - All dashboard date filter changes were already committed and pushed
 - Code is correct and production-ready
 - No additional changes needed
+
+---
+Task ID: 3
+Agent: main
+Task: Fix cachedError calls in 87 API files to include error detail parameter
+
+Work Log:
+- Scanned all 91 API route files under src/app/api/ for cachedError calls missing the 3rd argument (detail)
+- Used AST-aware parsing to distinguish 2-arg vs 3-arg cachedError calls (accounting for nested parens like .substring())
+- Only modified cachedError calls inside catch blocks (validation/400 errors outside catch blocks left unchanged)
+- Added `const msg = error instanceof Error ? error.message : String(error)` to each catch block
+- Changed 160 cachedError calls across 81 files from `cachedError('...', 500)` to `cachedError('...', 500, msg.substring(0, 300))`
+- Files that already passed detail (accounting, accounts routes with `msg.substring(0, 200)`) were NOT modified
+- Fixed 1 edge case: console.error with nested parens in guest-ledger/[id]/route.ts that was mangled by initial script
+- Verified: 0 lint errors, 76 warnings (all pre-existing)
+
+Stage Summary:
+- 81 files modified, 160 cachedError calls fixed
+- Error details (Prisma connection failures, auth issues, etc.) now visible in API responses for debugging in production
+- No changes to validation errors (400/404) outside catch blocks
+- No changes to files that already passed the detail parameter

@@ -95,7 +95,9 @@ export async function GET(
     return cachedError('Transaction or payment not found', 404)
   } catch (error) {
     console.error('Guest Ledger GET by ID error:', error)
-    return cachedError('Failed to fetch transaction', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch transaction', 500, msg.substring(0, 300))
   }
 }
 
@@ -202,6 +204,7 @@ export async function DELETE(
     return cachedError('Transaction or payment not found', 404)
   } catch (error) {
     console.error('Guest Ledger DELETE (void) error:', error)
-    return cachedError('Failed to void transaction', 500)
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to void transaction', 500, msg.substring(0, 300))
   }
 }

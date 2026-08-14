@@ -211,6 +211,8 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('HK Rooms API error:', error)
-    return cachedError('Failed to fetch room data', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch room data', 500, msg.substring(0, 300))
   }
 }

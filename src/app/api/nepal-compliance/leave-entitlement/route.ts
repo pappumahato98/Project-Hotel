@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'medium' })
   } catch (error) {
     console.error('[leave-entitlement] GET error:', error)
-    return cachedError('Failed to retrieve leave entitlements.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to retrieve leave entitlements.', 500, msg.substring(0, 300))
   }
 }

@@ -33,7 +33,9 @@ export async function PATCH(
     return NextResponse.json({ call }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('WakeUpCalls PATCH error:', error)
-    return cachedError('Failed to update wake-up call', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update wake-up call', 500, msg.substring(0, 300))
   }
 }
 
@@ -49,6 +51,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('WakeUpCalls DELETE error:', error)
-    return cachedError('Failed to delete wake-up call', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete wake-up call', 500, msg.substring(0, 300))
   }
 }

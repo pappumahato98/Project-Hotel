@@ -36,7 +36,9 @@ export async function PATCH(
     return NextResponse.json(ticket, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Support Ticket PATCH error:', error)
-    return cachedError('Failed to update support ticket', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update support ticket', 500, msg.substring(0, 300))
   }
 }
 
@@ -52,6 +54,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Support Ticket DELETE error:', error)
-    return cachedError('Failed to delete support ticket', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete support ticket', 500, msg.substring(0, 300))
   }
 }

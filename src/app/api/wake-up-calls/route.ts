@@ -31,7 +31,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ calls }, request, { tier: 'short' })
   } catch (error) {
     console.error('WakeUpCalls GET error:', error)
-    return cachedError('Failed to fetch wake-up calls', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch wake-up calls', 500, msg.substring(0, 300))
   }
 }
 
@@ -64,6 +66,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ call }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('WakeUpCalls POST error:', error)
-    return cachedError('Failed to create wake-up call', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create wake-up call', 500, msg.substring(0, 300))
   }
 }

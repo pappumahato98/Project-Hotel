@@ -104,7 +104,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Invoices API GET error:', error)
-    return cachedError('Failed to fetch invoices', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch invoices', 500, msg.substring(0, 300))
   }
 }
 
@@ -213,7 +215,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoices API POST error:', error)
-    return cachedError('Failed to create invoice', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create invoice', 500, msg.substring(0, 300))
   }
 }
 
@@ -314,7 +318,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoices API PATCH error:', error)
-    return cachedError('Failed to update invoice', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update invoice', 500, msg.substring(0, 300))
   }
 }
 
@@ -354,7 +360,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Invoices API DELETE error:', error)
-    return cachedError('Failed to cancel invoice', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to cancel invoice', 500, msg.substring(0, 300))
   }
 }
 

@@ -27,7 +27,9 @@ export async function GET(
     return cachedJson({ employee }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Employee GET error:', error)
-    return cachedError('Failed to fetch employee', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch employee', 500, msg.substring(0, 300))
   }
 }
 
@@ -69,7 +71,9 @@ export async function PATCH(
     return NextResponse.json({ employee }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Employee PATCH error:', error)
-    return cachedError('Failed to update employee', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update employee', 500, msg.substring(0, 300))
   }
 }
 
@@ -87,6 +91,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Employee DELETE error:', error)
-    return cachedError('Failed to delete employee', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete employee', 500, msg.substring(0, 300))
   }
 }

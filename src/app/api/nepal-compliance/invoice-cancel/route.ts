@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: result.message }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('[invoice-cancel] POST error:', error)
-    return cachedError('Failed to cancel invoice.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to cancel invoice.', 500, msg.substring(0, 300))
   }
 }

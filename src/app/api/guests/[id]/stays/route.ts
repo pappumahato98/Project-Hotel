@@ -50,6 +50,8 @@ export async function GET(
     return cachedJson(stays, req, { tier: 'medium' })
   } catch (error) {
     console.error('Fetch guest stays error:', error)
-    return cachedError('Internal server error', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Internal server error', 500, msg.substring(0, 300))
   }
 }

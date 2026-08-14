@@ -23,7 +23,9 @@ export async function GET(
     return cachedJson(event, request, { tier: 'medium' })
   } catch (error) {
     console.error('Event GET error:', error)
-    return cachedError('Failed to fetch event', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch event', 500, msg.substring(0, 300))
   }
 }
 
@@ -76,7 +78,9 @@ export async function PATCH(
     return NextResponse.json(event, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Event PATCH error:', error)
-    return cachedError('Failed to update event', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update event', 500, msg.substring(0, 300))
   }
 }
 
@@ -93,6 +97,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Event DELETE error:', error)
-    return cachedError('Failed to delete event', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete event', 500, msg.substring(0, 300))
   }
 }

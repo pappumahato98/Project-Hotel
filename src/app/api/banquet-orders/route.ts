@@ -55,7 +55,9 @@ export async function GET(req: NextRequest) {
     }, req, { tier: 'medium' })
   } catch (error) {
     console.error('Banquet Orders API error:', error)
-    return cachedError('Failed to fetch banquet orders', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch banquet orders', 500, msg.substring(0, 300))
   }
 }
 
@@ -86,7 +88,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ eventId, ...orderData, event }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Banquet Orders POST error:', error)
-    return cachedError('Failed to create banquet order', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create banquet order', 500, msg.substring(0, 300))
   }
 }
 
@@ -124,6 +128,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ eventId, ...updatedNotes, event }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Banquet Orders PATCH error:', error)
-    return cachedError('Failed to update banquet order', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update banquet order', 500, msg.substring(0, 300))
   }
 }

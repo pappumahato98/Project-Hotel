@@ -123,7 +123,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Budget API GET error:', error)
-    return cachedError('Failed to fetch budgets', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch budgets', 500, msg.substring(0, 300))
   }
 }
 
@@ -190,7 +192,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Budget API POST error:', error)
-    return cachedError('Failed to create budget', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create budget', 500, msg.substring(0, 300))
   }
 }
 
@@ -294,7 +298,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Budget API PATCH error:', error)
-    return cachedError('Failed to update budget', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update budget', 500, msg.substring(0, 300))
   }
 }
 

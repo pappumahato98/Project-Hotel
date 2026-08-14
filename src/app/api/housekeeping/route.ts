@@ -101,7 +101,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
     console.error('Housekeeping API error:', error)
-    return cachedError('Failed to fetch housekeeping data', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch housekeeping data', 500, msg.substring(0, 300))
   }
 }
 
@@ -290,6 +292,8 @@ export async function POST(request: NextRequest) {
     return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Housekeeping POST error:', error)
-    return cachedError('Failed to process request', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to process request', 500, msg.substring(0, 300))
   }
 }

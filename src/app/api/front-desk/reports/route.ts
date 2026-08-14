@@ -194,6 +194,8 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('Front Desk Reports API error:', error)
-    return cachedError('Failed to fetch report', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch report', 500, msg.substring(0, 300))
   }
 }

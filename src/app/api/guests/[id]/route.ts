@@ -29,7 +29,9 @@ export async function GET(
     return cachedJson({ guest }, req, { tier: 'medium' })
   } catch (error) {
     console.error('Fetch guest error:', error)
-    return cachedError('Internal server error', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Internal server error', 500, msg.substring(0, 300))
   }
 }
 
@@ -79,7 +81,9 @@ export async function PATCH(
     return NextResponse.json({ guest: updated, message: 'Guest updated successfully' }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Update guest error:', error)
-    return cachedError('Internal server error', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Internal server error', 500, msg.substring(0, 300))
   }
 }
 
@@ -110,6 +114,8 @@ export async function DELETE(
     return NextResponse.json({ success: true, message: 'Guest deleted successfully' }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Delete guest error:', error)
-    return cachedError('Failed to delete guest', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete guest', 500, msg.substring(0, 300))
   }
 }

@@ -22,6 +22,8 @@ export async function DELETE(
     return NextResponse.json(channel, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Channel DELETE error:', error)
-    return cachedError('Failed to delete channel', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete channel', 500, msg.substring(0, 300))
   }
 }

@@ -198,7 +198,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(response, request, { tier: 'short' })
   } catch (error) {
     console.error('POS Daily Sales API error:', error)
-    return cachedError('Failed to fetch daily sales report', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch daily sales report', 500, msg.substring(0, 300))
   }
 }
 

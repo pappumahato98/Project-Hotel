@@ -48,7 +48,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
     console.error('Guests API error:', error)
-    return cachedError('Failed to fetch guest profiles', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch guest profiles', 500, msg.substring(0, 300))
   }
 }
 
@@ -89,6 +91,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ guest }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create guest error:', error)
-    return cachedError('Failed to create guest', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create guest', 500, msg.substring(0, 300))
   }
 }

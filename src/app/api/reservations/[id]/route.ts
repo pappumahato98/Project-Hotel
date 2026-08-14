@@ -61,7 +61,9 @@ export async function GET(
     return cachedJson({ reservation }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Reservation detail error:', error)
-    return cachedError('Failed to fetch reservation', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch reservation', 500, msg.substring(0, 300))
   }
 }
 
@@ -219,7 +221,9 @@ export async function PATCH(
     return NextResponse.json({ reservation }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Update reservation error:', error)
-    return cachedError('Failed to update reservation', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update reservation', 500, msg.substring(0, 300))
   }
 }
 
@@ -249,6 +253,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Delete reservation error:', error)
-    return cachedError('Failed to delete reservation', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete reservation', 500, msg.substring(0, 300))
   }
 }

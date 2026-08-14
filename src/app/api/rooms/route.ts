@@ -115,7 +115,9 @@ export async function GET(req: NextRequest) {
     return cachedJson(data, req, { tier: 'medium' })
   } catch (error) {
     console.error('Rooms API error:', error)
-    return cachedError('Failed to fetch rooms', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch rooms', 500, msg.substring(0, 300))
   }
 }
 
@@ -156,6 +158,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ room: createdRoom }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create room error:', error)
-    return cachedError('Failed to create room', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create room', 500, msg.substring(0, 300))
   }
 }

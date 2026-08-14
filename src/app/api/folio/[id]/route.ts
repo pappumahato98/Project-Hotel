@@ -141,7 +141,9 @@ export async function POST(
     return NextResponse.json({ folio: updatedFolio }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Folio transaction error:', error)
-    return cachedError('Failed to post transaction', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to post transaction', 500, msg.substring(0, 300))
   }
 }
 
@@ -282,7 +284,9 @@ export async function DELETE(
     }
   } catch (error) {
     console.error('Folio void error:', error)
-    return cachedError('Failed to void transaction', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to void transaction', 500, msg.substring(0, 300))
   }
 }
 
@@ -319,6 +323,8 @@ export async function PATCH(
     return NextResponse.json({ folio }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Update folio error:', error)
-    return cachedError('Failed to update folio', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update folio', 500, msg.substring(0, 300))
   }
 }

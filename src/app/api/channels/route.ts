@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Channels API error:', error)
-    return cachedError('Failed to fetch channels', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch channels', 500, msg.substring(0, 300))
   }
 }
 
@@ -63,7 +65,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(channel, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Channels POST error:', error)
-    return cachedError('Failed to create channel', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create channel', 500, msg.substring(0, 300))
   }
 }
 
@@ -98,6 +102,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(channel, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Channels PATCH error:', error)
-    return cachedError('Failed to update channel', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update channel', 500, msg.substring(0, 300))
   }
 }

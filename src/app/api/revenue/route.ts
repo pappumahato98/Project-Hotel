@@ -131,7 +131,9 @@ export async function GET(req: NextRequest) {
     return cachedJson(data, req, { tier: 'medium' })
   } catch (error) {
     console.error('Revenue API error:', error)
-    return cachedError('Failed to fetch revenue data', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch revenue data', 500, msg.substring(0, 300))
   }
 }
 
@@ -180,6 +182,8 @@ export async function POST(request: NextRequest) {
     return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Revenue POST error:', error)
-    return cachedError('Failed to create revenue data', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create revenue data', 500, msg.substring(0, 300))
   }
 }

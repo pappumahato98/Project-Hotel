@@ -477,7 +477,9 @@ export async function GET(req: NextRequest) {
     return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
     console.error('Operations API error:', error)
-    return cachedError('Failed to fetch operations data', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch operations data', 500, msg.substring(0, 300))
   }
 }
 
@@ -577,6 +579,8 @@ export async function POST(request: NextRequest) {
     return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Operations POST error:', error)
-    return cachedError('Failed to process operation', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to process operation', 500, msg.substring(0, 300))
   }
 }

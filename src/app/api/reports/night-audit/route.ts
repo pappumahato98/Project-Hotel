@@ -292,6 +292,8 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Night Audit Report API error:', error)
-    return cachedError('Failed to generate night audit summary', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to generate night audit summary', 500, msg.substring(0, 300))
   }
 }

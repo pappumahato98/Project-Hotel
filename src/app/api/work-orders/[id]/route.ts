@@ -29,7 +29,9 @@ export async function GET(
     return cachedJson({ workOrder }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Work Order GET error:', error)
-    return cachedError('Failed to fetch work order', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch work order', 500, msg.substring(0, 300))
   }
 }
 
@@ -69,7 +71,9 @@ export async function PATCH(
     return NextResponse.json({ workOrder }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Work Order PATCH error:', error)
-    return cachedError('Failed to update work order', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update work order', 500, msg.substring(0, 300))
   }
 }
 
@@ -87,6 +91,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Work Order DELETE error:', error)
-    return cachedError('Failed to delete work order', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete work order', 500, msg.substring(0, 300))
   }
 }

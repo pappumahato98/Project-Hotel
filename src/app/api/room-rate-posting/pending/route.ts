@@ -117,6 +117,8 @@ export async function GET(req: NextRequest) {
     }, req, { tier: 'short' })
   } catch (error) {
     console.error('Room Rate Posting pending GET error:', error)
-    return cachedError('Failed to fetch pending postings', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch pending postings', 500, msg.substring(0, 300))
   }
 }

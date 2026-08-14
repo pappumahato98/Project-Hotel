@@ -29,7 +29,9 @@ export async function POST(request: NextRequest) {
     }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('[tax-calculate] POST error:', error)
-    return cachedError('Failed to calculate income tax.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to calculate income tax.', 500, msg.substring(0, 300))
   }
 }
 
@@ -53,6 +55,8 @@ export async function GET(request: NextRequest) {
     }, request, { tier: 'long' })
   } catch (error) {
     console.error('[tax-calculate] GET error:', error)
-    return cachedError('Failed to retrieve tax slabs.', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to retrieve tax slabs.', 500, msg.substring(0, 300))
   }
 }

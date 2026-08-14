@@ -181,7 +181,9 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
     console.error('Reservations API error:', error)
-    return cachedError('Failed to fetch reservations', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch reservations', 500, msg.substring(0, 300))
   }
 }
 
@@ -350,6 +352,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reservation }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create reservation error:', error)
-    return cachedError('Failed to create reservation', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create reservation', 500, msg.substring(0, 300))
   }
 }

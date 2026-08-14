@@ -16,7 +16,9 @@ export async function GET(req: NextRequest) {
     return cachedJson(tickets, req, { tier: 'medium' })
   } catch (error) {
     console.error('Support Tickets GET error:', error)
-    return cachedError('Failed to fetch support tickets', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch support tickets', 500, msg.substring(0, 300))
   }
 }
 
@@ -44,6 +46,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(ticket, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Support Tickets POST error:', error)
-    return cachedError('Failed to create support ticket', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create support ticket', 500, msg.substring(0, 300))
   }
 }

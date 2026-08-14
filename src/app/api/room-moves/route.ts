@@ -30,7 +30,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ moves, total }, request, { tier: 'short' })
   } catch (error) {
     console.error('Room moves API error:', error)
-    return cachedError('Failed to fetch room moves', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch room moves', 500, msg.substring(0, 300))
   }
 }
 
@@ -82,6 +84,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ move }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Create room move error:', error)
-    return cachedError('Failed to create room move log', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create room move log', 500, msg.substring(0, 300))
   }
 }

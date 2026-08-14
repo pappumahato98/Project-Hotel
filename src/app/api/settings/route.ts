@@ -274,7 +274,9 @@ export async function GET(req: NextRequest) {
     return cachedJson(result, req, { tier: 'long' })
   } catch (error) {
     console.error('Settings GET error:', error)
-    return cachedError('Failed to fetch settings', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch settings', 500, msg.substring(0, 300))
   }
 }
 
@@ -324,6 +326,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(result, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Settings PUT error:', error)
-    return cachedError('Failed to update settings', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update settings', 500, msg.substring(0, 300))
   }
 }

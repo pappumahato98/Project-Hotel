@@ -37,7 +37,9 @@ export async function PATCH(
     return NextResponse.json({ entry }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Waitlist PATCH error:', error)
-    return cachedError('Failed to update waitlist entry', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update waitlist entry', 500, msg.substring(0, 300))
   }
 }
 
@@ -53,6 +55,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Waitlist DELETE error:', error)
-    return cachedError('Failed to delete waitlist entry', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete waitlist entry', 500, msg.substring(0, 300))
   }
 }

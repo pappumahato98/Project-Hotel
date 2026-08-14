@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ requisitions, total, summary: { pending, approved, received } }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Requisitions API error:', error)
-    return cachedError('Failed to fetch requisitions', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch requisitions', 500, msg.substring(0, 300))
   }
 }
 
@@ -56,7 +58,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(requisition, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Requisitions POST error:', error)
-    return cachedError('Failed to create requisition', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to create requisition', 500, msg.substring(0, 300))
   }
 }
 
@@ -87,6 +91,8 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json(requisition, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Requisitions PATCH error:', error)
-    return cachedError('Failed to update requisition', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update requisition', 500, msg.substring(0, 300))
   }
 }

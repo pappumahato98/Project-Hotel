@@ -22,7 +22,9 @@ export async function GET(
     return cachedJson({ item }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Inventory Item GET error:', error)
-    return cachedError('Failed to fetch inventory item', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch inventory item', 500, msg.substring(0, 300))
   }
 }
 
@@ -61,7 +63,9 @@ export async function PATCH(
     return NextResponse.json({ item }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Inventory Item PATCH error:', error)
-    return cachedError('Failed to update inventory item', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to update inventory item', 500, msg.substring(0, 300))
   }
 }
 
@@ -79,6 +83,8 @@ export async function DELETE(
     return NextResponse.json({ success: true }, { headers: clearCacheHeaders() })
   } catch (error) {
     console.error('Inventory Item DELETE error:', error)
-    return cachedError('Failed to delete inventory item', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to delete inventory item', 500, msg.substring(0, 300))
   }
 }

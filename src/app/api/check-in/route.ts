@@ -463,6 +463,8 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('Check-in API error:', error)
-    return cachedError('Failed to process check-in', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to process check-in', 500, msg.substring(0, 300))
   }
 }

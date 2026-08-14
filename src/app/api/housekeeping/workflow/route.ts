@@ -56,7 +56,9 @@ export async function GET(request: NextRequest) {
     return cachedJson({ items, summary }, request, { tier: 'medium' })
   } catch (error) {
     console.error('Workflow GET error:', error)
-    return cachedError('Failed to fetch workflow items', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to fetch workflow items', 500, msg.substring(0, 300))
   }
 }
 
@@ -139,6 +141,8 @@ export async function POST(request: NextRequest) {
     return cachedError('Unknown action', 400)
   } catch (error) {
     console.error('Workflow POST error:', error)
-    return cachedError('Failed to process request', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to process request', 500, msg.substring(0, 300))
   }
 }

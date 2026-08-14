@@ -282,6 +282,8 @@ export async function GET(request: NextRequest) {
     return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
     console.error('Profit & Loss API error:', error)
-    return cachedError('Failed to generate P&L report', 500)
+
+    const msg = error instanceof Error ? error.message : String(error)
+    return cachedError('Failed to generate P&L report', 500, msg.substring(0, 300))
   }
 }
