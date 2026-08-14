@@ -160,8 +160,39 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Step 2: Regenerate Prisma client ──
-    log('Step 2/4: Regenerating Prisma client...')
+    // ── Step 2: Fix known database trigger issues ──
+    log('Step 2/6: Checking database triggers...')
+    try {
+      const { db } = await import('@/lib/db')
+      await db.$executeRawUnsafe(`
+        CREATE OR REPLACE FUNCTION fn_hk_task_room_status()
+        RETURNS TRIGGER
+        LANGUAGE plpgsql
+        SET search_path = ''
+        AS $$
+        BEGIN
+          IF NEW."roomId" IS NOT NULL AND OLD.status IS DISTINCT FROM NEW.status THEN
+            CASE NEW.status
+              WHEN 'cleaned' THEN
+                UPDATE public."Room" SET status = 'inspected' WHERE id = NEW."roomId" AND status IN ('cleaning', 'vacant_dirty');
+              WHEN 'inspected' THEN
+                UPDATE public."Room" SET status = 'vacant_clean' WHERE id = NEW."roomId" AND status = 'inspected';
+              ELSE
+                NULL;
+            END CASE;
+          END IF;
+          RETURN NEW;
+        END;
+        $$;
+      `)
+      log('Fixed hk_task room status trigger (added ELSE clause)')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      log(`Trigger fix note: ${msg.substring(0, 200)}`)
+    }
+
+    // ── Step 3: Regenerate Prisma client ──
+    log('Step 3/6: Regenerating Prisma client...')
     try {
       execSync('npx prisma generate 2>&1', {
         timeout: 30_000,
@@ -174,7 +205,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step 3: Seed chart of accounts if empty ──
-    log('Step 3/4: Checking chart of accounts...')
+    log('Step 4/6: Checking chart of accounts...')
     let accountsSeeded = 0
     try {
       const { db } = await import('@/lib/db')
@@ -200,7 +231,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step 4: Create initial accounting period if missing ──
-    log('Step 4/5: Checking accounting periods...')
+    log('Step 5/6: Checking accounting periods...')
     try {
       const { db } = await import('@/lib/db')
       const periodCount = await db.accountingPeriod.count()
@@ -230,7 +261,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Step 5: Seed/reset default users ──
-    log('Step 5/5: Checking default users...')
+    log('Step 6/6: Checking default users...')
     let usersSeeded = 0
     let usersUpdated = 0
     try {
@@ -271,7 +302,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Setup complete: schema synced, ${accountsSeeded} chart of accounts, ${usersSeeded} created, ${usersUpdated} updated`,
-      steps: ['schema-push', 'prisma-generate', 'seed-accounts', 'check-periods', 'seed-users'],
+      steps: ['schema-push', 'fix-triggers', 'prisma-generate', 'seed-accounts', 'check-periods', 'seed-users'],
       accountsSeeded,
       usersSeeded,
       usersUpdated,

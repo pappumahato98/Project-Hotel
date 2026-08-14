@@ -569,6 +569,8 @@ BEGIN
         UPDATE public."Room" SET status = 'inspected' WHERE id = NEW."roomId" AND status IN ('cleaning', 'vacant_dirty');
       WHEN 'inspected' THEN
         UPDATE public."Room" SET status = 'vacant_clean' WHERE id = NEW."roomId" AND status = 'inspected';
+      ELSE
+        NULL; -- other statuses (pending, assigned, in_progress, failed) don't change room status
     END CASE;
   END IF;
 
