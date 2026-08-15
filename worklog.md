@@ -1588,3 +1588,25 @@ Stage Summary:
 - SSL/certificate false positives eliminated in isDatabaseError
 - JWT_SECRET added to local .env
 
+---
+Task ID: dark-theme-465a7e
+Agent: Main Orchestrator
+Task: Apply #465A7E as dark theme background color
+
+Work Log:
+- Converted #465A7E to oklch: oklch(0.4667 0.0639 261.81)
+- Computed palette: sidebar #3D5070, cards/popover #506590, muted/secondary #5A6E92, darker #2E3F5C
+- Updated .dark CSS variables in globals.css: background, card, popover, sidebar, border, input, ring, muted, secondary, accent
+- Updated login page gradient: dark:from-gray-950/via-gray-900/to-gray-950 → dark:from-[#2E3F5C]/via-[#465A7E]/to-[#2E3F5C]
+- Added CSS overrides for hardcoded dark:bg-gray-800/900/950 and dark:bg-slate-800/900 to remap to #465A7E palette
+- Added dark:border-gray-600/700 overrides for consistent borders
+- Updated dark mode scrollbar colors to match blue-gray palette
+- Verified with agent-browser: background oklch(0.4667 0.0639 261.81) confirmed
+
+Stage Summary:
+- Dark theme background: #465A7E (oklch 0.4667 0.0639 261.81)
+- Dark theme card/popover: #506590 (slightly lighter)
+- Dark theme sidebar: #3D5070 (slightly darker)
+- All 37 files with hardcoded dark:bg-gray-900 etc. automatically remapped via CSS overrides
+- Login page gradient updated to use #465A7E palette
+- 0 lint errors

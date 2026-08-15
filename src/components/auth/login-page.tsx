@@ -412,7 +412,7 @@ export function LoginPage() {
   // ─── Sign In View ───────────────────────────────────────────
   if (view === 'signin') {
     return (
-      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
         <div className="my-auto w-full max-w-md space-y-6">
           {/* Branding */}
           <div className="flex flex-col items-center gap-3 text-center">
@@ -560,7 +560,7 @@ export function LoginPage() {
   if (view === 'signup') {
     if (signUpSuccess) {
       return (
-        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
           <div className="my-auto w-full max-w-md">
             <Card className="border-0 shadow-xl shadow-black/5">
               <CardContent className="pt-8 pb-8 text-center space-y-4">
@@ -589,7 +589,7 @@ export function LoginPage() {
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
         <div className="my-auto w-full max-w-md space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
@@ -774,7 +774,7 @@ export function LoginPage() {
   if (view === 'forgot') {
     if (forgotSuccess) {
       return (
-        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
           <div className="my-auto w-full max-w-md">
             <Card className="border-0 shadow-xl shadow-black/5">
               <CardContent className="pt-8 pb-8 text-center space-y-4">
@@ -803,7 +803,7 @@ export function LoginPage() {
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
         <div className="my-auto w-full max-w-md space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
@@ -881,7 +881,7 @@ export function LoginPage() {
   if (view === 'reset') {
     if (resetSuccess) {
       return (
-        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+        <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
           <div className="my-auto w-full max-w-md">
             <Card className="border-0 shadow-xl shadow-black/5">
               <CardContent className="pt-8 pb-8 text-center space-y-4">
@@ -910,7 +910,7 @@ export function LoginPage() {
     }
 
     return (
-      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 p-4 overflow-y-auto">
+      <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 dark:from-[#2E3F5C] dark:via-[#465A7E] dark:to-[#2E3F5C] p-4 overflow-y-auto">
         <div className="my-auto w-full max-w-md space-y-6">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25">
