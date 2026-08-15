@@ -1539,3 +1539,28 @@ Stage Summary:
 - LedgerView uses title for account metadata and footerRows for Closing Balance
 - 38 listed files confirmed to have NO export functionality (skipped as instructed)
 
+---
+Task ID: cashier-shift-history-upgrade
+Agent: Main Orchestrator
+Task: Upgrade Cashier Shift History table in Operations module
+
+Work Log:
+- Read existing CashierView.tsx (543 lines), operations API route (591 lines), prisma schema, seed data
+- Updated CashierShift model: added sessionNo (Int), cashierId (String?), transactionCount (Int)
+- Fixed seed data bug: pick(allEmployees) was called twice creating mismatched names, now uses single pick
+- Updated seed to generate 10 shifts (CS-001 to CS-010) with real employee names and cashierId links
+- Updated /api/operations GET: ordered by sessionNo desc, returns sessionNo/cashierId/transactionCount
+- Fixed variance formula: Opening + FloatIn - FloatOut (was incorrect before)
+- Created new API endpoint /api/cashier-shift/[id]/breakdown for on-demand payment breakdown
+- Complete rewrite of CashierView.tsx shift history table with all requested features
+- Verified with agent-browser: all features working
+
+Stage Summary:
+- Schema: Added sessionNo, cashierId, transactionCount to CashierShift model
+- Seed: Fixed employee name bug, 10 sequential sessions, real employee links
+- API: sessionNo desc ordering, new breakdown endpoint with cash/cheque/bank/wallet/card/others
+- Frontend: Session column (CS-XXX), Opening, Transaction count, Float In/Out, Variance formula
+- Frontend: 3-dot hamburger menu (Cashier Report, Payment Breakdown, Print, Export PDF, Export Excel)
+- Frontend: Double-click/click expandable rows showing 6-category payment breakdown grid
+- Build: 0 errors, all routes compile
+- Browser verified: table renders correctly, menus work, expandable rows work
