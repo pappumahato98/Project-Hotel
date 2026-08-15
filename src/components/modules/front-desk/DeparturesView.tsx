@@ -271,18 +271,22 @@ export function DeparturesView() {
     },
   })
 
-  // Batch checkout mutation
+  // Batch checkout mutation — parallel for speed (was sequential loop)
   const batchCheckoutMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = []
-      for (let i = 0; i < ids.length; i++) {
-        const result = await apiFetch(`/api/reservations/${ids[i]}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'checked_out' }),
-        })
-        results.push(result)
-        toast.success(`Checked out ${i + 1} of ${ids.length} rooms...`)
+      const results = await Promise.allSettled(
+        ids.map(id =>
+          apiFetch(`/api/reservations/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'checked_out' }),
+          })
+        )
+      )
+      const succeeded = results.filter(r => r.status === 'fulfilled').length
+      const failed = results.length - succeeded
+      if (failed > 0) {
+        toast.warning(`Batch checkout: ${succeeded} succeeded, ${failed} failed`)
       }
       return results
     },

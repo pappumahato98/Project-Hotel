@@ -269,19 +269,18 @@ export function ReservationsView() {
   const [conflictOpen, setConflictOpen] = useState(false)
   const [conflictData, setConflictData] = useState<any>(null)
 
-  // Bulk cancel mutation
+  // Bulk cancel mutation — parallel for speed (was sequential loop)
   const bulkCancelMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = []
-      for (const id of ids) {
-        const r = await apiFetch(`/api/reservations/${id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'cancelled' }),
-        })
-        results.push(r)
-      }
-      return results
+      return Promise.allSettled(
+        ids.map(id =>
+          apiFetch(`/api/reservations/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'cancelled' }),
+          })
+        )
+      )
     },
     onSuccess: (_data, ids) => {
       invalidate.afterReservationChange(queryClient)

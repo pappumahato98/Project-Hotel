@@ -383,104 +383,99 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
 
   _schemaSyncPromise = (async () => {
     try {
-      console.warn('[db] Schema auto-sync starting...')
+      const t0 = Date.now()
       let fixed = 0
 
-      const alter = async (sql: string) => {
-        try { await client.$executeRawUnsafe(sql); fixed++ } catch { /* already exists or irrelevant */ }
-      }
+      // All statements are IF NOT EXISTS — safe to run in parallel.
+      // Sequential would be ~300-450ms (30+ round-trips × 10-15ms each).
+      // Parallel reduces to ~10-15ms (single round-trip batch).
+      const statements = [
+        // AuthUser
+        `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT NOT NULL DEFAULT ''`,
+        // NightAudit
+        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "totalRooms" INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "occupiedRooms" INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "arrivals" INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "departures" INTEGER NOT NULL DEFAULT 0`,
+        // RoomType
+        `ALTER TABLE "RoomType" ADD COLUMN IF NOT EXISTS "areaSqM" DOUBLE PRECISION`,
+        // JournalEntry
+        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceModule" TEXT`,
+        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`,
+        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`,
+        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`,
+        // LedgerAccount
+        `ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`,
+        `ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "subtype" TEXT`,
+        // RefreshToken
+        `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`,
+        `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "replacedBy" TEXT`,
+        `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`,
+        // CashierShift
+        `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "sessionNo" INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "cashierId" TEXT`,
+        `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "transactionCount" INTEGER NOT NULL DEFAULT 0`,
+        // Reservation
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "company" TEXT`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "poNumber" TEXT`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "bookedBy" TEXT`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationNumber" TEXT`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationType" TEXT NOT NULL DEFAULT 'individual'`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "ratePlanId" TEXT`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 15000`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'unpaid'`,
+        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "guaranteed" BOOLEAN NOT NULL DEFAULT false`,
+        // Room
+        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "building" TEXT`,
+        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "view" TEXT`,
+        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "accessibility" BOOLEAN NOT NULL DEFAULT false`,
+        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "connectingRoomId" TEXT`,
+        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "ipPhoneExt" TEXT`,
+        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "tvChannel" TEXT`,
+        // FolioTransaction
+        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "taxAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "quantity" INTEGER NOT NULL DEFAULT 1`,
+        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "outlet" TEXT`,
+        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`,
+        // PosOrder
+        `ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "guestCount" INTEGER NOT NULL DEFAULT 1`,
+        `ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+        // Guest
+        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyPoints" INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyTier" TEXT NOT NULL DEFAULT 'none'`,
+        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "preferences" TEXT`,
+        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalStays" INTEGER NOT NULL DEFAULT 0`,
+        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalRevenue" DOUBLE PRECISION NOT NULL DEFAULT 0`,
+        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "lastStayAt" TIMESTAMP(3)`,
+        // Folio
+        `ALTER TABLE "Folio" ADD COLUMN IF NOT EXISTS "folioType" TEXT NOT NULL DEFAULT 'guest'`,
+        // Employee
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "department" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "position" TEXT`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hireDate" TIMESTAMP(3)`,
+        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContact" TEXT`,
+        // Property
+        `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "timezone" TEXT`,
+        `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'NPR'`,
+      ]
 
-      // AuthUser: password hash (critical for authentication)
-      await alter(`ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT NOT NULL DEFAULT ''`)
+      // Execute all ALTER statements in parallel (~10-15ms vs ~300-450ms sequential)
+      const results = await Promise.allSettled(
+        statements.map(sql => client.$executeRawUnsafe(sql))
+      )
+      fixed = results.filter(r => r.status === 'fulfilled').length
 
-      // NightAudit: snapshot columns
-      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "totalRooms" INTEGER NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "occupiedRooms" INTEGER NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "arrivals" INTEGER NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "departures" INTEGER NOT NULL DEFAULT 0`)
-      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`) } catch {}
+      // Indexes (separate — CREATE INDEX IF NOT EXISTS)
+      const indexes = [
+        `CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`,
+        `CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`,
+        `CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`,
+        `CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`,
+      ]
+      await Promise.allSettled(indexes.map(sql => client.$executeRawUnsafe(sql)))
 
-      // RoomType: metric area
-      await alter(`ALTER TABLE "RoomType" ADD COLUMN IF NOT EXISTS "areaSqM" DOUBLE PRECISION`)
-
-      // JournalEntry: audit trail
-      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceModule" TEXT`)
-      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`)
-      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`)
-      await alter(`ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`)
-
-      // LedgerAccount: department + subtype
-      await alter(`ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`)
-      await alter(`ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "subtype" TEXT`)
-
-      // RefreshToken: token family tracking
-      await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`)
-      await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "replacedBy" TEXT`)
-      await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`)
-      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`) } catch {}
-
-      // CashierShift: session tracking + employee linkage
-      await alter(`ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "sessionNo" INTEGER NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "cashierId" TEXT`)
-      await alter(`ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "transactionCount" INTEGER NOT NULL DEFAULT 0`)
-      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`) } catch {}
-      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`) } catch {}
-
-      // Reservation: extended fields
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "company" TEXT`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "poNumber" TEXT`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "bookedBy" TEXT`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationNumber" TEXT`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationType" TEXT NOT NULL DEFAULT 'individual'`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "ratePlanId" TEXT`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 15000`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'unpaid'`)
-      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "guaranteed" BOOLEAN NOT NULL DEFAULT false`)
-
-      // Room: extended fields
-      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "building" TEXT`)
-      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "view" TEXT`)
-      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "accessibility" BOOLEAN NOT NULL DEFAULT false`)
-      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "connectingRoomId" TEXT`)
-      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "ipPhoneExt" TEXT`)
-      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "tvChannel" TEXT`)
-
-      // FolioTransaction: extended fields
-      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "taxAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "quantity" INTEGER NOT NULL DEFAULT 1`)
-      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "outlet" TEXT`)
-      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`)
-
-      // PosOrder: extended fields
-      await alter(`ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "guestCount" INTEGER NOT NULL DEFAULT 1`)
-      await alter(`ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`)
-
-      // Guest: extended profile fields
-      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyPoints" INTEGER NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyTier" TEXT NOT NULL DEFAULT 'none'`)
-      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "preferences" TEXT`)
-      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalStays" INTEGER NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalRevenue" DOUBLE PRECISION NOT NULL DEFAULT 0`)
-      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "lastStayAt" TIMESTAMP(3)`)
-
-      // Folio: folioType column
-      await alter(`ALTER TABLE "Folio" ADD COLUMN IF NOT EXISTS "folioType" TEXT NOT NULL DEFAULT 'guest'`)
-
-      // Employee: extended fields
-      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "department" TEXT`)
-      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "position" TEXT`)
-      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hireDate" TIMESTAMP(3)`)
-      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContact" TEXT`)
-
-      // Property: extended fields
-      await alter(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "timezone" TEXT`)
-      await alter(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'NPR'`)
-
-      if (fixed > 0) {
-        console.warn(`[db] Auto-sync complete: ${fixed} columns/indexes added`)
-      } else {
-        console.warn('[db] Auto-sync: schema is up to date')
-      }
+      const elapsed = Date.now() - t0
+      console.warn(`[db] Schema auto-sync complete in ${elapsed}ms (${fixed} columns checked)`)
     } catch (err) {
       console.error('[db] Auto-sync failed (non-fatal):', err instanceof Error ? err.message : err)
     }

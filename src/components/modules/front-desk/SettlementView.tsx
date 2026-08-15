@@ -335,7 +335,7 @@ export function SettlementView() {
     },
   })
 
-  // Batch settlement mutation — settles each folio individually
+  // Batch settlement mutation — settles each folio individually, parallelized per-reservation
   const batchSettleMutation = useMutation({
     mutationFn: async (method: PaymentMethod) => {
       const results: { reservation: InHouseReservation; success: boolean; error?: string }[] = []
@@ -347,18 +347,17 @@ export function SettlementView() {
           results.push({ reservation: res, success: false, error: 'No folio with balance found' })
           continue
         }
-        let allSuccess = true
-        for (const folio of foliosToSettle) {
-          try {
-            await apiFetch(`/api/folio/${folio.id}`, {
+        // Parallelize folio payments within each reservation
+        const folioResults = await Promise.allSettled(
+          foliosToSettle.map(folio =>
+            apiFetch(`/api/folio/${folio.id}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ type: 'payment', paymentMethod: method, amount: folio.balance, reference: '' }),
             })
-          } catch {
-            allSuccess = false
-          }
-        }
+          )
+        )
+        const allSuccess = folioResults.every(r => r.status === 'fulfilled')
         if (allSuccess) {
           results.push({ reservation: res, success: true })
           toast.success(`Settled ${i + 1} of ${allOutstanding.length}: Room ${res.room.number}`)
