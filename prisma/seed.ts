@@ -468,6 +468,59 @@ async function main() {
   }
   console.log('  ✅ Cashier shifts')
 
+  // ─── 27b. Seed payments aligned with each shift's date window ──
+  // so that the expandable breakdown shows real data
+  const shifts = await db.cashierShift.findMany({ orderBy: { sessionNo: 'asc' } })
+  const allFolios = await db.folio.findMany({ select: { id: true } })
+  const banks = ['NIC Asia Bank', 'Nabil Bank', 'Global IME Bank', 'Nepal Investment Bank', 'Prabhu Bank']
+  const wallets = ['eSewa', 'Khalti', 'IME Pay', 'ConnectIPS']
+  const cardTypes = ['visa', 'mastercard', 'amex']
+
+  for (const shift of shifts) {
+    if (shift.status === 'open') continue // skip active shift
+    const shiftStart = new Date(shift.startDate)
+    const shiftEnd = shift.endDate ? new Date(shift.endDate) : new Date(shiftStart.getTime() + 8 * 3600000)
+    const numPayments = rand(5, 15)
+
+    for (let p = 0; p < numPayments; p++) {
+      const payTime = new Date(shiftStart.getTime() + Math.random() * (shiftEnd.getTime() - shiftStart.getTime()))
+      const methodRoll = Math.random()
+      let payMethod: string, ref: string | null = null, card: string | null = null
+
+      if (methodRoll < 0.3) {
+        payMethod = 'cash'
+      } else if (methodRoll < 0.5) {
+        payMethod = 'card'
+        card = pick(cardTypes)
+      } else if (methodRoll < 0.65) {
+        payMethod = 'bank_transfer'
+        ref = pick(banks)
+      } else if (methodRoll < 0.78) {
+        payMethod = 'cheque'
+        ref = pick(banks)
+      } else if (methodRoll < 0.9) {
+        payMethod = 'voucher'
+        ref = pick(wallets)
+      } else {
+        payMethod = 'city_ledger'
+        ref = 'Corporate Account'
+      }
+
+      await db.folioPayment.create({
+        data: {
+          folioId: pick(allFolios).id,
+          paymentMethod: payMethod,
+          amount: randFloat(1000, 25000),
+          reference: ref,
+          cardType: card,
+          status: 'completed',
+          createdAt: payTime,
+        },
+      })
+    }
+  }
+  console.log('  ✅ Shift-aligned payments')
+
   // ─── 28. Support Tickets ──────────────────────────────────
   for (let i = 0; i < 5; i++) {
     const emp = pick(allEmployees)

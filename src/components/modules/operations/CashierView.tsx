@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, Fragment } from 'react'
 import { format } from 'date-fns'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
@@ -569,9 +569,8 @@ export function CashierView() {
                   {shiftHistory.map((shift) => {
                     const isExpanded = expandedRowId === shift.id
                     return (
-                      <>
+                      <Fragment key={shift.id}>
                         <TableRow
-                          key={shift.id}
                           className={cn(
                             'cursor-pointer select-none transition-colors hover:bg-muted/50',
                             isExpanded && 'bg-muted/30'
@@ -681,7 +680,7 @@ export function CashierView() {
                             isLoading={breakdownLoading}
                           />
                         )}
-                      </>
+                      </Fragment>
                     )
                   })}
                 </TableBody>
