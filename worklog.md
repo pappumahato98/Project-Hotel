@@ -1630,3 +1630,37 @@ Stage Summary:
 - WCAG AA: foreground 6.7:1, muted-fg 4.75:1, primary-fg 9.3:1
 - No more pure white/gray text creating visual disconnect
 - Card surfaces now SUBTLE (lower chroma than bg) instead of oversaturated
+
+---
+Task ID: infrastructure-audit
+Agent: Main Orchestrator
+Task: Full infrastructure performance audit — Vercel (frontend) ↔ Render (backend) ↔ Supabase (DB/auth/realtime/Edge)
+
+Work Log:
+- Audited 25+ source files across client, server, lib, and config layers
+- Analyzed Supabase client config (client.ts, server.ts, middleware.ts)
+- Analyzed realtime system (use-realtime.ts, realtime.ts, realtime-notifications.ts, broadcast.ts)
+- Analyzed data fetching layer (api.ts, cache.ts, redis.ts, queryKeys.ts, providers.tsx)
+- Analyzed DB connection layer (db.ts, env.ts, health route, dashboard/_data.ts)
+- Analyzed auth layer (auth-helpers.ts, rate-limiter.ts, store.ts, token.ts)
+- Analyzed Supabase migrations (realtime_enable.sql, rls_performance_fixes.sql, db_triggers.sql)
+- Analyzed deployment config (render.yaml, vercel.json, .env.example)
+- Analyzed app architecture (page.tsx, app-shell.tsx, providers.tsx, instrumentation.ts)
+
+Stage Summary:
+- CRITICAL FINDING 1: Server broadcast.ts is a NO-OP — all server-side broadcastEvent() calls do nothing
+- CRITICAL FINDING 2: Realtime relies entirely on Supabase postgres_changes — works only if SUPABASE_URL + SUPABASE_ANON_KEY are set
+- CRITICAL FINDING 3: No NEXT_PUBLIC_ env vars for Supabase — config fetched via /api/config/realtime (extra HTTP hop before WebSocket can connect)
+- CRITICAL FINDING 4: 9 realtime channels opened sequentially (not parallel) — adds ~900ms latency at init
+- CRITICAL FINDING 5: Dual realtime system (postgres_changes + pg_notify triggers) — pg_notify events are NEVER received by client
+- FINDING 6: No stale-while-revalidate or optimistic updates for realtime data refresh after mutations
+- FINDING 7: Dashboard cache (5-min TTL) blocks live data when range includes today
+- FINDING 8: Schema auto-sync runs 30+ ALTER TABLE statements on every cold start
+- FINDING 9: Connection pool set to connection_limit=1 — safe for PgBouncer but may bottleneck under high concurrency
+- FINDING 10: In-memory cache/Redis is per-instance — no cross-instance cache invalidation (Vercel serverless)
+- RECOMMENDATION 1: Parallelize realtime channel subscriptions
+- RECOMMENDATION 2: Embed NEXT_PUBLIC_SUPABASE_URL to eliminate /api/config/realtime hop
+- RECOMMENDATION 3: Remove dead pg_notify trigger system or integrate it properly
+- RECOMMENDATION 4: Add optimistic updates + stale-while-revalidate for mutation responses
+- RECOMMENDATION 5: Pre-warm dashboard cache at instrumentation startup
+- RECOMMENDATION 6: Use connection_limit=3-5 for better concurrency on Vercel warm instances
