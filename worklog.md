@@ -1564,3 +1564,27 @@ Stage Summary:
 - Frontend: Double-click/click expandable rows showing 6-category payment breakdown grid
 - Build: 0 errors, all routes compile
 - Browser verified: table renders correctly, menus work, expandable rows work
+---
+Task ID: 1
+Agent: main
+Task: Fix repeated "Service is busy. Please wait a moment and try again." login error
+
+Work Log:
+- Traced error source: login-page.tsx line 152 shows "Server is busy" on 503 response
+- 503 comes from login/route.ts when DB is unreachable (isDatabaseError returns true)
+- Root causes identified: (1) only 1 DB retry with 500ms delay, (2) isDatabaseError had overly broad SSL/certificate matching, (3) frontend only retried once with 3s delay
+- Fixed login route: 3 retries with exponential backoff (500ms, 1s, 2s)
+- Fixed isDatabaseError: replaced broad `msg.includes("SSL")` with specific regex patterns
+- Fixed login page: smart 503 handling — DB_NOT_CONFIGURED (no retry), DB_SCHEMA_ERROR (1 retry 5s), DB_UNREACHABLE (3 retries 3s/6s/9s)
+- Added JWT_SECRET to .env (was missing, causing env validation error)
+- Fixed apiFetch error messages for clarity
+- Verified login works via curl test (returns valid JWT for admin@meridian.com)
+- Committed and pushed to GitHub
+
+Stage Summary:
+- Commit 7b4a58b pushed to main
+- Login now retries up to 3 times with backoff instead of 1 time
+- Error messages are specific ("Unable to connect to the database" instead of "Service is busy")
+- SSL/certificate false positives eliminated in isDatabaseError
+- JWT_SECRET added to local .env
+
