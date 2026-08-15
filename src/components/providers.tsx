@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ThemeProvider } from 'next-themes'
 import { useSettingsStore, useAuthStore } from '@/lib/store'
 import { initAuthFetch } from '@/lib/api'
 import { setAccessToken, getAccessToken, setCsrfToken, getCsrfToken } from '@/lib/supabase/client'
@@ -113,10 +114,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <GlobalErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    </GlobalErrorBoundary>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem storageKey="fixoria-theme" disableTransitionOnChange>
+      <GlobalErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </GlobalErrorBoundary>
+    </ThemeProvider>
   )
 }
