@@ -7,6 +7,7 @@ import { useSettingsStore, useAuthStore } from '@/lib/store'
 import { initAuthFetch } from '@/lib/api'
 import { setAccessToken, getAccessToken, setCsrfToken, getCsrfToken } from '@/lib/supabase/client'
 import { GlobalErrorBoundary } from '@/components/error-boundary'
+import { setRealtimeQueryClient } from '@/hooks/use-realtime'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -27,6 +28,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   )
+
+  // Wire the QueryClient into the realtime system so that postgres_changes
+  // events automatically invalidate the relevant React Query caches.
+  useEffect(() => {
+    setRealtimeQueryClient(queryClient)
+  }, [queryClient])
 
   useEffect(() => {
     // Register auth fetch helpers

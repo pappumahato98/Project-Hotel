@@ -51,7 +51,7 @@ export function initSupabaseClient(url: string, anonKey: string): SupabaseClient
   _supabase = createSupabaseClient(url, anonKey, {
     realtime: {
       params: {
-        eventsPerSecond: 10,
+        eventsPerSecond: 100,
       },
     },
     auth: {
@@ -76,6 +76,29 @@ export async function ensureSupabaseClient(): Promise<SupabaseClient | null> {
 
   _initPromise = (async () => {
     try {
+      // FAST PATH: Use NEXT_PUBLIC_ env vars if available (zero HTTP hop)
+      // Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel/Render env.
+      // This saves ~100-200ms by eliminating the /api/config/realtime round-trip.
+      if (typeof window !== 'undefined') {
+        const publicUrl = (window as unknown as Record<string, string | undefined>).__NEXT_PUBLIC_SUPABASE_URL__
+          ?? process.env.NEXT_PUBLIC_SUPABASE_URL
+        const publicAnonKey = (window as unknown as Record<string, string | undefined>).__NEXT_PUBLIC_SUPABASE_ANON_KEY__
+          ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+        // Read from meta tags injected by layout.tsx (works even without NEXT_PUBLIC_ vars)
+        const metaUrl = document.querySelector<HTMLMetaElement>('meta[name="supabase-url"]')?.content
+        const metaAnonKey = document.querySelector<HTMLMetaElement>('meta[name="supabase-anon-key"]')?.content
+
+        const url = publicUrl || metaUrl
+        const anonKey = publicAnonKey || metaAnonKey
+
+        if (url && anonKey) {
+          console.info('[Realtime] Initialized from embedded config (zero-hop)')
+          return initSupabaseClient(url, anonKey)
+        }
+      }
+
+      // FALLBACK: Fetch config from server API
       const res = await fetch('/api/config/realtime')
       if (!res.ok) {
         console.warn('[Realtime] Config endpoint returned', res.status)

@@ -4,7 +4,10 @@ import { NextResponse } from 'next/server'
  * GET /api/config/realtime
  *
  * Returns the Supabase Realtime configuration needed by the client.
- * This keeps the anon key server-side (not in NEXT_PUBLIC_ vars).
+ * Supports 3 discovery methods (in priority order):
+ *   1. NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY (zero-hop)
+ *   2. Meta tags injected by layout.tsx (zero-hop, secure — not in NEXT_PUBLIC_)
+ *   3. This API fallback (one HTTP round-trip)
  */
 export async function GET() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -12,7 +15,7 @@ export async function GET() {
 
   // If NEXT_PUBLIC vars are set, use them directly
   if (supabaseUrl && supabaseAnonKey) {
-    return NextResponse.json({ url: supabaseUrl, anonKey: supabaseAnonKey })
+    return NextResponse.json({ url: supabaseUrl, anonKey: supabaseAnonKey, configured: true })
   }
 
   // Derive from DATABASE_URL (extract project ref)

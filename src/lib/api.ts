@@ -12,6 +12,36 @@ let _getCsrfToken: (() => string | null) | null = null
 // Prevent concurrent refresh attempts
 let _refreshPromise: Promise<boolean> | null = null
 
+// ─── 503 Circuit Breaker ────────────────────────────────────────
+// After 3 consecutive 503s, stops all API calls for 30 seconds.
+// Prevents the dashboard retry storm (was: 9 requests in 2s on DB failure).
+let _503Count = 0
+let _503CooldownUntil = 0
+
+function is503CircuitOpen(): boolean {
+  if (_503Count >= 3 && Date.now() < _503CooldownUntil) {
+    return true
+  }
+  // Cooldown expired — reset
+  if (Date.now() >= _503CooldownUntil) {
+    _503Count = 0
+  }
+  return false
+}
+
+function record503() {
+  _503Count++
+  if (_503Count >= 3) {
+    _503CooldownUntil = Date.now() + 30_000 // 30-second cooldown
+    console.warn(`[api] Circuit breaker OPEN — 3 consecutive 503s. Pausing API calls for 30s.`)
+  }
+}
+
+/** Reset the 503 circuit breaker (call on any non-503 response) */
+function reset503Circuit() {
+  if (_503Count > 0) _503Count = 0
+}
+
 /** Call once from client to register the token, user-id, and CSRF getters */
 export function initAuthFetch(
   getToken: () => string | null,
@@ -74,6 +104,11 @@ export async function apiFetch<T = unknown>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
+  // Circuit breaker: if 3+ consecutive 503s, pause all calls for 30s
+  if (typeof window !== 'undefined' && is503CircuitOpen()) {
+    throw new Error('Service temporarily unavailable. Retrying in a moment…')
+  }
+
   // Attach Bearer token, CSRF token, and x-user-id header if available
   if (_getToken) {
     const token = _getToken()
@@ -92,6 +127,11 @@ export async function apiFetch<T = unknown>(
     res = await fetch(url, options)
   } catch {
     throw new Error('Server unavailable. Please try again.')
+  }
+
+  // Reset circuit breaker on any non-503 response
+  if (res.status !== 503) {
+    reset503Circuit()
   }
 
   // Handle 401 — try silent refresh, then logout
@@ -139,6 +179,7 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) {
     // Handle 503 DB errors — provide clear setup instructions
     if (res.status === 503 && typeof window !== 'undefined') {
+      record503() // Feed the circuit breaker
       let errData: Record<string, unknown> | null = null
       try { errData = await res.json() } catch {}
       const code = errData?.code as string | undefined

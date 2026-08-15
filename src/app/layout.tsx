@@ -26,6 +26,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Zero-hop Supabase Realtime config: injected server-side so the client
+            can initialize WebSocket immediately without an /api/config/realtime round-trip.
+            This saves ~100-200ms on every realtime initialization. */}
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <meta name="supabase-url" content={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        )}
+        {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && (
+          <meta name="supabase-anon-key" content={process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY} />
+        )}
         {/* Inline script to apply dark mode BEFORE React hydration to prevent flash.
             This runs synchronously before any paint, reading from localStorage. */}
         <script dangerouslySetInnerHTML={{ __html: `
