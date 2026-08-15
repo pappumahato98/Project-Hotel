@@ -127,10 +127,16 @@ export function isDatabaseError(error: unknown): boolean {
     msg.includes('Socket closed') ||
     msg.includes('Unable to connect') ||
     msg.includes('could not connect') ||
-    msg.includes('network is unreachable') ||
-    msg.includes('SSL') ||
-    msg.includes('ssl') ||
-    msg.includes('certificate')
+    msg.includes('network is unreachable')
+  ) return true
+
+  // SSL/TLS connection errors — be SPECIFIC to avoid false positives
+  // Only match when SSL is clearly the cause of a connection failure
+  if (
+    /SSL\s*(?:error|failed|handshake|connection|connect)/i.test(msg) ||
+    /certificate\s*(?:error|failed|verify|invalid|expired)/i.test(msg) ||
+    /sslmode/i.test(msg) && /error|fail|refused|unable/i.test(msg) ||
+    /self.signed/i.test(msg) && /certificate/i.test(msg)
   ) return true
 
   // Supabase pooler errors

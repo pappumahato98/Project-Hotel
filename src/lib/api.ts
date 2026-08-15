@@ -147,8 +147,8 @@ export async function apiFetch<T = unknown>(
         const msg = code === 'DB_NOT_CONFIGURED'
           ? 'Database not configured. Please set DATABASE_URL in your deployment environment variables.'
           : code === 'DB_SCHEMA_ERROR'
-            ? 'Database schema mismatch. The app is auto-fixing — please wait a moment and retry.'
-            : 'Database is not reachable. Please check your DATABASE_URL and database status.'
+            ? 'Database schema is being auto-fixed. Please wait a moment and retry.'
+            : 'Database temporarily unavailable. Please try again in a moment.'
         // Dispatch a custom event that the app shell can listen to
         window.dispatchEvent(new CustomEvent('db-unavailable', { detail: { code, message: msg, detail } }))
         throw new Error(msg)

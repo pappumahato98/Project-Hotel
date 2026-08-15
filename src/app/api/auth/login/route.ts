@@ -68,18 +68,26 @@ export async function POST(req: NextRequest) {
     let usedFallback = false
     let dbReachable = true
 
-    // Helper: try DB query with one retry on connection errors
+    // Helper: try DB query with exponential backoff retries on connection errors
     async function queryWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-      try {
-        return await fn()
-      } catch (err) {
-        if (isDatabaseError(err)) {
-          console.warn('[auth] DB connection error, retrying in 500ms...')
-          await new Promise(r => setTimeout(r, 500))
-          return fn()
+      const MAX_RETRIES = 3
+      const BASE_DELAY = 500
+      let lastErr: unknown
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          return await fn()
+        } catch (err) {
+          lastErr = err
+          if (isDatabaseError(err) && attempt < MAX_RETRIES) {
+            const delay = BASE_DELAY * Math.pow(2, attempt - 1)
+            console.warn(`[auth] DB connection error (attempt ${attempt}/${MAX_RETRIES}), retrying in ${delay}ms...`)
+            await new Promise(r => setTimeout(r, delay))
+          } else {
+            throw err
+          }
         }
-        throw err
       }
+      throw lastErr
     }
 
     try {
@@ -94,21 +102,28 @@ export async function POST(req: NextRequest) {
       // which is the correct security response anyway. The DB_EMPTY hint
       // is only useful for first-time setup, which is a one-time event.
     } catch (dbErr: unknown) {
-      console.error('[auth] Database query error:', errorSummary(dbErr))
+      const errSummary = errorSummary(dbErr)
+      console.error('[auth] Database query error:', errSummary)
 
       if (isDatabaseError(dbErr)) {
         dbReachable = false
-        console.warn('[auth] Database unreachable after retry, trying fallback auth')
+        console.warn('[auth] Database unreachable after all retries, trying fallback auth')
         const fallback = await findFallbackUser(email)
         if (fallback) {
           user = fallback
           usedFallback = true
         }
-        // In production without fallback, return a user-friendly message
+        // No fallback available — return a clear, actionable error
         if (!user) {
           return NextResponse.json(
-            { error: 'Service is busy. Please wait a moment and try again.', detail: 'DB_UNREACHABLE' },
-            { status: 503, headers: { 'Retry-After': '5' } },
+            {
+              error: 'Unable to connect to the database. Please try again in a moment.',
+              code: 'DB_UNREACHABLE',
+              detail: process.env.NODE_ENV === 'production'
+                ? 'The database is temporarily unavailable. If this persists, contact the administrator.'
+                : 'DATABASE_URL is not a PostgreSQL URL. Using SQLite for local development. Ensure your DB file exists.',
+            },
+            { status: 503, headers: { 'Retry-After': '10' } },
           )
         }
       } else {

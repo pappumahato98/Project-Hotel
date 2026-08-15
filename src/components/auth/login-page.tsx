@@ -147,15 +147,61 @@ export function LoginPage() {
           return
         }
 
-        // Service busy (503) — auto-retry once after 3s
+        // Service unavailable (503) — auto-retry with exponential backoff
         if (res.status === 503) {
-          setError('Server is busy. Retrying in 3 seconds...')
-          setTimeout(async () => {
+          const isDbUnreachable = data.code === 'DB_UNREACHABLE'
+          const isDbNotConfigured = data.code === 'DB_NOT_CONFIGURED'
+          const isDbSchemaError = data.code === 'DB_SCHEMA_ERROR'
+
+          // DB not configured at all — no point retrying
+          if (isDbNotConfigured) {
+            setError('Database is not configured. Please set DATABASE_URL and redeploy.')
+            setDbEmptyHint(data.detail || 'Contact the administrator to set up the database connection.')
+            setLoading(false)
+            return
+          }
+
+          // Schema error — auto-fix in progress, retry once
+          if (isDbSchemaError) {
+            setError('Database schema is being updated. Please wait...')
+            setTimeout(async () => {
+              try {
+                const retryRes = await fetch('/api/auth/login', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+                  signal: AbortSignal.timeout(15_000),
+                })
+                if (retryRes.ok) {
+                  const retryData = await retryRes.json()
+                  setAccessToken(retryData.accessToken)
+                  if (retryData.csrfToken) setCsrfToken(retryData.csrfToken)
+                  if (retryData.user) useAuthStore.getState().login(retryData.user, retryData.accessToken)
+                  setError('')
+                } else {
+                  const retryErr = await retryRes.json().catch(() => ({}))
+                  setError(retryErr.error || 'Setup in progress. Please try again shortly.')
+                }
+              } catch {
+                setError('Connection issue during retry. Please try again.')
+              }
+              setLoading(false)
+            }, 5000)
+            return
+          }
+
+          // DB unreachable — retry up to 3 times with backoff
+          let lastError = data.error || 'Server temporarily unavailable.'
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            const delay = attempt * 3000
+            setError(`Database is starting up. Retrying in ${delay / 1000}s... (attempt ${attempt}/3)`)
+            await new Promise(r => setTimeout(r, delay))
             try {
               const retryRes = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+                signal: AbortSignal.timeout(15_000),
               })
               if (retryRes.ok) {
                 const retryData = await retryRes.json()
@@ -163,15 +209,18 @@ export function LoginPage() {
                 if (retryData.csrfToken) setCsrfToken(retryData.csrfToken)
                 if (retryData.user) useAuthStore.getState().login(retryData.user, retryData.accessToken)
                 setError('')
-              } else {
-                const retryErr = await retryRes.json().catch(() => ({}))
-                setError(retryErr.error || 'Login failed. Please try again.')
+                return
               }
+              const retryErr = await retryRes.json().catch(() => ({}))
+              lastError = retryErr.error || 'Login failed.'
+              // If no longer 503, stop retrying
+              if (retryRes.status !== 503) break
             } catch {
-              setError('Connection issue. Please try again.')
+              lastError = 'Connection issue. Please check your network.'
             }
-            setLoading(false)
-          }, 3000)
+          }
+          setError(lastError)
+          setLoading(false)
           return
         }
 
