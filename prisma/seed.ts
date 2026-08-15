@@ -438,9 +438,33 @@ async function main() {
   console.log('  ✅ Activity logs')
 
   // ─── 27. Cashier Shifts ───────────────────────────────────
-  for (let d = -3; d <= 0; d++) {
-    const date = daysFromNow(d)
-    await db.cashierShift.create({ data: { cashierName: pick(allEmployees).firstName + ' ' + pick(allEmployees).lastName, shiftType: d < 0 ? 'morning' : 'evening', startDate: date, openingFloat: 50000, closingFloat: randFloat(45000, 55000), totalPayments: randFloat(20000, 80000), totalRefunds: randFloat(0, 3000), status: d < 0 ? 'closed' : 'open' }})
+  let sessionCounter = 0
+  for (let d = -9; d <= 0; d++) {
+    const emp = pick(allEmployees)
+    const isClosed = d < 0
+    const payments = randFloat(20000, 80000)
+    const refunds = randFloat(0, 3000)
+    const closing = isClosed ? randFloat(45000, 55000) : null
+    const variance = closing !== null ? closing - 50000 - payments + refunds : null
+    const txnCount = Math.floor(rand(8, 45))
+    sessionCounter++
+    await db.cashierShift.create({
+      data: {
+        sessionNo: sessionCounter,
+        cashierName: `${emp.firstName} ${emp.lastName}`,
+        cashierId: emp.id,
+        shiftType: d < 0 ? (d % 2 === 0 ? 'morning' : 'evening') : 'evening',
+        startDate: daysFromNow(d),
+        endDate: isClosed ? daysFromNow(d) : null,
+        openingFloat: 50000,
+        closingFloat: closing,
+        totalPayments: payments,
+        totalRefunds: refunds,
+        variance,
+        transactionCount: txnCount,
+        status: isClosed ? 'closed' : 'open',
+      },
+    })
   }
   console.log('  ✅ Cashier shifts')
 

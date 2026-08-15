@@ -67,10 +67,10 @@ export async function GET(req: NextRequest) {
         take: 30,
       }),
 
-      // Cashier shifts (last 30)
+      // Cashier shifts (last 50, ordered by sessionNo desc)
       db.cashierShift.findMany({
-        orderBy: { startDate: 'desc' },
-        take: 30,
+        orderBy: { sessionNo: 'desc' },
+        take: 50,
       }),
 
       // All rooms
@@ -370,7 +370,9 @@ export async function GET(req: NextRequest) {
 
     const shiftHistory = cashierShifts.map((s) => ({
       id: s.id,
+      sessionNo: s.sessionNo,
       cashierName: s.cashierName,
+      cashierId: s.cashierId,
       shiftType: s.shiftType,
       startDate: s.startDate,
       endDate: s.endDate,
@@ -378,7 +380,8 @@ export async function GET(req: NextRequest) {
       closingFloat: s.closingFloat,
       totalPayments: s.totalPayments,
       totalRefunds: s.totalRefunds,
-      variance: s.variance ?? (s.closingFloat ? (s.closingFloat - s.openingFloat + s.totalPayments - s.totalRefunds) : 0),
+      variance: s.variance ?? (s.closingFloat ? (s.openingFloat + s.totalPayments - s.totalRefunds - s.closingFloat) : 0),
+      transactionCount: s.transactionCount ?? 0,
       status: s.status,
     }))
 

@@ -560,18 +560,25 @@ model NightAudit {
 }
 
 model CashierShift {
-  id            String   @id @default(cuid())
-  cashierName   String
-  shiftType     String   // morning, evening, night
-  startDate     DateTime
-  endDate       DateTime?
-  openingFloat  Float    @default(0)
-  closingFloat  Float?
-  totalPayments Float    @default(0)
-  totalRefunds  Float    @default(0)
-  variance      Float?
-  status        String   @default("open") // open, closed
-  createdAt     DateTime @default(now())
+  id             String    @id @default(cuid())
+  sessionNo      Int       // Sequential session number (CS-001, CS-002, ...)
+  cashierName    String
+  cashierId      String?   // FK to Employee (nullable for legacy data)
+  shiftType      String    // morning, evening, night
+  startDate      DateTime
+  endDate        DateTime?
+  openingFloat   Float     @default(0)
+  closingFloat   Float?
+  totalPayments  Float     @default(0)
+  totalRefunds   Float     @default(0)
+  variance       Float?
+  transactionCount Int      @default(0) // Number of transactions in this shift
+  status         String    @default("open") // open, closed
+  createdAt      DateTime  @default(now())
+
+  @@index([sessionNo])
+  @@index([status])
+  @@index([startDate])
 }
 
 // ─── INVENTORY ────────────────────────────────────────────────
