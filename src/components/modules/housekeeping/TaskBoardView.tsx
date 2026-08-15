@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { apiFetch } from '@/lib/api'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
+import { optimisticOptions } from '@/lib/optimistic'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -735,7 +736,7 @@ export function TaskBoardView() {
       .map(r => ({ roomId: r.roomId, roomNumber: r.roomNumber, guestName: r.guestName }))
   }, [tableRows])
 
-  // Row status change mutation (standard)
+  // Row status change mutation (standard) — with optimistic update
   const rowStatusMutation = useMutation({
     mutationFn: ({ taskId, status, priority }: { taskId: string | null; status: string; priority?: string }) => {
       if (!taskId) return Promise.reject(new Error('No active task'))
@@ -745,10 +746,27 @@ export function TaskBoardView() {
         body: JSON.stringify({ id: taskId, status, priority, action: 'update-task-status' }),
       })
     },
+    // Optimistic: instantly update task status in both table and kanban views
+    ...optimisticOptions<
+      { tasks: HkTask[]; summary: Record<string, number> },
+      { taskId: string | null; status: string; priority?: string }
+    >({
+      queryClient,
+      queryKeys: [['housekeeping-tasks'], ['housekeeping-rooms']],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.tasks || !variables.taskId) return oldData
+        return {
+          ...oldData,
+          tasks: oldData.tasks.map((t) =>
+            t.id === variables.taskId
+              ? { ...t, status: variables.status, ...(variables.priority ? { priority: variables.priority } : {}) }
+              : t
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
       toast.success('Status updated')
-      queryClient.invalidateQueries({ queryKey: ['housekeeping-tasks'] })
-      queryClient.invalidateQueries({ queryKey: ['housekeeping-rooms'] })
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Failed to update status')

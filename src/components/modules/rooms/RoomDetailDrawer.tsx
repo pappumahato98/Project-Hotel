@@ -58,6 +58,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useNavigationStore } from '@/lib/store'
+import { invalidate } from '@/lib/queryKeys'
+import { optimisticOptions } from '@/lib/optimistic'
 
 // ─── Types (same as RoomBoard) ───────────────────────────────
 interface RoomGuest {
@@ -252,8 +254,22 @@ export function RoomDetailDrawer({ room, open, onOpenChange }: RoomDetailDrawerP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, notes, previousStatus }),
       }),
+    // Optimistic: instantly update room status in room board
+    ...optimisticOptions<{ rooms: typeof room[] }, { id: string; status: string }>({
+      queryClient,
+      queryKeys: [['rooms', 'board'], ['rooms']],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.rooms) return oldData
+        return {
+          ...oldData,
+          rooms: oldData.rooms.map((r) =>
+            r.id === variables.id ? { ...r, status: variables.status } : r
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rooms'] })
+      invalidate.afterRoomStatusChange(queryClient)
     },
     onError: (err: Error) => {
       toast.error(err.message || 'Failed to update room status')

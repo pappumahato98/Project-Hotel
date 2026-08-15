@@ -9,7 +9,7 @@
 
 export async function register() {
   // Dynamic import to avoid circular dependencies at module evaluation time
-  const { validateEnv } = await import('@/lib/env')
+  const { validateEnv, hasPostgresConfigured } = await import('@/lib/env')
   const result = validateEnv()
 
   if (!result.valid) {
@@ -48,7 +48,6 @@ export async function register() {
   // Auto-sync database schema (adds missing columns if schema drift detected)
   // This runs before any API request, preventing PrismaClientUnknownRequestError
   try {
-    const { hasPostgresConfigured } = await import('@/lib/env')
     if (hasPostgresConfigured()) {
       const { syncSchema } = await import('@/lib/db')
       await syncSchema()
@@ -57,6 +56,20 @@ export async function register() {
     console.warn('[startup] Schema auto-sync skipped:', err instanceof Error ? err.message : err)
   }
 
-  // Register graceful shutdown handlers — deferred to avoid Edge Runtime static analysis
-  try { await import('./instrumentation-shutdown') } catch { /* not available in Edge */ }
+  // Graceful shutdown: handled by hosting platform (Vercel/Render/Docker).
+  // Removed separate shutdown handler file to avoid Edge Runtime static
+  // analysis failures from process.on/process.exit in the import chain.
+
+  // Pre-warm dashboard cache in the background (non-blocking).
+  // On long-running servers (Render, Docker), this means the first dashboard
+  // request hits a warm cache. On Vercel serverless, the benefit is limited
+  // since each function is a separate process, but it helps warm instances.
+  if (hasPostgresConfigured()) {
+    // Fire-and-forget — don't block startup
+    import('@/app/api/dashboard/_data').then(({ fetchKpis, fetchAlerts }) => {
+      Promise.all([fetchKpis(), fetchAlerts()])
+        .then(() => console.log('[startup] Dashboard cache pre-warmed'))
+        .catch((err) => console.warn('[startup] Dashboard pre-warm failed (non-fatal):', err instanceof Error ? err.message : err))
+    }).catch(() => { /* module load failed, skip */ })
+  }
 }
