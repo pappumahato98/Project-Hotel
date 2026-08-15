@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
             postingDate: { gte: todayStart, lte: todayEnd },
           },
         }),
-        db.reservation.count({ where: { status: { in: ['in-house', 'checked_in'] } } }),
+        db.reservation.count({ where: { status: { in: ['checked_in'] } } }),
         db.roomRatePosting.count({ where: { status: 'voided' } }),
       ])
 

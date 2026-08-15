@@ -419,6 +419,63 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
       await alter(`ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`)
       try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`) } catch {}
 
+      // CashierShift: session tracking + employee linkage
+      await alter(`ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "sessionNo" INTEGER NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "cashierId" TEXT`)
+      await alter(`ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "transactionCount" INTEGER NOT NULL DEFAULT 0`)
+      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`) } catch {}
+      try { await client.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`) } catch {}
+
+      // Reservation: extended fields
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "company" TEXT`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "poNumber" TEXT`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "bookedBy" TEXT`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationNumber" TEXT`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationType" TEXT NOT NULL DEFAULT 'individual'`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "ratePlanId" TEXT`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 15000`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'unpaid'`)
+      await alter(`ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "guaranteed" BOOLEAN NOT NULL DEFAULT false`)
+
+      // Room: extended fields
+      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "building" TEXT`)
+      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "view" TEXT`)
+      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "accessibility" BOOLEAN NOT NULL DEFAULT false`)
+      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "connectingRoomId" TEXT`)
+      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "ipPhoneExt" TEXT`)
+      await alter(`ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "tvChannel" TEXT`)
+
+      // FolioTransaction: extended fields
+      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "taxAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "quantity" INTEGER NOT NULL DEFAULT 1`)
+      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "outlet" TEXT`)
+      await alter(`ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`)
+
+      // PosOrder: extended fields
+      await alter(`ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "guestCount" INTEGER NOT NULL DEFAULT 1`)
+      await alter(`ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`)
+
+      // Guest: extended profile fields
+      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyPoints" INTEGER NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyTier" TEXT NOT NULL DEFAULT 'none'`)
+      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "preferences" TEXT`)
+      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalStays" INTEGER NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalRevenue" DOUBLE PRECISION NOT NULL DEFAULT 0`)
+      await alter(`ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "lastStayAt" TIMESTAMP(3)`)
+
+      // Folio: folioType column
+      await alter(`ALTER TABLE "Folio" ADD COLUMN IF NOT EXISTS "folioType" TEXT NOT NULL DEFAULT 'guest'`)
+
+      // Employee: extended fields
+      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "department" TEXT`)
+      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "position" TEXT`)
+      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hireDate" TIMESTAMP(3)`)
+      await alter(`ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContact" TEXT`)
+
+      // Property: extended fields
+      await alter(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "timezone" TEXT`)
+      await alter(`ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'NPR'`)
+
       if (fixed > 0) {
         console.warn(`[db] Auto-sync complete: ${fixed} columns/indexes added`)
       } else {

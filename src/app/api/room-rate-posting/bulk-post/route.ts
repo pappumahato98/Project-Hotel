@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
     if (postAll) {
       const inHouse = await db.reservation.findMany({
-        where: { status: 'in-house' },
+        where: { status: 'checked_in' },
         select: { id: true },
       })
       targetIds = inHouse.map((r) => r.id)

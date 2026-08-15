@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
         { email: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
         { nationality: { contains: search } },
-        { company: { contains: search } },
       ]
     }
 
@@ -36,7 +35,7 @@ export async function GET(request: NextRequest) {
         where,
         select: {
           id: true, firstName: true, lastName: true, email: true, phone: true,
-          vipLevel: true, nationality: true, company: true, createdAt: true, updatedAt: true,
+          vipLevel: true, nationality: true, createdAt: true, updatedAt: true,
         },
         // Limit results when searching to prevent flooding with single-char queries
         ...(search ? { take: 20 } : { take: 100 }),

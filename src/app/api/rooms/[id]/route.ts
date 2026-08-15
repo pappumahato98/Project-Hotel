@@ -17,9 +17,12 @@ export async function GET(
       include: {
         type: true,
         property: true,
-        guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
-        reservation: {
-          select: { id: true, confirmationNo: true, checkIn: true, checkOut: true, roomRate: true, adults: true, children: true, source: true },
+        reservations: {
+          select: {
+            id: true, confirmationNo: true, checkIn: true, checkOut: true,
+            roomRate: true, adults: true, children: true, source: true,
+            guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
+          },
           where: { status: { in: ['confirmed', 'checked_in'] } },
           orderBy: { checkIn: 'desc' },
           take: 1,
@@ -47,10 +50,8 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status, notes, previousStatus } = body
+    const { status, notes } = body
 
-    // If setting to out_of_order, save the current status as previousStatus
-    // If restoring from out_of_order, use the saved previousStatus
     const room = await db.room.findUnique({ where: { id } })
     if (!room) {
       return cachedError('Room not found', 404)
@@ -58,26 +59,7 @@ export async function PATCH(
 
     const updateData: Record<string, unknown> = {}
     if (notes !== undefined) updateData.notes = notes
-    if (status !== undefined) {
-      updateData.status = status
-      if (status === 'out_of_order' && !room.previousStatus) {
-        // Save current status before going OOO
-        updateData.previousStatus = room.status
-      }
-      if (room.status === 'out_of_order' && status !== 'out_of_order' && room.previousStatus) {
-        // When leaving OOO, the caller can pass previousStatus explicitly
-        // to override the auto-restore, otherwise we clear it
-        if (previousStatus !== undefined) {
-          updateData.previousStatus = previousStatus
-        }
-        // Note: we don't auto-clear previousStatus here; the frontend
-        // handles the restore logic
-      }
-    }
-    // Allow explicit previousStatus from the caller (e.g., clearing it)
-    if (previousStatus !== undefined && status === undefined) {
-      updateData.previousStatus = previousStatus
-    }
+    if (status !== undefined) updateData.status = status
 
     const updated = await withRetry(() =>
       db.room.update({
@@ -86,12 +68,15 @@ export async function PATCH(
         include: {
           type: true,
           property: true,
-          guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
-          reservation: {
-            select: { id: true, confirmationNo: true, checkIn: true, checkOut: true, roomRate: true, adults: true, children: true, source: true },
-            where: { status: { in: ['confirmed', 'checked_in'] } },
-            orderBy: { checkIn: 'desc' },
-            take: 1,
+          reservations: {
+            select: {
+              id: true, confirmationNo: true, checkIn: true, checkOut: true,
+            roomRate: true, adults: true, children: true, source: true,
+            guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
+          },
+          where: { status: { in: ['confirmed', 'checked_in'] } },
+          orderBy: { checkIn: 'desc' },
+          take: 1,
           },
         },
       }),

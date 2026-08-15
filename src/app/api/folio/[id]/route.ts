@@ -339,7 +339,7 @@ export async function PATCH(
     const body = await request.json()
 
     // Whitelist allowed fields to prevent unauthorized column manipulation
-    const ALLOWED_FIELDS = ['status', 'notes', 'isComplimentary', 'isLocked']
+    const ALLOWED_FIELDS = ['status', 'folioType']
     const updateData: Record<string, unknown> = {}
     for (const key of ALLOWED_FIELDS) {
       if (body[key] !== undefined) updateData[key] = body[key]

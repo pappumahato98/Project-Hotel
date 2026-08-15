@@ -241,7 +241,7 @@ export async function GET(request: NextRequest) {
       where: { status: 'checked_in' },
       include: {
         guest: { select: { firstName: true, lastName: true } },
-        room: { select: { roomNumber: true } },
+        room: { select: { number: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -250,7 +250,7 @@ export async function GET(request: NextRequest) {
       guestName: r.guest
         ? `${r.guest.firstName} ${r.guest.lastName}`
         : 'Unknown Guest',
-      roomNumber: r.room?.roomNumber || '—',
+      roomNumber: r.room?.number || '—',
     }))
 
     result.tables = tables
@@ -469,7 +469,7 @@ export async function GET(request: NextRequest) {
           where: { id: { in: rentalReservationIds } },
           include: {
             guest: { select: { firstName: true, lastName: true } },
-            room: { select: { roomNumber: true } },
+            room: { select: { number: true } },
           },
         })
       : []
@@ -492,7 +492,7 @@ export async function GET(request: NextRequest) {
         guestName: res?.guest
           ? `${res.guest.firstName} ${res.guest.lastName}`
           : o.serverName || 'Guest',
-        roomNumber: res?.room?.roomNumber || '—',
+        roomNumber: res?.room?.number || '—',
         startedAt: o.createdAt.toISOString(),
         estimatedEnd: new Date(o.createdAt.getTime() + 60 * 60000).toISOString(),
         charges: o.totalAmount,

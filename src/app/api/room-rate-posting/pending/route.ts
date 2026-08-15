@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     // Get all in-house reservations with room, guest, and folio info
     const inHouseReservations = await db.reservation.findMany({
       where: {
-        status: { in: ['in-house', 'checked_in'] },
+        status: { in: ['checked_in'] },
       },
       include: {
         room: { select: { id: true, number: true, type: { select: { name: true } } } },
