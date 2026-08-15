@@ -1610,3 +1610,23 @@ Stage Summary:
 - All 37 files with hardcoded dark:bg-gray-900 etc. automatically remapped via CSS overrides
 - Login page gradient updated to use #465A7E palette
 - 0 lint errors
+
+---
+Task ID: dark-theme-palette-fix
+Agent: Main Orchestrator
+Task: Fix dark theme color palette for visual harmony and WCAG compliance
+
+Work Log:
+- Agent-browser verified old palette: extracted all computed colors across login, dashboard, profile, settings
+- Identified 4 problems: (1) foreground pure white, (2) muted-fg pure gray at 3.76:1 contrast, (3) card chroma higher than bg, (4) inconsistent hues
+- Rewrote .dark CSS variables: all 22 colors now share hue 262°, chroma range 0.015-0.064
+- Key changes: foreground oklch(0.965 0.008 262), muted-fg oklch(0.85 0.015 262) at 4.75:1, card oklch(0.51 0.042 262)
+- Updated gray/slate overrides to match unified hue, added text-gray-400/500 overrides
+- Agent-browser re-verified: 5 blue-tinted text colors, 0 pure grays, 0 console errors
+- Committed b178d30 and pushed
+
+Stage Summary:
+- All theme colors now in same blue-gray family (hue 262°, low chroma)
+- WCAG AA: foreground 6.7:1, muted-fg 4.75:1, primary-fg 9.3:1
+- No more pure white/gray text creating visual disconnect
+- Card surfaces now SUBTLE (lower chroma than bg) instead of oversaturated
