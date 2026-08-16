@@ -24,8 +24,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   usePosData, formatNPR, timeAgo,
   type TableItem, type MenuItem, type Order, type GuestReservation,
+  type PosData,
 } from './pos-types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { optimisticOptions } from '@/lib/optimistic'
 import { useSettingsStore } from '@/lib/store'
 import { invalidate } from '@/lib/queryKeys'
 
@@ -392,6 +394,25 @@ function PaymentDialog({
         body: JSON.stringify({ action: 'close_order', orderId, paymentMethod: method }),
       })
     },
+    ...optimisticOptions<PosData, undefined>({
+      queryClient,
+      queryKeys: [['pos', 'restaurant']],
+      updateFn: (oldData) => {
+        if (!oldData) return oldData
+        const order = oldData.orders?.find((o) => o.id === orderId)
+        return {
+          ...oldData,
+          orders: oldData.orders?.map((o) =>
+            o.id === orderId ? { ...o, status: 'closed' } : o
+          ),
+          tables: order
+            ? oldData.tables?.map((t) =>
+                t.id === order.tableId ? { ...t, status: 'needs_cleaning' as const } : t
+              )
+            : oldData.tables,
+        }
+      },
+    }),
     onSuccess: () => {
       toast.success('Payment processed successfully')
       queryClient.invalidateQueries({ queryKey: ['pos'] })

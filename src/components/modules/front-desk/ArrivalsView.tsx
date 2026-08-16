@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api'
+import { optimisticOptions } from '@/lib/optimistic'
 import { invalidate } from '@/lib/queryKeys'
 import {
   LogIn, BedDouble, Bell, Clock, Star, AlertTriangle, Users, CheckCircle2,
@@ -246,6 +247,23 @@ export function ArrivalsView() {
         body: JSON.stringify(payload),
       })
     },
+    // Optimistic: instantly show room assignment and checked-in status
+    ...optimisticOptions<any, { reservationId: string; roomId: string; specialRequests?: string }>({
+      queryClient,
+      queryKeys: [['arrivals', today]],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.reservations) return oldData
+        const newRoom = allRooms.find((r) => r.id === variables.roomId)
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r: any) =>
+            r.id === variables.reservationId
+              ? { ...r, status: 'checked_in', ...(newRoom ? { room: newRoom } : {}) }
+              : r
+          ),
+        }
+      },
+    }),
     onSuccess: (_data, variables) => {
       invalidate.afterReservationChange(queryClient)
       setRoomPickerOpen(false)
@@ -270,6 +288,20 @@ export function ArrivalsView() {
         body: JSON.stringify(payload),
       })
     },
+    // Optimistic: instantly show checked-in status in the arrivals list
+    ...optimisticOptions<any, { reservationId: string; specialRequests?: string }>({
+      queryClient,
+      queryKeys: [['arrivals', today]],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.reservations) return oldData
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r: any) =>
+            r.id === variables.reservationId ? { ...r, status: 'checked_in' } : r
+          ),
+        }
+      },
+    }),
     onSuccess: (_data, variables) => {
       invalidate.afterCheckIn(queryClient)
       setCheckInDialogOpen(false)

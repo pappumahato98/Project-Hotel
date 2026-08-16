@@ -1701,6 +1701,30 @@ Stage Summary:
 - Meta tag zero-hop path ready for NEXT_PUBLIC_ env vars on Vercel/Render
 
 ---
+Task ID: pool-exhaustion-fix
+Agent: Main Orchestrator
+Task: Fix EMAXCONNSESSION PgBouncer pool exhaustion error
+
+Work Log:
+- Diagnosed root cause: PgBouncer session mode (port 5432) has 15-connection hard limit; connection_limit=3 per PrismaClient meant only 5 serverless instances could run
+- Reduced connection_limit from 3→1 in db.ts — each instance takes 1 slot instead of 3, allowing 15 concurrent instances
+- Added `withPoolRetry()` — exponential backoff (200ms→400ms→800ms, 3 retries) specifically for EMAXCONNSESSION and similar errors
+- Staggered startup: delayed dashboard pre-warm by 5s after schema sync to prevent simultaneous connection grabs
+- Added session-mode pooler detection: logs warning at startup if pooler host on port 5432 is detected, with fix instructions
+- Extended health ping cache from 30s→60s to reduce unnecessary SELECT 1 pings
+- Added DB_POOL_EXHAUSTED error code to requireDb() response and frontend api.ts handler
+- DB_POOL_EXHAUSTED bypasses the 503 circuit breaker (transient, retryable error)
+- Updated .env.example: corrected to recommend Transaction mode (port 6543) with clear warning against Session mode
+- Verified: 0 lint errors, pushed as 8b817bc
+
+Stage Summary:
+- 3x more concurrent serverless instances (15 vs 5) under session-mode PgBouncer
+- Automatic retry with backoff prevents cascading failures on transient pool exhaustion
+- Session-mode pooler detection warns operators to switch to transaction mode
+- Frontend circuit breaker bypassed for pool exhaustion (allows natural retry)
+- .env.example now has correct Supabase pooler guidance
+
+---
 Task ID: post-audit-fixes
 Agent: Main Orchestrator
 Task: Implement remaining performance improvements from infrastructure audit

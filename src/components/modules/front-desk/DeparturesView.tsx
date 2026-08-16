@@ -37,6 +37,7 @@ import { formatDate, formatTime, formatCurrency, getTodayString } from '@/lib/fo
 import { cn } from '@/lib/utils'
 import { exportToExcel } from '@/lib/export-excel'
 import { useSettingsStore, usePreferencesStore, useNavigationStore, useFolioContextStore, useGuestLedgerContextStore } from '@/lib/store'
+import { optimisticOptions } from '@/lib/optimistic'
 import { invalidate } from '@/lib/queryKeys'
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -207,6 +208,19 @@ export function DeparturesView() {
         body: JSON.stringify({ status: 'checked_out' }),
       })
     },
+    ...optimisticOptions<{ reservations: Departure[] }, string>({
+      queryClient,
+      queryKeys: [['departures', today]],
+      updateFn: (oldData, reservationId) => {
+        if (!oldData?.reservations) return oldData
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r) =>
+            r.id === reservationId ? { ...r, status: 'checked_out' } : r
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
       invalidate.afterCheckout(queryClient)
     },
@@ -290,6 +304,20 @@ export function DeparturesView() {
       }
       return results
     },
+    ...optimisticOptions<{ reservations: Departure[] }, string[]>({
+      queryClient,
+      queryKeys: [['departures', today]],
+      updateFn: (oldData, ids) => {
+        if (!oldData?.reservations) return oldData
+        const idSet = new Set(ids)
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r) =>
+            idSet.has(r.id) ? { ...r, status: 'checked_out' } : r
+          ),
+        }
+      },
+    }),
     onSuccess: (_data, ids) => {
       invalidate.afterCheckout(queryClient)
       toast.success(`Batch checkout complete! ${ids.length} rooms checked out.`)

@@ -21,8 +21,10 @@ import { Label } from '@/components/ui/label'
 import {
   usePosData, formatNPR, timeAgo,
   type BarStool, type BarTab, type MenuItem,
+  type PosData,
 } from './pos-types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { optimisticOptions } from '@/lib/optimistic'
 import { apiFetch } from '@/lib/api'
 
 // ─── Stool Grid ────────────────────────────────────────────────────
@@ -416,6 +418,25 @@ export default function BarView() {
         body: JSON.stringify({ action: 'close_order', orderId, paymentMethod }),
       })
     },
+    ...optimisticOptions<PosData, { orderId: string; paymentMethod: string }>({
+      queryClient,
+      queryKeys: [['pos', 'bar']],
+      updateFn: (oldData, variables) => {
+        if (!oldData) return oldData
+        const tab = oldData.barTabs?.find((t) => t.id === variables.orderId)
+        return {
+          ...oldData,
+          barTabs: oldData.barTabs?.map((t) =>
+            t.id === variables.orderId ? { ...t, status: 'closed' as const } : t
+          ),
+          barStools: tab
+            ? oldData.barStools?.map((s) =>
+                s.id === tab.stoolId ? { ...s, status: 'available' as const } : s
+              )
+            : oldData.barStools,
+        }
+      },
+    }),
     onSuccess: () => {
       toast.success('Tab closed successfully')
       queryClient.invalidateQueries({ queryKey: ['pos'] })

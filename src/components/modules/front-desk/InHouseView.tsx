@@ -1,6 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
+import { optimisticOptions } from '@/lib/optimistic'
 import { invalidate } from '@/lib/queryKeys'
 import React, { useState, useMemo, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
@@ -295,6 +296,23 @@ export function InHouseView() {
         body: JSON.stringify({ roomId: newRoomId }),
       })
     },
+    // Optimistic: instantly update room number in the in-house list
+    ...optimisticOptions<any, { reservationId: string; newRoomId: string }>({
+      queryClient,
+      queryKeys: [['in-house']],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.reservations) return oldData
+        const newRoom = vacantRoomsData?.find((r: VacantRoom) => r.id === variables.newRoomId)
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r: any) =>
+            r.id === variables.reservationId && newRoom
+              ? { ...r, room: newRoom }
+              : r
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
       invalidate.afterRoomTransfer(queryClient)
       setTransferDialogOpen(false)
@@ -317,6 +335,22 @@ export function InHouseView() {
         body: JSON.stringify({ checkOut: new Date(checkOut).toISOString(), totalAmount }),
       })
     },
+    // Optimistic: instantly update check-out date and total amount
+    ...optimisticOptions<any, { reservationId: string; checkOut: string; totalAmount: number }>({
+      queryClient,
+      queryKeys: [['in-house']],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.reservations) return oldData
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r: any) =>
+            r.id === variables.reservationId
+              ? { ...r, checkOut: variables.checkOut, totalAmount: variables.totalAmount }
+              : r
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
       setExtendDialogOpen(false)
@@ -340,6 +374,22 @@ export function InHouseView() {
         }),
       })
     },
+    // Optimistic: instantly update status to checked-out
+    ...optimisticOptions<any, { reservationId: string; checkOut: string }>({
+      queryClient,
+      queryKeys: [['in-house']],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.reservations) return oldData
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r: any) =>
+            r.id === variables.reservationId
+              ? { ...r, status: 'checked_out', checkOut: variables.checkOut }
+              : r
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
       invalidate.afterCheckout(queryClient)
       setEarlyCheckoutOpen(false)

@@ -1,6 +1,7 @@
 'use client'
 
 import { apiFetch } from '@/lib/api'
+import { optimisticOptions } from '@/lib/optimistic'
 import { invalidate } from '@/lib/queryKeys'
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
@@ -463,7 +464,20 @@ export function ReservationsView() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       }),
-    
+    // Optimistic: instantly update reservation status in the table
+    ...optimisticOptions<any, { id: string; status?: string; roomId?: string }>({
+      queryClient,
+      queryKeys: [['reservations', statusFilter, debouncedSearch, dateFrom, dateTo]],
+      updateFn: (oldData, variables) => {
+        if (!oldData?.reservations) return oldData
+        return {
+          ...oldData,
+          reservations: oldData.reservations.map((r: any) =>
+            r.id === variables.id ? { ...r, ...variables } : r
+          ),
+        }
+      },
+    }),
     onSuccess: () => {
       invalidate.afterReservationChange(queryClient)
     },
