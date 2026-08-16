@@ -249,15 +249,23 @@ function validateDbConfig() {
   }
 
   // ── Connection pool limits ───────────────────────────────────
-  // Supabase pooler has a hard limit (free tier: 15 sessions).
-  // In SESSION mode, each PrismaClient connection maps 1:1 to a PgBouncer
-  // session. With connection_limit=1, each serverless instance takes only 1
-  // slot → 15 concurrent instances instead of 5 (with old limit of 3).
-  // In TRANSACTION mode, PgBouncer releases connections after each tx,
-  // so even connection_limit=1 is fine — queries serialize within the
-  // PrismaClient, and PgBouncer handles actual multiplexing.
+  // connection_limit controls how many concurrent connections this SINGLE
+  // PrismaClient instance can open. It does NOT control the PgBouncer pool.
+  //
+  // Why 3 (not 1):
+  //   connection_limit=1 causes pool-timeout errors because schema sync
+  //   (30+ ALTER TABLE statements) holds the sole connection while every
+  //   other query queues up and times out.
+  //
+  // Cross-instance protection:
+  //   withPoolRetry() handles EMAXCONNSESSION (PgBouncer 15-connection limit)
+  //   with exponential backoff. That's the correct layer for pool guard.
+  //
+  // On transaction-mode pooler: 3 connections × N instances is fine —
+  //   PgBouncer releases server connections after each transaction.
+  // On session-mode pooler: ~5 instances max (3×5=15). Switch to tx mode.
   if (!url.includes('connection_limit=')) {
-    params.push('connection_limit=1', 'pool_timeout=10', 'connect_timeout=5')
+    params.push('connection_limit=3', 'pool_timeout=30', 'connect_timeout=5')
   }
 
   // ── PgBouncer optimization ──────────────────────────────────
@@ -404,8 +412,10 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
     const client = getDb()
     await withPoolRetry(() => client.$queryRaw`SELECT 1`)
     _dbPingResult = { ok: true, detail: 'ok', ts: now }
-    // Auto-sync schema on first successful connection
-    await autoSyncSchema(client)
+    // Auto-sync schema in background — don't block the first request.
+    // The singleton Promise prevents duplicate runs; queries that hit a
+    // missing column will fail once and succeed on retry after sync completes.
+    autoSyncSchema(client).catch(() => {})
     return null
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -543,8 +553,11 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
       ]
 
       // Execute all ALTER statements in parallel (~10-15ms vs ~300-450ms sequential)
-      const results = await Promise.allSettled(
-        statements.map(sql => client.$executeRawUnsafe(sql))
+      // Wrapped in withPoolRetry for resilience against transient pool exhaustion.
+      const results = await withPoolRetry(() =>
+        Promise.allSettled(
+          statements.map(sql => client.$executeRawUnsafe(sql))
+        )
       )
       fixed = results.filter(r => r.status === 'fulfilled').length
 
@@ -555,7 +568,9 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
         `CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`,
         `CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`,
       ]
-      await Promise.allSettled(indexes.map(sql => client.$executeRawUnsafe(sql)))
+      await withPoolRetry(() =>
+        Promise.allSettled(indexes.map(sql => client.$executeRawUnsafe(sql)))
+      )
 
       const elapsed = Date.now() - t0
       console.warn(`[db] Schema auto-sync complete in ${elapsed}ms (${fixed} columns checked)`)
