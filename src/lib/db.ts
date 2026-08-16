@@ -9,10 +9,55 @@
  *     → No filesystem cert file needed (cert is embedded inline)
  *   - Connection pool limits for PgBouncer compatibility
  *   - Global singleton (prevents multiple clients in dev hot-reload)
+ *   - EMAXCONNSESSION retry with exponential backoff
  */
+
 import { PrismaClient } from '@prisma/client'
 import { hasPostgresConfigured } from '@/lib/env'
 
+// ─── Connection Pool Exhaustion Retry ─────────────────────────────
+// PgBouncer in session mode has a hard limit (free tier: 15 connections).
+// On Vercel serverless, multiple cold starts can exhaust this pool.
+// We retry with exponential backoff instead of immediately failing.
+const POOL_EXHAUSTION_RETRIES = 3
+const POOL_EXHAUSTION_BASE_MS = 200
+const POOL_EXHAUSTION_MAX_MS = 2_000
+
+function isPoolExhaustionError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err)
+  return (
+    msg.includes('EMAXCONNSESSION') ||
+    msg.includes('max clients') ||
+    msg.includes('pool_size') ||
+    msg.includes('too many connections') ||
+    msg.includes('remaining connection slots')
+  )
+}
+
+/**
+ * Retry a DB operation with exponential backoff on pool exhaustion.
+ * Retries up to N times with 200ms → 400ms → 800ms delays.
+ */
+export async function withPoolRetry<T>(fn: () => Promise<T>): Promise<T> {
+  let lastError: unknown
+  for (let attempt = 0; attempt <= POOL_EXHAUSTION_RETRIES; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      if (!isPoolExhaustionError(err) || attempt === POOL_EXHAUSTION_RETRIES) {
+        throw err
+      }
+      const delay = Math.min(
+        POOL_EXHAUSTION_BASE_MS * Math.pow(2, attempt),
+        POOL_EXHAUSTION_MAX_MS,
+      )
+      console.warn(`[db] Pool exhaustion (attempt ${attempt + 1}/${POOL_EXHAUSTION_RETRIES + 1}), retrying in ${delay}ms…`)
+      await new Promise((r) => setTimeout(r, delay))
+    }
+  }
+  throw lastError
+}
 // ─── Embedded Supabase Root CA 2021 ─────────────────────────────────
 // This certificate is embedded directly in the code so that sslmode=verify-full
 // works on every deployment platform without needing a filesystem cert file.
@@ -204,13 +249,15 @@ function validateDbConfig() {
   }
 
   // ── Connection pool limits ───────────────────────────────────
-  // Supabase pooler has a hard limit (free tier: 15 connections).
-  // On Vercel serverless, each function invocation is a separate process,
-  // so the singleton only helps within a warm instance.
-  // connection_limit=3 allows 3 concurrent queries per PrismaClient.
-  // PgBouncer multiplexes, so 3 is safe and eliminates serialization.
+  // Supabase pooler has a hard limit (free tier: 15 sessions).
+  // In SESSION mode, each PrismaClient connection maps 1:1 to a PgBouncer
+  // session. With connection_limit=1, each serverless instance takes only 1
+  // slot → 15 concurrent instances instead of 5 (with old limit of 3).
+  // In TRANSACTION mode, PgBouncer releases connections after each tx,
+  // so even connection_limit=1 is fine — queries serialize within the
+  // PrismaClient, and PgBouncer handles actual multiplexing.
   if (!url.includes('connection_limit=')) {
-    params.push('connection_limit=3', 'pool_timeout=10', 'connect_timeout=5')
+    params.push('connection_limit=1', 'pool_timeout=10', 'connect_timeout=5')
   }
 
   // ── PgBouncer optimization ──────────────────────────────────
@@ -219,6 +266,23 @@ function validateDbConfig() {
   if (!url.includes('pgbouncer=')) {
     params.push('pgbouncer=true')
   }
+
+  // ── Session-mode pooler detection ────────────────────────────
+  // Supabase pooler on port 5432 = session mode (1:1 client→server mapping).
+  // Port 6543 = transaction mode (releases server conn after each tx).
+  // Session mode is the #1 cause of EMAXCONNSESSION errors.
+  try {
+    const parsed = new URL(process.env.DATABASE_URL!)
+    if (parsed.port === '5432' && parsed.hostname.includes('.pooler.supabase.com')) {
+      console.warn(
+        '[db] ⚠️  PgBouncer SESSION MODE detected (port 5432 on pooler host).\n' +
+        '     This causes EMAXCONNSESSION errors under load (15-connection hard limit).\n' +
+        '     FIX: Switch to Transaction mode (port 6543) in Supabase Dashboard →\n' +
+        '          Settings → Database → Connection string → Transaction mode.\n' +
+        '     See .env.example for details.'
+      )
+    }
+  } catch {}
 
   if (params.length > 0) {
     process.env.DATABASE_URL = `${url}${separator}${params.join('&')}`
@@ -316,9 +380,10 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
     )
   }
 
-  // Quick connectivity test (cached for 30s per process)
+  // Quick connectivity test (cached for 60s per process)
+  // 60s reduces unnecessary SELECT 1 pings that consume pool slots.
   const now = Date.now()
-  if (_dbPingResult && (now - _dbPingResult.ts) < 30_000) {
+  if (_dbPingResult && (now - _dbPingResult.ts) < 60_000) {
     if (!_dbPingResult.ok) {
       return new globalThis.Response(
         JSON.stringify({
@@ -337,13 +402,31 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
 
   try {
     const client = getDb()
-    await client.$queryRaw`SELECT 1`
+    await withPoolRetry(() => client.$queryRaw`SELECT 1`)
     _dbPingResult = { ok: true, detail: 'ok', ts: now }
     // Auto-sync schema on first successful connection
     await autoSyncSchema(client)
     return null
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+
+    // Detect pool exhaustion specifically — tell the client to retry
+    if (isPoolExhaustionError(err)) {
+      _dbPingResult = { ok: false, detail: msg.slice(0, 200), ts: now }
+      return new globalThis.Response(
+        JSON.stringify({
+          error: 'Database connection pool full',
+          code: 'DB_POOL_EXHAUSTED',
+          detail: msg.slice(0, 200),
+          retryAfter: 5,
+        }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '5' },
+        },
+      )
+    }
+
     _dbPingResult = { ok: false, detail: msg.slice(0, 200), ts: now }
     return new globalThis.Response(
       JSON.stringify({

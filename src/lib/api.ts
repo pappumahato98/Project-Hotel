@@ -179,17 +179,25 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) {
     // Handle 503 DB errors — provide clear setup instructions
     if (res.status === 503 && typeof window !== 'undefined') {
-      record503() // Feed the circuit breaker
       let errData: Record<string, unknown> | null = null
       try { errData = await res.json() } catch {}
       const code = errData?.code as string | undefined
-      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE' || code === 'DB_SCHEMA_ERROR') {
+
+      // Pool exhaustion is transient — don't feed the circuit breaker
+      // so the client can keep retrying while the server backs off internally.
+      if (code !== 'DB_POOL_EXHAUSTED') {
+        record503()
+      }
+
+      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE' || code === 'DB_SCHEMA_ERROR' || code === 'DB_POOL_EXHAUSTED') {
         const detail = (errData?.detail as string) || ''
         const msg = code === 'DB_NOT_CONFIGURED'
           ? 'Database not configured. Please set DATABASE_URL in your deployment environment variables.'
           : code === 'DB_SCHEMA_ERROR'
             ? 'Database schema is being auto-fixed. Please wait a moment and retry.'
-            : 'Database temporarily unavailable. Please try again in a moment.'
+            : code === 'DB_POOL_EXHAUSTED'
+              ? 'Too many concurrent database connections. Retrying automatically…'
+              : 'Database temporarily unavailable. Please try again in a moment.'
         // Dispatch a custom event that the app shell can listen to
         window.dispatchEvent(new CustomEvent('db-unavailable', { detail: { code, message: msg, detail } }))
         throw new Error(msg)
