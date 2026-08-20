@@ -23,7 +23,7 @@
 import { randomBytes, timingSafeEqual } from 'crypto'
 
 const CSRF_TOKEN_BYTES = 32 // 256-bit token
-const CSRF_COOKIE_TTL_SECS = 86400 // 24 hours (refreshed on each login/refresh)
+const CSRF_COOKIE_TTL_SECS = 7 * 24 * 60 * 60 // 7 days — MUST match refresh token TTL
 
 /**
  * Generate a new CSRF token.
