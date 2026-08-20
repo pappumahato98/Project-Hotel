@@ -252,20 +252,21 @@ function validateDbConfig() {
   // connection_limit controls how many concurrent connections this SINGLE
   // PrismaClient instance can open. It does NOT control the PgBouncer pool.
   //
-  // Why 3 (not 1):
-  //   connection_limit=1 causes pool-timeout errors because schema sync
-  //   (30+ ALTER TABLE statements) holds the sole connection while every
-  //   other query queues up and times out.
+  // Why 2 (not 3):
+  //   Each Vercel serverless instance = main client (2) + sync client (1) = 3.
+  //   With connection_limit=3, it was 4 per instance → 4 instances × 4 = 16 > 15.
+  //   With connection_limit=2, it's 3 per instance → 5 instances × 3 = 15 = OK.
+  //   Dashboard routes use withPoolRetry() for automatic P2024 retry.
+  //
+  // pool_timeout=10 (not 30):
+  //   Fail fast on pool exhaustion. withPoolRetry retries with backoff.
+  //   30s timeout wastes Vercel function time waiting for a connection.
   //
   // Cross-instance protection:
   //   withPoolRetry() handles EMAXCONNSESSION (PgBouncer 15-connection limit)
   //   with exponential backoff. That's the correct layer for pool guard.
-  //
-  // On transaction-mode pooler: 3 connections × N instances is fine —
-  //   PgBouncer releases server connections after each transaction.
-  // On session-mode pooler: ~5 instances max (3×5=15). Switch to tx mode.
   if (!url.includes('connection_limit=')) {
-    params.push('connection_limit=3', 'pool_timeout=30', 'connect_timeout=5')
+    params.push('connection_limit=2', 'pool_timeout=10', 'connect_timeout=5')
   }
 
   // ── PgBouncer optimization ──────────────────────────────────
@@ -509,139 +510,145 @@ function createSyncClient(): PrismaClient {
 }
 
 /**
+ * Column definitions: [tableName, columnName, alterSql]
+ *
+ * Used by autoSyncSchema to check which columns are missing and only
+ * ALTER those. On typical deploys, 0-2 columns need adding.
+ */
+const SCHEMA_COLUMNS: [string, string, string][] = [
+  ['AuthUser', 'passwordHash', `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT NOT NULL DEFAULT ''`],
+  ['NightAudit', 'totalRooms', `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "totalRooms" INTEGER NOT NULL DEFAULT 0`],
+  ['NightAudit', 'occupiedRooms', `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "occupiedRooms" INTEGER NOT NULL DEFAULT 0`],
+  ['NightAudit', 'arrivals', `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "arrivals" INTEGER NOT NULL DEFAULT 0`],
+  ['NightAudit', 'departures', `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "departures" INTEGER NOT NULL DEFAULT 0`],
+  ['RoomType', 'areaSqM', `ALTER TABLE "RoomType" ADD COLUMN IF NOT EXISTS "areaSqM" DOUBLE PRECISION`],
+  ['JournalEntry', 'sourceModule', `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceModule" TEXT`],
+  ['JournalEntry', 'sourceId', `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`],
+  ['JournalEntry', 'postedBy', `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`],
+  ['JournalEntry', 'postedAt', `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`],
+  ['LedgerAccount', 'department', `ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`],
+  ['LedgerAccount', 'subtype', `ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "subtype" TEXT`],
+  ['RefreshToken', 'tokenFamilyId', `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`],
+  ['RefreshToken', 'replacedBy', `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "replacedBy" TEXT`],
+  ['RefreshToken', 'revokedAt', `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`],
+  ['CashierShift', 'sessionNo', `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "sessionNo" INTEGER NOT NULL DEFAULT 0`],
+  ['CashierShift', 'cashierId', `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "cashierId" TEXT`],
+  ['CashierShift', 'transactionCount', `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "transactionCount" INTEGER NOT NULL DEFAULT 0`],
+  ['Reservation', 'company', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "company" TEXT`],
+  ['Reservation', 'poNumber', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "poNumber" TEXT`],
+  ['Reservation', 'bookedBy', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "bookedBy" TEXT`],
+  ['Reservation', 'reservationNumber', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationNumber" TEXT`],
+  ['Reservation', 'reservationType', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationType" TEXT NOT NULL DEFAULT 'individual'`],
+  ['Reservation', 'ratePlanId', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "ratePlanId" TEXT`],
+  ['Reservation', 'creditLimit', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 15000`],
+  ['Reservation', 'paymentStatus', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'unpaid'`],
+  ['Reservation', 'guaranteed', `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "guaranteed" BOOLEAN NOT NULL DEFAULT false`],
+  ['Room', 'building', `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "building" TEXT`],
+  ['Room', 'view', `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "view" TEXT`],
+  ['Room', 'accessibility', `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "accessibility" BOOLEAN NOT NULL DEFAULT false`],
+  ['Room', 'connectingRoomId', `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "connectingRoomId" TEXT`],
+  ['Room', 'ipPhoneExt', `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "ipPhoneExt" TEXT`],
+  ['Room', 'tvChannel', `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "tvChannel" TEXT`],
+  ['FolioTransaction', 'taxAmount', `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "taxAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`],
+  ['FolioTransaction', 'quantity', `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "quantity" INTEGER NOT NULL DEFAULT 1`],
+  ['FolioTransaction', 'outlet', `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "outlet" TEXT`],
+  ['FolioTransaction', 'postedBy', `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`],
+  ['PosOrder', 'guestCount', `ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "guestCount" INTEGER NOT NULL DEFAULT 1`],
+  ['PosOrder', 'discountAmount', `ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`],
+  ['Guest', 'loyaltyPoints', `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyPoints" INTEGER NOT NULL DEFAULT 0`],
+  ['Guest', 'loyaltyTier', `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyTier" TEXT NOT NULL DEFAULT 'none'`],
+  ['Guest', 'preferences', `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "preferences" TEXT`],
+  ['Guest', 'totalStays', `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalStays" INTEGER NOT NULL DEFAULT 0`],
+  ['Guest', 'totalRevenue', `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalRevenue" DOUBLE PRECISION NOT NULL DEFAULT 0`],
+  ['Guest', 'lastStayAt', `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "lastStayAt" TIMESTAMP(3)`],
+  ['Folio', 'folioType', `ALTER TABLE "Folio" ADD COLUMN IF NOT EXISTS "folioType" TEXT NOT NULL DEFAULT 'guest'`],
+  ['Employee', 'department', `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "department" TEXT`],
+  ['Employee', 'position', `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "position" TEXT`],
+  ['Employee', 'hireDate', `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hireDate" TIMESTAMP(3)`],
+  ['Employee', 'emergencyContact', `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContact" TEXT`],
+  ['Property', 'timezone', `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "timezone" TEXT`],
+  ['Property', 'currency', `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'NPR'`],
+]
+
+const SCHEMA_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`,
+  `CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`,
+  `CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`,
+  `CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`,
+]
+
+/**
  * Auto-sync missing database columns.
  *
- * Runs ONCE per process after the first successful DB connection.
- * Uses a SEPARATE PrismaClient with connection_limit=1 so it only
- * occupies 1 PgBouncer slot, leaving all 3 main-client connections
- * free for API queries.
+ * Strategy: Query information_schema.columns FIRST to discover which columns
+ * already exist, then only ALTER the missing ones.
  *
- * Performance: All 56 DDL statements are batched into two DO $$ blocks
- * (one for ALTERs, one for indexes). This reduces network round-trips
- * from 60 to 2, bringing sync from ~58s (Vercel) to ~2-3s.
+ * This solves two problems:
+ * 1. Speed: On typical deploys, 0-2 columns are missing → 2-3 round-trips
+ *    instead of 56 (old individual approach) or deadlock (DO block approach).
+ * 2. No deadlocks: Only locks ONE table at a time per ALTER, and only
+ *    for tables that actually need a column. Existing columns → no lock.
  *
- * Each statement is wrapped in BEGIN/EXCEPTION/END for fault tolerance —
- * if one table doesn't exist, others still get their columns added.
+ * Uses a SEPARATE PrismaClient with connection_limit=1 to avoid starving
+ * the main client's pool.
  */
 function autoSyncSchema(_client: PrismaClient): Promise<void> {
-  // Return existing promise if sync is already in progress or completed
   if (_schemaSyncPromise) return _schemaSyncPromise
 
   _schemaSyncPromise = (async () => {
-    // Use a dedicated client with connection_limit=1 to avoid starving API queries
     const syncClient = createSyncClient()
     try {
       const t0 = Date.now()
 
-      // ── Phase 1: ALTER TABLE columns (batched into a single DO block) ──
-      // Each statement is wrapped in BEGIN/EXCEPTION/END so that if one
-      // table doesn't exist, the others still get processed.
-      // IF NOT EXISTS makes each ALTER idempotent.
-      const alterStatements = [
-        // AuthUser
-        `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT NOT NULL DEFAULT ''`,
-        // NightAudit
-        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "totalRooms" INTEGER NOT NULL DEFAULT 0`,
-        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "occupiedRooms" INTEGER NOT NULL DEFAULT 0`,
-        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "arrivals" INTEGER NOT NULL DEFAULT 0`,
-        `ALTER TABLE "NightAudit" ADD COLUMN IF NOT EXISTS "departures" INTEGER NOT NULL DEFAULT 0`,
-        // RoomType
-        `ALTER TABLE "RoomType" ADD COLUMN IF NOT EXISTS "areaSqM" DOUBLE PRECISION`,
-        // JournalEntry
-        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceModule" TEXT`,
-        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`,
-        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`,
-        `ALTER TABLE "JournalEntry" ADD COLUMN IF NOT EXISTS "postedAt" TIMESTAMP(3)`,
-        // LedgerAccount
-        `ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "department" TEXT`,
-        `ALTER TABLE "LedgerAccount" ADD COLUMN IF NOT EXISTS "subtype" TEXT`,
-        // RefreshToken
-        `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "tokenFamilyId" TEXT NOT NULL DEFAULT ''`,
-        `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "replacedBy" TEXT`,
-        `ALTER TABLE "RefreshToken" ADD COLUMN IF NOT EXISTS "revokedAt" TIMESTAMP(3)`,
-        // CashierShift
-        `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "sessionNo" INTEGER NOT NULL DEFAULT 0`,
-        `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "cashierId" TEXT`,
-        `ALTER TABLE "CashierShift" ADD COLUMN IF NOT EXISTS "transactionCount" INTEGER NOT NULL DEFAULT 0`,
-        // Reservation
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "company" TEXT`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "poNumber" TEXT`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "bookedBy" TEXT`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationNumber" TEXT`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "reservationType" TEXT NOT NULL DEFAULT 'individual'`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "ratePlanId" TEXT`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "creditLimit" DOUBLE PRECISION NOT NULL DEFAULT 15000`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'unpaid'`,
-        `ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "guaranteed" BOOLEAN NOT NULL DEFAULT false`,
-        // Room
-        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "building" TEXT`,
-        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "view" TEXT`,
-        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "accessibility" BOOLEAN NOT NULL DEFAULT false`,
-        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "connectingRoomId" TEXT`,
-        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "ipPhoneExt" TEXT`,
-        `ALTER TABLE "Room" ADD COLUMN IF NOT EXISTS "tvChannel" TEXT`,
-        // FolioTransaction
-        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "taxAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "quantity" INTEGER NOT NULL DEFAULT 1`,
-        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "outlet" TEXT`,
-        `ALTER TABLE "FolioTransaction" ADD COLUMN IF NOT EXISTS "postedBy" TEXT`,
-        // PosOrder
-        `ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "guestCount" INTEGER NOT NULL DEFAULT 1`,
-        `ALTER TABLE "PosOrder" ADD COLUMN IF NOT EXISTS "discountAmount" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-        // Guest
-        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyPoints" INTEGER NOT NULL DEFAULT 0`,
-        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "loyaltyTier" TEXT NOT NULL DEFAULT 'none'`,
-        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "preferences" TEXT`,
-        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalStays" INTEGER NOT NULL DEFAULT 0`,
-        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "totalRevenue" DOUBLE PRECISION NOT NULL DEFAULT 0`,
-        `ALTER TABLE "Guest" ADD COLUMN IF NOT EXISTS "lastStayAt" TIMESTAMP(3)`,
-        // Folio
-        `ALTER TABLE "Folio" ADD COLUMN IF NOT EXISTS "folioType" TEXT NOT NULL DEFAULT 'guest'`,
-        // Employee
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "department" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "position" TEXT`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "hireDate" TIMESTAMP(3)`,
-        `ALTER TABLE "Employee" ADD COLUMN IF NOT EXISTS "emergencyContact" TEXT`,
-        // Property
-        `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "timezone" TEXT`,
-        `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'NPR'`,
-      ]
+      // ── Step 1: Check which columns already exist (1 round-trip) ──
+      // Build a query for information_schema that checks ALL 52 columns at once.
+      const tableNames = [...new Set(SCHEMA_COLUMNS.map(c => c[0]))]
+      const colChecks = SCHEMA_COLUMNS.map(c =>
+        `('${c[0]}', '${c[1]}')`
+      ).join(', ')
 
-      // Wrap all ALTERs in a single DO block — 1 network round-trip instead of 52
-      const alterBlock =
-        'DO $$\nBEGIN\n' +
-        alterStatements
-          .map((s) => `  BEGIN\n    ${s};\n  EXCEPTION WHEN OTHERS THEN NULL;\n  END;`)
-          .join('\n') +
-        '\nEND $$;'
+      const existingQuery = `
+        SELECT table_name, column_name
+        FROM information_schema.columns
+        WHERE (table_name, column_name) IN (${colChecks})
+      `
 
-      await syncClient.$executeRawUnsafe(alterBlock)
+      let existingCols = new Set<string>()
+      try {
+        const rows = await syncClient.$queryRawUnsafe<{ table_name: string; column_name: string }[]>(existingQuery)
+        for (const row of rows) {
+          existingCols.add(`${row.table_name}.${row.column_name}`)
+        }
+      } catch (err) {
+        // information_schema query failed — fall through to run all ALTERs blindly
+        console.warn('[db] information_schema check failed, running all ALTERs:', err instanceof Error ? err.message : err)
+      }
 
-      // ── Phase 2: Indexes (batched into a second DO block) ──
-      const indexStatements = [
-        `CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`,
-        `CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`,
-        `CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`,
-        `CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`,
-      ]
+      // ── Step 2: Only ALTER columns that don't exist yet ──
+      const missingColumns = SCHEMA_COLUMNS.filter(c => !existingCols.has(`${c[0]}.${c[1]}`))
+      let altered = 0
 
-      const indexBlock =
-        'DO $$\nBEGIN\n' +
-        indexStatements
-          .map((s) => `  BEGIN\n    ${s};\n  EXCEPTION WHEN OTHERS THEN NULL;\n  END;`)
-          .join('\n') +
-        '\nEND $$;'
+      for (const [, , sql] of missingColumns) {
+        try {
+          await syncClient.$executeRawUnsafe(sql)
+          altered++
+        } catch {
+          // Column might have been added concurrently — safe to ignore
+        }
+      }
 
-      await syncClient.$executeRawUnsafe(indexBlock)
+      // ── Step 3: Create missing indexes ──
+      for (const sql of SCHEMA_INDEXES) {
+        try { await syncClient.$executeRawUnsafe(sql) } catch { /* index exists */ }
+      }
 
       const elapsed = Date.now() - t0
       console.warn(
-        `[db] Schema auto-sync complete in ${elapsed}ms (${alterStatements.length} columns + ${indexStatements.length} indexes, batched)`,
+        `[db] Schema auto-sync complete in ${elapsed}ms (${existingCols.size} exist, ${altered} added, ${missingColumns.length - altered} skipped)`,
       )
     } catch (err) {
       console.error('[db] Auto-sync failed (non-fatal):', err instanceof Error ? err.message : err)
     } finally {
-      // Release the sync client's connection back to PgBouncer
       syncClient.$disconnect().catch(() => {})
     }
   })()

@@ -9,7 +9,7 @@
  * - Each function is cached via getOrSet() with a 5-minute TTL.
  */
 
-import { db } from '@/lib/db'
+import { db, withPoolRetry } from '@/lib/db'
 import { getOrSet, getSettingsMap } from '@/lib/cache'
 
 // ─── Date Range Types ───────────────────────────────────────────
@@ -125,7 +125,7 @@ export async function fetchKpis(dateRange?: DateRange): Promise<KpisData> {
   const cacheKey = `dashboard:kpis:${range.type}:${range.from.toISOString()}:${range.to.toISOString()}`
 
   return getOrSet(cacheKey, async () => {
-    const [settingsMap, audits] = await Promise.all([
+    const [settingsMap, audits] = await withPoolRetry(() => Promise.all([
       getSettingsMap(),
       db.nightAudit.findMany({
         where: { status: 'completed', businessDate: { gte: range.from, lt: range.to } },
@@ -137,7 +137,7 @@ export async function fetchKpis(dateRange?: DateRange): Promise<KpisData> {
           totalRooms: true, occupiedRooms: true,
         },
       }),
-    ])
+    ]))
 
     const defaultCreditLimit = (settingsMap['defaultCreditLimit'] as number) ?? 15000
 
@@ -245,8 +245,8 @@ async function fetchKpisLive(
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1)
   const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1)
 
-  const [totalRooms, occupiedRooms, vacantClean, yesterdayAudit, roomStatusBreakdown] =
-    await Promise.all([
+  const [totalRooms, occupiedRooms, vacantClean, yesterdayAudit, roomStatusBreakdown, arrivals, departures] =
+    await withPoolRetry(() => Promise.all([
       db.room.count(),
       db.room.count({ where: { status: 'occupied' } }),
       db.room.count({ where: { status: 'vacant_clean' } }),
@@ -255,14 +255,13 @@ async function fetchKpisLive(
         orderBy: { businessDate: 'desc' },
       }),
       db.room.groupBy({ by: ['status'], _count: { status: true } }),
-    ])
-
-  const arrivals = await db.reservation.count({
-    where: { checkIn: { gte: today, lt: tomorrow }, status: 'confirmed' },
-  })
-  const departures = await db.reservation.count({
-    where: { checkOut: { gte: today, lt: tomorrow }, status: 'checked_in' },
-  })
+      db.reservation.count({
+        where: { checkIn: { gte: today, lt: tomorrow }, status: 'confirmed' },
+      }),
+      db.reservation.count({
+        where: { checkOut: { gte: today, lt: tomorrow }, status: 'checked_in' },
+      }),
+    ]))
 
   const occupancy = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0
   const occupancyTrend = yesterdayAudit?.occupancy
@@ -347,7 +346,7 @@ export async function fetchAlerts(): Promise<AlertsData> {
       settingsMap, vipArrivals, overdueCheckouts, emergencyWorkOrders,
       outOfOrderRoomsList, unassignedArrivals, creditLimitBreaches,
       pendingHkTasks, openWorkflowTasks, highPriorityWorkflowTasks, openPosOrders,
-    ] = await Promise.all([
+    ] = await withPoolRetry(() => Promise.all([
       getSettingsMap(),
       db.reservation.findMany({
         where: {
@@ -382,7 +381,7 @@ export async function fetchAlerts(): Promise<AlertsData> {
         orderBy: { requestedDate: 'asc' }, take: 5,
       }),
       db.posOrder.count({ where: { status: { in: ['open', 'in_progress', 'ready'] } } }),
-    ])
+    ]))
 
     const defaultCreditLimit = (settingsMap['defaultCreditLimit'] as number) ?? 15000
 
@@ -431,7 +430,7 @@ export interface ActivityData {
 export async function fetchActivity(): Promise<ActivityData> {
   return getOrSet('dashboard:activity', async () => {
     const [recentReservations, recentTransactions, recentPosOrders, recentWorkOrders] =
-      await Promise.all([
+      await withPoolRetry(() => Promise.all([
         db.reservation.findMany({ orderBy: { createdAt: 'desc' }, take: 3, include: { guest: true, room: true } }),
         db.folioTransaction.findMany({
           orderBy: { createdAt: 'desc' }, take: 2,
@@ -439,7 +438,7 @@ export async function fetchActivity(): Promise<ActivityData> {
         }),
         db.posOrder.findMany({ orderBy: { createdAt: 'desc' }, take: 2, include: { outlet: true } }),
         db.workOrder.findMany({ orderBy: { createdAt: 'desc' }, take: 2 }),
-      ])
+      ]))
 
     const recentActivity = [
       ...recentReservations.map((r) => ({

@@ -86,6 +86,7 @@ const FALLBACK_USERS: FallbackUser[] = [
  * Prisma error codes (transient schema mismatch):
  *   P2010 — Raw query failed (column missing → sync will add it)
  *   P2021 — Table does not exist (sync creates tables)
+ *   P2024 — Connection pool timeout (PgBouncer exhaustion, transient)
  *
  * NOT connection errors (do NOT match):
  *   P1009 — Database already exists (harmless)
@@ -104,6 +105,9 @@ export function isDatabaseError(error: unknown): boolean {
     if (code === 'P2010') return true
     // P2021 (table does not exist) — schema sync may not have run yet.
     if (code === 'P2021') return true
+    // P2024 (connection pool timeout) — PgBouncer exhaustion on Vercel.
+    // Transient — withPoolRetry handles retry with backoff.
+    if (code === 'P2024') return true
   }
 
   // 2. Check class name for PrismaClientInitializationError
@@ -165,6 +169,16 @@ export function isDatabaseError(error: unknown): boolean {
     msg.includes('statement timeout') ||
     msg.includes('canceling statement due to')
   ) return true
+
+  // PostgreSQL deadlock (40P01) — caused by concurrent DDL and SELECT.
+  // Transient: retrying the query usually succeeds after the deadlock resolves.
+  if (
+    msg.includes('40P01') ||
+    msg.includes('deadlock detected')
+  ) return true
+
+  // Prisma pool timeout message (P2024 fallback when .code not accessible)
+  if (msg.includes('Timed out fetching a new connection from the connection pool')) return true
 
   return false
 }

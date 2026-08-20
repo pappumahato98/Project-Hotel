@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, withPoolRetry } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     const data = await getOrSet('rooms:list', async () => {
     // ─── Batch ALL independent queries in parallel ───────────
-    const [property, rooms, statusBreakdown, roomTypes, restrictions, activeReservations] = await Promise.all([
+    const [property, rooms, statusBreakdown, roomTypes, restrictions, activeReservations] = await withPoolRetry(() => Promise.all([
       // Property (for optional filtering)
       db.property.findFirst(),
       // Rooms with type info
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
           guest: { select: { id: true, firstName: true, lastName: true, vipLevel: true, phone: true, nationality: true } },
         },
       }),
-    ])
+    ]))
 
     // Build a map of roomId -> reservation+guest
     const reservationMap = new Map<string, typeof activeReservations[0]>()

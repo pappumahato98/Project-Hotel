@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
-import { db } from '@/lib/db'
+import { db, withPoolRetry } from '@/lib/db'
 import { getOrSet, getSettingsMap } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
       checkedInReservations,
       dueOutTomorrow,
       hkStatusBreakdown,
-    ] = await Promise.all([
+    ] = await withPoolRetry(() => Promise.all([
       getSettingsMap(),
       db.room.count(),
       db.reservation.count({
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
         where: { status: { in: ['vacant_dirty', 'cleaning', 'inspected'] } },
         _count: { status: true },
       }),
-    ])
+    ]))
 
     // Build status map
     const statusMap: Record<string, number> = {}
