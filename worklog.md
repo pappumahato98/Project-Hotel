@@ -1745,3 +1745,27 @@ Stage Summary:
 - Dashboard cache pre-warmed at startup for long-running servers
 - Edge Runtime warnings fully eliminated from startup logs
 - Server starts clean in ~1.5s with no warnings
+---
+Task ID: p2024-fix-verify
+Agent: Main Orchestrator
+Task: Verify P2024 pool timeout fix and address related issues
+
+Work Log:
+- Verified the dedicated sync client fix is already implemented in db.ts
+  - `createSyncClient()` creates a PrismaClient with `connection_limit=1` (vs main client's 3)
+  - `autoSyncSchema()` uses the dedicated sync client, NOT the main client
+  - Sync client is properly `$disconnect()`-ed in the `finally` block
+  - Singleton `_schemaSyncPromise` prevents duplicate sync runs
+  - All code paths (requireDb, ensureDb, syncSchema) call validateDbConfig() before autoSyncSchema()
+- Fixed audit.ts: added `hasPostgresConfigured()` guard to `logSecurityEvent()`
+  - Prevents Prisma validation error spam when running with SQLite locally
+  - The function was calling `db.securityEvent.create()` without checking DB type
+- Added JWT_SECRET to local .env to eliminate startup error
+- Verified app works: login page renders, login succeeds, dashboard sidebar renders
+- Confirmed 0 lint errors (88 pre-existing warnings)
+
+Stage Summary:
+- P2024 pool timeout fix confirmed: schema sync uses dedicated connection_limit=1 client
+- Main API client retains connection_limit=3 for query concurrency
+- Audit logging no longer triggers Prisma errors in SQLite mode
+- Vercel npm deprecation warnings are harmless (transitive dependencies from Prisma, sharp, etc.)

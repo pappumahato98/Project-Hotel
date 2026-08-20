@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { hasPostgresConfigured } from '@/lib/env'
 
 export type SecurityEventType =
   | 'auth_success' | 'auth_failure' | 'auth_locked'
@@ -28,8 +29,10 @@ interface LogParams {
 /**
  * Fire-and-forget security audit logging.
  * Does NOT block the response — the DB write happens asynchronously.
+ * Silently skips when PostgreSQL is not configured (local dev with SQLite).
  */
 export function logSecurityEvent(params: LogParams): void {
+  if (!hasPostgresConfigured()) return
   // Fire-and-forget — don't await, don't block the response
   db.securityEvent.create({
     data: {
