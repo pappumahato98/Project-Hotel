@@ -1830,3 +1830,42 @@ Stage Summary:
 - Root cause: race condition between first API request and schema sync on fresh deployments
 - 3 files changed: db.ts, cleanup.ts, fallback-users.ts
 - Commit: 78a9fa9 pushed to main
+---
+Task ID: 2b
+Agent: general-purpose
+Task: Add withPoolRetry() wrapper to 3 API routes that return 500 on P2024 pool timeout errors
+
+Work Log:
+- Read worklog.md for project context
+- Located 3 route files + 1 shared data module
+- Added `withPoolRetry` import and wrapped the main `Promise.all([...])` DB query batch with `withPoolRetry(() => ...)` in each:
+  1. `/src/app/api/front-desk/dashboard/route.ts` — wrapped 15-query Promise.all (rooms, reservations, folios, HK)
+  2. `/src/app/api/rooms/route.ts` — wrapped 6-query Promise.all (property, rooms, types, restrictions, reservations)
+  3. `/src/app/api/dashboard/_data.ts` — wrapped `fetchActivity()`'s 4-query Promise.all (reservations, transactions, POS, work orders)
+- Fixed closing parentheses (`])` → `]))`) for the two files where `withPoolRetry(() => Promise.all([...]))` needed an extra `)`
+- ESLint passed with 0 errors on all 4 files
+
+Stage Summary:
+- 3 files changed: front-desk/dashboard/route.ts, rooms/route.ts, dashboard/_data.ts
+- Each route's main DB query batch now wrapped in `withPoolRetry()` for automatic P2024 retry with backoff
+- 0 lint errors, all changes backward-compatible
+---
+Task ID: 2c
+Agent: general-purpose
+Task: Add withPoolRetry() wrapper to kpis + alerts API routes
+
+Work Log:
+- Read worklog.md for project context
+- Both `/api/dashboard/kpis/route.ts` and `/api/dashboard/alerts/route.ts` delegate entirely to shared `/api/dashboard/_data.ts` (fetchKpis, fetchAlerts)
+- `_data.ts` already imports `withPoolRetry` from `@/lib/db` and uses it in `fetchActivity()`
+- Wrapped 3 DB query batches with `withPoolRetry()`:
+  1. `fetchKpis()` — wrapped the 2-query Promise.all (settings + nightAudit.findMany)
+  2. `fetchKpisLive()` — consolidated 5-query Promise.all + 2 separate db.reservation.count calls into a single 7-query `withPoolRetry(() => Promise.all([...]))`
+  3. `fetchAlerts()` — wrapped the 11-query Promise.all (VIP arrivals, overdue checkouts, work orders, OOO rooms, credit breaches, HK tasks, POS orders, etc.)
+- Route files (kpis/route.ts, alerts/route.ts) required no changes — all DB logic is in _data.ts
+- ESLint passed with 0 errors
+
+Stage Summary:
+- 1 file changed: dashboard/_data.ts
+- 3 query batches (19 total DB calls) now wrapped in `withPoolRetry()` for automatic P2024/504 retry with backoff
+- 0 lint errors, all changes backward-compatible
