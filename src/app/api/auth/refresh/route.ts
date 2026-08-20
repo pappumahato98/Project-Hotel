@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    if (!tokenRecord || !tokenRecord.user.active) {
+    if (!tokenRecord || !tokenRecord.user || !tokenRecord.user.active) {
       if (tokenRecord) {
         await db.refreshToken.deleteMany({ where: { tokenHash } }).catch(() => {})
       }
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
         userId: tokenRecord?.userId, email: tokenRecord?.user?.email,
         ipAddress: clientIp, userAgent: getClientUA(req),
         path: '/api/auth/refresh', method: 'POST',
-        details: tokenRecord ? 'Inactive user attempted token refresh' : 'Invalid or expired refresh token',
+        details: tokenRecord ? (tokenRecord.user ? 'Inactive user attempted token refresh' : 'Orphaned refresh token (user deleted)') : 'Invalid or expired refresh token',
       })
       return NextResponse.json(
         { error: 'Invalid or expired session' },

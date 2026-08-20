@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       include: { user: { select: { id: true, email: true, active: true } } },
     })
 
-    if (!resetRecord) {
+    if (!resetRecord || !resetRecord.user) {
       return NextResponse.json({ error: 'Invalid or expired reset token' }, { status: 400 })
     }
 
