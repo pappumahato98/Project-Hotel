@@ -1812,3 +1812,21 @@ Stage Summary:
 - 6 auth routes now await schema sync before querying AuthUser (prevents 57014)
 - Statement timeout (57014) now triggers retry + fallback instead of 500
 - 0 lint errors, all changes backward-compatible
+---
+Task ID: render-token-refresh-fix
+Agent: main
+Task: Fix Render Token refresh PrismaClientKnownRequestError
+
+Work Log:
+- Read db.ts, refresh route, cleanup.ts, fallback-users.ts, rotation.ts, instrumentation.ts
+- Identified root cause: on fresh Render deploy, awaitSchemaSync() returned immediately when _schemaSyncPromise was null (sync never triggered), then query referenced revokedAt column that doesn't exist yet
+- Fixed awaitSchemaSync() in db.ts to trigger syncSchema() if not yet started
+- Fixed cleanup.ts to call awaitSchemaSync() before first cleanup run
+- Added P2010 and P2021 to isDatabaseError() as defense-in-depth for transient schema-mismatch errors
+- Verified with ESLint (0 errors)
+- Committed and pushed to GitHub (78a9fa9)
+
+Stage Summary:
+- Root cause: race condition between first API request and schema sync on fresh deployments
+- 3 files changed: db.ts, cleanup.ts, fallback-users.ts
+- Commit: 78a9fa9 pushed to main
