@@ -1769,3 +1769,46 @@ Stage Summary:
 - Main API client retains connection_limit=3 for query concurrency
 - Audit logging no longer triggers Prisma errors in SQLite mode
 - Vercel npm deprecation warnings are harmless (transitive dependencies from Prisma, sharp, etc.)
+
+---
+Task ID: vercel-errors-fix
+Agent: subagent
+Task: Add awaitSchemaSync to remaining auth routes
+
+Work Log:
+- Updated signup, forgot-password, password, profile routes
+
+Stage Summary:
+- All 6 auth routes now await schema sync before querying AuthUser
+
+---
+Task ID: vercel-errors-fix
+Agent: Main Orchestrator
+Task: Fix 3 Vercel deployment errors (PosOrder.outlet null, SSL warning, statement timeout 57014)
+
+Work Log:
+- **Error 1 Fix (PosOrder.outlet null)**:
+  - Made `outlet` relation optional on both MenuItem and PosOrder in schema.prisma (`Outlet?`)
+  - Regenerated Prisma client (`bunx prisma generate`)
+  - Updated `_data.ts` line 460: `o.outlet.name` → `o.outlet?.name ?? 'Unknown Outlet'`
+  - POS route already used optional chaining (`o.outlet?.location`)
+- **Error 2 (SSL warning)**: Informational only — no code change needed. db.ts auto-injects sslmode=verify-full.
+- **Error 3 Fix (statement timeout 57014)**:
+  - Root cause: `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash"` takes ACCESS EXCLUSIVE lock
+  - Any SELECT on AuthUser during that lock blocks until PostgreSQL's statement_timeout cancels it
+  - Exported `awaitSchemaSync(timeoutMs)` from db.ts — awaits the singleton sync promise
+  - Added `await awaitSchemaSync(10_000).catch(() => {})` to all 6 auth routes:
+    - login/route.ts (before authUser.findUnique)
+    - refresh/route.ts (before refreshToken.findFirst which includes user relation)
+    - signup/route.ts (before authUser.findUnique)
+    - forgot-password/route.ts (before authUser.findUnique)
+    - password/route.ts (before authUser.findUnique)
+    - profile/route.ts (before authUser.findFirst)
+  - Added statement timeout (57014) patterns to `isDatabaseError()` in fallback-users.ts
+    - This makes 57014 errors trigger retry logic with exponential backoff instead of returning 500
+
+Stage Summary:
+- PosOrder outlet relation: required → optional (prevents crash on orphaned outletId)
+- 6 auth routes now await schema sync before querying AuthUser (prevents 57014)
+- Statement timeout (57014) now triggers retry + fallback instead of 500
+- 0 lint errors, all changes backward-compatible

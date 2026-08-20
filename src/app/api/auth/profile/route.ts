@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, awaitSchemaSync } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { getOrSet, invalidateCache } from '@/lib/cache'
@@ -75,6 +75,7 @@ export async function PUT(req: NextRequest) {
 
     // Check for email uniqueness if changing email
     if (data.email && String(data.email).trim() !== '') {
+      await awaitSchemaSync(10_000).catch(() => {})
       const existing = await db.authUser.findFirst({
         where: { email: String(data.email).toLowerCase(), NOT: { id: userId } },
       })

@@ -457,7 +457,7 @@ export async function fetchActivity(): Promise<ActivityData> {
       ...recentPosOrders.map((o) => ({
         id: o.id, type: 'pos' as const,
         title: `POS Order #${o.id.slice(-6)}`,
-        detail: o.outlet.name, status: o.status, amount: o.totalAmount,
+        detail: o.outlet?.name ?? 'Unknown Outlet', status: o.status, amount: o.totalAmount,
         timestamp: o.createdAt.toISOString(),
       })),
       ...recentWorkOrders.map((w) => ({

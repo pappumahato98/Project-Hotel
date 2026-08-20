@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
+import { db, awaitSchemaSync } from '@/lib/db'
 import { requireAuth, getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
 import { logSecurityEvent } from '@/lib/security'
 
@@ -41,6 +41,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Fetch current password hash from DB
+    await awaitSchemaSync(10_000).catch(() => {})
     const user = await db.authUser.findUnique({
       where: { id: auth.user.userId },
       select: { id: true, email: true, passwordHash: true },

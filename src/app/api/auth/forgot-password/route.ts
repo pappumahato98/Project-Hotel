@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash, randomBytes } from 'crypto'
-import { db } from '@/lib/db'
+import { db, awaitSchemaSync } from '@/lib/db'
 import { logSecurityEvent } from '@/lib/security/audit'
 import { getClientIp, getClientUA, checkRateLimit } from '@/lib/security/auth-helpers'
 import { isDatabaseError } from '@/lib/auth/fallback-users'
@@ -29,6 +29,7 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase()
     const clientIp = getClientIp(req)
 
+    await awaitSchemaSync(10_000).catch(() => {})
     const user = await db.authUser.findUnique({
       where: { email: normalizedEmail },
     })

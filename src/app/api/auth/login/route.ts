@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
+import { db, awaitSchemaSync } from '@/lib/db'
 import {
   signAccessToken,
   generateRefreshToken,
@@ -67,6 +67,12 @@ export async function POST(req: NextRequest) {
     } | null = null
     let usedFallback = false
     let dbReachable = true
+
+    // Wait for schema sync to complete BEFORE querying AuthUser.
+    // Schema sync runs ALTER TABLE on "AuthUser" which takes an ACCESS
+    // EXCLUSIVE lock. Without this, the findUnique() would block and
+    // get canceled by PostgreSQL's statement_timeout (error 57014).
+    await awaitSchemaSync(10_000).catch(() => {})
 
     // Helper: try DB query with exponential backoff retries on connection errors
     async function queryWithRetry<T>(fn: () => Promise<T>): Promise<T> {

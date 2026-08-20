@@ -148,6 +148,14 @@ export function isDatabaseError(error: unknown): boolean {
     (msg.includes('pooler') && msg.includes('error'))
   ) return true
 
+  // PostgreSQL statement timeout (57014) — often caused by ALTER TABLE
+  // locks during schema sync. Retryable because the lock will release.
+  if (
+    msg.includes('57014') ||
+    msg.includes('statement timeout') ||
+    msg.includes('canceling statement due to')
+  ) return true
+
   return false
 }
 

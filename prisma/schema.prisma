@@ -368,7 +368,7 @@ model MenuItem {
   allergens     String?  // JSON array
   sortOrder     Int      @default(0)
 
-  outlet        Outlet @relation(fields: [outletId], references: [id])
+  outlet        Outlet? @relation(fields: [outletId], references: [id])
   orderItems    OrderItem[]
 }
 
@@ -388,7 +388,7 @@ model PosOrder {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  outlet        Outlet @relation(fields: [outletId], references: [id])
+  outlet        Outlet? @relation(fields: [outletId], references: [id])
   items         OrderItem[]
 
   @@index([status])

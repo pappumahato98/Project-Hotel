@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, awaitSchemaSync } from '@/lib/db'
 import {
   signAccessToken,
   hashRefreshToken,
@@ -73,6 +73,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 5. Hash and look up in DB
+    // Wait for schema sync — it ALTERs AuthUser which could lock the relation query
+    await awaitSchemaSync(10_000).catch(() => {})
     const tokenHash = hashRefreshToken(rawToken)
 
     const tokenRecord = await db.refreshToken.findFirst({

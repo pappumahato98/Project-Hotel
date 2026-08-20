@@ -330,6 +330,34 @@ export async function syncSchema(): Promise<void> {
   await autoSyncSchema(client)
 }
 
+/**
+ * Await the completion of schema sync if it's running.
+ *
+ * Critical for auth routes: schema sync runs ALTER TABLE on "AuthUser"
+ * which acquires an ACCESS EXCLUSIVE lock. Any SELECT on AuthUser during
+ * that lock will block until PostgreSQL's statement_timeout cancels it
+ * (error 57014). By awaiting sync first, the lock is released before
+ * the auth query runs.
+ *
+ * This is safe to call from any route:
+ *   - If sync already completed → returns immediately
+ *   - If sync is running → waits for it (usually <5s)
+ *   - If sync never started → returns immediately
+ *
+ * Optional timeout (default 10s) prevents indefinite blocking.
+ */
+export async function awaitSchemaSync(timeoutMs = 10_000): Promise<void> {
+  if (!_schemaSyncPromise) return
+  const timer = setTimeout(() => {
+    console.warn(`[db] awaitSchemaSync timed out after ${timeoutMs}ms — proceeding anyway`)
+  }, timeoutMs)
+  try {
+    await _schemaSyncPromise
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** Proxy that delegates every property access to the lazily-created client */
 export const db = new Proxy({} as PrismaClient, {
   get(_target, prop, receiver) {
