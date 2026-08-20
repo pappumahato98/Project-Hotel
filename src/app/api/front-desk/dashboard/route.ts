@@ -218,7 +218,26 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Front Desk Dashboard API error:', error)
 
+    // Pool exhaustion → 503 with Retry-After (client can auto-retry)
     const msg = error instanceof Error ? error.message : String(error)
+    if (msg.includes('P2024') || msg.includes('Timed out fetching a new connection')) {
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Database connection pool full',
+          code: 'POOL_TIMEOUT',
+          detail: 'The server is temporarily busy. Please retry.',
+        }),
+        {
+          status: 503,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': '5',
+            'Cache-Control': 'no-store',
+          },
+        },
+      )
+    }
+
     return cachedError('Failed to fetch dashboard data', 500, msg.substring(0, 300))
   }
 }

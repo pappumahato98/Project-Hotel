@@ -24,13 +24,25 @@ const POOL_EXHAUSTION_BASE_MS = 200
 const POOL_EXHAUSTION_MAX_MS = 2_000
 
 function isPoolExhaustionError(err: unknown): boolean {
+  // Prisma P2024: Connection pool timeout
+  // Error: "Timed out fetching a new connection from the connection pool"
+  if (
+    err &&
+    typeof err === 'object' &&
+    'code' in err &&
+    (err as { code: string }).code === 'P2024'
+  ) {
+    return true
+  }
   const msg = err instanceof Error ? err.message : String(err)
   return (
+    msg.includes('P2024') ||
     msg.includes('EMAXCONNSESSION') ||
     msg.includes('max clients') ||
     msg.includes('pool_size') ||
     msg.includes('too many connections') ||
-    msg.includes('remaining connection slots')
+    msg.includes('remaining connection slots') ||
+    msg.includes('Timed out fetching a new connection')
   )
 }
 

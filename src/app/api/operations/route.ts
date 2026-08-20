@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
-import { db } from '@/lib/db'
+import { db, withPoolRetry } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postNightAuditSummary } from '@/lib/accounting/auto-post'
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
       todayArrivalsCheckedIn,
       todayDeparturesDone,
       foliosAboveCredit,
-    ] = await Promise.all([
+    ] = await withPoolRetry(() => Promise.all([
       // Night audits (last 30)
       db.nightAudit.findMany({
         orderBy: { businessDate: 'desc' },
@@ -234,7 +234,7 @@ export async function GET(req: NextRequest) {
           room: { select: { number: true } },
         },
       }),
-    ])
+    ]))
 
     // ─── Derive values ────────────────────────────────────────────
 
@@ -499,7 +499,7 @@ export async function POST(request: NextRequest) {
       const nepalToday = getNepalToday()
       const nepalTomorrow = getNepalTomorrow()
 
-      const [inHouseReservations, todayTransactions, allRooms, property] = await Promise.all([
+      const [inHouseReservations, todayTransactions, allRooms, property] = await withPoolRetry(() => Promise.all([
         db.reservation.findMany({
           where: {
             status: 'checked_in',
@@ -514,7 +514,7 @@ export async function POST(request: NextRequest) {
         }),
         db.room.findMany({ select: { status: true } }),
         db.property.findFirst({ select: { totalRooms: true } }),
-      ])
+      ]))
 
       const totalRooms = property?.totalRooms ?? allRooms.length
       const occupiedRooms = allRooms.filter((r) => r.status === 'occupied').length

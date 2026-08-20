@@ -1869,3 +1869,26 @@ Stage Summary:
 - 1 file changed: dashboard/_data.ts
 - 3 query batches (19 total DB calls) now wrapped in `withPoolRetry()` for automatic P2024/504 retry with backoff
 - 0 lint errors, all changes backward-compatible
+
+---
+Task ID: P2024-fix-final
+Agent: Main Orchestrator
+Task: Fix P2024 pool timeout on Vercel — isPoolExhaustionError didn't detect Prisma P2024, and critical routes lacked retry protection
+
+Work Log:
+- **Root cause analysis**: `isPoolExhaustionError()` in db.ts only checked for PgBouncer-level errors (EMAXCONNSESSION, max clients, etc.) but NOT Prisma's own P2024 error code (`Timed out fetching a new connection from the connection pool`). The dashboard route already used `withPoolRetry()` but the retry never triggered because P2024 wasn't recognized.
+- **Fix 1 — db.ts**: Enhanced `isPoolExhaustionError()` to detect P2024 via both `err.code === 'P2024'` (Prisma error object) and string matching (`msg.includes('P2024')` and `msg.includes('Timed out fetching a new connection')`). This makes `withPoolRetry()` actually retry on the exact error from the Vercel logs.
+- **Fix 2 — connection_limit**: Already at 2 (was 3 in original plan, already reduced in prior commit). `pool_timeout=10` ensures fast failure so `withPoolRetry` backoff can kick in. ✅ No change needed.
+- **Fix 3 — dashboard 503**: Added P2024 detection in the front-desk dashboard error catch block. Returns HTTP 503 with `Retry-After: 5` header instead of 500, allowing clients to auto-retry.
+- **Fix 4 — operations route**: Wrapped both `Promise.all` blocks (17-query GET handler + 4-query POST night-audit) with `withPoolRetry()`.
+- **Fix 5 — night-audit report**: Wrapped both `Promise.all` blocks (7-query main + 2-query folio) with `withPoolRetry()`.
+- **Fix 6 — logo.svg 404**: Created `/public/logo.svg` (amber hotel icon) to fix the favicon 404 on every page load.
+- Verified: `bun run lint` → 0 errors, 89 warnings (all pre-existing).
+
+Stage Summary:
+- 4 files changed: `src/lib/db.ts`, `src/app/api/front-desk/dashboard/route.ts`, `src/app/api/operations/route.ts`, `src/app/api/reports/night-audit/route.ts`
+- 1 file created: `public/logo.svg`
+- **Critical fix**: `isPoolExhaustionError()` now detects P2024 → `withPoolRetry()` actually retries on pool timeout
+- Dashboard returns 503 + Retry-After on pool exhaustion (not 500)
+- Operations route (17 concurrent queries) and night-audit report (9 queries) now have pool retry protection
+- Total routes with `withPoolRetry`: 5 (dashboard, rooms, dashboard/_data, operations, night-audit-report)

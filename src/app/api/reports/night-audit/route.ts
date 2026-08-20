@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
-import { db } from '@/lib/db'
+import { db, withPoolRetry } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
         arAccounts,
         cashAccounts,
         allRooms,
-      ] = await Promise.all([
+      ] = await withPoolRetry(() => Promise.all([
         // 1. Room revenue from FolioTransactions (type=room) for the date
         db.folioTransaction.aggregate({
           where: {
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         db.room.findMany({
           select: { status: true },
         }),
-      ])
+      ]))
 
       // ── Revenue ──
       const roomRevenue = round2(roomTxnResult._sum.totalAmount ?? 0)
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       const outstandingFolios: OutstandingFolio[] = []
 
       if (openFolioIds.length > 0) {
-        const [folioTxns, folioPays] = await Promise.all([
+        const [folioTxns, folioPays] = await withPoolRetry(() => Promise.all([
           db.folioTransaction.groupBy({
             by: ['folioId'],
             where: { folioId: { in: openFolioIds } },
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
             where: { folioId: { in: openFolioIds } },
             _sum: { amount: true },
           }),
-        ])
+        ]))
 
         const txnMap = new Map(folioTxns.map(t => [t.folioId, t._sum.totalAmount ?? 0]))
         const payMap = new Map(folioPays.map(p => [p.folioId, p._sum.amount ?? 0]))
