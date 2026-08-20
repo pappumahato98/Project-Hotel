@@ -353,7 +353,8 @@ export const db = new Proxy({} as PrismaClient, {
 export async function ensureDb(): Promise<PrismaClient | null> {
   if (!hasPostgresConfigured()) return null
   const client = getDb()
-  await autoSyncSchema(client)
+  // Fire-and-forget sync — don't block the caller
+  autoSyncSchema(client).catch(() => {})
   return client
 }
 
@@ -456,32 +457,39 @@ let _dbPingResult: { ok: boolean; detail: string; ts: number } | null = null
 let _schemaSyncPromise: Promise<void> | null = null
 
 /**
+ * Create a dedicated PrismaClient for schema sync with connection_limit=1.
+ * This ensures sync only takes 1 PgBouncer slot, leaving all 3 connections
+ * on the main client free for API queries. Disconnected after sync.
+ */
+function createSyncClient(): PrismaClient {
+  const syncUrl = (process.env.DATABASE_URL || '').replace(/connection_limit=\d+/, 'connection_limit=1')
+  return new PrismaClient({
+    datasources: { db: { url: syncUrl } },
+    log: ['error'] as const,
+  })
+}
+
+/**
  * Auto-sync missing database columns.
  *
  * Runs ONCE per process after the first successful DB connection.
- * Adds any columns that exist in the Prisma schema but are missing
- * from the actual database (schema drift from manual/Supabase migrations).
+ * Uses a SEPARATE PrismaClient with connection_limit=1 so it only
+ * occupies 1 PgBouncer slot, leaving all 3 main-client connections
+ * free for API queries.
  *
- * This is the self-healing mechanism — after a deploy, the first API
- * request that calls requireDb() will trigger this sync, fixing any
- * PrismaClientUnknownRequestError caused by missing columns.
- *
- * Uses a singleton Promise to prevent concurrent execution.
- * All ALTER TABLE statements use IF NOT EXISTS so they are idempotent —
- * safe to run every time without a canary check.
+ * All ALTER TABLE statements use IF NOT EXISTS — idempotent.
  */
-function autoSyncSchema(client: PrismaClient): Promise<void> {
+function autoSyncSchema(_client: PrismaClient): Promise<void> {
   // Return existing promise if sync is already in progress or completed
   if (_schemaSyncPromise) return _schemaSyncPromise
 
   _schemaSyncPromise = (async () => {
+    // Use a dedicated client with connection_limit=1 to avoid starving API queries
+    const syncClient = createSyncClient()
     try {
       const t0 = Date.now()
       let fixed = 0
 
-      // All statements are IF NOT EXISTS — safe to run in parallel.
-      // Sequential would be ~300-450ms (30+ round-trips × 10-15ms each).
-      // Parallel reduces to ~10-15ms (single round-trip batch).
       const statements = [
         // AuthUser
         `ALTER TABLE "AuthUser" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT NOT NULL DEFAULT ''`,
@@ -552,30 +560,31 @@ function autoSyncSchema(client: PrismaClient): Promise<void> {
         `ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'NPR'`,
       ]
 
-      // Execute all ALTER statements in parallel (~10-15ms vs ~300-450ms sequential)
-      // Wrapped in withPoolRetry for resilience against transient pool exhaustion.
-      const results = await withPoolRetry(() =>
-        Promise.allSettled(
-          statements.map(sql => client.$executeRawUnsafe(sql))
-        )
-      )
-      fixed = results.filter(r => r.status === 'fulfilled').length
+      // Run sequentially through the sync client (connection_limit=1).
+      // Sequential is fine here — sync runs in background, doesn't block requests.
+      // Sequential avoids opening multiple connections from the sync client.
+      for (const sql of statements) {
+        try { await syncClient.$executeRawUnsafe(sql); fixed++ } catch { /* column exists */ }
+      }
 
-      // Indexes (separate — CREATE INDEX IF NOT EXISTS)
+      // Indexes
       const indexes = [
         `CREATE INDEX IF NOT EXISTS "NightAudit_status_businessDate_idx" ON "NightAudit"("status", "businessDate")`,
         `CREATE INDEX IF NOT EXISTS "RefreshToken_tokenFamilyId_idx" ON "RefreshToken"("tokenFamilyId")`,
         `CREATE INDEX IF NOT EXISTS "CashierShift_sessionNo_idx" ON "CashierShift"("sessionNo")`,
         `CREATE INDEX IF NOT EXISTS "CashierShift_status_idx" ON "CashierShift"("status")`,
       ]
-      await withPoolRetry(() =>
-        Promise.allSettled(indexes.map(sql => client.$executeRawUnsafe(sql)))
-      )
+      for (const sql of indexes) {
+        try { await syncClient.$executeRawUnsafe(sql) } catch { /* index exists */ }
+      }
 
       const elapsed = Date.now() - t0
       console.warn(`[db] Schema auto-sync complete in ${elapsed}ms (${fixed} columns checked)`)
     } catch (err) {
       console.error('[db] Auto-sync failed (non-fatal):', err instanceof Error ? err.message : err)
+    } finally {
+      // Release the sync client's connection back to PgBouncer
+      syncClient.$disconnect().catch(() => {})
     }
   })()
 
