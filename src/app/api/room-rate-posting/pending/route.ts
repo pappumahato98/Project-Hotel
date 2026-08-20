@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedJson, cachedError } from '@/lib/api-response'
 
@@ -116,6 +116,7 @@ export async function GET(req: NextRequest) {
       },
     }, req, { tier: 'short' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Room Rate Posting pending GET error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

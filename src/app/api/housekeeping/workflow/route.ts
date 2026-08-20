@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson({ items, summary }, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Workflow GET error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -140,6 +141,7 @@ export async function POST(request: NextRequest) {
 
     return cachedError('Unknown action', 400)
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Workflow POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

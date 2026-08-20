@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, awaitSchemaSync } from '@/lib/db'
+import { db, awaitSchemaSync, isPoolTimeoutError } from '@/lib/db'
 import {
   signAccessToken,
   hashRefreshToken,
@@ -168,6 +168,14 @@ export async function POST(req: NextRequest) {
 
     return response
   } catch (error: unknown) {
+    // Pool exhaustion — return 503 in auth error format
+    if (isPoolTimeoutError(error)) {
+      console.error('[auth] Token refresh pool timeout:', error)
+      return NextResponse.json(
+        { error: 'Service temporarily unavailable. Please try again in a few seconds.' },
+        { status: 503, headers: { 'Retry-After': '5' } },
+      )
+    }
     // Graceful degradation for DB-unreachable in production
     if (isDatabaseError(error)) {
       console.error('[auth] Token refresh DB error:', errorSummary(error))

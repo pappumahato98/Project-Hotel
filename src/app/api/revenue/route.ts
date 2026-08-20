@@ -82,18 +82,16 @@ export async function GET(req: NextRequest) {
   try {
     const data = await getOrSet('revenue:data', async () => {
       // Fetch rate plans, rate rules, and demand calendar in parallel
-      const [ratePlans, roomRatePostings, demandCalendar] = await Promise.all([
+      const [ratePlans, dailyRates, demandCalendar] = await Promise.all([
         db.ratePlan.findMany({
           include: { roomType: { select: { name: true } } },
           orderBy: { name: 'asc' },
         }),
-        db.roomRatePosting.findMany({
-          where: {
-            status: 'active',
-            endDate: { gte: new Date() },
-          },
-          include: { roomType: { select: { name: true } } },
-          orderBy: { startDate: 'asc' },
+        db.dailyRate.findMany({
+          where: { date: { gte: new Date() } },
+          include: { ratePlan: { select: { name: true, code: true } } },
+          orderBy: { date: 'asc' },
+          take: 100,
         }),
         generateDemandCalendar(),
       ])
@@ -107,14 +105,15 @@ export async function GET(req: NextRequest) {
         active: rp.active,
       }))
 
-      const pricingRules = roomRatePostings.map((rr) => ({
-        id: rr.id,
-        name: rr.description || `Rate: ${rr.rateType}`,
-        type: rr.rateType === 'increase' ? 'surcharge' : rr.rateType === 'decrease' ? 'discount' : 'override',
-        value: rr.amount || 0,
-        appliesTo: rr.roomType?.name || 'All Room Types',
-        dates: `${rr.startDate?.toISOString().split('T')[0] ?? ''} - ${rr.endDate?.toISOString().split('T')[0] ?? ''}`,
-        active: rr.status === 'active',
+      // Build pricing rules from active daily rates
+      const pricingRules = dailyRates.map((dr) => ({
+        id: dr.id,
+        name: dr.ratePlan.name || dr.ratePlan.code,
+        type: 'override' as const,
+        value: dr.rate,
+        appliesTo: dr.ratePlan.name,
+        dates: dr.date.toISOString().split('T')[0],
+        active: true,
       }))
       const highDays = demandCalendar.filter((d) => d.demandLevel === 'high').length
       const mediumDays = demandCalendar.filter((d) => d.demandLevel === 'medium').length

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Guests API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -89,6 +90,7 @@ export async function POST(request: NextRequest) {
     afterMutation('guests')
     return NextResponse.json({ guest }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Create guest error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

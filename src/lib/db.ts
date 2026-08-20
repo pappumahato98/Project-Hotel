@@ -661,7 +661,14 @@ function autoSyncSchema(_client: PrismaClient): Promise<void> {
           existingCols.add(`${row.table_name}.${row.column_name}`)
         }
       } catch (err) {
-        // information_schema query failed — fall through to run all ALTERs blindly
+        // If pool is exhausted, DON'T fall through to 52 individual ALTERs —
+        // each would also timeout, burning 48+ seconds holding a connection.
+        // Skip sync; the next cold start will retry.
+        if (isPoolExhaustionError(err)) {
+          console.warn('[db] Schema sync skipped — pool exhausted during information_schema check')
+          return
+        }
+        // Other error (permission, syntax) — fall through to ALTERs as before
         console.warn('[db] information_schema check failed, running all ALTERs:', err instanceof Error ? err.message : err)
       }
 

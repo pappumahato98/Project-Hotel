@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE, formatDateShort } from '@/lib/nepal-standards'
@@ -254,6 +254,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Room Rate Posting bulk POST error:', error)
     return NextResponse.json(
       { error: 'Failed to bulk post room charges' },

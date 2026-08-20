@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import type { Prisma } from '@prisma/client'
 import { adToBS } from '@/lib/nepali-calendar'
 import { getOrSet, getSettingsMap, afterMutation } from '@/lib/cache'
@@ -180,6 +180,7 @@ export async function GET(request: NextRequest) {
     }, 120000)
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Reservations API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -351,6 +352,7 @@ export async function POST(request: NextRequest) {
     afterMutation('reservations')
     return NextResponse.json({ reservation }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Create reservation error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

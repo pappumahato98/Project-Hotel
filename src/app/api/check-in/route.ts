@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedError, clearCacheHeaders } from '@/lib/api-response'
@@ -462,6 +462,7 @@ export async function POST(request: NextRequest) {
       { status: 200, headers: clearCacheHeaders() },
     )
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Check-in API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

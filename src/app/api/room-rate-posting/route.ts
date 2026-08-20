@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getSettingsMap, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE, formatDateShort } from '@/lib/nepal-standards'
@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ postings, count: postings.length })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Room Rate Posting GET error:', error)
     return NextResponse.json(
       { error: 'Failed to fetch rate postings' },
@@ -373,6 +374,7 @@ export async function POST(request: NextRequest) {
       skippedCount: postingDates.length - newDates.length,
     })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Room Rate Posting POST error:', error)
     return NextResponse.json(
       { error: 'Failed to post room charges' },
@@ -491,6 +493,7 @@ export async function DELETE(request: NextRequest) {
       folio: updatedFolio,
     })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Room Rate Posting DELETE error:', error)
     return NextResponse.json(
       { error: 'Failed to void rate posting' },

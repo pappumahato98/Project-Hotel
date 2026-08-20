@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
-import { db, withPoolRetry } from '@/lib/db'
+import { db, withPoolRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { postNightAuditSummary } from '@/lib/accounting/auto-post'
@@ -479,6 +479,7 @@ export async function GET(req: NextRequest) {
     }, 120000)
     return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Operations API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -585,6 +586,7 @@ export async function POST(request: NextRequest) {
 
     return cachedError('Unknown action', 400)
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Operations POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

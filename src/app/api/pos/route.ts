@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getSettingsMap, getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -681,6 +681,7 @@ export async function GET(request: NextRequest) {
 
   return cachedJson(data, request, { tier: 'short' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('[pos] GET error:', error)
     const msg = error instanceof Error ? error.message : String(error)
     return cachedError('Failed to fetch POS data', 500, msg.substring(0, 300))
@@ -986,6 +987,7 @@ export async function POST(request: NextRequest) {
 
     return cachedError('Unknown action', 400)
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('POS POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

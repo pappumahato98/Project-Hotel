@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { toDateOnly } from '@/lib/format'
 import { getOrSet } from '@/lib/cache'
@@ -210,6 +210,7 @@ export async function GET(request: NextRequest) {
     }, 120000)
     return cachedJson(data, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('HK Rooms API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
