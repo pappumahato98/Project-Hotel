@@ -1462,7 +1462,9 @@ export function DashboardModule() {
     setDateFilter(filter)
   }, [])
 
-  // Split into 3 parallel queries — KPIs react to date filter
+  // Sequential loading: kpis → alerts → activity
+  // Prevents DB pool exhaustion on Vercel (Supabase free tier: 15 connections)
+  // by not firing 40+ DB queries simultaneously.
   const kpisQuery = useQuery<KpisData>({
     queryKey: ['dashboard', 'kpis', dateFilter, customRange],
     queryFn: () => apiFetch(kpisUrl),
@@ -1479,6 +1481,8 @@ export function DashboardModule() {
     retry: 2,
     retryDelay: 1000,
     staleTime: 30_000,
+    // Don't start until kpis has loaded (or failed) to stagger DB load
+    enabled: !kpisQuery.isLoading,
   })
 
   const activityQuery = useQuery<ActivityData>({
@@ -1488,9 +1492,14 @@ export function DashboardModule() {
     retry: 2,
     retryDelay: 1000,
     staleTime: 30_000,
+    // Don't start until alerts has loaded (or failed) to stagger DB load
+    enabled: !alertsQuery.isLoading,
   })
 
-  const isLoading = kpisQuery.isLoading && alertsQuery.isLoading && activityQuery.isLoading
+  // Loading: show skeleton until the LAST query in the chain has started and finished
+  const isLoading = kpisQuery.isLoading ||
+    (kpisQuery.fetchStatus !== 'idle' && !alertsQuery.data && !alertsQuery.isError) ||
+    (alertsQuery.fetchStatus !== 'idle' && !activityQuery.data && !activityQuery.isError)
   const isError = kpisQuery.isError && alertsQuery.isError && activityQuery.isError
   const error = kpisQuery.error ?? alertsQuery.error ?? activityQuery.error
 

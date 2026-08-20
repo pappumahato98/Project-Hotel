@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
@@ -273,6 +273,7 @@ export async function GET(req: NextRequest) {
     }, 5 * 60 * 1000)
     return cachedJson(result, req, { tier: 'long' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Settings GET error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

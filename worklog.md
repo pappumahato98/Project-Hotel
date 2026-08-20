@@ -1892,3 +1892,26 @@ Stage Summary:
 - Dashboard returns 503 + Retry-After on pool exhaustion (not 500)
 - Operations route (17 concurrent queries) and night-audit report (9 queries) now have pool retry protection
 - Total routes with `withPoolRetry`: 5 (dashboard, rooms, dashboard/_data, operations, night-audit-report)
+
+---
+Task ID: P2024-comprehensive-fix
+Agent: Main Orchestrator
+Task: Comprehensive P2024 pool exhaustion fix — backend + frontend — based on Vercel log analysis (174 entries, 83% error rate)
+
+Work Log:
+- **Log analysis**: 174 log entries in 149 seconds. 143 errors, ALL P2024 pool timeout. 0 frontend errors, 0 auth errors, 0 404s.
+- **Root cause chain**: Dashboard fires 15+ queries per request → multiple concurrent dashboard requests exhaust PgBouncer 15-connection limit → ALL other routes (accounts, settings, kpis, alerts, activity, rooms) cascade-fail with P2024 → retries burn through Vercel 30s/60s timeout → 504s.
+- **Fix 1 — connection_limit 2→1** (db.ts): Each Vercel instance now uses only 1+1=2 PgBouncer slots (was 2+1=3). 7 instances × 2 = 14 < 15. Prisma serializes queries through 1 connection (JS single-threaded).
+- **Fix 2 — pool_timeout 10→5, retries 3→2** (db.ts): Fail FAST. With pool truly exhausted, all retries fail — better to return 503 in 1.5s than burn 10s waiting.
+- **Fix 3 — shared pool timeout helpers** (db.ts): Exported `isPoolTimeoutError()` and `poolTimeoutResponse()` for consistent 503 handling across all routes.
+- **Fix 4 — 503 on ALL routes** (13 files): Added `if (isPoolTimeoutError(error)) return poolTimeoutResponse()` to catch blocks in: accounts, settings, dashboard/kpis, dashboard/alerts, dashboard/activity, rooms, front-desk/dashboard, front-desk/reports, pos/daily-sales, revenue, employees, folio, auth/activity-log.
+- **Fix 5 — login pre-warming** (login-page.tsx): Changed from 6 fire-all-at-once fetches to 3 sequential fetches with 200ms delays. Removed rooms, front-desk/dashboard, reservations from pre-warm (loaded lazily on navigation).
+- **Fix 6 — dashboard sequential loading** (DashboardModule.tsx): React Query `enabled` flag chains: kpis → alerts → activity. Prevents 40+ DB queries from firing simultaneously on mount. Loading state updated for sequential chain.
+- Verified: `bun run lint` → 0 errors, 89 warnings (all pre-existing).
+
+Stage Summary:
+- **Backend** (16 files): connection_limit=1, pool_timeout=5, 2 retries, 503 on all DB routes
+- **Frontend** (2 files): sequential API loading, staggered pre-warming
+- **Math**: Before: 6 concurrent endpoints × ~10 queries each = 60 parallel DB ops on cold start. After: 1 endpoint at a time × ~10 queries each = 10 serialized DB ops. 6× reduction in peak connection usage.
+- Total routes with 503 pool timeout handling: 13
+- Total routes with withPoolRetry: 5

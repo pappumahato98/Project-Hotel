@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry, withPoolRetry } from '@/lib/db'
+import { db, withRetry, withPoolRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
     }, 120000)
     return cachedJson(data, req, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Rooms API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -157,6 +158,7 @@ export async function POST(req: NextRequest) {
     afterMutation('rooms')
     return NextResponse.json({ room: createdRoom }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Create room error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

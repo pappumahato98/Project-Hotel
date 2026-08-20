@@ -240,15 +240,17 @@ export function LoginPage() {
         useAuthStore.getState().login(data.user, data.accessToken)
       }
 
-      // Pre-warm server caches in background (fire-and-forget)
-      // This makes dashboard, rooms, front-desk load instantly when user navigates there
+      // Pre-warm server caches sequentially (not all at once to avoid DB pool exhaustion).
+      // 200ms delay between each call. React Query will cache responses.
       const warmEndpoints = [
         '/api/dashboard/kpis', '/api/dashboard/alerts', '/api/dashboard/activity',
-        '/api/rooms', '/api/front-desk/dashboard', '/api/reservations?limit=10',
       ]
-      for (const ep of warmEndpoints) {
-        fetch(ep, { headers: { Authorization: `Bearer ${data.accessToken}` } }).catch(() => {})
-      }
+      ;(async () => {
+        for (const ep of warmEndpoints) {
+          fetch(ep, { headers: { Authorization: `Bearer ${data.accessToken}` } }).catch(() => {})
+          await new Promise(r => setTimeout(r, 200))
+        }
+      })()
 
       // Do NOT call router.push('/') — we're already on '/' (the only route).
       // The zustand isAuthenticated change will trigger page.tsx to re-render

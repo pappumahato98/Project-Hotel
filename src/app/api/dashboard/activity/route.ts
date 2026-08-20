@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
-import { requireDb } from '@/lib/db'
+import { requireDb, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { fetchActivity } from '../_data'
 import { cachedJson, cachedError } from '@/lib/api-response'
 
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const data = await fetchActivity()
     return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     const code = (error as Record<string, unknown>)?.code ?? ''
     const meta = (error as Record<string, unknown>)?.meta ?? ''
     console.error('[dashboard/activity] error:', { message: error instanceof Error ? error.message : String(error), code, meta, name: error?.constructor?.name })

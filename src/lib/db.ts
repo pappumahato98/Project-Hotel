@@ -19,9 +19,12 @@ import { hasPostgresConfigured } from '@/lib/env'
 // PgBouncer in session mode has a hard limit (free tier: 15 connections).
 // On Vercel serverless, multiple cold starts can exhaust this pool.
 // We retry with exponential backoff instead of immediately failing.
-const POOL_EXHAUSTION_RETRIES = 3
-const POOL_EXHAUSTION_BASE_MS = 200
-const POOL_EXHAUSTION_MAX_MS = 2_000
+//
+// IMPORTANT: Keep retries low (2). Each retry burns Vercel function time.
+// If the pool is truly exhausted, all retries fail — better to return 503 fast.
+const POOL_EXHAUSTION_RETRIES = 2
+const POOL_EXHAUSTION_BASE_MS = 300
+const POOL_EXHAUSTION_MAX_MS = 1_000
 
 function isPoolExhaustionError(err: unknown): boolean {
   // Prisma P2024: Connection pool timeout
@@ -47,8 +50,38 @@ function isPoolExhaustionError(err: unknown): boolean {
 }
 
 /**
+ * Check if an error is a pool exhaustion / connection timeout error.
+ * Used by API routes to return 503 instead of 500.
+ */
+export function isPoolTimeoutError(err: unknown): boolean {
+  return isPoolExhaustionError(err)
+}
+
+/**
+ * Create a 503 Response for pool exhaustion.
+ * Routes should check `isPoolTimeoutError(err)` in their catch block.
+ */
+export function poolTimeoutResponse(): globalThis.Response {
+  return new globalThis.Response(
+    JSON.stringify({
+      error: 'Database connection pool full',
+      code: 'POOL_TIMEOUT',
+      detail: 'The server is temporarily busy. Please retry.',
+    }),
+    {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': '5',
+        'Cache-Control': 'no-store',
+      },
+    },
+  )
+}
+
+/**
  * Retry a DB operation with exponential backoff on pool exhaustion.
- * Retries up to N times with 200ms → 400ms → 800ms delays.
+ * Retries up to 2 times with 300ms → 600ms delays.
  */
 export async function withPoolRetry<T>(fn: () => Promise<T>): Promise<T> {
   let lastError: unknown
@@ -264,21 +297,17 @@ function validateDbConfig() {
   // connection_limit controls how many concurrent connections this SINGLE
   // PrismaClient instance can open. It does NOT control the PgBouncer pool.
   //
-  // Why 2 (not 3):
-  //   Each Vercel serverless instance = main client (2) + sync client (1) = 3.
-  //   With connection_limit=3, it was 4 per instance → 4 instances × 4 = 16 > 15.
-  //   With connection_limit=2, it's 3 per instance → 5 instances × 3 = 15 = OK.
-  //   Dashboard routes use withPoolRetry() for automatic P2024 retry.
+  // Why 1:
+  //   Each Vercel serverless instance = main client (1) + sync client (1) = 2.
+  //   7 instances × 2 = 14 < 15 (PgBouncer free-tier limit).
+  //   Prisma serializes queries through 1 connection — JS is single-threaded,
+  //   so we never need true parallel DB access within one function.
   //
-  // pool_timeout=10 (not 30):
-  //   Fail fast on pool exhaustion. withPoolRetry retries with backoff.
-  //   30s timeout wastes Vercel function time waiting for a connection.
-  //
-  // Cross-instance protection:
-  //   withPoolRetry() handles EMAXCONNSESSION (PgBouncer 15-connection limit)
-  //   with exponential backoff. That's the correct layer for pool guard.
+  // pool_timeout=5:
+  //   Fail FAST on pool exhaustion. withPoolRetry retries with backoff.
+  //   10s wastes Vercel function time waiting for a connection that won't come.
   if (!url.includes('connection_limit=')) {
-    params.push('connection_limit=2', 'pool_timeout=10', 'connect_timeout=5')
+    params.push('connection_limit=1', 'pool_timeout=5', 'connect_timeout=5')
   }
 
   // ── PgBouncer optimization ──────────────────────────────────

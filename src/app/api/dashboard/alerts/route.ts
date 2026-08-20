@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
-import { requireDb } from '@/lib/db'
+import { requireDb, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { fetchAlerts } from '../_data'
 import { cachedJson, cachedError } from '@/lib/api-response'
 
@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const data = await fetchAlerts()
     return cachedJson(data, req, { tier: 'short' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('[dashboard/alerts] error:', error)
     const msg = error instanceof Error ? error.message : String(error)
     return cachedError('Failed to fetch alerts', 500, msg)

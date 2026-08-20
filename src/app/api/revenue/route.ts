@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -130,6 +130,7 @@ export async function GET(req: NextRequest) {
 
     return cachedJson(data, req, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Revenue API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -181,6 +182,7 @@ export async function POST(request: NextRequest) {
 
     return cachedError('Unknown action', 400)
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Revenue POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

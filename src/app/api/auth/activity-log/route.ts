@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -67,6 +67,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(data)
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Fetch activity log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
@@ -102,6 +103,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ log }, { status: 201 })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Create activity log error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

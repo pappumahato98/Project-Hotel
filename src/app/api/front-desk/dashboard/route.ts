@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
-import { db, withPoolRetry } from '@/lib/db'
+import { db, withPoolRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, getSettingsMap } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
@@ -217,27 +217,9 @@ export async function GET(req: NextRequest) {
     return cachedJson(result, req, { tier: 'short' })
   } catch (error) {
     console.error('Front Desk Dashboard API error:', error)
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
 
-    // Pool exhaustion → 503 with Retry-After (client can auto-retry)
     const msg = error instanceof Error ? error.message : String(error)
-    if (msg.includes('P2024') || msg.includes('Timed out fetching a new connection')) {
-      return new NextResponse(
-        JSON.stringify({
-          error: 'Database connection pool full',
-          code: 'POOL_TIMEOUT',
-          detail: 'The server is temporarily busy. Please retry.',
-        }),
-        {
-          status: 503,
-          headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': '5',
-            'Cache-Control': 'no-store',
-          },
-        },
-      )
-    }
-
     return cachedError('Failed to fetch dashboard data', 500, msg.substring(0, 300))
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, afterMutation, getSettingsMap } from '@/lib/cache'
 import type { Prisma } from '@prisma/client'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson(result, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Folio API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -145,6 +146,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ folio }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Create folio error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

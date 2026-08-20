@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { cachedJson, cachedError } from '@/lib/api-response'
@@ -197,6 +197,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson(response, request, { tier: 'short' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('POS Daily Sales API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
