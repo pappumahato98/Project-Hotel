@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     // 5. Hash and look up in DB
     // Wait for schema sync — it ALTERs AuthUser which could lock the relation query
-    await awaitSchemaSync(10_000).catch(() => {})
+    await awaitSchemaSync().catch(() => {})
     const tokenHash = hashRefreshToken(rawToken)
 
     const tokenRecord = await db.refreshToken.findFirst({

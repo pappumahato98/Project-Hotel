@@ -350,9 +350,11 @@ export async function syncSchema(): Promise<void> {
  * causing PrismaClientKnownRequestError. Triggering sync here ensures
  * the columns exist before the query runs.
  *
- * Optional timeout (default 10s) prevents indefinite blocking.
+ * Optional timeout (default 30s) prevents indefinite blocking.
+ * 30s accommodates 56 DDL statements over remote Supabase connections
+ * (~150-300ms per round-trip × 56 = 8-17s, plus DDL execution time).
  */
-export async function awaitSchemaSync(timeoutMs = 10_000): Promise<void> {
+export async function awaitSchemaSync(timeoutMs = 30_000): Promise<void> {
   // Trigger schema sync if not yet started (e.g., first request on fresh deploy)
   if (!_schemaSyncPromise && hasPostgresConfigured()) {
     syncSchema().catch(() => {})

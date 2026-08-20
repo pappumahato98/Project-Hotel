@@ -2,17 +2,18 @@
  * Next.js Instrumentation — runs once at server startup.
  *
  * CRITICAL: This function MUST return quickly (< 5 seconds).
- * Vercel serverless kills functions that exceed 30s in register().
- * Schema sync (52 ALTER TABLEs) takes ~24s → MUST run lazily, NOT here.
  *
  * What runs here (fast):
  *   1. Environment validation (< 1ms)
- *   2. Token cleanup timer (< 1ms, just setInterval)
- *   3. Store init (< 100ms, in-memory or Redis connect)
+ *   2. Schema sync trigger (fire-and-forget, < 1ms to start)
+ *   3. Token cleanup timer (< 1ms, just setInterval)
+ *   4. Store init (< 100ms, in-memory or Redis connect)
  *
- * What runs lazily on first API request (via requireDb()):
- *   - Schema auto-sync (52 ALTER TABLE IF NOT EXISTS)
- *   - Connection pool warm-up
+ * Schema sync (56 DDL statements) runs in the BACKGROUND:
+ *   - Fire-and-forget here so it starts at boot, not on first request
+ *   - On long-running servers (Render/Docker): completes before first user request
+ *   - On Vercel serverless: runs in background, requests await via awaitSchemaSync()
+ *   - Singleton Promise prevents duplicate runs
  */
 
 export async function register() {
@@ -29,6 +30,22 @@ export async function register() {
     }
   } else if (process.env.NODE_ENV !== 'production') {
     console.log(`[startup] Environment validation ✅ — ${result.errors.length} errors, ${result.warnings.length} warnings`)
+  }
+
+  // ── Schema sync: fire-and-forget at boot ───────────────────────
+  // Starts 56 ALTER TABLE + 4 CREATE INDEX in the background.
+  // On Render/Docker: completes before first user request (~15-25s).
+  // On Vercel: runs in background; auth routes await via awaitSchemaSync().
+  // register() returns immediately — doesn't block the function.
+  // The singleton Promise in autoSyncSchema() prevents duplicate runs.
+  try {
+    const { syncSchema } = await import('@/lib/db')
+    const { hasPostgresConfigured } = await import('@/lib/env')
+    if (hasPostgresConfigured()) {
+      syncSchema().catch(() => {})
+    }
+  } catch {
+    // Non-fatal: sync will be triggered lazily on first request
   }
 
   // Start periodic cleanup of expired refresh tokens (every 5 min)
@@ -49,19 +66,4 @@ export async function register() {
   } catch (err) {
     console.warn('[startup] Store initialization warning:', err)
   }
-
-  // ── Schema sync and dashboard pre-warm: REMOVED from register() ──
-  //
-  // WHY: Schema sync runs 52 ALTER TABLE statements which takes ~24 seconds.
-  // Vercel kills the function at 30s → guaranteed timeout.
-  //
-  // WHERE IT RUNS INSTEAD:
-  //   - requireDb() fires schema sync lazily on the first API request
-  //   - It's fire-and-forget (doesn't block the request)
-  //   - The singleton Promise prevents duplicate runs
-  //
-  // Dashboard pre-warm is also removed — on Vercel serverless, each
-  // function is a separate process, so warming one instance doesn't help
-  // others. On long-running servers (Render/Docker), the first dashboard
-  // request naturally warms the cache.
 }

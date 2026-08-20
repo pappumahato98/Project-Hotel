@@ -41,7 +41,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Fetch current password hash from DB
-    await awaitSchemaSync(10_000).catch(() => {})
+    await awaitSchemaSync().catch(() => {})
     const user = await db.authUser.findUnique({
       where: { id: auth.user.userId },
       select: { id: true, email: true, passwordHash: true },

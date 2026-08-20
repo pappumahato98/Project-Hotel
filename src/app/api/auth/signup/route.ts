@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
     }
 
-    await awaitSchemaSync(10_000).catch(() => {})
+    await awaitSchemaSync().catch(() => {})
     const existing = await db.authUser.findUnique({ where: { email: normalizedEmail } })
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })

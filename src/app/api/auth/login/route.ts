@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     // Schema sync runs ALTER TABLE on "AuthUser" which takes an ACCESS
     // EXCLUSIVE lock. Without this, the findUnique() would block and
     // get canceled by PostgreSQL's statement_timeout (error 57014).
-    await awaitSchemaSync(10_000).catch(() => {})
+    await awaitSchemaSync().catch(() => {})
 
     // Helper: try DB query with exponential backoff retries on connection errors
     async function queryWithRetry<T>(fn: () => Promise<T>): Promise<T> {

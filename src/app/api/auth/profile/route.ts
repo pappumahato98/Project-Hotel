@@ -75,7 +75,7 @@ export async function PUT(req: NextRequest) {
 
     // Check for email uniqueness if changing email
     if (data.email && String(data.email).trim() !== '') {
-      await awaitSchemaSync(10_000).catch(() => {})
+      await awaitSchemaSync().catch(() => {})
       const existing = await db.authUser.findFirst({
         where: { email: String(data.email).toLowerCase(), NOT: { id: userId } },
       })

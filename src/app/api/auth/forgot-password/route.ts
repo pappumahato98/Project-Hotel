@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase()
     const clientIp = getClientIp(req)
 
-    await awaitSchemaSync(10_000).catch(() => {})
+    await awaitSchemaSync().catch(() => {})
     const user = await db.authUser.findUnique({
       where: { email: normalizedEmail },
     })
