@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, awaitSchemaSync } from '@/lib/db'
 import { hasPostgresConfigured } from '@/lib/env'
 
 let _cleanupTimer: ReturnType<typeof setInterval> | null = null
@@ -7,6 +7,11 @@ let _cleanupTimer: ReturnType<typeof setInterval> | null = null
  * Delete all expired refresh tokens and tokens revoked >24h ago.
  * Safe to run from multiple instances (DELETE WHERE is idempotent).
  * Guards against non-PostgreSQL DATABASE_URL to avoid Prisma validation spam.
+ *
+ * IMPORTANT: Awaits schema sync before the first cleanup run.
+ * On a fresh deployment, the `revokedAt` column is added by schema sync.
+ * If cleanup runs before sync completes, the query would fail with
+ * PrismaClientKnownRequestError (missing column).
  *
  * @param intervalMs - How often to run cleanup (default: 5 minutes)
  */
@@ -22,6 +27,9 @@ export function startTokenCleanup(intervalMs = 5 * 60_000): void {
 
   _cleanupTimer = setInterval(async () => {
     try {
+      // Ensure schema sync has completed — revokedAt column may not exist yet
+      await awaitSchemaSync(15_000).catch(() => {})
+
       const now = new Date()
       const revokedCutoff = new Date(Date.now() - 24 * 60 * 60_1000) // 24h ago
 

@@ -67,10 +67,13 @@ const FALLBACK_USERS: FallbackUser[] = [
 ]
 
 /**
- * Check if the error is a genuine DATABASE CONNECTION error.
+ * Check if the error is a genuine DATABASE CONNECTION error
+ * OR a transient schema-mismatch error that resolves after schema sync.
  *
- * IMPORTANT: This must ONLY match network/transport-level failures.
- * Do NOT match schema errors, query errors, or other Prisma runtime errors.
+ * IMPORTANT: This must match:
+ *   1. Network/transport-level failures (always retryable)
+ *   2. Schema-mismatch errors on columns added by auto-sync (transient,
+ *      resolve within ~5s when schema sync completes)
  *
  * Prisma error codes (connection/initialization):
  *   P1000 — Authentication failed against database server
@@ -80,11 +83,13 @@ const FALLBACK_USERS: FallbackUser[] = [
  *   P1008 — Operation timed out
  *   P1017 — Server has closed the connection
  *
+ * Prisma error codes (transient schema mismatch):
+ *   P2010 — Raw query failed (column missing → sync will add it)
+ *   P2021 — Table does not exist (sync creates tables)
+ *
  * NOT connection errors (do NOT match):
  *   P1009 — Database already exists (harmless)
- *   P1014 — Model not found (schema issue)
- *   P2010 — Raw query failed (query error)
- *   P2021 — Table does not exist (schema issue)
+ *   P1014 — Model not found (schema compilation issue)
  */
 export function isDatabaseError(error: unknown): boolean {
   if (!error) return false
@@ -94,6 +99,11 @@ export function isDatabaseError(error: unknown): boolean {
   if (typeof code === 'string') {
     // P1000-P1017 are all initialization/connection errors
     if (/^P10(0[0-9]|1[0-7])$/.test(code)) return true
+    // P2010 (raw query failed) — often caused by missing column that
+    // schema sync will add. Transient on fresh deployments.
+    if (code === 'P2010') return true
+    // P2021 (table does not exist) — schema sync may not have run yet.
+    if (code === 'P2021') return true
   }
 
   // 2. Check class name for PrismaClientInitializationError

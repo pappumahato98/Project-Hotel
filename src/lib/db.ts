@@ -331,7 +331,7 @@ export async function syncSchema(): Promise<void> {
 }
 
 /**
- * Await the completion of schema sync if it's running.
+ * Await the completion of schema sync, triggering it if not yet started.
  *
  * Critical for auth routes: schema sync runs ALTER TABLE on "AuthUser"
  * which acquires an ACCESS EXCLUSIVE lock. Any SELECT on AuthUser during
@@ -342,11 +342,21 @@ export async function syncSchema(): Promise<void> {
  * This is safe to call from any route:
  *   - If sync already completed → returns immediately
  *   - If sync is running → waits for it (usually <5s)
- *   - If sync never started → returns immediately
+ *   - If sync never started → TRIGGERS sync and waits for it
+ *
+ * Why trigger? On a fresh deployment (Render, Docker), the first API
+ * request may be /api/auth/refresh. If sync was never triggered, the
+ * query would reference columns (e.g., revokedAt) that don't exist yet,
+ * causing PrismaClientKnownRequestError. Triggering sync here ensures
+ * the columns exist before the query runs.
  *
  * Optional timeout (default 10s) prevents indefinite blocking.
  */
 export async function awaitSchemaSync(timeoutMs = 10_000): Promise<void> {
+  // Trigger schema sync if not yet started (e.g., first request on fresh deploy)
+  if (!_schemaSyncPromise && hasPostgresConfigured()) {
+    syncSchema().catch(() => {})
+  }
   if (!_schemaSyncPromise) return
   const timer = setTimeout(() => {
     console.warn(`[db] awaitSchemaSync timed out after ${timeoutMs}ms — proceeding anyway`)
