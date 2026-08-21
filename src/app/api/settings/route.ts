@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse, requireDb } from '@/lib/db'
 import { afterMutation, getOrSet } from '@/lib/cache'
 import { requireAuth } from '@/lib/security/auth-helpers'
 import { NEPAL_VAT_RATE } from '@/lib/nepal-standards'
@@ -260,6 +260,8 @@ async function seedDefaults() {
 export async function GET(req: NextRequest) {
   const auth = await requireAuth(req)
   if (auth instanceof NextResponse) return auth
+  const dbErr = await requireDb(req)
+  if (dbErr) return dbErr
   try {
     const result = await getOrSet('settings:all', async () => {
       const count = await db.systemSetting.count()
