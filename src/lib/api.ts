@@ -185,17 +185,17 @@ export async function apiFetch<T = unknown>(
 
       // Pool exhaustion is transient — don't feed the circuit breaker
       // so the client can keep retrying while the server backs off internally.
-      if (code !== 'DB_POOL_EXHAUSTED') {
+      if (code !== 'DB_POOL_EXHAUSTED' && code !== 'POOL_TIMEOUT') {
         record503()
       }
 
-      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE' || code === 'DB_SCHEMA_ERROR' || code === 'DB_POOL_EXHAUSTED') {
+      if (code === 'DB_NOT_CONFIGURED' || code === 'DB_UNREACHABLE' || code === 'DB_SCHEMA_ERROR' || code === 'DB_POOL_EXHAUSTED' || code === 'POOL_TIMEOUT') {
         const detail = (errData?.detail as string) || ''
         const msg = code === 'DB_NOT_CONFIGURED'
           ? 'Database not configured. Please set DATABASE_URL in your deployment environment variables.'
-          : code === 'DB_SCHEMA_ERROR'
+          : (code === 'DB_SCHEMA_ERROR')
             ? 'Database schema is being auto-fixed. Please wait a moment and retry.'
-            : code === 'DB_POOL_EXHAUSTED'
+            : (code === 'DB_POOL_EXHAUSTED' || code === 'POOL_TIMEOUT')
               ? 'Too many concurrent database connections. Retrying automatically…'
               : 'Database temporarily unavailable. Please try again in a moment.'
         // Dispatch a custom event that the app shell can listen to

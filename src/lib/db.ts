@@ -13,6 +13,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { NextResponse } from 'next/server'
 import { hasPostgresConfigured } from '@/lib/env'
 
 // ─── Connection Pool Exhaustion Retry ─────────────────────────────
@@ -61,21 +62,10 @@ export function isPoolTimeoutError(err: unknown): boolean {
  * Create a 503 Response for pool exhaustion.
  * Routes should check `isPoolTimeoutError(err)` in their catch block.
  */
-export function poolTimeoutResponse(): globalThis.Response {
-  return new globalThis.Response(
-    JSON.stringify({
-      error: 'Database connection pool full',
-      code: 'POOL_TIMEOUT',
-      detail: 'The server is temporarily busy. Please retry.',
-    }),
-    {
-      status: 503,
-      headers: {
-        'Content-Type': 'application/json',
-        'Retry-After': '5',
-        'Cache-Control': 'no-store',
-      },
-    },
+export function poolTimeoutResponse() {
+  return NextResponse.json(
+    { error: 'Database connection pool full', code: 'DB_POOL_EXHAUSTED', detail: 'Too many concurrent database connections. Retrying automatically…' },
+    { status: 503, headers: { 'Retry-After': '5', 'Cache-Control': 'no-store' } },
   )
 }
 
@@ -454,19 +444,12 @@ export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
  *
  * Returns a 503 with a clear message so the frontend can show a proper setup prompt.
  */
-export async function requireDb(req?: Request): Promise<globalThis.Response | null> {
+export async function requireDb(req?: Request): Promise<NextResponse | null> {
   // Quick check: is DATABASE_URL a postgres URL?
   if (!hasPostgresConfigured()) {
-    return new globalThis.Response(
-      JSON.stringify({
-        error: 'Database not configured',
-        code: 'DB_NOT_CONFIGURED',
-        detail: 'DATABASE_URL is not set or not a valid PostgreSQL URL. Set it in your deployment environment variables and redeploy.',
-      }),
-      {
-        status: 503,
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-      },
+    return NextResponse.json(
+      { error: 'Database not configured', code: 'DB_NOT_CONFIGURED', detail: 'DATABASE_URL is not set or not a valid PostgreSQL URL. Set it in your deployment environment variables and redeploy.' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
     )
   }
 
@@ -475,16 +458,9 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
   const now = Date.now()
   if (_dbPingResult && (now - _dbPingResult.ts) < 60_000) {
     if (!_dbPingResult.ok) {
-      return new globalThis.Response(
-        JSON.stringify({
-          error: 'Database unreachable',
-          code: 'DB_UNREACHABLE',
-          detail: _dbPingResult.detail,
-        }),
-        {
-          status: 503,
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '10' },
-        },
+      return NextResponse.json(
+        { error: 'Database unreachable', code: 'DB_UNREACHABLE', detail: _dbPingResult.detail },
+        { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '10' } },
       )
     }
     return null // DB is reachable
@@ -505,31 +481,16 @@ export async function requireDb(req?: Request): Promise<globalThis.Response | nu
     // Detect pool exhaustion specifically — tell the client to retry
     if (isPoolExhaustionError(err)) {
       _dbPingResult = { ok: false, detail: msg.slice(0, 200), ts: now }
-      return new globalThis.Response(
-        JSON.stringify({
-          error: 'Database connection pool full',
-          code: 'DB_POOL_EXHAUSTED',
-          detail: msg.slice(0, 200),
-          retryAfter: 5,
-        }),
-        {
-          status: 503,
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '5' },
-        },
+      return NextResponse.json(
+        { error: 'Database connection pool full', code: 'DB_POOL_EXHAUSTED', detail: msg.slice(0, 200), retryAfter: 5 },
+        { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '5' } },
       )
     }
 
     _dbPingResult = { ok: false, detail: msg.slice(0, 200), ts: now }
-    return new globalThis.Response(
-      JSON.stringify({
-        error: 'Database unreachable',
-        code: 'DB_UNREACHABLE',
-        detail: msg.slice(0, 200),
-      }),
-      {
-        status: 503,
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Retry-After': '10' },
-      },
+    return NextResponse.json(
+      { error: 'Database unreachable', code: 'DB_UNREACHABLE', detail: msg.slice(0, 200) },
+      { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '10' } },
     )
   }
 }
@@ -636,14 +597,18 @@ const SCHEMA_INDEXES = [
 function autoSyncSchema(_client: PrismaClient): Promise<void> {
   if (_schemaSyncPromise) return _schemaSyncPromise
 
+  const SYNC_TIMEOUT_MS = 10_000 // Hard timeout: abort sync if it takes > 10s
+
   _schemaSyncPromise = (async () => {
     const syncClient = createSyncClient()
+    // Set an overall timeout to prevent 48s sync hangs
+    const timeoutController = new AbortController()
+    const timeoutId = setTimeout(() => timeoutController.abort(), SYNC_TIMEOUT_MS)
     try {
       const t0 = Date.now()
 
       // ── Step 1: Check which columns already exist (1 round-trip) ──
       // Build a query for information_schema that checks ALL 52 columns at once.
-      const tableNames = [...new Set(SCHEMA_COLUMNS.map(c => c[0]))]
       const colChecks = SCHEMA_COLUMNS.map(c =>
         `('${c[0]}', '${c[1]}')`
       ).join(', ')
@@ -654,7 +619,7 @@ function autoSyncSchema(_client: PrismaClient): Promise<void> {
         WHERE (table_name, column_name) IN (${colChecks})
       `
 
-      let existingCols = new Set<string>()
+      const existingCols = new Set<string>()
       try {
         const rows = await syncClient.$queryRawUnsafe<{ table_name: string; column_name: string }[]>(existingQuery)
         for (const row of rows) {
@@ -668,8 +633,15 @@ function autoSyncSchema(_client: PrismaClient): Promise<void> {
           console.warn('[db] Schema sync skipped — pool exhausted during information_schema check')
           return
         }
-        // Other error (permission, syntax) — fall through to ALTERs as before
-        console.warn('[db] information_schema check failed, running all ALTERs:', err instanceof Error ? err.message : err)
+        // Timeout or other error — skip sync entirely
+        console.warn('[db] information_schema check failed, skipping sync:', err instanceof Error ? err.message : err)
+        return
+      }
+
+      // Check if we've already consumed most of our timeout budget
+      if (Date.now() - t0 > SYNC_TIMEOUT_MS * 0.7) {
+        console.warn(`[db] Schema sync aborting — information_schema took ${Date.now() - t0}ms, too slow`) 
+        return
       }
 
       // ── Step 2: Only ALTER columns that don't exist yet ──
@@ -677,6 +649,7 @@ function autoSyncSchema(_client: PrismaClient): Promise<void> {
       let altered = 0
 
       for (const [, , sql] of missingColumns) {
+        if (timeoutController.signal.aborted) break
         try {
           await syncClient.$executeRawUnsafe(sql)
           altered++
@@ -686,8 +659,10 @@ function autoSyncSchema(_client: PrismaClient): Promise<void> {
       }
 
       // ── Step 3: Create missing indexes ──
-      for (const sql of SCHEMA_INDEXES) {
-        try { await syncClient.$executeRawUnsafe(sql) } catch { /* index exists */ }
+      if (!timeoutController.signal.aborted) {
+        for (const sql of SCHEMA_INDEXES) {
+          try { await syncClient.$executeRawUnsafe(sql) } catch { /* index exists */ }
+        }
       }
 
       const elapsed = Date.now() - t0
@@ -697,6 +672,7 @@ function autoSyncSchema(_client: PrismaClient): Promise<void> {
     } catch (err) {
       console.error('[db] Auto-sync failed (non-fatal):', err instanceof Error ? err.message : err)
     } finally {
+      clearTimeout(timeoutId)
       syncClient.$disconnect().catch(() => {})
     }
   })()
