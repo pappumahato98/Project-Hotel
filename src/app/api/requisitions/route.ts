@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson({ requisitions, total, summary: { pending, approved, received } }, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Requisitions API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('requisition:created', requisition)
     return NextResponse.json(requisition, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Requisitions POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -90,6 +92,7 @@ export async function PATCH(request: NextRequest) {
     broadcastEvent('requisition:updated', requisition)
     return NextResponse.json(requisition, { headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Requisitions PATCH error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

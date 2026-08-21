@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       totalValue,
     }, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Inventory API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('inventory:created', item)
     return NextResponse.json({ item }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Inventory POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

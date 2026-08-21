@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { hasPostgresConfigured } from '@/lib/env'
+import { isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 
 // Cache DB check for 2 minutes (Render health checks every ~15-30s)
 let _lastCheck: { ok: boolean; detail: string; ts: number } | null = null
@@ -43,6 +44,7 @@ export async function GET() {
         await db.authUser.count({ take: 1 })
         _lastCheck = { ok: true, detail: 'connected', ts: now }
       } catch (e: unknown) {
+        if (isPoolTimeoutError(e)) return poolTimeoutResponse()
         const msg = e instanceof Error ? e.message : String(e)
         _lastCheck = { ok: false, detail: msg.slice(0, 200), ts: now }
       }

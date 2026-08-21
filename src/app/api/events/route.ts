@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
       summary: { totalRevenue, totalDepositsPaid, totalDepositsPending },
     }, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Events API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -71,6 +72,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('event:created', event)
     return NextResponse.json(event, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Events POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

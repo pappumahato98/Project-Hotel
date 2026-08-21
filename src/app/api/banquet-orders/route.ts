@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
       summary: { confirmed, inProgress, draft, totalAmount },
     }, req, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Banquet Orders API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -87,6 +88,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('banquet_order:created', { eventId, ...orderData })
     return NextResponse.json({ eventId, ...orderData, event }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Banquet Orders POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -127,6 +129,7 @@ export async function PATCH(request: NextRequest) {
     broadcastEvent('banquet_order:updated', { eventId, ...updatedNotes })
     return NextResponse.json({ eventId, ...updatedNotes, event }, { headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Banquet Orders PATCH error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

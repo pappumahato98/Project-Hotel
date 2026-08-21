@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cachedJson, cachedError, clearCacheHeaders } from '@/lib/api-response'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -122,6 +122,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson(data, request, { tier: 'long' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Budget API GET error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -191,6 +192,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('budget:created', record)
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Budget API POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -297,6 +299,7 @@ export async function PATCH(request: NextRequest) {
     broadcastEvent('budget:updated', record)
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Budget API PATCH error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

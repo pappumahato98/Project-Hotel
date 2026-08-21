@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
       totalCommission,
     }, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Channels API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('channel:created', channel)
     return NextResponse.json(channel, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Channels POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -101,6 +103,7 @@ export async function PATCH(request: NextRequest) {
     broadcastEvent('channel:updated', channel)
     return NextResponse.json(channel, { headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Channels PATCH error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

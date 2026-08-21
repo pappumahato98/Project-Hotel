@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, withRetry } from '@/lib/db'
+import { db, withRetry, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 
     return cachedJson({ workOrders, summary }, request, { tier: 'medium' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Work Orders API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -74,6 +75,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('work_order:created', workOrder)
     return NextResponse.json({ workOrder }, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Work Orders POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

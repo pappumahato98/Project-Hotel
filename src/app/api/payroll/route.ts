@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import type { Prisma } from '@prisma/client'
@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
       summary: { totalBaseSalary, totalVariablePay, totalOvertime, totalDeductions, totalNetPay, employeeCount: records.length },
     }, request, { tier: 'long' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Payroll API error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
     afterMutation('hr')
     return NextResponse.json(record, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Payroll POST error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)
@@ -135,6 +137,7 @@ export async function PATCH(request: NextRequest) {
     afterMutation('hr')
     return NextResponse.json(record, { headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     console.error('Payroll PATCH error:', error)
 
     const msg = error instanceof Error ? error.message : String(error)

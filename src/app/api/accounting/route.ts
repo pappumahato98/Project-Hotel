@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { getOrSet, afterMutation } from '@/lib/cache'
 import { broadcastEvent } from '@/lib/broadcast'
 import { requireAuth } from '@/lib/security/auth-helpers'
@@ -124,6 +124,7 @@ export async function GET(req: NextRequest) {
       },
     }, req, { tier: 'long' })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounting GET error:', msg)
     return cachedError('Failed to fetch journal entries', 500, msg.substring(0, 200))
@@ -203,6 +204,7 @@ export async function POST(request: NextRequest) {
     broadcastEvent('journal_entry:created', journalEntry)
     return NextResponse.json(journalEntry, { status: 201, headers: clearCacheHeaders() })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     const msg = error instanceof Error ? error.message : String(error)
     console.error('Accounting POST error:', msg)
     return cachedError('Failed to create journal entry', 500, msg.substring(0, 200))

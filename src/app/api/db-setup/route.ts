@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { execSync } from 'child_process'
+import { isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 
 export const maxDuration = 120
 
@@ -377,6 +378,7 @@ export async function POST(req: NextRequest) {
       logs,
     })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     const msg = error instanceof Error ? error.message : String(error)
     console.error('[db-setup] Fatal error:', msg)
     return NextResponse.json({
@@ -440,6 +442,7 @@ export async function GET() {
             : 'Database is ready.',
     })
   } catch (error) {
+    if (isPoolTimeoutError(error)) return poolTimeoutResponse()
     const msg = error instanceof Error ? error.message : String(error)
     return NextResponse.json({
       status: 'error',

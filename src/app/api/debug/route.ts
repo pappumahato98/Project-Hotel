@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 import { requireAuth } from '@/lib/security/auth-helpers'
 
 // GET /api/debug — Diagnose deployment issues (admin only)
@@ -56,6 +56,7 @@ export async function GET(request: Request) {
       detail: `${userCount} users in DB`,
     })
   } catch (err) {
+    if (isPoolTimeoutError(err)) return poolTimeoutResponse()
     const msg = err instanceof Error ? err.message : String(err)
     checks.push({
       name: 'db.connect',
@@ -109,6 +110,7 @@ export async function GET(request: Request) {
           })
         }
       } catch (err) {
+        if (isPoolTimeoutError(err)) return poolTimeoutResponse()
         const msg = err instanceof Error ? err.message : String(err)
         checks.push({
           name: 'user.profile',
