@@ -166,16 +166,22 @@ export function withCache(
     } catch (error) {
       console.error('[withCache] error:', error)
       const msg = error instanceof Error ? error.message : String(error)
-      // Detect DB connection / Prisma errors and return a clearer message
-      const errName = error?.constructor?.name ?? ''
       const errCode = (error as Record<string, unknown>)?.code ?? ''
+      // P2024 pool timeout — use DB_POOL_EXHAUSTED so the frontend
+      // circuit breaker does NOT freeze all API calls for 30 seconds.
+      if (errCode === 'P2024' || msg.includes('Timed out fetching a new connection')) {
+        return NextResponse.json(
+          { error: 'Database connection pool full', code: 'DB_POOL_EXHAUSTED', detail: msg.substring(0, 300) },
+          { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '5' } },
+        )
+      }
+      // Detect other DB connection / Prisma errors and return a clearer message
+      const errName = error?.constructor?.name ?? ''
       if (msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND') ||
-          msg.includes('connection') || msg.includes('timeout') ||
           msg.includes('P1001') || msg.includes('P1008') ||
           msg.includes('authentication failed') || msg.includes('password authentication') ||
           errName === 'PrismaClientUnknownRequestError' ||
-          errCode === 'P1001' || errCode === 'P1008' || errCode === 'P2024' ||
-          errCode === 'P2025') {
+          errCode === 'P1001' || errCode === 'P1008' || errCode === 'P2025') {
         // Schema drift / missing column errors should be retried after auto-sync
         const isSchemaError = errName === 'PrismaClientUnknownRequestError' ||
           msg.includes('column') || msg.includes('relation') || msg.includes('table')
