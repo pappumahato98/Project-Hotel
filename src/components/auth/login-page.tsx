@@ -240,21 +240,11 @@ export function LoginPage() {
         useAuthStore.getState().login(data.user, data.accessToken)
       }
 
-      // Pre-warm server caches sequentially (not all at once to avoid DB pool exhaustion).
-      // 200ms delay between each call. React Query will cache responses.
-      const warmEndpoints = [
-        '/api/dashboard/kpis', '/api/dashboard/alerts', '/api/dashboard/activity',
-      ]
-      ;(async () => {
-        for (const ep of warmEndpoints) {
-          fetch(ep, { headers: { Authorization: `Bearer ${data.accessToken}` } }).catch(() => {})
-          await new Promise(r => setTimeout(r, 200))
-        }
-      })()
-
       // Do NOT call router.push('/') — we're already on '/' (the only route).
       // The zustand isAuthenticated change will trigger page.tsx to re-render
       // and swap from LoginPage to AppShell automatically.
+      // DashboardModule will fire its own React Query calls (sequentially)
+      // when it mounts — no pre-warming needed.
     } catch (err) {
       clearTimeout(timeoutId)
       if (err instanceof DOMException && err.name === 'AbortError') {

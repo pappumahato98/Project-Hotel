@@ -107,14 +107,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
 
     // Always try to refresh in the background (even if persisted state exists)
-    silentRefresh()
+    // Skip if no refresh token cookie — avoids a wasted DB connection on
+    // cold start when the user is on the login page for the first time.
+    const hasRefreshCookie = document.cookie.includes('__meridian_rt=')
+    if (hasRefreshCookie) {
+      silentRefresh()
+    } else {
+      useAuthStore.setState({ _hasHydrated: true })
+    }
   }, [])
 
   // Sync settings when authenticated (state change)
+  // Delay 1s to avoid thundering herd with dashboard queries on cold start.
+  // Settings are less critical than dashboard data and can wait.
   useEffect(() => {
     const unsub = useAuthStore.subscribe((state, prev) => {
       if (!prev.isAuthenticated && state.isAuthenticated) {
-        useSettingsStore.getState().syncFromBackend(true)
+        setTimeout(() => {
+          useSettingsStore.getState().syncFromBackend(true)
+        }, 1_000)
       }
     })
     return unsub
