@@ -13,6 +13,7 @@ import {
   ChevronRight, Pencil, Shield, Copy, Wifi, Car, Utensils,
   Tv, Dumbbell, Waves, Coffee, Eye, EyeOff, Star,
   CalendarCheck, Check, CheckIcon, ArrowRight, Moon, Receipt, Baby, Wallet,
+  ClipboardList, Tag, ShieldCheck, TrendingUp, ListChecks,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -361,6 +362,12 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
       setSelectedRatePlanId('')
       setErrors({})
       setSpecialRequests('')
+      setReservationType('individual')
+      setSource('direct')
+      setMarketSegment('transient_leisure')
+      setGuaranteed(false)
+      setAddCompany('')
+      setPoNumber('')
     }
     onOpenChange(newOpen)
   }, [onOpenChange])
@@ -719,9 +726,12 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
   const marketSegmentLabel = MARKET_SEGMENTS.find((m) => m.value === marketSegment)?.label || marketSegment
 
   // ── Step navigation ──
+  const TOTAL_STEPS = 4
+
   const canGoNext = useMemo(() => {
     if (step === 1) return checkInDate !== '' && checkOutDate !== ''
     if (step === 2) return selectedRoom !== null
+    // Steps 3 (Details) and 4 (Guest) always allow next/submit
     return true
   }, [step, checkInDate, checkOutDate, selectedRoom])
 
@@ -734,7 +744,7 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
       toast.error('Please select a room')
       return
     }
-    setStep((s) => Math.min(s + 1, 3))
+    setStep((s) => Math.min(s + 1, TOTAL_STEPS))
     setErrors({})
   }, [step, checkInDate, checkOutDate, selectedRoom])
 
@@ -751,7 +761,8 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
     const steps = [
       { label: 'Dates', num: 1, icon: CalendarCheck },
       { label: 'Room', num: 2, icon: BedDouble },
-      { label: 'Guest', num: 3, icon: User },
+      { label: 'Details', num: 3, icon: ListChecks },
+      { label: 'Guest', num: 4, icon: User },
     ]
 
     return (
@@ -1007,7 +1018,155 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
   }
 
   // ──────────────────────────────────────────────────────────────────────
-  //  STEP 3 — GUEST
+  //  STEP 3 — DETAILS
+  // ──────────────────────────────────────────────────────────────────────
+
+  const renderDetailsStep = () => {
+    return (
+      <div className="space-y-4">
+        {/* Reservation Type & Source row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+              Reservation Type
+            </Label>
+            <Select value={reservationType} onValueChange={setReservationType}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {RESERVATION_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+              Source
+            </Label>
+            <Select value={source} onValueChange={setSource}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SOURCES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Market Segment & Guaranteed row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+              Market Segment
+            </Label>
+            <Select value={marketSegment} onValueChange={setMarketSegment}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MARKET_SEGMENTS.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+              Guaranteed
+            </Label>
+            <div className="flex items-center h-9">
+              <button
+                type="button"
+                onClick={() => setGuaranteed(!guaranteed)}
+                className={cn(
+                  'relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                  guaranteed ? 'bg-primary' : 'bg-input',
+                )}
+              >
+                <span className={cn(
+                  'pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform',
+                  guaranteed ? 'translate-x-4' : 'translate-x-0',
+                )} />
+              </button>
+              <span className="ml-2 text-sm text-muted-foreground">
+                {guaranteed ? 'Yes — reservation is guaranteed' : 'No guarantee'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Company & PO Number row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+              Company
+            </Label>
+            <Input
+              className="h-9 text-sm"
+              placeholder="Company name (optional)"
+              value={addCompany}
+              onChange={(e) => setAddCompany(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+              PO Number
+            </Label>
+            <Input
+              className="h-9 text-sm"
+              placeholder="Purchase order # (optional)"
+              value={poNumber}
+              onChange={(e) => setPoNumber(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Special Requests */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+            Special Requests
+          </Label>
+          <div className="flex flex-wrap gap-1.5">
+            {REQUEST_CHIPS.map((chip) => {
+              const ChipIcon = chip.icon
+              const isActive = specialRequests.split(',').map((s) => s.trim()).filter(Boolean).includes(chip.label)
+              return (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => handleChipToggle(chip.label)}
+                  className={cn(
+                    'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
+                    isActive
+                      ? 'border-primary/50 bg-primary/15 text-primary'
+                      : 'border-border/60 bg-muted/30 text-muted-foreground hover:bg-muted/50',
+                  )}
+                >
+                  <ChipIcon className="h-3 w-3" />
+                  {chip.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  STEP 4 — GUEST
   // ──────────────────────────────────────────────────────────────────────
 
   const renderGuestStep = () => {
@@ -1238,6 +1397,67 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
                 {guestDisplayName}
               </dd>
             </div>
+            <Separator className="my-1 border-border/40" />
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <Briefcase className="h-3.5 w-3.5" />
+                Type
+              </dt>
+              <dd className="font-medium text-right max-w-[180px] truncate">
+                {reservationTypeLabel}
+              </dd>
+            </div>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <Globe className="h-3.5 w-3.5" />
+                Source
+              </dt>
+              <dd className="font-medium text-right max-w-[180px] truncate">
+                {sourceLabel}
+              </dd>
+            </div>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5" />
+                Segment
+              </dt>
+              <dd className="font-medium text-right max-w-[180px] truncate">
+                {marketSegmentLabel}
+              </dd>
+            </div>
+            {guaranteed && (
+              <div className="flex justify-between items-center">
+                <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Guaranteed
+                </dt>
+                <dd className="font-medium">
+                  <Badge variant="outline" className="text-emerald-600 border-emerald-500/40 bg-emerald-500/10 text-[10px]">Yes</Badge>
+                </dd>
+              </div>
+            )}
+            {addCompany && (
+              <div className="flex justify-between items-center">
+                <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Company
+                </dt>
+                <dd className="font-medium text-right max-w-[180px] truncate">
+                  {addCompany}
+                </dd>
+              </div>
+            )}
+            {specialRequests && (
+              <div className="flex justify-between items-start gap-2">
+                <dt className="text-muted-foreground inline-flex items-center gap-1.5 shrink-0">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Requests
+                </dt>
+                <dd className="font-medium text-right text-xs leading-relaxed">
+                  {specialRequests}
+                </dd>
+              </div>
+            )}
           </dl>
 
           <Separator className="my-3 border-border/60" />
@@ -1297,7 +1517,7 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
           Back
         </Button>
 
-        {step < 3 ? (
+        {step < TOTAL_STEPS ? (
           <Button
             size="sm"
             onClick={handleNext}
@@ -1342,7 +1562,7 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
             New Reservation
           </DialogTitle>
           <DialogDescription>
-            Three quick steps — dates, room and guest. Confirmed bookings appear instantly on the front desk lists.
+            Four quick steps — dates, room, details and guest. Confirmed bookings appear instantly on the front desk lists.
           </DialogDescription>
         </DialogHeader>
 
@@ -1355,7 +1575,8 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
         <div className="min-h-[300px]">
           {step === 1 && renderDatesStep()}
           {step === 2 && renderRoomStep()}
-          {step === 3 && renderGuestStep()}
+          {step === 3 && renderDetailsStep()}
+          {step === 4 && renderGuestStep()}
         </div>
 
         {/* Footer */}
