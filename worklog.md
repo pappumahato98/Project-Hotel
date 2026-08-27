@@ -1915,3 +1915,29 @@ Stage Summary:
 - **Math**: Before: 6 concurrent endpoints × ~10 queries each = 60 parallel DB ops on cold start. After: 1 endpoint at a time × ~10 queries each = 10 serialized DB ops. 6× reduction in peak connection usage.
 - Total routes with 503 pool timeout handling: 13
 - Total routes with withPoolRetry: 5
+---
+Task ID: RESERVATION-DIALOG-REDESIGN
+Agent: Main Orchestrator
+Task: Redesign New Reservation as 3-step dialog wizard matching reference design
+
+Work Log:
+- Visited reference URL and captured all 3 steps via agent-browser screenshots
+- Step 1: Calendar with date range selection, Adults/Children dropdowns, Notes textarea
+- Step 2: Grid of available room cards with pricing, floor, amenities, occupancy
+- Step 3: 2-column layout — guest search/creation (left) + booking review panel (right)
+- Analyzed existing NewReservationPage.tsx (2,186 lines, 4-step wizard with sidebar)
+- Rewrote to 1,332-line 3-step Dialog wizard matching reference design
+- Preserved ALL business logic: API calls, mutations, types, validation, calculations
+- Added NewReservationDialog component (open/onOpenChange props) + backward-compatible wrapper
+- Step indicator: horizontal pill badges (emerald completed, primary current, muted upcoming)
+- Room cards: responsive grid with selection highlight, amenity icons, price breakdown
+- Guest step: simplified 3-field new guest form + live booking review with price summary
+- Lint: 0 errors, 97 warnings (all pre-existing + 9 new @typescript-eslint/no-explicit-any)
+- Local dev server cold compile OOMs in sandbox (3.9GB RAM) — not a code issue
+- Pushed to GitHub as commit 9f98bb1
+
+Stage Summary:
+- File: src/components/modules/front-desk/NewReservationPage.tsx (2,186 → 1,332 lines)
+- 3-step dialog: Dates → Room → Guest (was: Booking Contact → Guest → Stay → Review)
+- Backward-compatible: NewReservationPage wrapper still works with onBack/onCreated props
+- New export: NewReservationDialog with open/onOpenChange for dialog usage
