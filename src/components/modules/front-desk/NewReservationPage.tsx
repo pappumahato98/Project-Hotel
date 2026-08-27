@@ -12,7 +12,7 @@ import {
   Building, Briefcase, Hotel, Minus, Plus, Save,
   ChevronRight, Pencil, Shield, Copy, Wifi, Car, Utensils,
   Tv, Dumbbell, Waves, Coffee, Eye, EyeOff, Star,
-  CalendarCheck, Check, CheckIcon, ArrowRight,
+  CalendarCheck, Check, CheckIcon, ArrowRight, Moon, Receipt, Baby, Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -749,9 +749,9 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
 
   const renderStepIndicator = () => {
     const steps = [
-      { label: 'Dates', num: 1 },
-      { label: 'Room', num: 2 },
-      { label: 'Guest', num: 3 },
+      { label: 'Dates', num: 1, icon: CalendarCheck },
+      { label: 'Room', num: 2, icon: BedDouble },
+      { label: 'Guest', num: 3, icon: User },
     ]
 
     return (
@@ -774,7 +774,7 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
                 {isCompleted ? (
                   <Check className="h-3 w-3" />
                 ) : (
-                  <span className="font-semibold">{s.num}</span>
+                  <s.icon className="h-3.5 w-3.5" />
                 )}
                 <span>{s.label}</span>
               </div>
@@ -826,7 +826,10 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
         {/* Adults & Children row */}
         <div className="flex items-end gap-3">
           <div className="flex-1 space-y-1.5">
-            <Label className="text-xs font-medium">Adults</Label>
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              Adults
+            </Label>
             <Select value={String(adults)} onValueChange={(v) => setAdults(Number(v))}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
@@ -839,7 +842,10 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
             </Select>
           </div>
           <div className="flex-1 space-y-1.5">
-            <Label className="text-xs font-medium">Children</Label>
+            <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+              <Baby className="h-3.5 w-3.5 text-muted-foreground" />
+              Children
+            </Label>
             <Select value={String(children)} onValueChange={(v) => setChildren(Number(v))}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue />
@@ -855,7 +861,10 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
 
         {/* Notes */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium">Notes</Label>
+          <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+            Notes
+          </Label>
           <Textarea
             className="text-sm min-h-[60px] resize-y"
             value={notes}
@@ -878,6 +887,7 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
         <div className="flex flex-wrap items-center gap-2">
           <Select value={roomFilterType} onValueChange={setRoomFilterType}>
             <SelectTrigger className="h-8 text-xs w-[140px]">
+              <BedDouble className="h-3 w-3 mr-1.5 text-muted-foreground shrink-0" />
               <SelectValue placeholder="Room Type" />
             </SelectTrigger>
             <SelectContent>
@@ -889,6 +899,7 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
           </Select>
           <Select value={roomFilterFloor} onValueChange={setRoomFilterFloor}>
             <SelectTrigger className="h-8 text-xs w-[100px]">
+              <Building className="h-3 w-3 mr-1.5 text-muted-foreground shrink-0" />
               <SelectValue placeholder="Floor" />
             </SelectTrigger>
             <SelectContent>
@@ -1099,7 +1110,10 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
               {/* New guest form */}
               <div className="rounded-xl border border-border/60 bg-secondary/30 p-3.5 space-y-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Full name</Label>
+                  <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    Full name
+                  </Label>
                   <Input
                     className={cn(
                       'h-9 text-sm',
@@ -1130,7 +1144,10 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Email address</Label>
+                  <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    Email address
+                  </Label>
                   <Input
                     className="h-9 text-sm"
                     type="email"
@@ -1140,7 +1157,10 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium">Phone (optional)</Label>
+                  <Label className="text-xs font-medium inline-flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                    Phone (optional)
+                  </Label>
                   <Input
                     className="h-9 text-sm"
                     placeholder="Phone (optional)"
@@ -1170,35 +1190,50 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
           </h4>
 
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Dates</dt>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <CalendarCheck className="h-3.5 w-3.5" />
+                Dates
+              </dt>
               <dd className="font-medium">
                 {checkInDate && checkOutDate
                   ? `${formatDateShort(checkInDate)} → ${formatDateShort(checkOutDate)}`
                   : '—'}
               </dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Nights</dt>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <Moon className="h-3.5 w-3.5" />
+                Nights
+              </dt>
               <dd className="font-medium">{nights || '—'}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Room</dt>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <BedDouble className="h-3.5 w-3.5" />
+                Room
+              </dt>
               <dd className="font-medium">
                 {selectedRoom
                   ? `${selectedRoom.number} · ${selectedRoom.type.name}`
                   : '—'}
               </dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Guests</dt>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Guests
+              </dt>
               <dd className="font-medium">
                 {adults} adult{adults !== 1 ? 's' : ''}
                 {children > 0 ? `, ${children} child${children !== 1 ? 'ren' : ''}` : ''}
               </dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Guest</dt>
+            <div className="flex justify-between items-center">
+              <dt className="text-muted-foreground inline-flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                Guest
+              </dt>
               <dd className="font-medium text-right max-w-[180px] truncate">
                 {guestDisplayName}
               </dd>
@@ -1209,21 +1244,33 @@ export function NewReservationDialog({ open, onOpenChange, onCreated }: NewReser
 
           {/* Price breakdown */}
           <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">{formatCurrency(roomRate)} × {nights}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />
+                {formatCurrency(roomRate)} × {nights}
+              </span>
               <span className="font-medium">{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax ({taxRate}%)</span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                <Receipt className="h-3.5 w-3.5" />
+                Tax ({taxRate}%)
+              </span>
               <span>{formatCurrency(taxAmount)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Service ({serviceRate}%)</span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                <BadgePercent className="h-3.5 w-3.5" />
+                Service ({serviceRate}%)
+              </span>
               <span>{formatCurrency(serviceAmount)}</span>
             </div>
             <Separator className="border-border/60" />
-            <div className="flex justify-between font-bold">
-              <span>Total</span>
+            <div className="flex justify-between items-center font-bold">
+              <span className="inline-flex items-center gap-1.5">
+                <Wallet className="h-4 w-4" />
+                Total
+              </span>
               <span className="text-primary">{formatCurrency(totalAmount)}</span>
             </div>
           </div>
