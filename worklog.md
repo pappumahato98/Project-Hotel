@@ -1964,3 +1964,32 @@ Stage Summary:
 - 76 insertions, 29 deletions in NewReservationPage.tsx
 - All form labels now have contextual Lucide icons
 - Commit 1a0196f pushed to origin/main
+---
+Task ID: 2
+Agent: main
+Task: Add more connection fields to New Reservation dialog (4-step wizard)
+
+Work Log:
+- Identified state variables that existed but had no UI: reservationType, source, marketSegment, guaranteed, addCompany, poNumber, specialRequests
+- Expanded wizard from 3 steps to 4: Dates → Room → Details → Guest
+- Created renderDetailsStep() with all connection fields:
+  - Reservation Type select (Briefcase icon)
+  - Source select (Globe icon)  
+  - Market Segment select (TrendingUp icon)
+  - Guaranteed toggle switch (ShieldCheck icon)
+  - Company text input (Building2 icon)
+  - PO Number text input (Hash icon)
+  - Special Requests chips with toggle (Sparkles icon)
+- Added new icon imports: ClipboardList, Tag, ShieldCheck, TrendingUp, ListChecks
+- Updated step indicator to 4 steps with ListChecks icon for Details
+- Updated navigation: TOTAL_STEPS=4, canGoNext always true for steps 3-4
+- Updated footer: Confirm button shows on step 4 (was step 3)
+- Enriched Review panel in Guest step with Type, Source, Segment, Guaranteed, Company, Requests rows
+- Added state reset for all new fields in handleOpenChange
+- Verified via agent-browser: 4 step indicators confirmed (Dates, Room, Details, Guest)
+- Lint: 0 errors
+
+Stage Summary:
+- Commit a3bc916 pushed to origin/main
+- NewReservationDialog is now a 4-step wizard with full connection fields
+- All fields have contextual Lucide icons
