@@ -1941,3 +1941,26 @@ Stage Summary:
 - 3-step dialog: Dates → Room → Guest (was: Booking Contact → Guest → Stay → Review)
 - Backward-compatible: NewReservationPage wrapper still works with onBack/onCreated props
 - New export: NewReservationDialog with open/onOpenChange for dialog usage
+---
+Task ID: 1
+Agent: main
+Task: Add component icons to New Reservation dialog
+
+Work Log:
+- Analyzed uploaded reference image (pasted_image_1787828199275.png) via VLM to understand target design
+- Read NewReservationPage.tsx (1333 lines, 3-step wizard: Dates → Room → Guest)
+- Added new Lucide icon imports: Moon, Receipt, Baby, Wallet
+- Added icons to step indicators (step 1→CalendarCheck, step 2→BedDouble, step 3→User) with dynamic icon property
+- Added inline icons to Step 1 labels: Users (Adults), Baby (Children), FileText (Notes)
+- Added icons inside Step 2 select triggers: BedDouble (Room Type), Building (Floor)
+- Added inline icons to Step 3 guest form: User (Full name), Mail (Email), Phone (Phone)
+- Added inline icons to Review Booking panel dt elements: CalendarCheck, Moon, BedDouble, Users, User
+- Added inline icons to Price breakdown: CreditCard (rate line), Receipt (Tax), BadgePercent (Service), Wallet (Total)
+- Ran lint — 0 errors (97 pre-existing warnings only)
+- Verified via agent-browser: step indicator icons confirmed (Calendar, Bed, User) and Step 2 filter icons (Bed, Building) and Step 1 field icons (Users, Baby)
+- Committed as 1a0196f and pushed to GitHub
+
+Stage Summary:
+- 76 insertions, 29 deletions in NewReservationPage.tsx
+- All form labels now have contextual Lucide icons
+- Commit 1a0196f pushed to origin/main
