@@ -14,24 +14,27 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error(`Missing required environment variables: ${missing.join(', ')}. Please check your environment configuration.`);
 }
 
-// Resolve the final URL and key, falling back to placeholders if env vars
-// are missing. The Supabase SDK throws "supabaseUrl is required" if given
-// an empty string, which would crash the app at module-load time.
+// Create the Supabase client.
 //
-// NOTE: We resolve these into named constants BEFORE passing to createClient
-// to avoid any minifier reordering of the `||` expressions. Earlier Vercel
-// builds had the arguments swapped due to minifier optimization of inline
-// `||` expressions — using explicit constants eliminates that ambiguity.
+// When env vars are missing, we pass placeholder values to createClient
+// instead of empty strings. The Supabase SDK throws "supabaseUrl is
+// required" if given an empty string, which would crash the app at
+// module-load time — before React mounts, before ConfigErrorPage can
+// render, and before any user sees a helpful message.
+//
+// With placeholder values, the client is constructed successfully and the
+// app boots. Any actual API call will fail (401/auth error), but by then
+// ConfigErrorPage has already rendered with clear instructions.
+//
+// The App.tsx isConfigured() check happens before any provider that
+// would use this client, so the user sees the config error page rather
+// than a broken auth flow.
 const PLACEHOLDER_URL = 'https://placeholder.supabase.co';
 const PLACEHOLDER_KEY = 'placeholder-anon-key';
 
-const resolvedUrl: string = SUPABASE_URL || PLACEHOLDER_URL;
-const resolvedKey: string = SUPABASE_ANON_KEY || PLACEHOLDER_KEY;
-
-// Create the Supabase client. Signature: createClient(supabaseUrl, supabaseKey, options)
 export const supabase: SupabaseClient<Database> = createClient<Database>(
-  resolvedUrl,
-  resolvedKey,
+  SUPABASE_URL || PLACEHOLDER_URL,
+  SUPABASE_ANON_KEY || PLACEHOLDER_KEY,
   {
     auth: {
       storage: localStorage,
@@ -41,5 +44,3 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
     }
   }
 );
-
-// Build trigger: force Vercel to rebuild from latest source.
