@@ -44,3 +44,7 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
     }
   }
 );
+
+// Build trigger: force Vercel to rebuild from latest source.
+// (This comment exists because Vercel's build cache served a stale bundle
+// with swapped createClient arguments. Removing the cache invalidates it.)
