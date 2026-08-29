@@ -1,4 +1,7 @@
-import { useState, useMemo } from "react";
+/**
+ * Day Book View (presentation only).
+ * Refactored to consume useDayBookView.
+ */
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,65 +12,37 @@ import { Separator } from "@/components/ui/separator";
 import { Overlay } from "@/components/ui/overlay";
 import { Filter, Search, X, CalendarDays, FileText, ChevronRight } from "lucide-react";
 import { NepaliDateInput } from "@/components/shared/NepaliDateInput";
-import { useJournalEntries } from "@/hooks/useFinance";
 import { formatISOasBS } from "@/lib/nepaliDate";
 import { TableSkeleton } from "@/components/skeletons";
 import { MetricCard } from "@/components/dashboard/MetricCard";
-
-const FISCAL_YEARS = [
-  { value: "2081", label: "2081/82" },
-  { value: "2080", label: "2080/81" },
-  { value: "2079", label: "2079/80" },
-  { value: "2078", label: "2078/79" },
-];
+import { useDayBookView } from "@/hooks/finance/useDayBookView";
+import { FISCAL_YEARS } from "@/lib/finance/dayBookService";
 
 export function DayBookService() {
-  const today = new Date().toISOString().slice(0, 10);
-  const [showFilter, setShowFilter] = useState(true);
-  const [fiscalYear, setFiscalYear] = useState("2081");
-  const [selectedDate, setSelectedDate] = useState(today);
-  const [voucherType, setVoucherType] = useState("all");
-  const [applied, setApplied] = useState(false);
-
-  const { data: allEntries, isLoading } = useJournalEntries(
-    applied ? { startDate: selectedDate, endDate: selectedDate } : undefined
-  );
-
-  const filteredEntries = useMemo(() => {
-    if (!applied) return [];
-    if (voucherType === "all") return allEntries;
-    return allEntries.filter((e) => {
-      const num = e.entry_number.toLowerCase();
-      if (voucherType === "journal") return num.startsWith("jv") || num.startsWith("je");
-      if (voucherType === "receipt") return num.startsWith("rv") || num.startsWith("rc");
-      if (voucherType === "payment") return num.startsWith("pv") || num.startsWith("py");
-      if (voucherType === "contra") return num.startsWith("cv") || num.startsWith("ct");
-      return true;
-    });
-  }, [allEntries, voucherType, applied]);
-
-  const totals = useMemo(() => {
-    let totalDebit = 0, totalCredit = 0;
-    filteredEntries.forEach((entry) => {
-      (entry.lines || []).forEach((line) => {
-        totalDebit += line.debit || 0;
-        totalCredit += line.credit || 0;
-      });
-    });
-    return { totalDebit, totalCredit, count: filteredEntries.length };
-  }, [filteredEntries]);
-
-  const handleSearch = () => setApplied(true);
-  const handleCancel = () => {
-    setShowFilter(false);
-  };
+  const {
+    showFilter,
+    fiscalYear,
+    selectedDate,
+    voucherType,
+    applied,
+    setFiscalYear,
+    setSelectedDate,
+    setVoucherType,
+    closeFilter,
+    search,
+    filteredEntries,
+    totals,
+    isLoading,
+    getEntryTotals,
+    getVoucherType,
+  } = useDayBookView();
 
   return (
     <div className="flex gap-0 h-full relative">
       {/* Collapsed toggle */}
       {!showFilter && (
         <button
-          onClick={() => setShowFilter(true)}
+          onClick={() => closeFilter()}
           className="absolute left-0 top-1/2 -translate-y-1/2 z-10 flex items-center justify-center w-6 h-16 rounded-r-md border border-l-0 border-border bg-muted/60 hover:bg-muted transition-colors"
           title="Open Filter"
         >
@@ -82,7 +57,7 @@ export function DayBookService() {
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Filter className="h-4 w-4" /> Filter
             </h3>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setShowFilter(false)}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={closeFilter}>
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -107,7 +82,7 @@ export function DayBookService() {
 
             <div>
               <Label className="text-xs">Voucher Type</Label>
-              <Select value={voucherType} onValueChange={setVoucherType}>
+              <Select value={voucherType} onValueChange={(v) => setVoucherType(v as typeof voucherType)}>
                 <SelectTrigger className="h-7 text-xs mt-0.5">
                   <SelectValue />
                 </SelectTrigger>
@@ -124,10 +99,10 @@ export function DayBookService() {
 
           <Separator className="my-2" />
           <div className="flex gap-2">
-            <Button size="sm" className="flex-1 text-xs h-7" onClick={handleSearch}>
+            <Button size="sm" className="flex-1 text-xs h-7" onClick={search}>
               <Search className="h-3.5 w-3.5 mr-1" /> Search
             </Button>
-            <Button size="sm" variant="outline" className="flex-1 text-xs h-7" onClick={handleCancel}>
+            <Button size="sm" variant="outline" className="flex-1 text-xs h-7" onClick={closeFilter}>
               Cancel
             </Button>
           </div>
@@ -188,9 +163,8 @@ export function DayBookService() {
                       </TableRow>
                     ) : (
                       filteredEntries.map((entry) => {
-                        const entryDebit = (entry.lines || []).reduce((s, l) => s + (l.debit || 0), 0);
-                        const entryCredit = (entry.lines || []).reduce((s, l) => s + (l.credit || 0), 0);
-                        const vType = entry.entry_number.split("-")[0] || "JV";
+                        const { debit, credit } = getEntryTotals(entry);
+                        const vType = getVoucherType(entry.entry_number);
                         return (
                           <TableRow key={entry.id}>
                             <TableCell className="text-xs font-mono">{entry.entry_number}</TableCell>
@@ -199,10 +173,10 @@ export function DayBookService() {
                             </TableCell>
                             <TableCell className="text-xs max-w-[250px] truncate">{entry.description}</TableCell>
                             <TableCell className="text-xs text-right font-mono">
-                              {entryDebit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {debit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="text-xs text-right font-mono">
-                              {entryCredit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {credit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell>
                               <Badge variant={entry.is_posted ? "default" : "secondary"} className="text-xs">

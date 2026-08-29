@@ -1,88 +1,26 @@
-import { useMemo } from "react";
+/**
+ * Integration Orchestrator View (presentation only).
+ * Refactored to consume useIntegrationOrchestratorView.
+ */
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Zap,
   Database,
-  ExternalLink,
   Activity,
   CheckCircle2,
   RefreshCw,
   Clock,
-  ArrowRightLeft
+  ArrowRightLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePayments, useInvoices, useExpenses } from "@/hooks/useFinanceExtended";
-import { format } from "date-fns";
+import { useIntegrationOrchestratorView } from "@/hooks/finance/useIntegrationOrchestratorView";
 
-interface FinancialEvent {
-  id: string;
-  source: string;
-  type: string;
-  amount: number;
-  timestamp: string;
-  status: 'synced' | 'pending';
-  details: string;
-}
+const ICONS = [Database, Zap, ArrowRightLeft, Activity];
 
 export function IntegrationOrchestratorService({ isReadOnly }: { isReadOnly?: boolean }) {
-  const { data: payments } = usePayments();
-  const { data: invoices } = useInvoices();
-  const { data: expenses } = useExpenses();
-
-  // Build a real event stream from actual financial data
-  const events: FinancialEvent[] = useMemo(() => {
-    const all: FinancialEvent[] = [];
-
-    (payments || []).slice(0, 5).forEach(p => {
-      all.push({
-        id: p.id,
-        source: 'PMS',
-        type: 'Payment Receipt',
-        amount: p.amount,
-        timestamp: p.payment_date,
-        status: 'synced',
-        details: `${p.payment_method} - ${p.payment_number}`,
-      });
-    });
-
-    (invoices || []).slice(0, 5).forEach(inv => {
-      all.push({
-        id: inv.id,
-        source: 'AR',
-        type: 'Invoice Posted',
-        amount: inv.total,
-        timestamp: inv.invoice_date,
-        status: inv.status === 'draft' ? 'pending' : 'synced',
-        details: `${inv.invoice_number} - Balance: $${inv.balance_due.toFixed(2)}`,
-      });
-    });
-
-    (expenses || []).filter(e => e.status === 'paid').slice(0, 5).forEach(exp => {
-      all.push({
-        id: exp.id,
-        source: 'AP',
-        type: 'Expense Settled',
-        amount: exp.amount,
-        timestamp: exp.expense_date,
-        status: 'synced',
-        details: `${exp.expense_number} - ${exp.vendor || exp.category}`,
-      });
-    });
-
-    return all.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 15);
-  }, [payments, invoices, expenses]);
-
-  const syncedCount = events.filter(e => e.status === 'synced').length;
-  const pendingCount = events.filter(e => e.status === 'pending').length;
-
-  const integrations = [
-    { name: 'Accounts Receivable', status: (invoices?.length || 0) > 0 ? 'Active' : 'Idle', count: invoices?.length || 0, icon: Database },
-    { name: 'Accounts Payable', status: (expenses?.length || 0) > 0 ? 'Active' : 'Idle', count: expenses?.length || 0, icon: Zap },
-    { name: 'Payment Processing', status: (payments?.length || 0) > 0 ? 'Active' : 'Idle', count: payments?.length || 0, icon: ArrowRightLeft },
-    { name: 'General Ledger', status: 'Active', count: syncedCount, icon: Activity },
-  ];
+  const { events, integrations, syncedCount, pendingCount } = useIntegrationOrchestratorView();
 
   return (
     <div className="space-y-6">
@@ -93,24 +31,27 @@ export function IntegrationOrchestratorService({ isReadOnly }: { isReadOnly?: bo
             <CardDescription>Data flow between accounting sub-modules</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {integrations.map((int, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-background rounded-md">
-                    <int.icon className="h-4 w-4 text-primary" />
+            {integrations.map((int, idx) => {
+              const Icon = ICONS[idx] || Database;
+              return (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-background rounded-md">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{int.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{int.count} records</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{int.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{int.count} records</p>
-                  </div>
+                  <Badge variant="outline" className={cn(
+                    int.status === 'Active' ? "bg-success/10 text-success border-success/20" : "bg-muted"
+                  )}>
+                    {int.status}
+                  </Badge>
                 </div>
-                <Badge variant="outline" className={cn(
-                  int.status === 'Active' ? "bg-success/10 text-success border-success/20" : "bg-muted"
-                )}>
-                  {int.status}
-                </Badge>
-              </div>
-            ))}
+              );
+            })}
             {!isReadOnly && (
               <Button className="w-full mt-2" variant="outline">
                 <RefreshCw className="h-4 w-4 mr-2" /> Refresh All

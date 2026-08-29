@@ -1,74 +1,28 @@
-import { useState, useMemo } from "react";
+/**
+ * Bank & Cash Transaction View (presentation only).
+ * Refactored to consume useBankCashTransactionView.
+ */
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  CheckCircle2,
-  AlertCircle,
-  RefreshCw,
-  Search,
-  Filter
+  Wallet, ArrowUpRight, ArrowDownRight, CheckCircle2, AlertCircle, RefreshCw, Search, Filter,
 } from "lucide-react";
-import { usePayments, useExpenses } from "@/hooks/useFinanceExtended";
 import { cn } from "@/lib/utils";
+import { useBankCashTransactionView } from "@/hooks/finance/useBankCashTransactionView";
+import { formatSignedAmount } from "@/lib/finance/bankCashTransactionService";
 
 interface BankCashTransactionServiceProps {
   isReadOnly?: boolean;
 }
 
 export function BankCashTransactionService({ isReadOnly }: BankCashTransactionServiceProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const { data: payments, isLoading: payLoading } = usePayments();
-  const { data: expenses, isLoading: expLoading } = useExpenses();
-
-  const transactions = useMemo(() => {
-    const combined = [
-      ...(payments || []).map(p => ({
-        id: p.id,
-        date: p.payment_date,
-        description: `Receipt: ${p.payment_number}`,
-        amount: p.amount,
-        type: 'credit' as const,
-        method: p.payment_method,
-        status: 'cleared'
-      })),
-      ...(expenses || []).filter(e => e.status === 'paid').map(e => ({
-        id: e.id,
-        date: e.expense_date,
-        description: `Payment: ${e.expense_number} - ${e.vendor || e.category}`,
-        amount: e.amount,
-        type: 'debit' as const,
-        method: 'Bank Transfer',
-        status: 'cleared'
-      }))
-    ];
-
-    return combined.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [payments, expenses]);
-
-  const filteredTransactions = transactions.filter(t =>
-    t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.method.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const stats = useMemo(() => {
-    const balance = transactions.reduce((acc, t) => acc + (t.type === 'credit' ? t.amount : -t.amount), 0);
-    const totalIn = transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0);
-    const totalOut = transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0);
-    return { balance, totalIn, totalOut };
-  }, [transactions]);
+  const { searchTerm, setSearchTerm, filteredTransactions, stats, isLoading } =
+    useBankCashTransactionView();
 
   return (
     <div className="space-y-6">
@@ -151,7 +105,7 @@ export function BankCashTransactionService({ isReadOnly }: BankCashTransactionSe
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {payLoading || expLoading ? (
+          {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Loading transactions...</div>
           ) : (
             <Table>
@@ -181,7 +135,7 @@ export function BankCashTransactionService({ isReadOnly }: BankCashTransactionSe
                         "text-right font-mono font-semibold",
                         t.type === 'credit' ? "text-success" : "text-destructive"
                       )}>
-                        {t.type === 'credit' ? '+' : '-'}${t.amount.toFixed(2)}
+                        {formatSignedAmount(t.amount, t.type)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5 text-xs text-success">
