@@ -283,11 +283,22 @@ export function useSettings<T>(key: string, defaultValue: T) {
         .eq("key", key)
         .maybeSingle();
 
-      if (error) throw error;
+      // Tolerate missing table gracefully (e.g. before migrations are applied).
+      // The settings table is created by the initial migration.
+      // If it doesn't exist yet, return the default value instead of throwing,
+      // which would leave ProtectedRoute stuck in loading forever.
+      if (error) {
+        if (error.code === "PGRST205" || (error as any).code === "42P01") {
+          console.warn(`settings table not found — returning default for "${key}". Apply the database migrations.`);
+          return defaultValue;
+        }
+        throw error;
+      }
       if (!data) return defaultValue;
       return data.value as unknown as T;
     },
     staleTime: 1000 * 60 * 10,
+    retry: false, // Don't retry on missing-table errors
   });
 }
 

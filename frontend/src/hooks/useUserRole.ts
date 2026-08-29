@@ -19,7 +19,19 @@ export function useUserRole() {
         .select("role")
         .eq("user_id", user.id);
 
-      if (error) throw error;
+      // Tolerate missing table gracefully (e.g. before migrations are applied).
+      // The user_roles table is created by the 20260208200000_rbac_sync migration.
+      // If it doesn't exist yet, return null (no role) instead of throwing,
+      // which would leave ProtectedRoute stuck in loading forever.
+      if (error) {
+        // PGRST205 = "Could not find the table in the schema cache"
+        // 42P01 = "relation does not exist" (Postgres native)
+        if (error.code === "PGRST205" || (error as any).code === "42P01") {
+          console.warn("user_roles table not found — returning null role. Apply the database migrations.");
+          return null;
+        }
+        throw error;
+      }
 
       const roles = (data ?? []).map((r) => r.role as AppRole);
       if (roles.length === 0) return null;
@@ -35,6 +47,7 @@ export function useUserRole() {
       return roles.reduce((best, current) => (priority[current] > priority[best] ? current : best));
     },
     enabled: !!user,
+    retry: false, // Don't retry on missing-table errors
   });
 }
 

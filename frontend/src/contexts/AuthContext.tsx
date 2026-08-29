@@ -43,7 +43,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (!error && data) {
+    if (error) {
+      // Tolerate missing profiles table (before migrations are applied).
+      // The user can still log in; they just won't have a profile until
+      // the migrations are applied.
+      if (error.code === "PGRST205" || (error as any).code === "42P01") {
+        console.warn("profiles table not found — user has no profile. Apply the database migrations.");
+        setProfile(null);
+        return;
+      }
+      console.error("Error fetching profile:", error);
+      setProfile(null);
+      return;
+    }
+
+    if (data) {
       setProfile(data);
     }
   };
