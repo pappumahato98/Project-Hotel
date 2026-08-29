@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays } from "date-fns";
 import { cn, formatAD } from "@/lib/utils";
@@ -62,7 +62,6 @@ export function ReservationMoveDialog({
   rooms,
   onConfirm,
 }: ReservationMoveDialogProps) {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [reasons, setReasons] = useState<Reason[]>([]);
 
@@ -127,13 +126,13 @@ export function ReservationMoveDialog({
   const handleConfirm = async () => {
     if (!reservation) return;
     if (!formData.roomId) {
-      toast({ title: "Please select a room", variant: "destructive" });
+      toast.error("Please select a room");
       return;
     }
 
     const finalReason = formData.reason === "Other" ? formData.reasonText.trim() : formData.reason;
     if (!finalReason) {
-      toast({ title: "Please enter a reason", description: "Specify a reason when selecting 'Other'", variant: "destructive" });
+      toast.error("Please enter a reason", { description: "Specify a reason when selecting 'Other'" });
       return;
     }
 
@@ -147,7 +146,7 @@ export function ReservationMoveDialog({
       });
       onOpenChange(false);
     } catch {
-      toast({ title: "Failed to move reservation", variant: "destructive" });
+      toast.error("Failed to move reservation");
     } finally {
       setIsLoading(false);
     }

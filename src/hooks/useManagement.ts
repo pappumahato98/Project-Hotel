@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface ManagementKPIs {
   occupancy: number;
@@ -22,7 +23,7 @@ export const useManagement = (date: Date = new Date()) => {
   const dateStr = date.toISOString().split("T")[0];
 
   return useQuery({
-    queryKey: ["management_kpis", dateStr],
+    queryKey: queryKeys.reports.managementKpis(dateStr),
     queryFn: async () => {
       // 1. Fetch Reservations for segmentation and revenue
       const { data: reservations, error: resError } = await (supabase as any)

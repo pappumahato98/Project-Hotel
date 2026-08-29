@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { useEffect } from "react";
 
 // ============= Types =============
@@ -38,7 +39,7 @@ export function useOTAChannels() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["ota-channels"],
+    queryKey: queryKeys.channelManager.channels,
     queryFn: async () => {
       const { data, error } = await db
         .from("ota_channels")
@@ -53,7 +54,7 @@ export function useOTAChannels() {
     const channel = supabase
       .channel("ota-channels-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "ota_channels" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["ota-channels"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.channels });
       })
       .subscribe();
 
@@ -68,7 +69,7 @@ export function useOTAChannels() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ota-channels"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.channels }),
   });
 
   const toggleChannel = useMutation({
@@ -77,7 +78,7 @@ export function useOTAChannels() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ota-channels"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.channels }),
   });
 
   const syncChannel = useMutation({
@@ -92,7 +93,7 @@ export function useOTAChannels() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["ota-channels"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.channels }),
   });
 
   return { ...query, updateChannel, toggleChannel, syncChannel };
@@ -103,7 +104,7 @@ export function useRateAvailability(filters?: { roomId?: string; startDate?: str
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["rate-availability", filters],
+    queryKey: queryKeys.channelManager.rateAvailability.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("rate_availability")
@@ -130,7 +131,7 @@ export function useRateAvailability(filters?: { roomId?: string; startDate?: str
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rate-availability"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.rateAvailability.all }),
   });
 
   const bulkUpdateRates = useMutation({
@@ -156,7 +157,7 @@ export function useRateAvailability(filters?: { roomId?: string; startDate?: str
       const { error } = await db.from("rate_availability").upsert(records, { onConflict: "room_id,date" });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rate-availability"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.rateAvailability.all }),
   });
 
   return { ...query, updateRate, bulkUpdateRates };

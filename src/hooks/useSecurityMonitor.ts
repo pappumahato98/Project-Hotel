@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { queryKeys } from "@/lib/queryKeys";
 import {
   getTLSStatus,
   auditSecurityHeaders,
@@ -112,7 +113,7 @@ export function useSecurityMonitor(): SecurityMonitorState {
 
   // ── Security Events (from audit_log) ──
   const { data: rawEvents = [], isLoading: eventsLoading } = useQuery({
-    queryKey: ['security-monitor-events'],
+    queryKey: queryKeys.security.monitorEvents,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('audit_log')
@@ -141,7 +142,7 @@ export function useSecurityMonitor(): SecurityMonitorState {
 
   // ── Auth Security Metrics ──
   const { data: authMetrics, isLoading: authMetricsLoading } = useQuery({
-    queryKey: ['security-auth-metrics'],
+    queryKey: queryKeys.security.authMetrics,
     queryFn: async () => {
       // Count failed login attempts in last 24h
       const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 export function useRealtimeNotifications() {
@@ -31,7 +32,7 @@ export function useRealtimeNotifications() {
           // Only show if it's for this user or global
           if (notification.user_id === null || notification.user_id === user.id) {
             // Invalidate the notifications query to refresh list
-            queryClient.invalidateQueries({ queryKey: ["notifications"] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
 
             // Show toast for new notification
             toast.info(notification.title, {

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface FixedAsset {
   id: string;
@@ -29,7 +30,7 @@ export function useFixedAssets() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["fixed-assets"],
+    queryKey: queryKeys.finance.fixedAssets,
     queryFn: async () => {
       const { data, error } = await db
         .from("fixed_assets")
@@ -46,7 +47,7 @@ export function useFixedAssets() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fixed-assets"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.fixedAssets }),
   });
 
   const updateAsset = useMutation({
@@ -55,7 +56,7 @@ export function useFixedAssets() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fixed-assets"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.fixedAssets }),
   });
 
   // Calculate monthly depreciation for an asset
@@ -91,7 +92,7 @@ export function useFixedAssets() {
       }
       return assets?.length || 0;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["fixed-assets"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.fixedAssets }),
   });
 
   return { ...query, createAsset, updateAsset, runDepreciation, calculateDepreciation };

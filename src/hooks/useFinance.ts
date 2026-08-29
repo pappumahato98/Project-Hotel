@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 // ============= Types =============
 export interface Account {
@@ -64,7 +65,7 @@ export function useAccounts() {
   >("connecting");
 
   const query = useQuery({
-    queryKey: ["accounts"],
+    queryKey: queryKeys.finance.accounts,
     queryFn: async () => {
       const { data, error } = await db
         .from("accounts")
@@ -87,7 +88,7 @@ export function useAccounts() {
         "postgres_changes",
         { event: "*", schema: "public", table: "accounts" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["accounts"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.finance.accounts });
         }
       )
       .subscribe((status) => {
@@ -128,7 +129,7 @@ export function useCreateAccount() {
       return data as Account;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.accounts });
     },
   });
 }
@@ -159,7 +160,7 @@ export function useUpdateAccount() {
       return data as Account;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.accounts });
     },
   });
 }
@@ -173,7 +174,7 @@ export function useJournalEntries(filters?: {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["journal-entries", filters],
+    queryKey: queryKeys.finance.journalEntries.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("journal_entries")
@@ -217,14 +218,14 @@ export function useJournalEntries(filters?: {
         "postgres_changes",
         { event: "*", schema: "public", table: "journal_entries" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.finance.journalEntries.all });
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "journal_lines" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.finance.journalEntries.all });
         }
       )
       .subscribe();
@@ -292,8 +293,8 @@ export function useCreateJournalEntry() {
       return journalEntry as JournalEntry;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.journalEntries.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.ledger.all });
     },
   });
 }
@@ -318,8 +319,8 @@ export function usePostJournalEntry() {
       return data as JournalEntry;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.journalEntries.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.ledger.all });
     },
   });
 }
@@ -343,8 +344,8 @@ export function useBatchPostJournalEntries() {
       return data as JournalEntry[];
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["journal-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["ledger"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.journalEntries.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.ledger.all });
       toast.success("Entries posted successfully");
     },
   });
@@ -356,7 +357,7 @@ export function useLedger(
   filters?: { startDate?: string; endDate?: string }
 ) {
   const query = useQuery({
-    queryKey: ["ledger", accountId, filters],
+    queryKey: queryKeys.finance.ledger.byAccount(accountId, filters),
     queryFn: async () => {
       let q = db
         .from("journal_lines")
@@ -461,7 +462,7 @@ export function useLedger(
 // ============= Trial Balance =============
 export function useTrialBalance(asOfDate?: string) {
   const query = useQuery({
-    queryKey: ["trial-balance", asOfDate],
+    queryKey: queryKeys.finance.trialBalance(asOfDate),
     queryFn: async () => {
       let q = db
         .from("journal_lines")

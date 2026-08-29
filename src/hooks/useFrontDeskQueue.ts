@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 interface QueueEntry {
   id: string;
@@ -18,11 +19,10 @@ interface QueueEntry {
 }
 
 export const useFrontDeskQueue = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: queue = [], isLoading } = useQuery({
-    queryKey: ["front_desk_queue"],
+    queryKey: queryKeys.frontDesk.queue,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("front_desk_queue")
@@ -52,8 +52,8 @@ export const useFrontDeskQueue = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["front_desk_queue"] });
-      toast({ title: "Guest added to queue" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.queue });
+      toast.success("Guest added to queue");
     },
   });
 
@@ -69,7 +69,7 @@ export const useFrontDeskQueue = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["front_desk_queue"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.queue });
     },
   });
 
@@ -82,7 +82,7 @@ export const useFrontDeskQueue = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["front_desk_queue"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.queue });
     },
   });
 

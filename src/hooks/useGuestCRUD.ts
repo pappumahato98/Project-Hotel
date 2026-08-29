@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 const db = supabase as any;
@@ -33,7 +34,7 @@ export function useGuestCRUD() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.all });
       toast.success("Guest created successfully");
     },
     onError: (e: Error) => toast.error("Failed to create guest: " + e.message),
@@ -51,9 +52,9 @@ export function useGuestCRUD() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guests"] });
-      queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
       toast.success("Guest updated successfully and synced across modules");
     },
     onError: (e: Error) => toast.error("Failed to update guest: " + e.message),
@@ -65,7 +66,7 @@ export function useGuestCRUD() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.all });
       toast.success("Guest deleted");
     },
     onError: (e: Error) => toast.error("Failed to delete guest: " + e.message),
@@ -83,7 +84,7 @@ export function useGuestCRUD() {
       return data;
     },
     onSuccess: (_: any, vars: { id: string; is_vip: boolean }) => {
-      queryClient.invalidateQueries({ queryKey: ["guests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.all });
       toast.success(vars.is_vip ? "Guest marked as VIP" : "VIP status removed");
     },
   });

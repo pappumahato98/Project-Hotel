@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface GuestMessage {
   id: string;
@@ -17,11 +18,10 @@ export interface GuestMessage {
 }
 
 export const useGuestMessages = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: messages = [], isLoading } = useQuery({
-    queryKey: ["guest_messages"],
+    queryKey: queryKeys.guests.messages,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("guest_messages")
@@ -50,8 +50,8 @@ export const useGuestMessages = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest_messages"] });
-      toast({ title: "Message recorded for guest" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.messages });
+      toast.success("Message recorded for guest");
     },
   });
 
@@ -67,7 +67,7 @@ export const useGuestMessages = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest_messages"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.messages });
     },
   });
 

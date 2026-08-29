@@ -1,34 +1,23 @@
+/**
+ * Budget Execution View (presentation only).
+ *
+ * Refactored from a 115-line monolith into a thin component that consumes
+ * `useBudgetExecutionView` for data and `budgetExecutionService` for pure
+ * computations. See docs/FINANCE_SERVICE_SPLIT.md.
+ *
+ * This file should contain NO business logic.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TrendingUp, BarChart3, AlertCircle, ArrowDownRight } from "lucide-react";
-import { useBudgets } from "@/hooks/useBudgets";
-import { useExpenses } from "@/hooks/useFinanceExtended";
+import { useBudgetExecutionView } from "@/hooks/finance/useBudgetExecutionView";
 import { cn } from "@/lib/utils";
 
 export function BudgetExecutionService({ isReadOnly }: { isReadOnly?: boolean }) {
-  const { data: budgets } = useBudgets();
-  const { data: expenses } = useExpenses();
-
-  // Aggregate expenses by category as a proxy for department budgets
-  const expenseByCategory = (expenses || [])
-    .filter(e => e.status === "paid" || e.status === "approved")
-    .reduce<Record<string, number>>((acc, e) => {
-      acc[e.category] = (acc[e.category] || 0) + e.amount;
-      return acc;
-    }, {});
-
-  const activeBudget = (budgets || []).find(b => b.status === "active") || (budgets || [])[0];
-  const totalBudgeted = activeBudget?.total_amount || 0;
-  const totalActual = Object.values(expenseByCategory).reduce((s, v) => s + v, 0);
-  const variance = totalBudgeted - totalActual;
-  const utilization = totalBudgeted > 0 ? (totalActual / totalBudgeted) * 100 : 0;
-
-  const departments = Object.entries(expenseByCategory).map(([dept, actual]) => {
-    const budgeted = totalBudgeted > 0 ? totalBudgeted / Object.keys(expenseByCategory).length : 0;
-    return { dept, budgeted, actual, variance: budgeted - actual, status: budgeted >= actual ? "Under" : "Over" };
-  });
+  const { summary, departments } = useBudgetExecutionView();
+  const { utilization, variance, totalBudgeted, totalActual } = summary;
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 const db = supabase as any;
 
@@ -44,11 +45,10 @@ export interface RoutingRule {
 }
 
 export const useGuestFolios = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data: folios, isLoading, error } = useQuery({
-    queryKey: ["guest_folios"],
+    queryKey: queryKeys.guests.folios,
     queryFn: async () => {
       const { data, error } = await db
         .from("guest_folios")
@@ -67,15 +67,15 @@ export const useGuestFolios = () => {
 
   // Helper function to invalidate ALL folio-related queries
   const invalidateAllFolioQueries = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-    queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    queryClient.invalidateQueries({ queryKey: ["reservations"] });
-    queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+    queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
     // Invalidate Night Audit query keys
-    queryClient.invalidateQueries({ queryKey: ["reservations", "pending"] });
-    queryClient.invalidateQueries({ queryKey: ["reservations", "stayovers"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.pending() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.stayovers() });
     // Invalidate report stats
-    queryClient.invalidateQueries({ queryKey: ["report-stats"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reports.stats });
   }, [queryClient]);
 
   // Realtime subscription for guest folios
@@ -93,7 +93,7 @@ export const useGuestFolios = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "folio_items" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["folio_items"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.all });
           invalidateAllFolioQueries();
         }
       )
@@ -106,7 +106,7 @@ export const useGuestFolios = () => {
 
   const useFolioItems = (folioId: string) => {
     return useQuery({
-      queryKey: ["folio_items", folioId],
+      queryKey: queryKeys.guests.folioItems.byFolio(folioId),
       queryFn: async () => {
         if (!folioId) return [];
         const { data, error } = await db
@@ -153,15 +153,15 @@ export const useGuestFolios = () => {
       return data;
     },
     onSuccess: (data: any, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.folio_id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.folio_id) });
       if (data && data.folio_id !== variables.folio_id) {
-        queryClient.invalidateQueries({ queryKey: ["folio_items", data.folio_id] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(data.folio_id) });
       }
       invalidateAllFolioQueries();
-      toast({ title: "Success", description: "Folio item added successfully." });
+      toast.success("Folio item added successfully.");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -178,10 +178,10 @@ export const useGuestFolios = () => {
     },
     onSuccess: () => {
       invalidateAllFolioQueries();
-      toast({ title: "Folio Closed", description: "The folio has been finalized and closed." });
+      toast.success("Folio Closed", { description: "The folio has been finalized and closed." });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -198,10 +198,10 @@ export const useGuestFolios = () => {
     },
     onSuccess: () => {
       invalidateAllFolioQueries();
-      toast({ title: "Folio Voided", description: "The folio has been voided." });
+      toast.success("Folio Voided", { description: "The folio has been voided." });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -217,12 +217,12 @@ export const useGuestFolios = () => {
       return data;
     },
     onSuccess: (_: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.folio_id] });
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      toast({ title: "Success", description: "Folio item updated successfully." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.folio_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      toast.success("Folio item updated successfully.");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -232,12 +232,12 @@ export const useGuestFolios = () => {
       if (error) throw error;
     },
     onSuccess: (_: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.folio_id] });
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      toast({ title: "Success", description: "Folio item deleted successfully." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.folio_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      toast.success("Folio item deleted successfully.");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -253,13 +253,13 @@ export const useGuestFolios = () => {
       return data;
     },
     onSuccess: (_: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.sourceFolioId] });
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.targetFolioId] });
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      toast({ title: "Success", description: "Folio item transferred successfully." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.sourceFolioId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.targetFolioId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      toast.success("Folio item transferred successfully.");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -281,18 +281,18 @@ export const useGuestFolios = () => {
       return data;
     },
     onSuccess: (_: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.folio_id] });
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      toast({ title: "Refund Processed", description: "The refund has been recorded successfully." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.folio_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      toast.success("Refund Processed", { description: "The refund has been recorded successfully." });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
   const useRoutingRules = (folioId: string) => {
     return useQuery({
-      queryKey: ["routing_rules", folioId],
+      queryKey: queryKeys.guests.routingRules.byFolio(folioId),
       queryFn: async () => {
         if (!folioId) return [];
         const { data, error } = await db
@@ -320,8 +320,8 @@ export const useGuestFolios = () => {
       return data;
     },
     onSuccess: (_: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ["routing_rules", variables.folio_id] });
-      toast({ title: "Success", description: "Routing rule added." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.routingRules.byFolio(variables.folio_id) });
+      toast.success("Routing rule added.");
     },
   });
 
@@ -331,8 +331,8 @@ export const useGuestFolios = () => {
       if (error) throw error;
     },
     onSuccess: (_: any, variables: any) => {
-      queryClient.invalidateQueries({ queryKey: ["routing_rules", variables.folioId] });
-      toast({ title: "Success", description: "Routing rule removed." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.routingRules.byFolio(variables.folioId) });
+      toast.success("Routing rule removed.");
     },
   });
 
@@ -351,12 +351,12 @@ export const useGuestFolios = () => {
       return { count: folioIds.length };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      queryClient.invalidateQueries({ queryKey: ["folio_items"] });
-      toast({ title: "Bulk Post Success", description: "Charges posted to all selected folios." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.all });
+      toast.success("Bulk Post Success", { description: "Charges posted to all selected folios." });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -372,10 +372,10 @@ export const useGuestFolios = () => {
     },
     onSuccess: () => {
       invalidateAllFolioQueries();
-      toast({ title: "Success", description: "New folio created successfully." });
+      toast.success("New folio created successfully.");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -400,12 +400,12 @@ export const useGuestFolios = () => {
       // For now we just record the settlement.
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["folio_items", variables.folio_id] });
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      toast({ title: "Success", description: "Folio settled to City Ledger." });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.byFolio(variables.folio_id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      toast.success("Folio settled to City Ledger.");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -465,12 +465,12 @@ export const useGuestFolios = () => {
       return { count: chargeItems.length, totalRevenue };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-      queryClient.invalidateQueries({ queryKey: ["folio_items"] });
-      toast({ title: "Night Audit Posting", description: `Successfully posted room charges for ${data.count} rooms.` });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.all });
+      toast.success("Night Audit Posting", { description: `Successfully posted room charges for ${data.count} rooms.` });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 

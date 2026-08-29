@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 export interface MarketingInquiry {
@@ -36,7 +37,7 @@ export const useMarketing = () => {
   const queryClient = useQueryClient();
 
   const inquiries = useQuery({
-    queryKey: ["marketing_inquiries"],
+    queryKey: queryKeys.marketing.inquiries,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("marketing_inquiries")
@@ -48,7 +49,7 @@ export const useMarketing = () => {
   });
 
   const salesActivities = useQuery({
-    queryKey: ["sales_activities"],
+    queryKey: queryKeys.marketing.activities,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("sales_activities")
@@ -70,7 +71,7 @@ export const useMarketing = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marketing_inquiries"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.marketing.inquiries });
       toast.success("Inquiry created successfully");
     },
   });
@@ -86,7 +87,7 @@ export const useMarketing = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sales_activities"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.marketing.activities });
       toast.success("Sales activity logged");
     },
   });

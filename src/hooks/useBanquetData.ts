@@ -1,3 +1,4 @@
+import { queryKeys } from "@/lib/queryKeys";
  // Hooks for banquet catering and venue setup data
  import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
  import { supabase } from "@/integrations/supabase/client";
@@ -48,7 +49,7 @@
  // ============= Catering Orders =============
  export function useCateringOrders(eventId?: string) {
    return useQuery({
-     queryKey: ["event-catering", eventId],
+     queryKey: queryKeys.banquet.catering.byEvent(eventId),
      queryFn: async () => {
        let query = db
          .from("event_catering")
@@ -82,7 +83,7 @@
        return data as CateringOrder;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["event-catering"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.catering.all });
        toast.success("Catering order created");
      },
      onError: (error) => {
@@ -118,9 +119,9 @@
        return data;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-       queryClient.invalidateQueries({ queryKey: ["folio_items"] });
-       queryClient.invalidateQueries({ queryKey: ["banquet-events"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+       queryClient.invalidateQueries({ queryKey: queryKeys.guests.folioItems.all });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.events });
        toast.success("Banquet charges posted to guest folio");
      },
      onError: (error: any) => {
@@ -145,7 +146,7 @@
        return data as CateringOrder;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["event-catering"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.catering.all });
        toast.success("Catering order updated");
      },
      onError: (error) => {
@@ -157,7 +158,7 @@
  // ============= Venue Setups =============
  export function useVenueSetups(eventId?: string) {
    return useQuery({
-     queryKey: ["event-venue-setups", eventId],
+     queryKey: queryKeys.banquet.venueSetups.byEvent(eventId),
      queryFn: async () => {
        let query = db
          .from("event_venue_setups")
@@ -191,7 +192,7 @@
        return data as VenueSetup;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["event-venue-setups"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.venueSetups.all });
        toast.success("Venue setup created");
      },
      onError: (error) => {
@@ -216,7 +217,7 @@
        return data as VenueSetup;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["event-venue-setups"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.venueSetups.all });
        toast.success("Venue setup updated");
      },
      onError: (error) => {
@@ -228,7 +229,7 @@
  // ============= Staff Assignments =============
  export function useEventStaffAssignments(eventId?: string) {
    return useQuery({
-     queryKey: ["event-staff-assignments", eventId],
+     queryKey: queryKeys.banquet.staffAssignments.byEvent(eventId),
      queryFn: async () => {
        let query = db
          .from("event_staff_assignments")
@@ -265,7 +266,7 @@
        return data;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["event-staff-assignments"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.staffAssignments.all });
        toast.success("Staff assigned to event");
      },
      onError: (error) => {
@@ -287,7 +288,7 @@
        if (error) throw error;
      },
      onSuccess: () => {
-       queryClient.invalidateQueries({ queryKey: ["event-staff-assignments"] });
+       queryClient.invalidateQueries({ queryKey: queryKeys.banquet.staffAssignments.all });
        toast.success("Staff unassigned from event");
      },
      onError: (error) => {

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface FinancialPeriod {
   id: string;
@@ -22,7 +23,7 @@ export function useFinancialPeriods() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["financial-periods"],
+    queryKey: queryKeys.finance.financialPeriods,
     queryFn: async () => {
       const { data, error } = await db
         .from("financial_periods")
@@ -39,7 +40,7 @@ export function useFinancialPeriods() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["financial-periods"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.financialPeriods }),
   });
 
   const closePeriod = useMutation({
@@ -53,7 +54,7 @@ export function useFinancialPeriods() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["financial-periods"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.financialPeriods }),
   });
 
   return { ...query, createPeriod, closePeriod };

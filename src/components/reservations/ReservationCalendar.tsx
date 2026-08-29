@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, startOfWeek, eachDayOfInterval, isSameDay, parseISO, startOfDay, differenceInDays } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2, Plus } from "lucide-react";
@@ -76,8 +76,6 @@ export function ReservationCalendar() {
   } | null>(null);
   const [newResDialogOpen, setNewResDialogOpen] = useState(false);
   const [newResPrefill, setNewResPrefill] = useState<{ roomId: string; checkInDate: Date } | null>(null);
-  const { toast } = useToast();
-
   // Performance optimization: Pre-group and pre-parse reservations to avoid O(N) lookups in every cell
   const processedReservations = useMemo(() => {
     const map: Record<string, Record<string, (Reservation & { _checkIn: Date; _checkOutEnd: Date; _checkOut: Date })[]>> = {};
@@ -233,7 +231,7 @@ export function ReservationCalendar() {
       pendingMove.reservationId
     );
     if (hasConflict) {
-      toast({ title: "Room conflict detected", description: "The selected room is already booked for the chosen dates.", variant: "destructive" });
+      toast.error("Room conflict detected", { description: "The selected room is already booked for the chosen dates." });
       return;
     }
 
@@ -276,10 +274,10 @@ export function ReservationCalendar() {
         },
       });
 
-      toast({ title: "Reservation moved", description: "The reservation has been successfully updated." });
+      toast.success("Reservation moved", { description: "The reservation has been successfully updated." });
       fetchData();
     } else {
-      toast({ title: "Failed to move reservation", variant: "destructive" });
+      toast.error("Failed to move reservation");
     }
 
     setPendingMove(null);

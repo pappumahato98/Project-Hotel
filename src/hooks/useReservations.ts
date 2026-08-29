@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCallback, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface Reservation {
   id: string;
@@ -77,26 +78,25 @@ async function fetchReservations(): Promise<Reservation[]> {
 }
 
 export const useReservations = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: reservations = [], isLoading, error, refetch } = useQuery({
-    queryKey: ["reservations"],
+    queryKey: queryKeys.reservations.all,
     queryFn: fetchReservations,
     staleTime: 1000 * 60 * 3,
   });
 
   // Helper function to invalidate ALL reservation-related queries (must be before useEffect)
   const invalidateAllReservationQueries = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["reservations"] });
-    queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-    queryClient.invalidateQueries({ queryKey: ["invoices-list"] });
-    queryClient.invalidateQueries({ queryKey: ["rooms"] });
-    queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+    queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.list });
+    queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
+    queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.tasks.all });
     // Invalidate Night Audit query keys
-    queryClient.invalidateQueries({ queryKey: ["reservations", "pending"] });
-    queryClient.invalidateQueries({ queryKey: ["reservations", "stayovers"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.pending() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reservations.stayovers() });
     // Invalidate report stats
-    queryClient.invalidateQueries({ queryKey: ["report-stats"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.reports.stats });
   }, [queryClient]);
 
   // Realtime subscription for reservations
@@ -146,10 +146,10 @@ export const useReservations = () => {
     },
     onSuccess: () => {
       invalidateAllReservationQueries();
-      toast({ title: "Reservation updated successfully" });
+      toast.success("Reservation updated successfully");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -174,10 +174,10 @@ export const useReservations = () => {
     },
     onSuccess: () => {
       invalidateAllReservationQueries();
-      toast({ title: "Reservation cancelled" });
+      toast.success("Reservation cancelled");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 
@@ -191,10 +191,10 @@ export const useReservations = () => {
     },
     onSuccess: () => {
       invalidateAllReservationQueries();
-      toast({ title: "Reservation marked as no-show" });
+      toast.success("Reservation marked as no-show");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     },
   });
 

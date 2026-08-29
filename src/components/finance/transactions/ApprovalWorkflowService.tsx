@@ -1,33 +1,30 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+/**
+ * Approval Workflow View (presentation only).
+ *
+ * Refactored from a 126-line monolith into a thin component that consumes
+ * `useApprovalWorkflowView` for data + actions and `approvalWorkflowService`
+ * for pure computations. See docs/FINANCE_SERVICE_SPLIT.md.
+ *
+ * This file should contain NO business logic.
+ */
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GitPullRequest, CheckCircle2, XCircle, Clock, UserCheck, ShieldAlert } from "lucide-react";
-import { useApprovalQueue } from "@/hooks/useApprovalQueue";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { useApprovalWorkflowView } from "@/hooks/finance/useApprovalWorkflowView";
 import { cn } from "@/lib/utils";
 
 export function ApprovalWorkflowService({ isReadOnly }: { isReadOnly?: boolean }) {
-  const { data: items, isLoading, approveItem, rejectItem } = useApprovalQueue();
-  const { user } = useAuth();
-
-  const pending = (items || []).filter(i => i.status === "pending");
-  const approved = (items || []).filter(i => i.status === "approved");
-  const rejected = (items || []).filter(i => i.status === "rejected");
-
-  const handleApprove = async (id: string) => {
-    try {
-      await approveItem.mutateAsync({ id, approvedBy: user?.id || "" });
-      toast.success("Approved");
-    } catch (e: any) { toast.error(e.message); }
-  };
-
-  const handleReject = async (id: string) => {
-    try {
-      await rejectItem.mutateAsync({ id, approvedBy: user?.id || "", reason: "Rejected by reviewer" });
-      toast.success("Rejected");
-    } catch (e: any) { toast.error(e.message); }
-  };
+  const {
+    partition,
+    counts,
+    recentDecisionsList,
+    isLoading,
+    approve,
+    reject,
+  } = useApprovalWorkflowView();
+  const { pending, approved, rejected } = partition;
 
   return (
     <div className="space-y-6">
@@ -47,19 +44,19 @@ export function ApprovalWorkflowService({ isReadOnly }: { isReadOnly?: boolean }
         <Card className="bg-amber-500/5 border-amber-500/10">
           <CardContent className="pt-4 text-center">
             <p className="text-[10px] uppercase font-bold text-muted-foreground">Pending</p>
-            <h3 className="text-2xl font-bold text-amber-500">{pending.length}</h3>
+            <h3 className="text-2xl font-bold text-amber-500">{counts.pending}</h3>
           </CardContent>
         </Card>
         <Card className="bg-success/5 border-success/10">
           <CardContent className="pt-4 text-center">
             <p className="text-[10px] uppercase font-bold text-muted-foreground">Approved Today</p>
-            <h3 className="text-2xl font-bold text-success">{approved.length}</h3>
+            <h3 className="text-2xl font-bold text-success">{counts.approved}</h3>
           </CardContent>
         </Card>
         <Card className="bg-destructive/5 border-destructive/10">
           <CardContent className="pt-4 text-center">
             <p className="text-[10px] uppercase font-bold text-muted-foreground">Rejected</p>
-            <h3 className="text-2xl font-bold text-destructive">{rejected.length}</h3>
+            <h3 className="text-2xl font-bold text-destructive">{counts.rejected}</h3>
           </CardContent>
         </Card>
       </div>
@@ -87,11 +84,11 @@ export function ApprovalWorkflowService({ isReadOnly }: { isReadOnly?: boolean }
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" className="h-7 text-[10px] flex-1 border-success text-success hover:bg-success/10"
-                    disabled={isReadOnly} onClick={() => handleApprove(req.id)}>
+                    disabled={isReadOnly} onClick={() => approve(req.id)}>
                     <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
                   </Button>
                   <Button size="sm" variant="outline" className="h-7 text-[10px] flex-1 border-destructive text-destructive hover:bg-destructive/10"
-                    disabled={isReadOnly} onClick={() => handleReject(req.id)}>
+                    disabled={isReadOnly} onClick={() => reject(req.id)}>
                     <XCircle className="h-3 w-3 mr-1" /> Reject
                   </Button>
                 </div>
@@ -107,7 +104,7 @@ export function ApprovalWorkflowService({ isReadOnly }: { isReadOnly?: boolean }
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {[...approved, ...rejected].slice(0, 5).map(item => (
+            {recentDecisionsList.map(item => (
               <div key={item.id} className="flex items-center justify-between text-xs p-2 border rounded">
                 <span className="capitalize">{item.entity_type} — {item.description?.slice(0, 30) || item.action}</span>
                 <Badge variant="outline" className={cn("text-[10px]",
@@ -115,7 +112,7 @@ export function ApprovalWorkflowService({ isReadOnly }: { isReadOnly?: boolean }
                 )}>{item.status}</Badge>
               </div>
             ))}
-            {approved.length === 0 && rejected.length === 0 && (
+            {recentDecisionsList.length === 0 && (
               <p className="text-sm text-muted-foreground">No recent decisions</p>
             )}
           </CardContent>

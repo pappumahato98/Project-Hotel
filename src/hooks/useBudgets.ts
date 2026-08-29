@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface Budget {
   id: string;
@@ -35,7 +36,7 @@ export function useBudgets() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["budgets"],
+    queryKey: queryKeys.finance.budgets,
     queryFn: async () => {
       const { data, error } = await db
         .from("budgets")
@@ -58,7 +59,7 @@ export function useBudgets() {
       }
       return b;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["budgets"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.budgets }),
   });
 
   const updateBudgetStatus = useMutation({
@@ -67,7 +68,7 @@ export function useBudgets() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["budgets"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.budgets }),
   });
 
   return { ...query, createBudget, updateBudgetStatus };

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface Room {
   id: string;
@@ -18,7 +19,7 @@ export interface Room {
 
 export const useRooms = () => {
   return useQuery({
-    queryKey: ["rooms"],
+    queryKey: queryKeys.rooms.all,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rooms")
@@ -34,7 +35,6 @@ export const useRooms = () => {
 
 export const useRoomsMutations = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const addRoom = useMutation({
     mutationFn: async (room: Omit<Room, "id" | "created_at" | "updated_at">) => {
@@ -43,16 +43,16 @@ export const useRoomsMutations = () => {
         .insert([room])
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      toast({ title: "Success", description: "Room added to inventory" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
+      toast.success("Room added to inventory");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -69,11 +69,11 @@ export const useRoomsMutations = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      toast({ title: "Success", description: "Room updated successfully" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
+      toast.success("Room updated successfully");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -87,11 +87,11 @@ export const useRoomsMutations = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      toast({ title: "Success", description: "Room deleted from inventory" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
+      toast.success("Room deleted from inventory");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -100,10 +100,10 @@ export const useRoomsMutations = () => {
 
 export const useRoom = (roomId: string | null) => {
   return useQuery({
-    queryKey: ["room", roomId],
+    queryKey: queryKeys.rooms.one(roomId as string),
     queryFn: async () => {
       if (!roomId) return null;
-      
+
       const { data, error } = await supabase
         .from("rooms")
         .select("*")

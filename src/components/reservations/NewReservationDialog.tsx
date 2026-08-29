@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { cn, formatAD, formatCurrency } from "@/lib/utils";
@@ -48,7 +48,6 @@ export function NewReservationDialog({
   prefillRoomId,
   prefillCheckInDate,
 }: NewReservationDialogProps) {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -145,11 +144,7 @@ export function NewReservationDialog({
 
   const handleCreateNewGuest = async () => {
     if (!newGuest.firstName || !newGuest.lastName) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please enter first and last name.",
-      });
+      toast.error("Missing information", { description: "Please enter first and last name." });
       return;
     }
 
@@ -167,16 +162,9 @@ export function NewReservationDialog({
       .single();
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error creating guest",
-        description: error.message,
-      });
+      toast.error("Error creating guest", { description: error.message });
     } else if (data) {
-      toast({
-        title: "Guest created",
-        description: `${data.first_name} ${data.last_name} has been added.`,
-      });
+      toast.success("Guest created", { description: `${data.first_name} ${data.last_name} has been added.` });
       setFormData({ ...formData, guestId: data.id });
       setShowNewGuestForm(false);
       setNewGuest({ firstName: "", lastName: "", email: "", phone: "", companyName: "", vatNumber: "", address: "" });
@@ -187,11 +175,7 @@ export function NewReservationDialog({
 
   const handleSubmit = async () => {
     if (!formData.guestId || !formData.roomId) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please select a guest and a room.",
-      });
+      toast.error("Missing information", { description: "Please select a guest and a room." });
       return;
     }
 
@@ -215,16 +199,9 @@ export function NewReservationDialog({
     });
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error creating reservation",
-        description: error.message,
-      });
+      toast.error("Error creating reservation", { description: error.message });
     } else {
-      toast({
-        title: "Reservation created",
-        description: `Reservation ${reservationCode} has been created successfully.`,
-      });
+      toast.success("Reservation created", { description: `Reservation ${reservationCode} has been created successfully.` });
       onOpenChange(false);
       onSuccess?.();
       resetForm();

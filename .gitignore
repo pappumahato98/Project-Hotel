@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Vite transient artifacts (do NOT commit)
+*.timestamp-*.mjs
+.vite
+*.tsbuildinfo
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -23,4 +28,21 @@ dist-ssr
 *.sln
 *.sw?
 
+# Environment
 .env
+.env.*
+!.env.example
+
+# Lockfiles — pnpm is the canonical package manager (see README).
+# Keep pnpm-lock.yaml; ignore bun.lock and package-lock.json so they
+# are not re-committed by accident.
+bun.lock
+package-lock.json
+
+# Local Supabase state
+supabase/.branches
+supabase/.temp
+
+# Test coverage
+coverage
+.nyc_output

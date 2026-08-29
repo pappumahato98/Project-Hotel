@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { useEffect } from "react";
 
 // ============= Types =============
@@ -83,7 +84,7 @@ export function useStaffSchedules(filters?: { date?: string; staffId?: string; d
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["staff-schedules", filters],
+    queryKey: queryKeys.hr.schedules.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("staff_schedules")
@@ -105,7 +106,7 @@ export function useStaffSchedules(filters?: { date?: string; staffId?: string; d
     const channel = supabase
       .channel("staff-schedules-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "staff_schedules" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["staff-schedules"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.hr.schedules.all });
       })
       .subscribe();
 
@@ -118,7 +119,7 @@ export function useStaffSchedules(filters?: { date?: string; staffId?: string; d
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-schedules"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.hr.schedules.all }),
   });
 
   const updateSchedule = useMutation({
@@ -127,7 +128,7 @@ export function useStaffSchedules(filters?: { date?: string; staffId?: string; d
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-schedules"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.hr.schedules.all }),
   });
 
   const deleteSchedule = useMutation({
@@ -135,7 +136,7 @@ export function useStaffSchedules(filters?: { date?: string; staffId?: string; d
       const { error } = await db.from("staff_schedules").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["staff-schedules"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.hr.schedules.all }),
   });
 
   return { ...query, createSchedule, updateSchedule, deleteSchedule };
@@ -146,7 +147,7 @@ export function useLeaveRequests(filters?: { status?: string; staffId?: string }
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["leave-requests", filters],
+    queryKey: queryKeys.hr.leaveRequests.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("leave_requests")
@@ -166,7 +167,7 @@ export function useLeaveRequests(filters?: { status?: string; staffId?: string }
     const channel = supabase
       .channel("leave-requests-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "leave_requests" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveRequests.all });
       })
       .subscribe();
 
@@ -197,8 +198,8 @@ export function useLeaveRequests(filters?: { status?: string; staffId?: string }
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveRequests.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveBalances.all });
     },
   });
 
@@ -234,8 +235,8 @@ export function useLeaveRequests(filters?: { status?: string; staffId?: string }
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveRequests.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveBalances.all });
     },
   });
 
@@ -270,8 +271,8 @@ export function useLeaveRequests(filters?: { status?: string; staffId?: string }
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leave-requests"] });
-      queryClient.invalidateQueries({ queryKey: ["leave-balances"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveRequests.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hr.leaveBalances.all });
     },
   });
 
@@ -281,7 +282,7 @@ export function useLeaveRequests(filters?: { status?: string; staffId?: string }
 // ============= Leave Balances =============
 export function useLeaveBalances(staffId?: string) {
   return useQuery({
-    queryKey: ["leave-balances", staffId],
+    queryKey: queryKeys.hr.leaveBalances.byStaff(staffId),
     queryFn: async () => {
       let q = db
         .from("leave_balances")
@@ -302,7 +303,7 @@ export function usePayrollRecords(filters?: { status?: string; startDate?: strin
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["payroll-records", filters],
+    queryKey: queryKeys.hr.payroll.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("payroll_records")
@@ -325,7 +326,7 @@ export function usePayrollRecords(filters?: { status?: string; startDate?: strin
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["payroll-records"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.hr.payroll.all }),
   });
 
   const approvePayroll = useMutation({
@@ -334,7 +335,7 @@ export function usePayrollRecords(filters?: { status?: string; startDate?: strin
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["payroll-records"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.hr.payroll.all }),
   });
 
   const markPayrollPaid = useMutation({
@@ -348,7 +349,7 @@ export function usePayrollRecords(filters?: { status?: string; startDate?: strin
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["payroll-records"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.hr.payroll.all }),
   });
 
   return { ...query, createPayroll, approvePayroll, markPayrollPaid };
@@ -360,7 +361,7 @@ export function useTimeClock(date?: string) {
   const targetDate = date || new Date().toISOString().split("T")[0];
 
   const query = useQuery({
-    queryKey: ["time-clock", targetDate],
+    queryKey: queryKeys.pos.timeClock.byDate(targetDate),
     queryFn: async () => {
       const { data, error } = await db
         .from("staff_time_clock")
@@ -377,7 +378,7 @@ export function useTimeClock(date?: string) {
     const channel = supabase
       .channel("time-clock-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "staff_time_clock" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["time-clock"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.pos.timeClock.all });
       })
       .subscribe();
 
@@ -390,7 +391,7 @@ export function useTimeClock(date?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["time-clock"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.pos.timeClock.all }),
   });
 
   const clockOut = useMutation({
@@ -404,7 +405,7 @@ export function useTimeClock(date?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["time-clock"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.pos.timeClock.all }),
   });
 
   return { ...query, clockIn, clockOut };

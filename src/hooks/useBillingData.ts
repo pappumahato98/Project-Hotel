@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+import { queryKeys } from "@/lib/queryKeys";
 
 export const useInvoices = () => {
   const queryClient = useQueryClient();
   
   const query = useQuery({
-    queryKey: ["invoices-list"],
+    queryKey: queryKeys.finance.invoices.list,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("invoices")
@@ -26,18 +27,18 @@ export const useInvoices = () => {
         "postgres_changes",
         { event: "*", schema: "public", table: "invoices" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["invoices-list"] });
-          queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
-          queryClient.invalidateQueries({ queryKey: ["reservations"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.list });
+          queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
+          queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
         }
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "payments" },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["invoices-list"] });
-          queryClient.invalidateQueries({ queryKey: ["payments-list"] });
-          queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.list });
+          queryClient.invalidateQueries({ queryKey: queryKeys.finance.payments.list });
+          queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
         }
       )
       .subscribe();
@@ -52,7 +53,7 @@ export const useInvoices = () => {
 
 export const usePayments = () => {
   return useQuery({
-    queryKey: ["payments-list"],
+    queryKey: queryKeys.finance.payments.list,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("payments")
@@ -67,7 +68,7 @@ export const usePayments = () => {
 
 export const useBillingStats = () => {
   return useQuery({
-    queryKey: ["billing-stats"],
+    queryKey: queryKeys.finance.billing.stats,
     queryFn: async () => {
       const [invRes, payRes] = await Promise.all([
         (supabase as any).from("invoices").select("total, status, balance_due"),

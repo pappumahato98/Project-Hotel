@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 const db = supabase as any;
@@ -21,7 +22,7 @@ export function useMessageTemplates() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["message-templates"],
+    queryKey: queryKeys.messageTemplates,
     queryFn: async () => {
       const { data, error } = await db
         .from("message_templates")
@@ -39,7 +40,7 @@ export function useMessageTemplates() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["message-templates"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.messageTemplates });
       toast.success("Template created");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -52,7 +53,7 @@ export function useMessageTemplates() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["message-templates"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.messageTemplates });
       toast.success("Template updated");
     },
   });
@@ -63,7 +64,7 @@ export function useMessageTemplates() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["message-templates"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.messageTemplates });
       toast.success("Template deleted");
     },
   });

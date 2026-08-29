@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Hotel, Mail, Lock, User, Loader2, ArrowLeft, Eye, EyeOff, Phone, KeySquare } from "lucide-react";
 import { z } from "zod";
 import { Progress } from "@/components/ui/progress";
@@ -33,7 +33,6 @@ export default function Auth() {
   const [authMethod, setAuthMethod] = useState<"email" | "phone">("email");
   
   const { signIn, signUp, signInWithGoogle, signInWithPhone, verifyOTP, resetPassword } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   const validateForm = (checkPassword = true, isSignUp = false) => {
@@ -93,18 +92,11 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Sign in failed",
-        description: error.message === "Invalid login credentials" 
+      toast.error("Sign in failed", { description: error.message === "Invalid login credentials" 
           ? "Invalid email or password. Please try again."
-          : error.message,
-      });
+          : error.message });
     } else {
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
-      });
+      toast.success("Welcome back!", { description: "You have successfully signed in." });
       navigate("/");
     }
   };
@@ -119,23 +111,12 @@ export default function Auth() {
 
     if (error) {
       if (error.message.includes("already registered")) {
-        toast({
-          variant: "destructive",
-          title: "Account exists",
-          description: "This email is already registered. Please sign in instead.",
-        });
+        toast.error("Account exists", { description: "This email is already registered. Please sign in instead." });
       } else {
-        toast({
-          variant: "destructive",
-          title: "Sign up failed",
-          description: error.message,
-        });
+        toast.error("Sign up failed", { description: error.message });
       }
     } else {
-      toast({
-        title: "Account created!",
-        description: "Welcome to LuxeStay. You are now signed in.",
-      });
+      toast.success("Account created!", { description: "Welcome to LuxeStay. You are now signed in." });
       navigate("/");
     }
   };
@@ -147,13 +128,9 @@ export default function Auth() {
 
     if (error) {
       const isMissingSecret = error.message.includes("missing OAuth secret");
-      toast({
-        variant: "destructive",
-        title: isMissingSecret ? "Configuration Required" : "Google sign in failed",
-        description: isMissingSecret
+      toast.error(isMissingSecret ? "Configuration Required" : "Google sign in failed", { description: isMissingSecret
           ? "The Google Client Secret is missing in the Supabase dashboard. Please configure it in Auth > Providers > Google."
-          : error.message,
-      });
+          : error.message });
     }
   };
 
@@ -166,17 +143,10 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "OTP Request failed",
-        description: error.message,
-      });
+      toast.error("OTP Request failed", { description: error.message });
     } else {
       setShowOtpInput(true);
-      toast({
-        title: "OTP Sent",
-        description: "Please check your phone for the verification code.",
-      });
+      toast.success("OTP Sent", { description: "Please check your phone for the verification code." });
     }
   };
 
@@ -187,16 +157,9 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Verification failed",
-        description: error.message,
-      });
+      toast.error("Verification failed", { description: error.message });
     } else {
-      toast({
-        title: "Welcome!",
-        description: "You have successfully signed in.",
-      });
+      toast.success("Welcome!", { description: "You have successfully signed in." });
       navigate("/");
     }
   };
@@ -210,17 +173,10 @@ export default function Auth() {
     setIsLoading(false);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Password reset failed",
-        description: error.message,
-      });
+      toast.error("Password reset failed", { description: error.message });
     } else {
       setResetEmailSent(true);
-      toast({
-        title: "Reset email sent",
-        description: "Check your inbox for the password reset link.",
-      });
+      toast.success("Reset email sent", { description: "Check your inbox for the password reset link." });
     }
   };
 

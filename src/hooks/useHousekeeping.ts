@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { useEffect } from "react";
 
 // ============= Types =============
@@ -62,7 +63,7 @@ export function useHousekeepingTasks(filters?: { date?: string; status?: string;
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["housekeeping-tasks", filters],
+    queryKey: queryKeys.housekeeping.tasks.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("housekeeping_tasks")
@@ -84,10 +85,10 @@ export function useHousekeepingTasks(filters?: { date?: string; status?: string;
     const channel = supabase
       .channel("housekeeping-tasks-changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "housekeeping_tasks" }, () => {
-        queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
-        queryClient.invalidateQueries({ queryKey: ["reservations"] });
-        queryClient.invalidateQueries({ queryKey: ["rooms"] });
-        queryClient.invalidateQueries({ queryKey: ["guest_folios"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.tasks.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.guests.folios });
       })
       .subscribe();
 
@@ -101,9 +102,9 @@ export function useHousekeepingTasks(filters?: { date?: string; status?: string;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
     },
   });
 
@@ -113,7 +114,7 @@ export function useHousekeepingTasks(filters?: { date?: string; status?: string;
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.tasks.all }),
   });
 
   const updateTaskStatus = useMutation({
@@ -137,9 +138,9 @@ export function useHousekeepingTasks(filters?: { date?: string; status?: string;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["housekeeping-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      queryClient.invalidateQueries({ queryKey: ["housekeeping-rooms-status"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.tasks.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rooms.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.roomsStatus });
     },
   });
 
@@ -151,7 +152,7 @@ export function useLostAndFound(status?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["lost-and-found", status],
+    queryKey: queryKeys.housekeeping.lostAndFound.byStatus(status),
     queryFn: async () => {
       let q = db
         .from("lost_and_found")
@@ -172,7 +173,7 @@ export function useLostAndFound(status?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lost-and-found"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.lostAndFound.all }),
   });
 
   const updateItem = useMutation({
@@ -181,7 +182,7 @@ export function useLostAndFound(status?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lost-and-found"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.lostAndFound.all }),
   });
 
   const claimItem = useMutation({
@@ -195,7 +196,7 @@ export function useLostAndFound(status?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lost-and-found"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.lostAndFound.all }),
   });
 
   return { ...query, createItem, updateItem, claimItem };
@@ -206,7 +207,7 @@ export function useHousekeepingInspections(roomId?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["housekeeping-inspections", roomId],
+    queryKey: queryKeys.housekeeping.inspections.byRoom(roomId),
     queryFn: async () => {
       let q = db
         .from("housekeeping_inspections")
@@ -227,7 +228,7 @@ export function useHousekeepingInspections(roomId?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["housekeeping-inspections"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.housekeeping.inspections.all }),
   });
 
   return { ...query, createInspection };

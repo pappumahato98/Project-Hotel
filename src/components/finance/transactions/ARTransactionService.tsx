@@ -1,4 +1,13 @@
-import { useState } from "react";
+/**
+ * Accounts Receivable View (presentation only).
+ *
+ * Refactored from a 152-line monolith into a thin component that consumes
+ * `useARTransactionView` for data and `arTransactionService` for pure
+ * formatting helpers. See docs/FINANCE_SERVICE_SPLIT.md.
+ *
+ * This file should contain NO business logic.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,16 +21,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Download, FileText, CreditCard } from "lucide-react";
-import { useInvoices, usePayments } from "@/hooks/useFinanceExtended";
+import { useARTransactionView } from "@/hooks/finance/useARTransactionView";
+import {
+  getInvoiceStatusBadgeClass,
+  formatGuestName,
+  formatDollar,
+} from "@/lib/finance/arTransactionService";
 
 interface ARTransactionServiceProps {
   isReadOnly?: boolean;
 }
 
 export function ARTransactionService({ isReadOnly }: ARTransactionServiceProps) {
-  const [activeTab, setActiveTab] = useState("invoices");
-  const { data: invoices, isLoading: invLoading } = useInvoices();
-  const { data: payments, isLoading: payLoading } = usePayments();
+  const { activeTab, setActiveTab, invoices, payments, isLoading } =
+    useARTransactionView();
 
   return (
     <div className="space-y-6">
@@ -42,7 +55,7 @@ export function ARTransactionService({ isReadOnly }: ARTransactionServiceProps) 
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "invoices" | "payments")}>
         <TabsList>
           <TabsTrigger value="invoices" className="gap-2">
             <FileText className="h-4 w-4" /> Invoices
@@ -59,7 +72,7 @@ export function ARTransactionService({ isReadOnly }: ARTransactionServiceProps) 
               <CardDescription>Track customer billing and outstanding balances</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {invLoading ? (
+              {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Loading invoices...</div>
               ) : (
                 <Table>
@@ -74,23 +87,20 @@ export function ARTransactionService({ isReadOnly }: ARTransactionServiceProps) 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoices?.length === 0 ? (
+                    {invoices.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No invoices found</TableCell>
                       </TableRow>
                     ) : (
-                      invoices?.map((inv) => (
+                      invoices.map((inv) => (
                         <TableRow key={inv.id}>
                           <TableCell className="font-mono">{inv.invoice_number}</TableCell>
-                          <TableCell>{inv.guest ? `${inv.guest.first_name} ${inv.guest.last_name}` : "Walk-in"}</TableCell>
+                          <TableCell>{formatGuestName(inv.guest)}</TableCell>
                           <TableCell>{inv.invoice_date}</TableCell>
-                          <TableCell className="text-right font-mono">${inv.total.toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-mono text-destructive">${inv.balance_due.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-mono">{formatDollar(inv.total)}</TableCell>
+                          <TableCell className="text-right font-mono text-destructive">{formatDollar(inv.balance_due)}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={
-                              inv.status === "paid" ? "bg-success/20 text-success" :
-                              inv.status === "partial" ? "bg-amber-500/20 text-amber-400" : "bg-muted"
-                            }>
+                            <Badge variant="outline" className={getInvoiceStatusBadgeClass(inv.status)}>
                               {inv.status}
                             </Badge>
                           </TableCell>
@@ -111,7 +121,7 @@ export function ARTransactionService({ isReadOnly }: ARTransactionServiceProps) 
               <CardDescription>Record of all customer payments and settlements</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {payLoading ? (
+              {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Loading payments...</div>
               ) : (
                 <Table>
@@ -125,18 +135,18 @@ export function ARTransactionService({ isReadOnly }: ARTransactionServiceProps) 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payments?.length === 0 ? (
+                    {payments.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No payments found</TableCell>
                       </TableRow>
                     ) : (
-                      payments?.map((pay) => (
+                      payments.map((pay) => (
                         <TableRow key={pay.id}>
                           <TableCell className="font-mono">{pay.payment_number}</TableCell>
                           <TableCell className="capitalize">{pay.payment_method}</TableCell>
                           <TableCell>{pay.payment_date}</TableCell>
                           <TableCell className="text-muted-foreground">{pay.reference_number || "-"}</TableCell>
-                          <TableCell className="text-right font-mono text-success">${pay.amount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-mono text-success">{formatDollar(pay.amount)}</TableCell>
                         </TableRow>
                       ))
                     )}

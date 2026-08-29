@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 const db = supabase as any;
@@ -23,7 +24,7 @@ export function useKeyCards() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["key-card-logs"],
+    queryKey: queryKeys.frontDesk.keyCardLogs,
     queryFn: async () => {
       const { data, error } = await db
         .from("key_card_logs")
@@ -41,7 +42,7 @@ export function useKeyCards() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["key-card-logs"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.keyCardLogs });
       toast.success("Key card issued");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -71,7 +72,7 @@ export function useKeyCards() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["key-card-logs"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.keyCardLogs });
       toast.success("Key card returned");
     },
   });
@@ -96,7 +97,7 @@ export function useKeyCards() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["key-card-logs"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.keyCardLogs });
       toast.success("Key card replaced");
     },
   });

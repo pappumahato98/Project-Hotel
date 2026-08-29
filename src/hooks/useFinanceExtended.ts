@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 // ============= Types =============
 export interface Invoice {
@@ -84,7 +85,7 @@ export function useInvoices(filters?: { status?: string; startDate?: string; end
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["invoices", filters],
+    queryKey: queryKeys.finance.invoices.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("invoices")
@@ -124,7 +125,7 @@ export function useInvoices(filters?: { status?: string; startDate?: string; end
 
       return inv;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoices"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.all }),
   });
 
   const updateInvoiceStatus = useMutation({
@@ -133,7 +134,7 @@ export function useInvoices(filters?: { status?: string; startDate?: string; end
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoices"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.all }),
   });
 
   return { ...query, createInvoice, updateInvoiceStatus };
@@ -144,7 +145,7 @@ export function usePayments(filters?: { startDate?: string; endDate?: string }) 
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["payments", filters],
+    queryKey: queryKeys.finance.payments.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("payments")
@@ -180,8 +181,8 @@ export function usePayments(filters?: { startDate?: string; endDate?: string }) 
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments"] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.payments.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.invoices.all });
     },
   });
 
@@ -193,7 +194,7 @@ export function useExpenses(filters?: { status?: string; category?: string; star
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["expenses", filters],
+    queryKey: queryKeys.finance.expenses.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("expenses")
@@ -218,7 +219,7 @@ export function useExpenses(filters?: { status?: string; category?: string; star
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.expenses.all }),
   });
 
   const approveExpense = useMutation({
@@ -232,7 +233,7 @@ export function useExpenses(filters?: { status?: string; category?: string; star
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.expenses.all }),
   });
 
   const markExpensePaid = useMutation({
@@ -246,7 +247,7 @@ export function useExpenses(filters?: { status?: string; category?: string; star
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["expenses"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.expenses.all }),
   });
 
   return { ...query, createExpense, approveExpense, markExpensePaid };
@@ -257,7 +258,7 @@ export function useTaxRates() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["tax-rates"],
+    queryKey: queryKeys.finance.taxRates,
     queryFn: async () => {
       const { data, error } = await db
         .from("tax_rates")
@@ -275,7 +276,7 @@ export function useTaxRates() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tax-rates"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.taxRates }),
   });
 
   const updateTaxRate = useMutation({
@@ -284,7 +285,7 @@ export function useTaxRates() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tax-rates"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.taxRates }),
   });
 
   return { ...query, createTaxRate, updateTaxRate };

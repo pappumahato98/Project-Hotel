@@ -1,6 +1,7 @@
 // POS hooks - Using Supabase for permanent multi-device sync
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { useEffect, useState } from "react";
 
 // ============= Types =============
@@ -85,7 +86,7 @@ export function usePOSTables() {
   >("connecting");
 
   const query = useQuery({
-    queryKey: ["pos-tables"],
+    queryKey: queryKeys.pos.tables,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pos_tables")
@@ -130,7 +131,7 @@ export function usePOSTables() {
           table: "pos_tables",
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["pos-tables"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.pos.tables });
         }
       )
       .subscribe((status) => {
@@ -184,7 +185,7 @@ export function useUpdatePOSTable() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos-tables"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pos.tables });
       toast.success("Table updated successfully");
     },
     onError: (error) => {
@@ -196,7 +197,7 @@ export function useUpdatePOSTable() {
 // ============= POS Companies Hooks =============
 export function usePOSCompanies(searchTerm?: string) {
   const query = useQuery({
-    queryKey: ["pos-companies", searchTerm],
+    queryKey: queryKeys.pos.companies.filtered(searchTerm),
     queryFn: async () => {
       let q = supabase
         .from("pos_companies")
@@ -242,7 +243,7 @@ export function useCreatePOSCompany() {
       return data as POSCompany;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos-companies"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pos.companies.all });
       toast.success("Company created successfully");
     },
     onError: (error) => {
@@ -258,7 +259,7 @@ export function usePOSTransactions(filters?: {
   paymentMethod?: string;
 }) {
   const query = useQuery({
-    queryKey: ["pos-transactions", filters],
+    queryKey: queryKeys.pos.transactions.filtered(filters),
     queryFn: async () => {
       let q = supabase
         .from("pos_transactions")
@@ -352,7 +353,7 @@ export function useCreatePOSTransaction() {
       } as POSTransaction;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos-transactions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pos.transactions.all });
       toast.success("Transaction completed successfully");
     },
     onError: (error) => {
@@ -581,7 +582,7 @@ export function usePOSOrders(tableId?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["pos-orders", tableId],
+    queryKey: queryKeys.pos.orders.byTable(tableId),
     queryFn: async () => {
       let q = supabase
         .from("pos_orders")
@@ -618,7 +619,7 @@ export function usePOSOrders(tableId?: string) {
           table: "pos_orders",
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["pos-orders"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.pos.orders.all });
         }
       )
       .on(
@@ -629,7 +630,7 @@ export function usePOSOrders(tableId?: string) {
           table: "pos_order_items",
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["pos-orders"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.pos.orders.all });
         }
       )
       .subscribe();
@@ -662,7 +663,7 @@ export function useUpdateOrderItemStatus() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos-orders"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pos.orders.all });
     },
   });
 }
@@ -696,7 +697,7 @@ export function useVoidTransaction() {
       return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos-transactions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pos.transactions.all });
       toast.success("Transaction voided successfully");
     },
     onError: (error) => {
@@ -735,7 +736,7 @@ export function useRefundTransaction() {
       return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pos-transactions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pos.transactions.all });
       toast.success("Refund processed successfully");
     },
     onError: (error) => {

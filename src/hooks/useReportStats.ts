@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export const useReportStats = () => {
   return useQuery({
-    queryKey: ["report-stats"],
+    queryKey: queryKeys.reports.stats,
     queryFn: async () => {
       const [resResult, roomResult, posResult, invResult, expResult] = await Promise.all([
         (supabase as any).from("reservations").select("id, status, total_amount, check_in_date").order("check_in_date", { ascending: true }),

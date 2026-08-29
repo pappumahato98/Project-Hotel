@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 const db = supabase as any;
@@ -25,7 +26,7 @@ export function useWakeUpCalls() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["wake-up-calls"],
+    queryKey: queryKeys.frontDesk.wakeUpCalls,
     queryFn: async () => {
       const { data, error } = await db
         .from("wake_up_calls")
@@ -44,7 +45,7 @@ export function useWakeUpCalls() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wake-up-calls"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.wakeUpCalls });
       toast.success("Wake-up call scheduled");
     },
     onError: (e: Error) => toast.error(e.message),
@@ -65,7 +66,7 @@ export function useWakeUpCalls() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["wake-up-calls"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.wakeUpCalls }),
   });
 
   const cancelCall = useMutation({
@@ -74,7 +75,7 @@ export function useWakeUpCalls() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["wake-up-calls"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontDesk.wakeUpCalls });
       toast.success("Wake-up call cancelled");
     },
   });

@@ -81,14 +81,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { usePaymentGateways, processPayment } from "@/hooks/usePaymentGateways";
 import { cn, formatAD, formatCurrency } from "@/lib/utils";
 import * as XLSX from 'xlsx';
 
 export const GuestFolioManager = () => {
   const [searchParams] = useSearchParams();
-  const { toast } = useToast();
   const { profile } = useAuth();
   const { goToInHouse, showNotification } = useFrontDeskContext();
   const {
@@ -311,7 +310,7 @@ export const GuestFolioManager = () => {
         }
       );
       if (!result.success) {
-        toast({ title: "Error", description: result.error || "Payment failed", variant: "destructive" });
+        toast.error("Error", { description: result.error || "Payment failed" });
         return;
       }
     }

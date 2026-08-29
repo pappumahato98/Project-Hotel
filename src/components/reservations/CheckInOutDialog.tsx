@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format, differenceInDays } from "date-fns";
 import { cn, formatAD, formatCurrency } from "@/lib/utils";
@@ -38,7 +38,6 @@ export function CheckInOutDialog({
   reservationId,
   onSuccess,
 }: CheckInOutDialogProps) {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const { data: checkInSettings } = useCheckInSettings();
@@ -129,11 +128,7 @@ export function CheckInOutDialog({
     }
 
     if (missingFields.length > 0) {
-      toast({
-        variant: "destructive",
-        title: "Missing required fields",
-        description: `Please fill in: ${missingFields.join(", ")}`,
-      });
+      toast.error("Missing required fields", { description: `Please fill in: ${missingFields.join(", ")}` });
       return;
     }
 
@@ -154,11 +149,7 @@ export function CheckInOutDialog({
       .single();
 
     if (guestError) {
-      toast({
-        variant: "destructive",
-        title: "Error creating guest",
-        description: guestError.message,
-      });
+      toast.error("Error creating guest", { description: guestError.message });
       setIsLoading(false);
       return;
     }
@@ -187,11 +178,7 @@ export function CheckInOutDialog({
       .single();
 
     if (resError) {
-      toast({
-        variant: "destructive",
-        title: "Error creating reservation",
-        description: resError.message,
-      });
+      toast.error("Error creating reservation", { description: resError.message });
       setIsLoading(false);
       return;
     }
@@ -213,10 +200,7 @@ export function CheckInOutDialog({
 
 
     setIsLoading(false);
-    toast({
-      title: "Walk-in check-in complete",
-      description: `Guest ${formData.firstName} ${formData.lastName} has been checked in.`,
-    });
+    toast.success("Walk-in check-in complete", { description: `Guest ${formData.firstName} ${formData.lastName} has been checked in.` });
     onOpenChange(false);
     onSuccess?.();
     resetForm();
@@ -237,11 +221,7 @@ export function CheckInOutDialog({
       .single();
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Check-in failed",
-        description: error.message,
-      });
+      toast.error("Check-in failed", { description: error.message });
     } else {
       // Create folio if it doesn't exist
       const { data: existingFolio } = await supabase
@@ -268,10 +248,7 @@ export function CheckInOutDialog({
           .eq("id", resData.room_id);
       }
 
-      toast({
-        title: "Check-in successful",
-        description: "Guest has been checked in and room status updated to occupied.",
-      });
+      toast.success("Check-in successful", { description: "Guest has been checked in and room status updated to occupied." });
       onSuccess?.();
     }
 
@@ -299,11 +276,7 @@ export function CheckInOutDialog({
       .eq("id", reservationId);
 
     if (error) {
-      toast({
-        variant: "destructive",
-        title: "Check-out failed",
-        description: error.message,
-      });
+      toast.error("Check-out failed", { description: error.message });
     } else {
       // Update room status to cleaning
       if (reservation?.room_id) {
@@ -356,10 +329,7 @@ export function CheckInOutDialog({
           .eq("id", reservation.guest_id);
       }
 
-      toast({
-        title: "Check-out successful",
-        description: "Guest has been checked out. Room set to cleaning.",
-      });
+      toast.success("Check-out successful", { description: "Guest has been checked out. Room set to cleaning." });
       onSuccess?.();
     }
 

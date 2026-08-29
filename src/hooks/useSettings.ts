@@ -4,6 +4,7 @@ const supabase = _supabase as any;
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 import { navItems, operationsNavItems, adminNavItems } from "@/config/navigation";
+import { queryKeys } from "@/lib/queryKeys";
 
 // Type definitions for all settings
 export interface CheckInFieldSettings {
@@ -274,7 +275,7 @@ const defaultLocalizationSettings: LocalizationSettings = {
 // Generic settings fetch hook
 export function useSettings<T>(key: string, defaultValue: T) {
   return useQuery({
-    queryKey: ["settings", key],
+    queryKey: queryKeys.settings.key(key),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("settings")
@@ -318,7 +319,7 @@ export function useUpdateSettings<T>(key: string) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", key] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.key(key) });
       toast.success("Settings saved successfully");
     },
     onError: (error) => {

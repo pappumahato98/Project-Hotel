@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface MenuCategory {
   id: string;
@@ -19,7 +20,7 @@ export interface MenuItem {
 
 export const useMenuCategories = () => {
   return useQuery({
-    queryKey: ["pos-menu-categories"],
+    queryKey: queryKeys.pos.menuCategories,
     queryFn: async () => {
       // If pos_menu_categories doesn't exist or is empty, we derive categories from pos_menu_items
       const { data: items, error: itemsError } = await supabase
@@ -43,7 +44,7 @@ export const useMenuCategories = () => {
 
 export const useMenuItems = () => {
   return useQuery({
-    queryKey: ["pos-menu-items"],
+    queryKey: queryKeys.pos.menuItems,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pos_menu_items")

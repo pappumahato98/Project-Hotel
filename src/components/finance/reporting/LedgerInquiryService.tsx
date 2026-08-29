@@ -1,4 +1,13 @@
-import { useState } from "react";
+/**
+ * Ledger Inquiry View (presentation only).
+ *
+ * Refactored from a 114-line monolith into a thin component that consumes
+ * `useLedgerInquiryView` for data and `ledgerInquiryService` for pure
+ * formatting helpers. See docs/FINANCE_SERVICE_SPLIT.md.
+ *
+ * This file should contain NO business logic.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,25 +26,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Download } from "lucide-react";
-import { useAccounts, useLedger } from "@/hooks/useFinance";
+import { useLedgerInquiryView } from "@/hooks/finance/useLedgerInquiryView";
+import {
+  formatAmount,
+  formatBalance,
+  getEmptyStateMessage,
+} from "@/lib/finance/ledgerInquiryService";
 
 interface LedgerInquiryServiceProps {
   isReadOnly?: boolean;
 }
 
 export function LedgerInquiryService({ isReadOnly }: LedgerInquiryServiceProps) {
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const { data: accounts } = useAccounts();
-  const { data: ledgerData, isLoading: ledgerLoading } = useLedger(selectedAccountId || undefined);
+  const {
+    selectValue,
+    onSelectChange,
+    accounts,
+    ledgerEntries,
+    isLoading,
+    selectedAccountId,
+  } = useLedgerInquiryView();
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex-1 max-w-sm">
-          <Select
-            value={selectedAccountId || "all"}
-            onValueChange={(v) => setSelectedAccountId(v === "all" ? null : v)}
-          >
+          <Select value={selectValue} onValueChange={onSelectChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select account to view ledger" />
             </SelectTrigger>
@@ -62,11 +78,11 @@ export function LedgerInquiryService({ isReadOnly }: LedgerInquiryServiceProps) 
           <CardDescription>Detailed transaction inquiry for selected accounts</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {ledgerLoading ? (
+          {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Loading ledger...</div>
-          ) : ledgerData.length === 0 ? (
+          ) : ledgerEntries.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
-              No ledger entries found. Post some journal entries first.
+              {getEmptyStateMessage(false, selectedAccountId)}
             </div>
           ) : (
             <Table>
@@ -82,7 +98,7 @@ export function LedgerInquiryService({ isReadOnly }: LedgerInquiryServiceProps) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ledgerData.map((entry) => (
+                {ledgerEntries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell>{entry.date}</TableCell>
                     <TableCell className="font-mono text-primary">
@@ -94,13 +110,13 @@ export function LedgerInquiryService({ isReadOnly }: LedgerInquiryServiceProps) 
                     </TableCell>
                     <TableCell>{entry.description}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {entry.debit > 0 ? `$${entry.debit.toFixed(2)}` : "-"}
+                      {formatAmount(entry.debit)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {entry.credit > 0 ? `$${entry.credit.toFixed(2)}` : "-"}
+                      {formatAmount(entry.credit)}
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
-                      ${entry.running_balance.toFixed(2)}
+                      {formatBalance(entry.running_balance)}
                     </TableCell>
                   </TableRow>
                 ))}

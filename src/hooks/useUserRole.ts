@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Database } from "@/integrations/supabase/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -9,7 +10,7 @@ export function useUserRole() {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["user-role", user?.id],
+    queryKey: queryKeys.users.role(user?.id),
     queryFn: async () => {
       if (!user) return null;
 

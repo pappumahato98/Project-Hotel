@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface StaffMember {
   id: string;
@@ -18,7 +19,7 @@ export interface StaffMember {
 
 export const useStaffMembers = () => {
   return useQuery({
-    queryKey: ["staff-members"],
+    queryKey: queryKeys.hr.staffMembers,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff_members")
@@ -32,7 +33,7 @@ export const useStaffMembers = () => {
 
 export const useStaffDepartments = () => {
   return useQuery({
-    queryKey: ["staff-departments"],
+    queryKey: queryKeys.hr.departments,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("staff_members")

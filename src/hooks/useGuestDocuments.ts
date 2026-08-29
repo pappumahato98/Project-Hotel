@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 const db = supabase as any;
@@ -23,7 +24,7 @@ export function useGuestDocuments(guestId: string | null) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["guest-documents", guestId],
+    queryKey: queryKeys.guests.documents(guestId),
     queryFn: async () => {
       const { data, error } = await db
         .from("guest_documents")
@@ -43,7 +44,7 @@ export function useGuestDocuments(guestId: string | null) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest-documents", guestId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.documents(guestId) });
       toast.success("Document added successfully");
     },
     onError: (e: Error) => toast.error("Failed to add document: " + e.message),
@@ -56,7 +57,7 @@ export function useGuestDocuments(guestId: string | null) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest-documents", guestId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.documents(guestId) });
       toast.success("Document updated");
     },
   });
@@ -67,7 +68,7 @@ export function useGuestDocuments(guestId: string | null) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["guest-documents", guestId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.guests.documents(guestId) });
       toast.success("Document removed");
     },
   });

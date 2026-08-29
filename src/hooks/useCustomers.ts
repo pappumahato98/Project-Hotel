@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface Customer {
   id: string;
@@ -26,7 +27,7 @@ export function useCustomers() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["customers"],
+    queryKey: queryKeys.marketing.customers,
     queryFn: async () => {
       const { data, error } = await db
         .from("customers")
@@ -43,7 +44,7 @@ export function useCustomers() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.marketing.customers }),
   });
 
   const updateCustomer = useMutation({
@@ -52,7 +53,7 @@ export function useCustomers() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["customers"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.marketing.customers }),
   });
 
   return { ...query, createCustomer, updateCustomer };

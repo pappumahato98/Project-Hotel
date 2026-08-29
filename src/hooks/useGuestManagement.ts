@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { useMemo } from "react";
 
 // ============= Types =============
@@ -74,7 +75,7 @@ export function useGuestPreferences(guestId: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["guest-preferences", guestId],
+    queryKey: queryKeys.guests.preferences(guestId),
     queryFn: async () => {
       const { data, error } = await db
         .from("guest_preferences")
@@ -97,7 +98,7 @@ export function useGuestPreferences(guestId: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["guest-preferences", guestId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.guests.preferences(guestId) }),
   });
 
   return { ...query, setPreference };
@@ -108,7 +109,7 @@ export function useGuestFeedback(filters?: { status?: string; type?: string }) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["guest-feedback", filters],
+    queryKey: queryKeys.guests.feedback.filtered(filters),
     queryFn: async () => {
       let q = db
         .from("guest_feedback")
@@ -130,7 +131,7 @@ export function useGuestFeedback(filters?: { status?: string; type?: string }) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["guest-feedback"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.guests.feedback.all }),
   });
 
   const respondToFeedback = useMutation({
@@ -144,7 +145,7 @@ export function useGuestFeedback(filters?: { status?: string; type?: string }) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["guest-feedback"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.guests.feedback.all }),
   });
 
   const updateStatus = useMutation({
@@ -153,7 +154,7 @@ export function useGuestFeedback(filters?: { status?: string; type?: string }) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["guest-feedback"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.guests.feedback.all }),
   });
 
   return { ...query, createFeedback, respondToFeedback, updateStatus };
@@ -164,7 +165,7 @@ export function useLoyaltyMembers(tier?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["loyalty-members", tier],
+    queryKey: queryKeys.loyalty.members.byTier(tier),
     queryFn: async () => {
       let q = db
         .from("loyalty_members")
@@ -191,7 +192,7 @@ export function useLoyaltyMembers(tier?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["loyalty-members"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.loyalty.members.all }),
   });
 
   const addPoints = useMutation({
@@ -219,8 +220,8 @@ export function useLoyaltyMembers(tier?: string) {
       if (txError) throw txError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["loyalty-members"] });
-      queryClient.invalidateQueries({ queryKey: ["loyalty-transactions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.loyalty.members.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.loyalty.transactions.all });
     },
   });
 
@@ -245,8 +246,8 @@ export function useLoyaltyMembers(tier?: string) {
       if (txError) throw txError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["loyalty-members"] });
-      queryClient.invalidateQueries({ queryKey: ["loyalty-transactions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.loyalty.members.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.loyalty.transactions.all });
     },
   });
 
@@ -255,7 +256,7 @@ export function useLoyaltyMembers(tier?: string) {
 
 export function useLoyaltyTransactions(memberId: string) {
   return useQuery({
-    queryKey: ["loyalty-transactions", memberId],
+    queryKey: queryKeys.loyalty.transactions.byMember(memberId),
     queryFn: async () => {
       const { data, error } = await db
         .from("loyalty_transactions")
@@ -274,7 +275,7 @@ export function useGuestCommunications(guestId: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["guest-communications", guestId],
+    queryKey: queryKeys.guests.communications(guestId),
     queryFn: async () => {
       const { data, error } = await db
         .from("guest_communications")
@@ -293,7 +294,7 @@ export function useGuestCommunications(guestId: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["guest-communications", guestId] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.guests.communications(guestId) }),
   });
 
   return { ...query, logCommunication };

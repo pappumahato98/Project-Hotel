@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface Guest {
   id: string;
@@ -18,7 +19,7 @@ export interface Guest {
 
 export const useGuests = () => {
   return useQuery({
-    queryKey: ["guests"],
+    queryKey: queryKeys.guests.all,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("guests")
@@ -34,7 +35,7 @@ export const useGuests = () => {
 
 export const useGuest = (guestId: string | null) => {
   return useQuery({
-    queryKey: ["guest", guestId],
+    queryKey: queryKeys.guests.one(guestId as string),
     queryFn: async () => {
       if (!guestId) return null;
       

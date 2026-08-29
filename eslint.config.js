@@ -21,6 +21,27 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Ban the deleted legacy toast system. Use `sonner` instead.
+      "no-restricted-imports": ["error", {
+        paths: [
+          {
+            name: "@/hooks/use-toast",
+            message: "useToast was deleted. Use `import { toast } from \"sonner\"` instead.",
+          },
+          {
+            name: "@/components/ui/use-toast",
+            message: "useToast re-export was deleted. Use `import { toast } from \"sonner\"` instead.",
+          },
+          {
+            name: "@/components/ui/toaster",
+            message: "<Toaster /> was deleted. Use <Sonner /> from \"@/components/ui/sonner\" instead.",
+          },
+          {
+            name: "@/components/ui/toast",
+            message: "Radix toast primitives were deleted. Use `sonner` for toasts.",
+          },
+        ],
+      }],
     },
   },
 );

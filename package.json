@@ -8,7 +8,10 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrations:list": "node scripts/migration-tools/repair-migrations.js list",
+    "migrations:repair": "node scripts/migration-tools/repair-migrations.js repair",
+    "migrations:rollback": "node scripts/migration-tools/repair-migrations.js rollback"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -82,6 +85,7 @@
     "@eslint/js": "^9.39.2",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^22.19.11",
+    "@types/pg": "^8.11.10",
     "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
@@ -91,6 +95,7 @@
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.13",
+    "pg": "^8.13.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3",

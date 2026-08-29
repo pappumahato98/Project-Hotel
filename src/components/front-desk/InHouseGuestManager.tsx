@@ -72,11 +72,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { format, isSameDay, parseISO } from "date-fns";
 import { cn, formatCurrency } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export const InHouseGuestManager = () => {
-  const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const { reservations, isLoading: loadingRes, updateReservation } = useReservations();
   const { data: rooms = [] } = useRooms();
@@ -229,9 +228,9 @@ export const InHouseGuestManager = () => {
       setSelectedRes(null);
       setTargetRoomId("");
       setMoveReason("");
-      toast({ title: "Success", description: "Room moved successfully. Housekeeping notified." });
+      toast.success("Success", { description: "Room moved successfully. Housekeeping notified." });
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to move room: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to move room: " + error.message });
     }
   };
 
@@ -246,9 +245,9 @@ export const InHouseGuestManager = () => {
       setIsExtendStayOpen(false);
       setSelectedRes(null);
       setNewCheckOutDate("");
-      toast({ title: "Success", description: "Stay extended successfully" });
+      toast.success("Success", { description: "Stay extended successfully" });
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to extend stay: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to extend stay: " + error.message });
     }
   };
 
@@ -257,7 +256,7 @@ export const InHouseGuestManager = () => {
 
     const folio = folios?.find(f => f.reservation_id === selectedRes.id);
     if (!folio) {
-      toast({ title: "Error", description: "No folio found for this guest", variant: "destructive" });
+      toast.error("Error", { description: "No folio found for this guest" });
       return;
     }
 
@@ -273,7 +272,7 @@ export const InHouseGuestManager = () => {
       setQuickPostData({ description: "", amount: 0, source: "manual" });
       setSelectedRes(null);
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to post charge: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to post charge: " + error.message });
     }
   };
 
@@ -292,7 +291,7 @@ export const InHouseGuestManager = () => {
       setNewMessage({ text: "", type: "standard" });
       setSelectedRes(null);
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to send message: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to send message: " + error.message });
     }
   };
 
@@ -314,7 +313,7 @@ export const InHouseGuestManager = () => {
       setWakeUpData({ date: format(new Date(), "yyyy-MM-dd"), time: "07:00", notes: "" });
       setSelectedRes(null);
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to schedule wake-up call: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to schedule wake-up call: " + error.message });
     }
   };
 
@@ -331,9 +330,9 @@ export const InHouseGuestManager = () => {
 
       setIsNotesOpen(false);
       setSelectedRes(null);
-      toast({ title: "Success", description: "Guest notes updated" });
+      toast.success("Success", { description: "Guest notes updated" });
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to update notes: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to update notes: " + error.message });
     }
   };
 
@@ -353,9 +352,9 @@ export const InHouseGuestManager = () => {
       setIsTracesOpen(false);
       setNewTrace({ type: "special", priority: "normal", notes: "" });
       setSelectedRes(null);
-      toast({ title: "Success", description: "Guest trace/task created" });
+      toast.success("Success", { description: "Guest trace/task created" });
     } catch (error: any) {
-      toast({ title: "Error", description: "Failed to create trace: " + error.message, variant: "destructive" });
+      toast.error("Error", { description: "Failed to create trace: " + error.message });
     }
   };
 
@@ -368,7 +367,7 @@ export const InHouseGuestManager = () => {
         return prev;
       });
     } else {
-      toast({ title: "Error", description: "No folio found for this reservation", variant: "destructive" });
+      toast.error("Error", { description: "No folio found for this reservation" });
     }
   };
 
@@ -901,7 +900,7 @@ export const InHouseGuestManager = () => {
             <Button
               className="bg-warning text-warning-foreground hover:bg-warning/90"
               onClick={() => {
-                toast({ title: "Marked for Departure", description: "The guest has been flagged for check-out." });
+                toast.success("Marked for Departure", { description: "The guest has been flagged for check-out." });
                 setIsPreCheckoutOpen(false);
               }}
             >

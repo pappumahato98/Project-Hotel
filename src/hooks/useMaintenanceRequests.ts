@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 import { toast } from "sonner";
 
 export interface MaintenanceRequest {
@@ -21,7 +22,7 @@ export const useMaintenanceRequests = () => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["maintenance-requests"],
+    queryKey: queryKeys.maintenance.requests,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("maintenance_requests")
@@ -44,7 +45,7 @@ export const useMaintenanceRequests = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["maintenance-requests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenance.requests });
       toast.success("Maintenance request created");
     },
     onError: (err: any) => toast.error(err.message),
@@ -61,7 +62,7 @@ export const useMaintenanceRequests = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["maintenance-requests"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.maintenance.requests });
     },
     onError: (err: any) => toast.error(err.message),
   });

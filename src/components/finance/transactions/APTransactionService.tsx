@@ -1,3 +1,16 @@
+/**
+ * Accounts Payable View (presentation only).
+ *
+ * Refactored from a 182-line monolith into a thin component that consumes
+ * `useAPTransactionView` for data + OCR state and `apTransactionService`
+ * for pure formatting helpers. See docs/FINANCE_SERVICE_SPLIT.md.
+ *
+ * Notable fix: the original component called `toast.success(...)` without
+ * importing `toast`. The hook now imports `toast` from `sonner` properly.
+ *
+ * This file should contain NO business logic.
+ */
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,33 +23,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, ShoppingBag, CheckCircle2, UploadCloud, FileScan, Sparkles } from "lucide-react";
-import { useState } from "react";
-import { useExpenses } from "@/hooks/useFinanceExtended";
+import { useAPTransactionView } from "@/hooks/finance/useAPTransactionView";
+import {
+  PO_MATCH_RATE_PERCENT,
+  getExpenseStatusBadgeClass,
+  formatDollar,
+  formatVendorName,
+} from "@/lib/finance/apTransactionService";
 
 interface APTransactionServiceProps {
   isReadOnly?: boolean;
 }
 
 export function APTransactionService({ isReadOnly }: APTransactionServiceProps) {
-  const { data: expenses, isLoading } = useExpenses();
-  const [isUploading, setIsUploading] = useState(false);
-  const [ocrResult, setOcrResult] = useState<any>(null);
-
-  const handleSimulateOCR = () => {
-    setIsUploading(true);
-    setTimeout(() => {
-      setIsUploading(false);
-      setOcrResult({
-        vendor: "Sysco Foods Inc.",
-        invoice_num: "INV-88392",
-        date: "2024-05-14",
-        amount: 1450.75,
-        tax: 110.50,
-        category: "food"
-      });
-      toast.success("Invoice scanned and data extracted successfully via AI.");
-    }, 2000);
-  };
+  const {
+    expenses,
+    isLoading,
+    isUploading,
+    ocrResult,
+    simulateOcr,
+    clearOcr,
+  } = useAPTransactionView();
 
   return (
     <div className="space-y-6">
@@ -82,23 +89,20 @@ export function APTransactionService({ isReadOnly }: APTransactionServiceProps) 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {expenses?.length === 0 ? (
+                {expenses.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No expenses found</TableCell>
                   </TableRow>
                 ) : (
-                  expenses?.map((exp) => (
+                  expenses.map((exp) => (
                     <TableRow key={exp.id}>
                       <TableCell className="font-mono">{exp.expense_number}</TableCell>
-                      <TableCell>{exp.vendor || "Operational"}</TableCell>
+                      <TableCell>{formatVendorName(exp.vendor)}</TableCell>
                       <TableCell className="capitalize">{exp.category}</TableCell>
                       <TableCell>{exp.expense_date}</TableCell>
-                      <TableCell className="text-right font-mono">${exp.amount.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatDollar(exp.amount)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={
-                          exp.status === "paid" ? "bg-success/20 text-success" :
-                          exp.status === "approved" ? "bg-blue-500/20 text-blue-400" : "bg-amber-500/20 text-amber-400"
-                        }>
+                        <Badge variant="outline" className={getExpenseStatusBadgeClass(exp.status)}>
                           {exp.status}
                         </Badge>
                       </TableCell>
@@ -121,9 +125,9 @@ export function APTransactionService({ isReadOnly }: APTransactionServiceProps) 
           </CardHeader>
           <CardContent className="space-y-4">
             {!ocrResult ? (
-              <div 
+              <div
                 className="border-2 border-dashed border-primary/30 rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/10 transition-colors"
-                onClick={handleSimulateOCR}
+                onClick={simulateOcr}
               >
                 {isUploading ? (
                   <>
@@ -145,15 +149,15 @@ export function APTransactionService({ isReadOnly }: APTransactionServiceProps) 
                   <Badge className="bg-success/20 text-success border-success/30 gap-1">
                     <CheckCircle2 className="h-3 w-3" /> High Confidence
                   </Badge>
-                  <Button variant="ghost" size="sm" onClick={() => setOcrResult(null)}>Clear</Button>
+                  <Button variant="ghost" size="sm" onClick={clearOcr}>Clear</Button>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                   <div><span className="text-muted-foreground block text-xs">Vendor Name</span><span className="font-medium">{ocrResult.vendor}</span></div>
                   <div><span className="text-muted-foreground block text-xs">Invoice No.</span><span className="font-mono">{ocrResult.invoice_num}</span></div>
                   <div><span className="text-muted-foreground block text-xs">Date</span><span>{ocrResult.date}</span></div>
                   <div><span className="text-muted-foreground block text-xs">Category</span><span className="capitalize">{ocrResult.category}</span></div>
-                  <div><span className="text-muted-foreground block text-xs">Tax Amount</span><span className="font-mono text-muted-foreground">${ocrResult.tax.toFixed(2)}</span></div>
-                  <div><span className="text-muted-foreground block text-xs">Total Amount</span><span className="font-mono font-bold text-primary">${ocrResult.amount.toFixed(2)}</span></div>
+                  <div><span className="text-muted-foreground block text-xs">Tax Amount</span><span className="font-mono text-muted-foreground">{formatDollar(ocrResult.tax)}</span></div>
+                  <div><span className="text-muted-foreground block text-xs">Total Amount</span><span className="font-mono font-bold text-primary">{formatDollar(ocrResult.amount)}</span></div>
                 </div>
                 <Button className="w-full gap-2 mt-2">
                   <Plus className="h-4 w-4" /> Post Extracted Expense
@@ -171,7 +175,7 @@ export function APTransactionService({ isReadOnly }: APTransactionServiceProps) 
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">
-              98% of vendor invoices matched with PO/GRN automatically this period.
+              {PO_MATCH_RATE_PERCENT}% of vendor invoices matched with PO/GRN automatically this period.
               No discrepancies detected requiring manual intervention.
             </p>
           </CardContent>

@@ -1,13 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 export const useFrontDeskSetup = () => {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
-
   const { data: propertyInfo, isLoading: isLoadingPropertyInfo } = useQuery({
-    queryKey: ["settings", "property_info"],
+    queryKey: queryKeys.settings.propertyInfo,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("settings")
@@ -88,16 +87,16 @@ export const useFrontDeskSetup = () => {
       return info;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "property_info"] });
-      toast({ title: "Success", description: "Property Info saved successfully" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.propertyInfo });
+      toast.success("Property Info saved successfully");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
   const { data: roomTypes, isLoading: isLoadingRoomTypes } = useQuery({
-    queryKey: ["settings", "room_types"],
+    queryKey: queryKeys.settings.roomTypes,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("settings")
@@ -144,15 +143,15 @@ export const useFrontDeskSetup = () => {
       return types;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "room_types"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.roomTypes });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
   const { data: dbRatePlans, isLoading: isLoadingRatePlans } = useQuery({
-    queryKey: ["rate_plans"],
+    queryKey: queryKeys.channelManager.ratePlans,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("rate_plans")
@@ -196,10 +195,10 @@ export const useFrontDeskSetup = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rate_plans"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.ratePlans });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -209,15 +208,15 @@ export const useFrontDeskSetup = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["rate_plans"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.ratePlans });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
   const { data: dbTaxRates, isLoading: isLoadingTaxRates } = useQuery({
-    queryKey: ["tax_rates"],
+    queryKey: queryKeys.finance.taxRatesLegacy,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("tax_rates")
@@ -261,10 +260,10 @@ export const useFrontDeskSetup = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tax_rates"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.taxRatesLegacy });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
@@ -274,17 +273,17 @@ export const useFrontDeskSetup = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tax_rates"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.finance.taxRatesLegacy });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast.error("Error", { description: error.message });
     }
   });
 
   // --- Generic Settings Manager ---
   const useSetting = (key: string, defaultValue: any) => {
     return useQuery({
-      queryKey: ["settings", key],
+      queryKey: queryKeys.settings.key(key),
       queryFn: async () => {
         const { data, error } = await supabase
           .from("settings")
@@ -324,10 +323,10 @@ export const useFrontDeskSetup = () => {
         return value;
       },
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["settings", key] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.key(key) });
       },
       onError: (error: any) => {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
+        toast.error("Error", { description: error.message });
       }
     });
   };

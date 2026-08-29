@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { queryKeys } from "@/lib/queryKeys";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -53,7 +54,7 @@ export const roleConfig: Record<AppRole, { label: string; color: string }> = {
 
 export const useUsersWithRoles = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: ["users-with-roles"],
+    queryKey: queryKeys.users.all,
     queryFn: async () => {
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
@@ -94,7 +95,7 @@ export const useUsersWithRoles = (enabled: boolean = true) => {
 
 export const useRoleChangeAudit = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: ["role-change-audit"],
+    queryKey: queryKeys.users.roleChangeAudit,
     queryFn: async () => {
       const { data: audits, error: auditError } = await supabase
         .from("role_change_audit")
@@ -122,7 +123,7 @@ export const useRoleChangeAudit = (enabled: boolean = true) => {
 
 export const useRolePermissions = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: ["role-permissions"],
+    queryKey: queryKeys.users.rolePermissions,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("role_permissions")
@@ -137,7 +138,7 @@ export const useRolePermissions = (enabled: boolean = true) => {
 
 export const useOTAChannels = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: ["ota-channels"],
+    queryKey: queryKeys.channelManager.channels,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ota_channels")
@@ -152,7 +153,7 @@ export const useOTAChannels = (enabled: boolean = true) => {
 
 export const useOTASyncLogs = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: ["ota-sync-logs"],
+    queryKey: queryKeys.channelManager.syncLogs,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("ota_sync_logs")
@@ -169,7 +170,7 @@ export const useOTASyncLogs = (enabled: boolean = true) => {
 
 export const useAdminAuditLogs = (enabled: boolean = true) => {
   return useQuery({
-    queryKey: ["admin-audit-logs"],
+    queryKey: queryKeys.users.adminAuditLogs,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("audit_log")
@@ -214,7 +215,7 @@ export const useUpdateRolePermission = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["role-permissions"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.rolePermissions });
       toast.success("Role permissions updated");
     },
     onError: (error) => {
@@ -236,7 +237,7 @@ export const useUpdateOTAChannel = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ota-channels"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.channels });
       toast.success("Channel configuration updated");
     },
     onError: (error) => {
@@ -304,8 +305,8 @@ export const useUpdateUserRole = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
-      queryClient.invalidateQueries({ queryKey: ["role-change-audit"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.users.roleChangeAudit });
       toast.success("User role updated successfully");
     },
     onError: (error) => {

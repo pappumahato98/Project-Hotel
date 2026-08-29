@@ -1,16 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { addDays, format, parseISO } from "date-fns";
 import { useGuestFolios } from "@/hooks/useGuestFolios";
+import { queryKeys } from "@/lib/queryKeys";
 
 export const useNightAudit = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // 1. Fetch Business Date
   const { data: businessDate, isLoading: isDateLoading } = useQuery({
-    queryKey: ["settings", "business_date"],
+    queryKey: queryKeys.settings.businessDate,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("settings")
@@ -25,7 +25,7 @@ export const useNightAudit = () => {
 
   // 2. Fetch Pending Arrivals for the current business date
   const usePendingArrivals = (date: string) => useQuery({
-    queryKey: ["reservations", "pending", date],
+    queryKey: queryKeys.reservations.pending(date),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reservations")
@@ -44,7 +44,7 @@ export const useNightAudit = () => {
 
   // 3. Fetch Stay-overs (already checked in)
   const useStayOvers = (date: string) => useQuery({
-    queryKey: ["reservations", "stayovers", date],
+    queryKey: queryKeys.reservations.stayovers(date),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reservations")
@@ -105,11 +105,8 @@ export const useNightAudit = () => {
       return nextDate;
     },
     onSuccess: (nextDate) => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "business_date"] });
-      toast({
-        title: "Day Closed Successfully",
-        description: `Business date is now ${nextDate}.`,
-      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.businessDate });
+      toast.success("Day Closed Successfully", { description: `Business date is now ${nextDate}.` });
     }
   });
 

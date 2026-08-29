@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { queryKeys } from "@/lib/queryKeys";
 
 export function useOTASync() {
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const syncMutation = useMutation({
     mutationFn: async (otaName: string) => {
@@ -26,18 +26,11 @@ export function useOTASync() {
       return data;
     },
     onSuccess: (data: any) => {
-      toast({
-        title: "Sync Successful",
-        description: `Successfully synchronized with ${data.ota_name}.`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["ota-sync-logs"] });
+      toast.success("Sync Successful", { description: `Successfully synchronized with ${data.ota_name}.` });
+      queryClient.invalidateQueries({ queryKey: queryKeys.channelManager.syncLogs });
     },
     onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Sync Failed",
-        description: error.message,
-      });
+      toast.error("Sync Failed", { description: error.message });
     },
   });
 

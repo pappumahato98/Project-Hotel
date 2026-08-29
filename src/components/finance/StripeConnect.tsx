@@ -3,23 +3,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CreditCard, ExternalLink, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export const StripeConnect = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-
   const handleConnect = async () => {
     setIsLoading(true);
     // Simulate Stripe Connect flow
     setTimeout(() => {
       setIsConnected(true);
       setIsLoading(false);
-      toast({
-        title: "Stripe Connected",
-        description: "Your account has been successfully linked with Stripe.",
-      });
+      toast.success("Stripe Connected", { description: "Your account has been successfully linked with Stripe." });
     }, 2000);
   };
 

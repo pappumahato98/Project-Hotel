@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export interface ApprovalItem {
   id: string;
@@ -24,7 +25,7 @@ export function useApprovalQueue(statusFilter?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["approval-queue", statusFilter],
+    queryKey: queryKeys.finance.approvalQueue.filtered(statusFilter),
     queryFn: async () => {
       let q = db.from("approval_queue").select("*").order("requested_at", { ascending: false });
       if (statusFilter) q = q.eq("status", statusFilter);
@@ -40,7 +41,7 @@ export function useApprovalQueue(statusFilter?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-queue"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.approvalQueue.all }),
   });
 
   const approveItem = useMutation({
@@ -54,7 +55,7 @@ export function useApprovalQueue(statusFilter?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-queue"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.approvalQueue.all }),
   });
 
   const rejectItem = useMutation({
@@ -68,7 +69,7 @@ export function useApprovalQueue(statusFilter?: string) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["approval-queue"] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.finance.approvalQueue.all }),
   });
 
   return { ...query, submitForApproval, approveItem, rejectItem };

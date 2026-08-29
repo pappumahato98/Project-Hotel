@@ -4,6 +4,7 @@ import { supabase as _supabase } from "@/integrations/supabase/client";
 const supabase = _supabase as any;
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
+import { queryKeys } from "@/lib/queryKeys";
 import { loadStripe } from "@stripe/stripe-js";
 
 export interface PaymentGatewayConfig {
@@ -94,7 +95,7 @@ const defaultPaymentGateways: PaymentGatewaysSettings = {
 
 export function usePaymentGateways() {
   return useQuery({
-    queryKey: ["settings", "payment_gateways"],
+    queryKey: queryKeys.settings.paymentGateways,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("settings")
@@ -168,7 +169,7 @@ export function useUpdatePaymentGateway() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "payment_gateways"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.paymentGateways });
       toast.success("Payment gateway updated successfully");
     },
     onError: (error: Error) => {
@@ -205,7 +206,7 @@ export function useTogglePaymentGateway() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings", "payment_gateways"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.paymentGateways });
     },
     onError: (error: Error) => {
       toast.error("Failed to toggle gateway: " + error.message);

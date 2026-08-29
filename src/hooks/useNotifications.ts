@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryKeys";
 
 export type NotificationCategory = "booking" | "checkin" | "settings" | "alert" | "info" | "role_change";
 
@@ -18,7 +19,7 @@ export function useNotifications() {
   const queryClient = useQueryClient();
 
   const { data: notifications = [], isLoading } = useQuery({
-    queryKey: ["notifications"],
+    queryKey: queryKeys.notifications,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications")
@@ -44,7 +45,7 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
     },
   });
 
@@ -58,7 +59,7 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
     },
   });
 
@@ -72,7 +73,7 @@ export function useNotifications() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications });
     },
   });
 

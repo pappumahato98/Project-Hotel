@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/lib/utils";
+import { queryKeys } from "@/lib/queryKeys";
 
 export const useDashboardStats = () => {
   return useQuery({
-    queryKey: ["dashboard-stats"],
+    queryKey: queryKeys.reports.dashboardStats,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       

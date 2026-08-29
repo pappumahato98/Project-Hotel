@@ -133,13 +133,62 @@ VITE_SUPABASE_PROJECT_ID=[id]
 
 ## Design System
 
-LuxeStay uses a dark navy theme with gold accents:
+LuxeStay uses a **Digital Blue + Cyan Accent** token system with full light/dark
+support, an optional iOS-material layer, and runtime-configurable typography,
+radius, blur, and density (driven by the `ui_preferences` table via
+`DesignSystemProvider`).
 
-- **Primary:** Gold (`hsl(38, 92%, 55%)`)
-- **Background:** Dark Navy (`hsl(222, 47%, 6%)`)
-- **Fonts:** Playfair Display (headings), Inter (body)
+### Brand palette
 
-All styling uses semantic tokens. See `src/index.css` for the full design system.
+| Role | Light | Dark |
+|---|---|---|
+| **Primary (Digital Blue)** | `#0033FF` (`hsl(215 100% 40%)`) | `#3366FF` (`hsl(215 100% 60%)`) |
+| **Accent (Cyan)** | `#00B3E6` (`hsl(195 100% 45%)`) | `#4DE6FF` (`hsl(195 100% 60%)`) |
+| **Background** | `#F2F7FF` (soft blue tint) | `#000914` (deep midnight) |
+| **Foreground** | `#04101F` | `#E6EBF2` |
+| **Destructive** | `#E54545` | `#D62727` |
+| **Success** | `#1AAB6E` | `#22C98A` |
+| **Warning** | `#F5A300` | `#F7AE13` |
+
+Brand ramps (`tailwind.config.ts`):
+`digital-blue` 50→950 (`#E5F0FF` → `#000E24`)
+`cyan-accent` 50→950 (`#E0FBFF` → `#000A0D`)
+
+### Typography
+
+| Role | Family |
+|---|---|
+| Display / headings (h1–h3) | `Playfair Display` (serif), `letter-spacing: -0.01em` |
+| Body | `Inter` (sans), OpenType `cv02 cv03 cv04 cv11`, antialiased |
+| Nepali (locale= np) | `Noto Sans Devanagari` (overrides both body & display) |
+
+Fonts are loaded from Google Fonts and can be overridden at runtime via
+`ui_preferences.font_family_sans` / `font_family_display`.
+
+### Layout primitives
+
+- Base radius: `0.75rem` (12px); `lg/md/sm` derived from `--radius`.
+- Spacing: 4px base, semantic tokens in `src/lib/spacing.ts` (`xs/sm/md/lg/xl/2xl/3xl/4xl`).
+- Container: centered, `2rem` padding, `2xl` breakpoint at `1400px`.
+- Standard utility classes in `src/index.css`: `.layout-container`, `.card-grid`,
+  `.metric-grid`, `.form-grid`, `.flex-center`, `.space-section`, etc.
+- Shadows: `--shadow-glow` / `--shadow-card` / `--shadow-elevated` / `--shadow-float`
+  + `.shadow-3d` / `.shadow-3d-blue`.
+- Gradients: `--gradient-blue` (135° blue), `--gradient-hero` (blue→cyan→light-blue),
+  `--gradient-card`, `--gradient-sidebar`, `--gradient-subtle`.
+
+### Theming & dark mode
+
+- `darkMode: ["class"]` (Tailwind) + `next-themes` with `attribute="class"`,
+  `defaultTheme="system"`, `enableSystem`.
+- All semantic colors are HSL CSS variables in `src/index.css` (`:root` and `.dark`).
+- iOS-material mode (translucent `backdrop-blur` + saturation) is toggled by
+  `body.ios-enabled` when `ui_preferences.ios_materials` is on (auto-disabled on
+  mobile if `disable_on_mobile` is set).
+
+All styling uses semantic tokens. See `src/index.css` and `tailwind.config.ts`
+for the canonical definitions, and `components/theme/DesignSystemProvider.tsx`
+for the runtime-injection layer.
 
 ---
 
