@@ -12,6 +12,7 @@ import { QuickActionsProvider } from "@/contexts/QuickActionsContext";
 import { GlobalQuickActions } from "@/components/quick-actions";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { RealtimeListener } from "@/components/layout/RealtimeListener";
+import { ConfigErrorPage, isConfigured } from "@/components/ConfigErrorPage";
 import { Suspense, lazy } from "react";
 import { BobbingDots } from "@/components/ui/bobbing-dots";
 
@@ -67,7 +68,14 @@ function PageLoader() {
   );
 }
 
-const App = () => (
+const App = () => {
+  // If required env vars are missing, show a clear config error page
+  // instead of hanging on a blank loading screen.
+  if (!isConfigured()) {
+    return <ConfigErrorPage />;
+  }
+
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider
       attribute="class"
@@ -127,6 +135,7 @@ const App = () => (
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
