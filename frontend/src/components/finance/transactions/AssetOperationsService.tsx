@@ -1,23 +1,24 @@
+/**
+ * Asset Operations View (presentation only).
+ * Refactored to consume useAssetOperationsView.
+ */
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RefreshCw, Plus, ArrowRightLeft, Trash2, Play } from "lucide-react";
-import { useFixedAssets } from "@/hooks/useFixedAssets";
-import { toast } from "sonner";
+import { RefreshCw, Play } from "lucide-react";
+import { useAssetOperationsView } from "@/hooks/finance/useAssetOperationsView";
+import { formatDollar } from "@/lib/finance/assetOperationsService";
 
 export function AssetOperationsService({ isReadOnly }: { isReadOnly?: boolean }) {
-  const { data: assets, isLoading, runDepreciation, calculateDepreciation } = useFixedAssets();
-
-  const activeAssets = (assets || []).filter(a => a.status === "active");
-  const totalMonthlyDep = activeAssets.reduce((s, a) => s + calculateDepreciation(a), 0);
-
-  const handleRunDepreciation = async () => {
-    try {
-      const count = await runDepreciation.mutateAsync();
-      toast.success(`Depreciation run completed for ${count} assets`);
-    } catch (e: any) { toast.error(e.message); }
-  };
+  const {
+    activeAssets,
+    isLoading,
+    summary,
+    getMonthlyDepreciation,
+    getAssetBookValue,
+    runDepreciation,
+    isRunningDepreciation,
+  } = useAssetOperationsView();
 
   return (
     <div className="space-y-6">
@@ -29,8 +30,8 @@ export function AssetOperationsService({ isReadOnly }: { isReadOnly?: boolean })
           <p className="text-muted-foreground text-sm">Execute depreciation runs, transfers, and disposals.</p>
         </div>
         {!isReadOnly && (
-          <Button className="gap-2" onClick={handleRunDepreciation} disabled={runDepreciation.isPending}>
-            <Play className="h-4 w-4" /> {runDepreciation.isPending ? "Running..." : "Run Monthly Depreciation"}
+          <Button className="gap-2" onClick={runDepreciation} disabled={isRunningDepreciation}>
+            <Play className="h-4 w-4" /> {isRunningDepreciation ? "Running..." : "Run Monthly Depreciation"}
           </Button>
         )}
       </div>
@@ -39,21 +40,19 @@ export function AssetOperationsService({ isReadOnly }: { isReadOnly?: boolean })
         <Card className="bg-primary/5 border-primary/10">
           <CardContent className="pt-4">
             <p className="text-[10px] uppercase font-bold text-muted-foreground">Active Assets</p>
-            <h3 className="text-xl font-bold">{activeAssets.length}</h3>
+            <h3 className="text-xl font-bold">{summary.activeCount}</h3>
           </CardContent>
         </Card>
         <Card className="bg-primary/5 border-primary/10">
           <CardContent className="pt-4">
             <p className="text-[10px] uppercase font-bold text-muted-foreground">Est. Monthly Depreciation</p>
-            <h3 className="text-xl font-bold">${totalMonthlyDep.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+            <h3 className="text-xl font-bold">{formatDollar(summary.totalMonthlyDepreciation)}</h3>
           </CardContent>
         </Card>
         <Card className="bg-success/5 border-success/10">
           <CardContent className="pt-4">
             <p className="text-[10px] uppercase font-bold text-muted-foreground">Total Accum. Depreciation</p>
-            <h3 className="text-xl font-bold text-success">
-              ${(assets || []).reduce((s, a) => s + a.accumulated_depreciation, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </h3>
+            <h3 className="text-xl font-bold text-success">{formatDollar(summary.totalAccumulatedDepreciation)}</h3>
           </CardContent>
         </Card>
       </div>
@@ -86,15 +85,15 @@ export function AssetOperationsService({ isReadOnly }: { isReadOnly?: boolean })
                   <TableCell className="font-mono text-xs text-primary font-bold">{a.asset_number}</TableCell>
                   <TableCell className="text-sm">{a.name}</TableCell>
                   <TableCell className="text-xs capitalize">{a.depreciation_method.replace("_", " ")}</TableCell>
-                  <TableCell className="text-right font-mono text-xs">${a.cost.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{formatDollar(a.cost)}</TableCell>
                   <TableCell className="text-right font-mono text-xs text-destructive">
-                    -${a.accumulated_depreciation.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    -{formatDollar(a.accumulated_depreciation)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs">
-                    ${calculateDepreciation(a).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatDollar(getMonthlyDepreciation(a))}
                   </TableCell>
                   <TableCell className="text-right font-mono text-xs font-bold">
-                    ${(a.cost - a.accumulated_depreciation).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {formatDollar(getAssetBookValue(a))}
                   </TableCell>
                 </TableRow>
               ))}

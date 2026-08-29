@@ -1,31 +1,17 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+/**
+ * Financial Period Close View (presentation only).
+ * Refactored to consume useFinancialPeriodCloseView.
+ */
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lock, Unlock, Calendar, CheckCircle2 } from "lucide-react";
-import { useBusinessDate, useUpdateBusinessDate } from "@/hooks/useSettings";
-import { toast } from "sonner";
+import { Lock, Calendar } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useFinancialPeriodCloseView } from "@/hooks/finance/useFinancialPeriodCloseView";
 
 export function FinancialPeriodCloseService() {
-  const { data: businessDate } = useBusinessDate();
-  const updateBusinessDate = useUpdateBusinessDate();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const handleDayClose = async () => {
-    if (!businessDate) return;
-    const currentDate = new Date(businessDate);
-    currentDate.setDate(currentDate.getDate() + 1);
-    const nextDate = currentDate.toISOString().split("T")[0];
-
-    try {
-      await updateBusinessDate.mutateAsync(nextDate);
-      toast.success(`Business day closed. New date: ${nextDate}`);
-      setIsDialogOpen(false);
-    } catch (error) {
-      toast.error("Failed to close business day");
-    }
-  };
+  const { businessDate, isDialogOpen, openDialog, closeDialog, closeDay, isClosing } =
+    useFinancialPeriodCloseView();
 
   return (
     <div className="space-y-6">
@@ -45,7 +31,7 @@ export function FinancialPeriodCloseService() {
                 <p className="text-2xl font-bold font-display">{businessDate || "Loading..."}</p>
               </div>
             </div>
-            <Button onClick={() => setIsDialogOpen(true)} variant="destructive" className="gap-2">
+            <Button onClick={openDialog} variant="destructive" className="gap-2">
               <Lock className="h-4 w-4" /> Close Business Day
             </Button>
           </div>
@@ -79,8 +65,10 @@ export function FinancialPeriodCloseService() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDayClose}>Confirm Day Close</Button>
+            <Button variant="outline" onClick={closeDialog}>Cancel</Button>
+            <Button variant="destructive" onClick={closeDay} disabled={isClosing}>
+              {isClosing ? "Closing..." : "Confirm Day Close"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

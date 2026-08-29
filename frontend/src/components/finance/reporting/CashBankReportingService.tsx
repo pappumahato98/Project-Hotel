@@ -1,47 +1,23 @@
-import { useMemo } from "react";
+/**
+ * Cash & Bank Reporting View (presentation only).
+ * Refactored to consume useCashBankReportingView.
+ */
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { BarChart3, TrendingUp, ArrowUpRight, Download, Calendar } from "lucide-react";
-import { usePayments, useExpenses } from "@/hooks/useFinanceExtended";
-import { format } from "date-fns";
+import { BarChart3, TrendingUp, Download } from "lucide-react";
+import { useCashBankReportingView } from "@/hooks/finance/useCashBankReportingView";
+import {
+  formatDollar,
+  formatInflow,
+  formatOutflow,
+} from "@/lib/finance/cashBankReportingService";
 
 export function CashBankReportingService({ isReadOnly }: { isReadOnly?: boolean }) {
-  const { data: payments } = usePayments();
-  const { data: expenses } = useExpenses({ status: "paid" });
-
-  const { movements, totalInflow, totalOutflow, balance } = useMemo(() => {
-    type Movement = { date: string; desc: string; inflow: number; outflow: number; balance: number };
-    const all: Movement[] = [];
-
-    (payments || []).forEach((p) => {
-      all.push({ date: p.payment_date, desc: `Payment ${p.payment_number} (${p.payment_method})`, inflow: p.amount, outflow: 0, balance: 0 });
-    });
-
-    (expenses || []).forEach((e) => {
-      all.push({ date: e.expense_date, desc: `${e.description} - ${e.vendor || e.category}`, inflow: 0, outflow: e.amount, balance: 0 });
-    });
-
-    all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    const inf = all.reduce((s, m) => s + m.inflow, 0);
-    const out = all.reduce((s, m) => s + m.outflow, 0);
-
-    // Running balance from oldest to newest
-    const sorted = [...all].reverse();
-    let running = 0;
-    sorted.forEach((m) => {
-      running += m.inflow - m.outflow;
-      m.balance = running;
-    });
-
-    return { movements: all.slice(0, 20), totalInflow: inf, totalOutflow: out, balance: running };
-  }, [payments, expenses]);
-
-  const fmt = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+  const { summary } = useCashBankReportingView();
+  const { movements, totalInflow, totalOutflow, balance } = summary;
 
   return (
     <div className="space-y-6">
@@ -63,20 +39,20 @@ export function CashBankReportingService({ isReadOnly }: { isReadOnly?: boolean 
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{fmt(balance)}</p>
+            <p className="text-3xl font-bold">{formatDollar(balance)}</p>
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Running balance</p>
           </CardContent>
         </Card>
         <Card className="bg-success/5 border-success/10">
           <CardContent className="pt-4">
             <p className="text-[10px] text-muted-foreground uppercase">Total Inflows</p>
-            <p className="text-xl font-bold text-success">{fmt(totalInflow)}</p>
+            <p className="text-xl font-bold text-success">{formatDollar(totalInflow)}</p>
           </CardContent>
         </Card>
         <Card className="bg-destructive/5 border-destructive/10">
           <CardContent className="pt-4">
             <p className="text-[10px] text-muted-foreground uppercase">Total Outflows</p>
-            <p className="text-xl font-bold text-destructive">{fmt(totalOutflow)}</p>
+            <p className="text-xl font-bold text-destructive">{formatDollar(totalOutflow)}</p>
           </CardContent>
         </Card>
       </div>
@@ -109,12 +85,12 @@ export function CashBankReportingService({ isReadOnly }: { isReadOnly?: boolean 
                     <TableCell className="text-xs">{m.date}</TableCell>
                     <TableCell className="font-medium text-sm">{m.desc}</TableCell>
                     <TableCell className="text-right text-success font-mono text-xs">
-                      {m.inflow > 0 ? fmt(m.inflow) : "-"}
+                      {formatInflow(m.inflow)}
                     </TableCell>
                     <TableCell className="text-right text-destructive font-mono text-xs">
-                      {m.outflow > 0 ? fmt(m.outflow) : "-"}
+                      {formatOutflow(m.outflow)}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-xs">{fmt(m.balance)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{formatDollar(m.balance)}</TableCell>
                   </TableRow>
                 ))
               )}
