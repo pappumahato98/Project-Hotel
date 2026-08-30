@@ -16,24 +16,6 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes("node_modules")) {
-            if (id.includes("jspdf") || id.includes("xlsx") || id.includes("html2canvas")) {
-              return "vendor-export";
-            }
-            if (id.includes("recharts") || id.includes("d3")) {
-              return "vendor-charts";
-            }
-            if (id.includes("@supabase") || id.includes("@tanstack/react-query")) {
-              return "vendor-backend";
-            }
-            return "vendor";
-          }
-        },
-      }
-    },
     chunkSizeWarningLimit: 1500
   },
   test: {
