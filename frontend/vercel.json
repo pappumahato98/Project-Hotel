@@ -1,8 +1,5 @@
 {
-  "buildCommand": "cd frontend && pnpm install && pnpm build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && pnpm install",
-  "framework": null,
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/(.*)",
