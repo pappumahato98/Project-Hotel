@@ -1,0 +1,452 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 215 100% 98.5%; /* Soft blue tint background */
+    --foreground: 215 80% 8%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 80% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 80% 8%;
+
+    --primary: 215 100% 40%; /* Digital Blue 600 for accessibility on light */
+    --primary-foreground: 210 40% 99%;
+
+    --secondary: 215 60% 96%;
+    --secondary-foreground: 215 80% 12%;
+
+    --muted: 215 40% 95%;
+    --muted-foreground: 215 25% 40%;
+
+    --accent: 195 100% 45%; /* Introducing a Cyan-Blue accent */
+    --accent-foreground: 210 40% 99%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 152 70% 35%;
+    --success-foreground: 210 40% 98%;
+
+    --warning: 38 95% 50%;
+    --warning-foreground: 215 80% 8%;
+
+    --info: 195 100% 45%;
+    --info-foreground: 210 40% 98%;
+
+    --border: 215 40% 92%;
+    --input: 215 40% 92%;
+    --ring: 215 100% 40%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 215 100% 99%;
+    --sidebar-foreground: 215 80% 12%;
+    --sidebar-primary: 215 100% 40%;
+    --sidebar-primary-foreground: 210 40% 99%;
+    --sidebar-accent: 215 60% 95%;
+    --sidebar-accent-foreground: 215 80% 12%;
+    --sidebar-border: 215 40% 92%;
+    --sidebar-ring: 215 100% 40%;
+
+    --gradient-blue: linear-gradient(135deg, hsl(215, 100%, 55%) 0%, hsl(215, 100%, 35%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(215, 100% , 98.5%) 100%);
+    --gradient-sidebar: linear-gradient(180deg, hsl(215, 100%, 99.5%) 0%, hsl(215, 100%, 97.5%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(215, 100%, 55%) 0%, hsl(195, 100%, 45%) 50%, hsl(215, 100%, 65%) 100%);
+    --gradient-subtle: linear-gradient(135deg, hsl(215, 100%, 98.5%) 0%, hsl(195, 100%, 98.5%) 100%);
+
+    --shadow-glow: 0 0 30px hsl(215 100% 40% / 0.15);
+    --shadow-card: 0 1px 3px hsl(215 80% 10% / 0.04), 0 4px 16px hsl(215 80% 10% / 0.04);
+    --shadow-elevated: 0 4px 12px hsl(215 80% 10% / 0.06), 0 12px 40px hsl(215 80% 10% / 0.08);
+    --shadow-float: 0 8px 30px hsl(215 80% 10% / 0.08), 0 20px 60px hsl(215 80% 10% / 0.06);
+
+    --font-display: 'Playfair Display', serif;
+    --font-body: 'Inter', sans-serif;
+
+    --ios-bg-opacity: 0.75;
+    --ios-blur: 24px;
+    --ios-saturation: 1.6;
+  }
+
+  .dark {
+    --background: 215 100% 5%; /* Deep Midnight Background */
+    --foreground: 215 30% 95%;
+
+    --card: 215 60% 8%;
+    --card-foreground: 215 30% 95%;
+
+    --popover: 215 60% 7%;
+    --popover-foreground: 215 30% 95%;
+
+    --primary: 215 100% 60%; /* Vibrant Glowing Blue for Dark */
+    --primary-foreground: 215 100% 5%;
+
+    --secondary: 215 50% 12%;
+    --secondary-foreground: 215 30% 90%;
+
+    --muted: 215 40% 10%;
+    --muted-foreground: 215 20% 60%;
+
+    --accent: 195 100% 60%; /* Glowing Cyan Accent for Dark */
+    --accent-foreground: 215 100% 5%;
+
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 215 30% 95%;
+
+    --success: 152 70% 45%;
+    --success-foreground: 215 30% 95%;
+
+    --warning: 38 95% 55%;
+    --warning-foreground: 215 100% 5%;
+
+    --info: 195 100% 60%;
+    --info-foreground: 215 100% 5%;
+
+    --border: 215 40% 14%;
+    --input: 215 40% 14%;
+    --ring: 215 100% 60%;
+
+    --sidebar-background: 215 80% 4%;
+    --sidebar-foreground: 215 20% 85%;
+    --sidebar-primary: 215 100% 60%;
+    --sidebar-primary-foreground: 215 100% 5%;
+    --sidebar-accent: 215 40% 12%;
+    --sidebar-accent-foreground: 215 30% 95%;
+    --sidebar-border: 215 40% 10%;
+    --sidebar-ring: 215 100% 60%;
+
+    --gradient-card: linear-gradient(180deg, hsl(215, 60%, 10%) 0%, hsl(215, 60%, 7%) 100%);
+    --gradient-sidebar: linear-gradient(180deg, hsl(215, 80%, 6%) 0%, hsl(215, 80%, 3%) 100%);
+    --gradient-subtle: linear-gradient(135deg, hsl(215, 60%, 10%) 0%, hsl(215, 60%, 8%) 100%);
+
+    --shadow-glow: 0 0 35px hsl(215 100% 60% / 0.15);
+    --shadow-card: 0 1px 3px hsl(215 100% 2% / 0.5), 0 4px 16px hsl(215 100% 2% / 0.4);
+    --shadow-elevated: 0 4px 12px hsl(215 100% 2% / 0.5), 0 12px 40px hsl(215 100% 2% / 0.5);
+    --shadow-float: 0 8px 30px hsl(215 100% 2% / 0.6), 0 20px 60px hsl(215 100% 2% / 0.5);
+
+    --ios-bg-opacity: 0.5;
+    --ios-blur: 32px;
+    --ios-saturation: 1.8;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  body.font-nepali {
+    font-family: 'Noto Sans Devanagari', 'Inter', sans-serif !important;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  .font-nepali h1,
+  .font-nepali h2,
+  .font-nepali h3,
+  .font-nepali .font-display {
+    font-family: 'Noto Sans Devanagari', serif !important;
+  }
+}
+
+@layer utilities {
+  .text-gradient-blue {
+    background: var(--gradient-blue);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-gradient-blue {
+    background: var(--gradient-blue);
+  }
+
+  .bg-gradient-card {
+    background: var(--gradient-card);
+  }
+
+  .bg-gradient-sidebar {
+    background: var(--gradient-sidebar);
+  }
+
+  .bg-gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  .bg-gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .shadow-float {
+    box-shadow: var(--shadow-float);
+  }
+
+  .shadow-3d {
+    box-shadow:
+      0 1px 1px hsl(var(--primary) / 0.2),
+      0 2px 2px hsl(var(--primary) / 0.2),
+      0 4px 4px hsl(var(--primary) / 0.2),
+      0 8px 8px hsl(var(--primary) / 0.2);
+  }
+
+  .shadow-3d-blue {
+    box-shadow:
+      0 1px 0 hsl(215 100% 40%),
+      0 2px 0 hsl(215 100% 35%),
+      0 3px 0 hsl(215 100% 30%),
+      0 4px 0 hsl(215 100% 25%),
+      0 5px 10px rgba(0, 0, 0, 0.4);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .ios-material {
+    background-color: hsla(var(--background) / var(--ios-bg-opacity));
+    backdrop-filter: blur(var(--ios-blur)) saturate(var(--ios-saturation));
+    border: 1px solid hsla(var(--foreground) / 0.1);
+  }
+
+  .ios-material-elevated {
+    background-color: hsla(var(--background) / calc(var(--ios-bg-opacity) + 0.15));
+    backdrop-filter: blur(calc(var(--ios-blur) * 1.5)) saturate(calc(var(--ios-saturation) * 1.2));
+    border: 1px solid hsla(var(--foreground) / 0.15);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .ios-blur {
+    backdrop-filter: blur(var(--ios-blur));
+  }
+
+  .ios-enabled .bg-card,
+  .ios-enabled .bg-background {
+    background-color: hsla(var(--background) / var(--ios-bg-opacity));
+    backdrop-filter: blur(var(--ios-blur)) saturate(var(--ios-saturation));
+  }
+
+  .ios-enabled .bg-popover,
+  .ios-enabled [role="dialog"] {
+    background-color: hsla(var(--background) / calc(var(--ios-bg-opacity) + 0.1));
+    backdrop-filter: blur(calc(var(--ios-blur) * 1.2)) saturate(var(--ios-saturation));
+    border: 1px solid hsla(var(--foreground) / 0.1);
+  }
+
+  .ios-enabled .sidebar {
+    background-color: hsla(var(--background) / calc(var(--ios-bg-opacity) - 0.2));
+    backdrop-filter: blur(calc(var(--ios-blur) * 1.5)) saturate(var(--ios-saturation));
+    border-right: 1px solid hsla(var(--foreground) / 0.05);
+  }
+
+  .ios-enabled .border {
+    border-color: hsla(var(--foreground) / 0.08);
+  }
+
+  .ios-enabled .rounded-lg { border-radius: var(--ios-radius); }
+  .ios-enabled .rounded-xl { border-radius: calc(var(--ios-radius) * 1.5); }
+  .ios-enabled .rounded-2xl { border-radius: calc(var(--ios-radius) * 2); }
+
+  .ios-enabled .p-4 { padding: calc(var(--ios-spacing) * 4); }
+  .ios-enabled .p-6 { padding: calc(var(--ios-spacing) * 6); }
+  .ios-enabled .gap-4 { gap: calc(var(--ios-spacing) * 4); }
+  .ios-enabled .gap-6 { gap: calc(var(--ios-spacing) * 6); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Refined scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+}
+
+/* Selection highlight */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+  color: hsl(var(--foreground));
+}
+
+/* ==========================================
+   CONSISTENT SPACING UTILITIES
+   Standardized gap system for the entire project
+   ========================================== */
+
+/* Layout spacing */
+.layout-container { @apply p-4 sm:p-6; }
+.layout-section { @apply space-y-4; }
+.layout-grid { @apply gap-4 sm:gap-6; }
+.layout-flex { @apply gap-2 sm:gap-4; }
+.layout-sidebar { @apply p-2 gap-1; }
+.layout-header { @apply gap-2; }
+.layout-toolbar { @apply gap-2; }
+
+/* Gap utilities - consistent across all modules */
+.gap-none { gap: 0; }
+.gap-xs { gap: 0.25rem; }
+.gap-sm { gap: 0.5rem; }
+.gap-md { gap: 0.75rem; }
+.gap-lg { gap: 1rem; }
+.gap-xl { gap: 1.25rem; }
+.gap-2xl { gap: 1.5rem; }
+.gap-3xl { gap: 2rem; }
+.gap-4xl { gap: 2.5rem; }
+
+/* Responsive gap */
+.gap { @apply gap-4; }
+.gap-sm { @apply gap-2; }
+.gap-lg { @apply gap-6; }
+
+/* Padding utilities */
+.p-container { @apply p-4 sm:p-6; }
+.p-section { @apply p-4; }
+.p-card { @apply p-4 sm:p-6; }
+.p-dialog { @apply p-6; }
+
+/* Margin utilities */
+.m-section { @apply my-4; }
+.m-card { @apply my-4; }
+.m-dialog { @apply my-6; }
+
+/* Grid column utilities */
+.grid-cols-auto { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.grid-cols-responsive { @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4; }
+
+/* Flex utilities */
+.flex-center { @apply flex items-center justify-center; }
+.flex-between { @apply flex items-center justify-between; }
+.flex-start { @apply flex items-center justify-start; }
+.flex-end { @apply flex items-center justify-end; }
+.flex-col-center { @apply flex flex-col items-center justify-center; }
+.flex-row-center { @apply flex flex-row items-center justify-center; }
+
+/* Space utilities */
+.space-section { @apply space-y-4; }
+.space-card { @apply space-y-4; }
+.space-form { @apply space-y-4; }
+.space-list { @apply space-y-1; }
+.space-toolbar { @apply space-x-2; }
+.space-button-group { @apply gap-2; }
+
+/* Combined layout classes */
+.card-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+}
+
+.metric-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+}
+
+.form-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+
+.list-grid {
+  @apply grid grid-cols-1 gap-2;
+}
+
+.table-grid {
+  @apply grid gap-0;
+}
+
+/* Sidebar layout */
+.sidebar-layout {
+  @apply flex flex-col md:flex-row gap-4;
+}
+
+.sidebar-main {
+  @apply flex-1 min-w-0;
+}
+
+.sidebar-panel {
+  @apply w-full md:w-64 flex-shrink-0;
+}
+
+/* Content layout */
+.content-wrapper {
+  @apply flex-1 overflow-y-auto p-4 sm:p-6;
+}
+
+.content-header {
+  @apply flex items-center justify-between gap-4 mb-4;
+}
+
+.content-body {
+  @apply space-y-4;
+}
