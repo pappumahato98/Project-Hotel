@@ -11,8 +11,9 @@ const ENV_SCHEMA = {
   DATABASE_URL: {
     required: true,
     validate: (v: string) => {
-      if (v.startsWith('file:')) return 'SQLite file: URL detected. PostgreSQL URL required (postgresql://...). Check your .env file.'
-      if (!v.startsWith('postgresql://') && !v.startsWith('postgres://')) return 'Must start with postgresql:// or postgres://'
+      // SQLite file: URLs are valid for local development
+      if (v.startsWith('file:')) return null
+      if (!v.startsWith('postgresql://') && !v.startsWith('postgres://')) return 'Must start with postgresql://, postgres://, or file: (SQLite)'
       // Only hard-block explicitly insecure sslmode (disable/allow/prefer).
       // Missing sslmode is OK — db.ts auto-injects sslmode=verify-full with the Supabase CA cert.
       if (v.includes('sslmode=disable') || v.includes('sslmode=allow') || v.includes('sslmode=prefer')) {
@@ -110,11 +111,8 @@ export function validateEnv(): ValidationResult {
   }
 
   // Database URL specific: in dev, if DB is postgresql but unreachable, that's OK (fallback)
-  // But if it's a file: URL with postgresql provider, that's always wrong
   const dbUrl = process.env.DATABASE_URL
-  if (dbUrl?.startsWith('file:')) {
-    // Already caught above as an error
-  } else if (dbUrl?.startsWith('postgresql://')) {
+  if (dbUrl?.startsWith('postgresql://')) {
     // Soft warning: sslmode not explicitly set (db.ts auto-injects it, this is just informational)
     if (!dbUrl.includes('sslmode=')) {
       warnings.push({
@@ -163,4 +161,17 @@ export function getEnv(key: EnvKey): string | undefined {
 export function hasPostgresConfigured(): boolean {
   const url = process.env.DATABASE_URL
   return !!url && (url.startsWith('postgresql://') || url.startsWith('postgres://')) && !url.startsWith('file:')
+}
+
+/**
+ * Check if any database (PostgreSQL or SQLite) is configured.
+ * Returns true if DATABASE_URL is set and points to either PostgreSQL or SQLite.
+ */
+export function hasDatabaseConfigured(): boolean {
+  const url = process.env.DATABASE_URL
+  if (!url) return false
+  return (
+    (url.startsWith('postgresql://') || url.startsWith('postgres://')) ||
+    url.startsWith('file:')
+  )
 }

@@ -120,8 +120,8 @@ export interface KpisData {
  *   - Total: ~100-500ms (network latency to Supabase)
  */
 export async function fetchKpis(dateRange?: DateRange): Promise<KpisData> {
-  // Default to 7d (excludes today = fast)
-  const range = dateRange ?? parseDateRange(new URLSearchParams('range=7d'))
+  // Default to today for live data (works with both SQLite and PostgreSQL)
+  const range = dateRange ?? parseDateRange(new URLSearchParams('range=today'))
   const cacheKey = `dashboard:kpis:${range.type}:${range.from.toISOString()}:${range.to.toISOString()}`
 
   return getOrSet(cacheKey, async () => {

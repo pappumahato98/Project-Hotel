@@ -14,7 +14,7 @@
 
 import { PrismaClient } from '@prisma/client'
 import { NextResponse } from 'next/server'
-import { hasPostgresConfigured } from '@/lib/env'
+import { hasPostgresConfigured, hasDatabaseConfigured } from '@/lib/env'
 
 // ─── Connection Pool Exhaustion Retry ─────────────────────────────
 // PgBouncer in session mode has a hard limit (free tier: 15 connections).
@@ -238,6 +238,11 @@ function validateDbConfig() {
   _validated = true
 
   if (!hasPostgresConfigured()) {
+    if (hasDatabaseConfigured()) {
+      // SQLite is configured — fine for local dev and standalone deployments
+      console.info('[db] Using SQLite database (file: URL detected).')
+      return true
+    }
     if (process.env.NODE_ENV !== 'production') {
       console.warn('[db] DATABASE_URL is not a PostgreSQL URL. Fallback auth will be used for login.')
       return false
@@ -422,10 +427,10 @@ export const db = new Proxy({} as PrismaClient, {
  * don't need the 503 response (e.g., routes that handle DB errors themselves).
  */
 export async function ensureDb(): Promise<PrismaClient | null> {
-  if (!hasPostgresConfigured()) return null
+  if (!hasDatabaseConfigured()) return null
   const client = getDb()
-  // Fire-and-forget sync — don't block the caller
-  autoSyncSchema(client).catch(() => {})
+  // Fire-and-forget sync — don't block the caller (only for PostgreSQL)
+  if (hasPostgresConfigured()) autoSyncSchema(client).catch(() => {})
   return client
 }
 
@@ -445,12 +450,17 @@ export async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
  * Returns a 503 with a clear message so the frontend can show a proper setup prompt.
  */
 export async function requireDb(req?: Request): Promise<NextResponse | null> {
-  // Quick check: is DATABASE_URL a postgres URL?
-  if (!hasPostgresConfigured()) {
+  // Check if any database (PostgreSQL or SQLite) is configured
+  if (!hasDatabaseConfigured()) {
     return NextResponse.json(
-      { error: 'Database not configured', code: 'DB_NOT_CONFIGURED', detail: 'DATABASE_URL is not set or not a valid PostgreSQL URL. Set it in your deployment environment variables and redeploy.' },
+      { error: 'Database not configured', code: 'DB_NOT_CONFIGURED', detail: 'DATABASE_URL is not set. Set it in your deployment environment variables and redeploy.' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     )
+  }
+
+  // For SQLite, skip the connectivity test (file-based DB is always reachable if file exists)
+  if (!hasPostgresConfigured()) {
+    return null
   }
 
   // Quick connectivity test (cached for 60s per process)
@@ -596,6 +606,14 @@ const SCHEMA_INDEXES = [
  */
 function autoSyncSchema(_client: PrismaClient): Promise<void> {
   if (_schemaSyncPromise) return _schemaSyncPromise
+
+  // SQLite doesn't support information_schema or ALTER TABLE ADD COLUMN the same way.
+  // Prisma handles SQLite schema changes via prisma migrate / db push.
+  const dbUrl = process.env.DATABASE_URL || ''
+  if (dbUrl.startsWith('file:')) {
+    _schemaSyncPromise = Promise.resolve()
+    return _schemaSyncPromise
+  }
 
   const SYNC_TIMEOUT_MS = 10_000 // Hard timeout: abort sync if it takes > 10s
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { hasPostgresConfigured } from '@/lib/env'
+import { hasPostgresConfigured, hasDatabaseConfigured } from '@/lib/env'
 import { isPoolTimeoutError, poolTimeoutResponse } from '@/lib/db'
 
 // Cache DB check for 2 minutes (Render health checks every ~15-30s)
@@ -15,12 +15,10 @@ export async function GET() {
   const dbUrl = process.env.DATABASE_URL
   if (!dbUrl) {
     checks.push({ name: 'DATABASE_URL', ok: false, detail: 'not set' })
-  } else if (dbUrl.startsWith('file:')) {
-    checks.push({ name: 'DATABASE_URL', ok: false, detail: 'file: URL does not work on serverless' })
-  } else if (!hasPostgresConfigured()) {
+  } else if (!hasDatabaseConfigured()) {
     checks.push({ name: 'DATABASE_URL', ok: false, detail: 'invalid format' })
   } else {
-    checks.push({ name: 'DATABASE_URL', ok: true, detail: 'configured' })
+    checks.push({ name: 'DATABASE_URL', ok: true, detail: dbUrl.startsWith('file:') ? 'SQLite' : 'PostgreSQL' })
   }
 
   // 2. JWT Auth configuration
@@ -35,7 +33,7 @@ export async function GET() {
   checks.push({ name: 'app.auth', ok: true, detail: 'JWT (self-contained)' })
 
   // 4. DB connectivity — only checked every 2 minutes
-  if (hasPostgresConfigured()) {
+  if (hasDatabaseConfigured()) {
     const now = Date.now()
     if (!_lastCheck || (now - _lastCheck.ts) > CHECK_TTL) {
       try {

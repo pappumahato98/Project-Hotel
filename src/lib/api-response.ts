@@ -13,7 +13,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { hasPostgresConfigured } from '@/lib/env'
+import { hasDatabaseConfigured } from '@/lib/env'
 
 type CacheTier = 'short' | 'medium' | 'long' | 'static'
 
@@ -154,7 +154,7 @@ export function withCache(
   return async (req: Request) => {
     try {
       // Quick DB availability check — return 503 early if DB is not configured
-      if (!hasPostgresConfigured()) {
+      if (!hasDatabaseConfigured()) {
         return NextResponse.json(
           { error: 'Database not configured', code: 'DB_NOT_CONFIGURED', detail: 'DATABASE_URL is not set. Configure it in your deployment environment.' },
           { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '30' } },

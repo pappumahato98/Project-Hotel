@@ -1,5 +1,5 @@
 import { db, awaitSchemaSync } from '@/lib/db'
-import { hasPostgresConfigured } from '@/lib/env'
+import { hasDatabaseConfigured } from '@/lib/env'
 
 let _cleanupTimer: ReturnType<typeof setInterval> | null = null
 
@@ -18,10 +18,9 @@ let _cleanupTimer: ReturnType<typeof setInterval> | null = null
 export function startTokenCleanup(intervalMs = 5 * 60_000): void {
   if (_cleanupTimer) return // Already running
 
-  // Don't even schedule the timer if DB isn't PostgreSQL.
-  // Prevents repeated Prisma validation errors in local dev with SQLite URL.
-  if (!hasPostgresConfigured()) {
-    console.log('[cleanup] Skipped — DATABASE_URL is not PostgreSQL')
+  // Don't even schedule the timer if DB isn't configured.
+  if (!hasDatabaseConfigured()) {
+    console.log('[cleanup] Skipped — DATABASE_URL is not configured')
     return
   }
 

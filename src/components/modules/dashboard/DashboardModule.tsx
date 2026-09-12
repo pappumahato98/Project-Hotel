@@ -1443,8 +1443,8 @@ function DashboardError({ error, refetch }: { error: Error; refetch: () => void 
 // Main Dashboard Module
 // ═══════════════════════════════════════════════════════════════════════════
 export function DashboardModule() {
-  // Date filter state — default '7d' (excludes today = fast, ~3ms)
-  const [dateFilter, setDateFilter] = React.useState<'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'>('7d')
+  // Date filter state — default 'today' for live data (works with SQLite + PostgreSQL)
+  const [dateFilter, setDateFilter] = React.useState<'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom'>('today')
   const [customRange, setCustomRange] = React.useState<{ from: string; to: string } | null>(null)
 
   // Build KPI URL with range param
