@@ -243,6 +243,12 @@ function validateDbConfig() {
       console.info('[db] Using SQLite database (file: URL detected).')
       return true
     }
+    const dbUrl = process.env.DATABASE_URL || ''
+    if (dbUrl.includes('placeholder')) {
+      // Placeholder URL — local dev without a real database
+      console.info('[db] Placeholder DATABASE_URL detected. Fallback auth will be used for login.')
+      return false
+    }
     if (process.env.NODE_ENV !== 'production') {
       console.warn('[db] DATABASE_URL is not a PostgreSQL URL. Fallback auth will be used for login.')
       return false
@@ -607,10 +613,12 @@ const SCHEMA_INDEXES = [
 function autoSyncSchema(_client: PrismaClient): Promise<void> {
   if (_schemaSyncPromise) return _schemaSyncPromise
 
+  // Skip schema sync for SQLite or placeholder URLs (no real database to sync).
   // SQLite doesn't support information_schema or ALTER TABLE ADD COLUMN the same way.
-  // Prisma handles SQLite schema changes via prisma migrate / db push.
+  // Placeholder URLs (e.g., postgresql://placeholder:placeholder@localhost) are used
+  // in local dev when no real database is available.
   const dbUrl = process.env.DATABASE_URL || ''
-  if (dbUrl.startsWith('file:')) {
+  if (dbUrl.startsWith('file:') || dbUrl.includes('placeholder')) {
     _schemaSyncPromise = Promise.resolve()
     return _schemaSyncPromise
   }

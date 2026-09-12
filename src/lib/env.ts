@@ -156,20 +156,22 @@ export function getEnv(key: EnvKey): string | undefined {
 
 /**
  * Check if a PostgreSQL database is properly configured.
- * Returns true if DATABASE_URL is a valid postgresql:// URL.
+ * Returns true if DATABASE_URL is a valid, real postgresql:// URL (not a placeholder).
  */
 export function hasPostgresConfigured(): boolean {
   const url = process.env.DATABASE_URL
-  return !!url && (url.startsWith('postgresql://') || url.startsWith('postgres://')) && !url.startsWith('file:')
+  return !!url && (url.startsWith('postgresql://') || url.startsWith('postgres://')) && !url.startsWith('file:') && !url.includes('placeholder')
 }
 
 /**
  * Check if any database (PostgreSQL or SQLite) is configured.
- * Returns true if DATABASE_URL is set and points to either PostgreSQL or SQLite.
+ * Returns true if DATABASE_URL is set and points to either a real PostgreSQL or SQLite database.
+ * Placeholder URLs are NOT considered configured.
  */
 export function hasDatabaseConfigured(): boolean {
   const url = process.env.DATABASE_URL
   if (!url) return false
+  if (url.includes('placeholder')) return false
   return (
     (url.startsWith('postgresql://') || url.startsWith('postgres://')) ||
     url.startsWith('file:')
