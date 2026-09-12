@@ -12,6 +12,8 @@ import { AccountsReceivableView } from './AccountsReceivableView'
 import { AccountsPayableView } from './AccountsPayableView'
 import { ReconciliationView } from './ReconciliationView'
 import { PeriodCloseView } from './PeriodCloseView'
+import { TaxManagementView } from './TaxManagementView'
+import { CostCenterView } from './CostCenterView'
 
 export default function AccountingModule() {
   const { activeSubModule } = useNavigationStore()
@@ -39,6 +41,10 @@ export default function AccountingModule() {
       return <ReconciliationView />
     case 'period-close':
       return <PeriodCloseView />
+    case 'tax-management':
+      return <TaxManagementView />
+    case 'cost-centers':
+      return <CostCenterView />
     default:
       return <LedgerView />
   }

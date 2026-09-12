@@ -11,6 +11,8 @@ import { LeaveManagementView } from './LeaveManagementView'
 import { TrainingView } from './TrainingView'
 import { ShiftExchangeView } from './ShiftExchangeView'
 import { RecruitmentView } from './RecruitmentView'
+import { EmployeeDocumentsView } from './EmployeeDocumentsView'
+import { GrievancesView } from './GrievancesView'
 
 export default function HrModule() {
   const { activeSubModule } = useNavigationStore()
@@ -36,6 +38,10 @@ export default function HrModule() {
       return <ShiftExchangeView />
     case 'recruitment':
       return <RecruitmentView />
+    case 'documents':
+      return <EmployeeDocumentsView />
+    case 'grievances':
+      return <GrievancesView />
     default:
       return <EmployeesView />
   }

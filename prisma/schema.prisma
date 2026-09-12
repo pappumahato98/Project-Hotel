@@ -528,6 +528,9 @@ model Employee {
 
   property      Property @relation(fields: [propertyId], references: [id])
 
+  documents     EmployeeDocument[]
+  disciplinaryActions DisciplinaryAction[]
+
   @@index([department])
   @@index([email])
 }
@@ -634,6 +637,7 @@ model LedgerAccount {
   createdAt     DateTime @default(now())
 
   journalLines JournalEntryLine[]
+  costAllocations CostAllocation[]
 }
 
 model JournalEntry {
@@ -1243,6 +1247,242 @@ model InvoiceLineItem {
   invoice       Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([invoiceId])
+}
+
+// ─── Tax Management ────────────────────────────────────────────
+model TaxReturn {
+  id              String   @id @default(cuid())
+  period          String   @unique // e.g. "2025-07"
+  periodType      String   @default("monthly") // monthly, quarterly, annual
+  totalSales      Float   @default(0)
+  totalPurchases  Float   @default(0)
+  vatOutput       Float   @default(0)  // VAT on sales
+  vatInput        Float   @default(0)  // VAT on purchases
+  vatPayable      Float   @default(0)  // vatOutput - vatInput
+  tdsWithheld     Float   @default(0)  // Tax Deducted at Source
+  tdsDeposited    Float   @default(0)  // TDS deposited to government
+  filingDate      String?                // Date filed with tax authority
+  filingRef       String?                // Filing reference/acknowledgment number
+  status          String   @default("draft") // draft, filed, paid, overdue
+  notes           String?
+  filedBy         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TaxDeduction {
+  id              String   @id @default(cuid())
+  transactionDate String
+  transactionRef  String?                // Invoice/journal entry reference
+  deducteeName    String                 // Party from whom TDS was deducted
+  deducteePAN     String?                // PAN of deductee
+  tdsSection      String   @default("194C") // TDS section (194C, 194H, 194I, etc.)
+  amount          Float                 // Transaction amount
+  tdsRate         Float   @default(2)   // TDS rate %
+  tdsAmount       Float                 // TDS deducted
+  deposited       Boolean  @default(false)
+  depositedDate   String?
+  challanRef      String?                // Challan reference for deposit
+  period          String                 // e.g. "2025-07"
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Cost Centers ─────────────────────────────────────────────
+model CostCenter {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  type            String   @default("department") // department, project, property, activity
+  parentCode      String?                // Parent cost center for hierarchy
+  department      String?                // Associated department
+  budgetAllocated Float   @default(0)   // Budget allocated for the period
+  budgetUsed      Float   @default(0)   // Budget consumed
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  allocations     CostAllocation[]
+}
+
+model CostAllocation {
+  id              String   @id @default(cuid())
+  costCenterId    String
+  journalLineId   String?                // Link to journal entry line
+  accountId       String?                // Link to ledger account
+  amount          Float                 // Allocated amount
+  allocationDate  String
+  description     String?
+  sourceType      String   @default("manual") // manual, auto_payroll, auto_revenue, auto_expense
+  sourceRef       String?                // Reference to source transaction
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  costCenter      CostCenter @relation(fields: [costCenterId], references: [id])
+  account         LedgerAccount? @relation(fields: [accountId], references: [id])
+}
+
+// ─── Employee Documents ──────────────────────────────────────
+model EmployeeDocument {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employeeName    String
+  documentType    String   // contract, id_proof, certificate, appraisal, warning_letter, resignation, tax_form, bank_detail, other
+  title           String
+  documentNumber  String?                // Document reference number
+  issueDate       String?                // When the document was issued
+  expiryDate      String?                // Expiry date (for IDs, contracts)
+  fileUrl         String?                // URL to uploaded file
+  fileSize        Int?                   // File size in bytes
+  mimeType        String?                // File MIME type
+  verified        Boolean  @default(false)
+  verifiedBy      String?
+  verifiedAt      String?
+  notes           String?
+  tags            String?                // Comma-separated tags
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  employee        Employee @relation(fields: [employeeId], references: [id])
+}
+
+// ─── Grievances & Disciplinary ───────────────────────────────
+model Grievance {
+  id              String   @id @default(cuid())
+  grievanceNumber String   @unique
+  type            String   @default("complaint") // complaint, grievance, suggestion, harassment, safety, discrimination, other
+  priority        String   @default("medium") // low, medium, high, critical
+  category        String?                // workplace, salary, behavior, facilities, policy, other
+  title           String
+  description     String
+  raisedById      String
+  raisedByName    String
+  raisedByDept    String
+  raisedDate      String
+  assignedToId    String?                // HR person assigned
+  assignedToName  String?
+  resolution      String?                // Resolution details
+  resolvedDate    String?
+  resolvedById    String?
+  resolvedByName  String?
+  status          String   @default("open") // open, investigating, resolved, escalated, closed, withdrawn
+  isAnonymous     Boolean  @default(false)
+  attachments     String?                // JSON array of file URLs
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  actions         DisciplinaryAction[]
+}
+
+model DisciplinaryAction {
+  id              String   @id @default(cuid())
+  grievanceId     String?                // Link to grievance (if applicable)
+  employeeId      String
+  employeeName    String
+  employeeDept    String
+  actionType      String   // verbal_warning, written_warning, suspension, demotion, termination, show_cause, inquiry, other
+  reason          String
+  incidentDate    String
+  actionDate      String
+  issuedById      String
+  issuedByName    String
+  effectiveFrom   String?
+  effectiveTo     String?                // For suspension period
+  status          String   @default("issued") // issued, acknowledged, appealed, revoked, completed
+  appealNotes     String?
+  appealDate      String?
+  appealStatus    String?                // pending, upheld, overturned
+  attachments     String?                // JSON array of file URLs
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  grievance       Grievance? @relation(fields: [grievanceId], references: [id])
+  employee        Employee @relation(fields: [employeeId], references: [id])
+}
+
+// ─── TAX MANAGEMENT ────────────────────────────────────────
+model TaxReturn {
+  id              String   @id @default(cuid())
+  period          String   // e.g. "2025-01", "2025-Q1"
+  periodType      String   @default("monthly") // monthly, quarterly
+  totalSales      Float    @default(0)
+  totalPurchases  Float    @default(0)
+  vatOutput       Float    @default(0)
+  vatInput        Float    @default(0)
+  vatPayable      Float    @default(0)
+  tdsWithheld     Float    @default(0)
+  tdsDeposited    Float    @default(0)
+  status          String   @default("draft") // draft, filed, paid, overdue
+  filedDate       String?  // ISO date
+  paidDate        String?  // ISO date
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([period])
+  @@index([periodType])
+}
+
+model TdsDeduction {
+  id              String   @id @default(cuid())
+  deducteeName    String
+  panNumber       String?  // Permanent Account Number
+  section         String   // 194C, 194H, 194I, etc.
+  amount          Float    @default(0)
+  tdsRate         Float    @default(0)
+  tdsAmount       Float    @default(0)
+  deposited       Boolean  @default(false)
+  depositDate     String?  // ISO date
+  period          String   // e.g. "2025-01"
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([section])
+  @@index([period])
+  @@index([deposited])
+}
+
+// ─── COST CENTERS ──────────────────────────────────────────
+model CostCenter {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  type            String   @default("department") // department, project, property, activity
+  parentId        String?
+  department      String?
+  budgetAllocated Float    @default(0)
+  budgetUsed      Float    @default(0)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  allocations     CostAllocation[]
+
+  @@index([type])
+  @@index([active])
+}
+
+model CostAllocation {
+  id              String   @id @default(cuid())
+  costCenterId    String
+  account         String?
+  amount          Float    @default(0)
+  date            String   // ISO date
+  sourceType      String?  // journal, invoice, payroll, manual
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  costCenter      CostCenter @relation(fields: [costCenterId], references: [id], onDelete: Cascade)
+
+  @@index([costCenterId])
+  @@index([date])
+  @@index([sourceType])
 }
 
 // ─── SYSTEM SETTINGS ────────────────────────────────────────

@@ -119,6 +119,8 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'training', label: 'Training' },
       { id: 'shift-exchange', label: 'Shift Exchange' },
       { id: 'recruitment', label: 'Recruitment' },
+      { id: 'documents', label: 'Documents' },
+      { id: 'grievances', label: 'Grievances & Discipline' },
     ],
   },
   {
@@ -148,6 +150,8 @@ export const NAV_ITEMS: NavItem[] = [
       { id: 'accounts-payable', label: 'Accounts Payable' },
       { id: 'reconciliation', label: 'Reconciliation' },
       { id: 'period-close', label: 'Period Close' },
+      { id: 'tax-management', label: 'Tax Management' },
+      { id: 'cost-centers', label: 'Cost Centers' },
     ],
   },
   {
