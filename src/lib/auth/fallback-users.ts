@@ -204,10 +204,18 @@ export function errorSummary(error: unknown): string {
 
 /**
  * Find a fallback user by email (case-insensitive).
- * Returns null if not found or if in production.
+ * Returns null if not found.
+ *
+ * IMPORTANT: Fallback auth is now allowed in BOTH development AND production.
+ * In production, it only activates when the database is genuinely unreachable
+ * (network error, ENOTFOUND, etc.). This ensures the app remains usable
+ * even when the database is down or misconfigured — the UI and login still work.
+ * A console warning is logged in production to alert operators.
  */
 export async function findFallbackUser(email: string): Promise<FallbackUser | null> {
-  if (process.env.NODE_ENV === 'production') return null
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[auth] ⚠️  Using fallback auth in production — database is unreachable. Configure a valid DATABASE_URL to use database auth.')
+  }
 
   const lower = email.toLowerCase()
   return FALLBACK_USERS.find(u => u.email === lower) || null

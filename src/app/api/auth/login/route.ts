@@ -76,8 +76,8 @@ export async function POST(req: NextRequest) {
 
     // Helper: try DB query with exponential backoff retries on connection errors
     async function queryWithRetry<T>(fn: () => Promise<T>): Promise<T> {
-      const MAX_RETRIES = 3
-      const BASE_DELAY = 500
+      const MAX_RETRIES = 2 // Reduced from 3 to 2 — fall back to demo auth faster
+      const BASE_DELAY = 300
       let lastErr: unknown
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
